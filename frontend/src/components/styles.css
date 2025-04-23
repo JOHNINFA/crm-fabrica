@@ -1,0 +1,72 @@
+.registro-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .registro-table th, .registro-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  .registro-table th {
+    background-color: #f4f4f4;
+  }
+  
+  .fila-verde {
+    background-color: #c6e0b4;
+  }
+  
+  .fila-blanca {
+    background-color: #ffffff;
+  }
+  
+  input {
+    width: 60px;
+    text-align: center;
+  }
+  
+
+  .dia-button {
+    background-color: white;
+    border: 2px solid #ccc;
+    border-radius: 20px;
+    padding: 8px 16px;
+    margin: 12px 8px 8px 0;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+  
+  .dia-button:hover {
+    background-color: #f0f8ff;
+  }
+  
+  .dia-button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
+  
+  .id-button {
+    background-color: white;
+    border: 2px solid #ccc;
+    border-radius: 12px;
+    padding: 4px 10px;
+    margin: 4px 6px 12px 0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .id-button:hover {
+    background-color: #f0f8ff;
+  }
+  
+  .id-button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
+  
