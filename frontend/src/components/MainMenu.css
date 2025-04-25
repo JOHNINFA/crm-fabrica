@@ -1,0 +1,39 @@
+/* src/components/MainMenu.css */
+
+.main-menu {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 48px;      /* espacio vertical entre filas */
+    column-gap: 16px;   /* espacio horizontal entre columnas */
+    padding: 32px;
+    justify-items: center; /* centra los items dentro de cada celda */
+  }
+  
+  .main-menu-title {
+    grid-column: 1 / -1; /* ocupa ambas columnas */
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 32px;
+    color: #333;
+  }
+  
+  /* Botones estirados al 100% de la celda, con un máximo */
+  .menu-button {
+    width: 100%;
+    max-width: 300px;       /* opcional: para que no crezcan sin límite */
+    background-color: #06386d;
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 500;
+    padding: 16px 0;        /* solo vertical, el ancho lo controla width */
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  /* Efecto hover */
+  .menu-button:hover {
+    background-color: #0056b3;
+  }
+  

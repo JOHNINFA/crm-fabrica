@@ -1,10 +1,8 @@
-from django.urls import path, include
+# api/urls.py
 from rest_framework.routers import DefaultRouter
 from .views import RegistroViewSet
 
 router = DefaultRouter()
-router.register(r'registros', RegistroViewSet)
+router.register(r'registros', RegistroViewSet, basename='registro')
 
-urlpatterns = [
-    path('api/', include(router.urls)),
-]
+urlpatterns = router.urls

@@ -8,42 +8,46 @@ class Producto(models.Model):
     def __str__(self):
         return f"{self.nombre} - Stock: {self.stock_total}"
 
-# Modelo para las transacciones de los usuarios
+
+
 class Registro(models.Model):
-    # Puedes cambiar id_usuario a un ForeignKey a User si manejas autenticación
-    id_usuario = models.IntegerField()  
-    v_vendedor = models.BooleanField(default=False)  
+    DIAS = [
+        ('LUNES','LUNES'), ('MARTES','MARTES'),
+        ('MIERCOLES','MIERCOLES'), ('JUEVES','JUEVES'),
+        ('VIERNES','VIERNES'), ('SABADO','SABADO'),
+    ]
+    IDS = [(f'ID{i}',f'ID{i}') for i in range(1,7)]
+    dia      = models.CharField(max_length=10, choices=DIAS, default='LUNES')
+    id_sheet = models.CharField(max_length=4,  choices=IDS, default='ID1')
+
+  
+    id_usuario = models.IntegerField()
+    v_vendedor = models.BooleanField(default=False)
     d_despachador = models.BooleanField(default=False)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)  # Relación con Producto
-
-    # Datos ingresados desde React (algunos vienen de React Native y otros de la interfaz web)
-    cantidad = models.IntegerField(default=0)
+    producto = models.ForeignKey('Producto', on_delete=models.CASCADE)
+    cantidad   = models.IntegerField(default=0)
     descuentos = models.IntegerField(default=0)
-    adicional = models.IntegerField(default=0)
+    adicional  = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
-    vencidas = models.IntegerField(default=0)
-    valor = models.IntegerField(default=0)
-
-    # Campos calculados
-    total = models.IntegerField(default=0)
-    neto = models.IntegerField(default=0)
+    vencidas   = models.IntegerField(default=0)
+    valor      = models.IntegerField(default=0)
+    total      = models.IntegerField(default=0)
+    neto       = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
-        """
-        Calcular total y neto antes de guardar.
-        total: cantidad - descuentos + adicional - devoluciones - vencidas.
-        neto: total * valor.
-        Además, actualiza el inventario (stock_total) del producto restando el total.
-        """
-        self.total = self.cantidad - self.descuentos + self.adicional - self.devoluciones - self.vencidas
+        self.total = (
+            self.cantidad
+            - self.descuentos
+            + self.adicional
+            - self.devoluciones
+            - self.vencidas
+        )
         self.neto = self.total * self.valor
-
-        # Si es una nueva transacción, actualizamos el stock del producto
+        # Actualiza stock si es nuevo
         if self.pk is None:
             self.producto.stock_total -= self.total
             self.producto.save()
-
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.producto.nombre} - Usuario {self.id_usuario}"
+        return f"{self.dia}/{self.id_sheet} – {self.producto.nombre} – Usuario {self.id_usuario}"
