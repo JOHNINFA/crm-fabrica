@@ -1,7 +1,7 @@
 // src/components/MainMenu.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import "./MainMenu.css";   // ← Asegúrate de que la ruta es correcta
+import '../styles/MainMenu.css';
 
 export default function MainMenu() {
   const navigate = useNavigate();

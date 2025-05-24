@@ -1,0 +1,21 @@
+/* src/styles/NavButtons.css */
+.nav-btn {
+    background-color: #e9ecef;
+    color: #02193b;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;           /* más redondeo */
+    padding: 1rem 2rem;            /* más alto y ancho */
+    font-size: 1.25rem;            /* texto más grande */
+    font-weight: 400;
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .nav-btn:hover,
+  .nav-btn:focus {
+    background-color: #dee2e6;         /* gris un poco más oscuro */
+    box-shadow: 0 .75rem 1.5rem rgba(0,0,0,.2); /* shadow más profundo */
+    color: #626870;                    /* azul un poco más oscuro */
+    text-decoration: none;
+  }
+  

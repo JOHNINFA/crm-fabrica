@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import debounce from "lodash.debounce";
-import './styles.css';
+import '../styles.css';
 
 export default function RegistroForm({
   registrosIniciales,
