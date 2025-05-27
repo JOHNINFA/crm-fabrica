@@ -1,4 +1,3 @@
-// src/components/MainMenu.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import '../styles/MainMenu.css';
@@ -10,16 +9,16 @@ export default function MainMenu() {
     <div className="main-menu">
       <h1 className="main-menu-title">AREPAS GUERRERO</h1>
       <button className="menu-button" onClick={() => navigate("/pos")}>
-        POS
+        Pos
       </button>
       <button className="menu-button" onClick={() => navigate("/cargue")}>
         Cargue
       </button>
       <button className="menu-button" onClick={() => navigate("/pedidos")}>
-        Pedidos
+        Remision
       </button>
       <button className="menu-button" onClick={() => navigate("/inventario")}>
-        Inventario
+        Produccion
       </button>
     </div>
   );
