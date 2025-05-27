@@ -1,10 +1,20 @@
 import React, { useState } from "react";
 import "./Cart.css";
+import PaymentModal from "./PaymentModal";
 
-export default function Cart({
-  cart, removeProduct, changeQty, subtotal, imp, desc, total, setImp, setDesc
+export default function Cart({ 
+  cart = [], 
+  removeProduct = () => {}, 
+  changeQty = () => {}, 
+  subtotal = 0, 
+  imp = 0, 
+  desc = 0, 
+  total = 0, 
+  setImp = () => {}, 
+  setDesc = () => {} 
 }) {
   const [nota, setNota] = useState("");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   return (
     <div className="cart-container">
@@ -12,10 +22,10 @@ export default function Cart({
         <h5>Carrito de Compras</h5>
         <div className="cart-header-actions">
           <button title="Limpiar carrito">
-            <span className="material-icons" style={{fontSize: '16px'}}>delete_outline</span>
+            <i className="bi bi-trash"></i>
           </button>
           <button title="Opciones">
-            <span className="material-icons" style={{fontSize: '16px'}}>more_vert</span>
+            <i className="bi bi-three-dots-vertical"></i>
           </button>
         </div>
       </div>
@@ -24,35 +34,50 @@ export default function Cart({
         {cart.length > 0 ? (
           cart.map(item => (
             <div key={item.id} className="cart-item">
-              <div className="cart-item-header">
-                <div className="cart-item-name">{item.name}</div>
-                <div className="cart-item-actions">
-                  <button onClick={() => removeProduct(item.id)} title="Eliminar">
-                    <span className="material-icons" style={{fontSize: '16px'}}>close</span>
-                  </button>
+              <div className="cart-item-row">
+                <div className="cart-item-info">
+                  <div className="cart-item-name">
+                    <i className="bi bi-chevron-right"></i>
+                    <span className="product-badge">{item.name}</span>
+                  </div>
+                  <div className="cart-item-actions">
+                    <button onClick={() => removeProduct(item.id)} title="Eliminar">
+                      <i className="bi bi-x"></i>
+                    </button>
+                  </div>
+                </div>
+                <div className="cart-item-controls">
+                  <div className="quantity-control">
+                    <button 
+                      onClick={() => changeQty(item.id, -1)}
+                      disabled={item.qty <= 1}
+                      className="qty-btn"
+                    >
+                      <i className="bi bi-dash"></i>
+                    </button>
+                    <input
+                      type="number"
+                      className="qty-input"
+                      value={item.qty}
+                      onChange={(e) => changeQty(item.id, parseInt(e.target.value) - item.qty || 0)}
+                    />
+                    <button 
+                      onClick={() => changeQty(item.id, 1)}
+                      className="qty-btn"
+                    >
+                      <i className="bi bi-plus"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="cart-item-details">
-                <div className="quantity-control">
-                  <button 
-                    onClick={() => changeQty(item.id, -1)}
-                    disabled={item.qty <= 1}
-                  >-</button>
-                  <span>{item.qty}</span>
-                  <button onClick={() => changeQty(item.id, 1)}>+</button>
-                </div>
-                <div className="cart-item-price">
-                  {item.qty} x ${item.price.toLocaleString("es-CO", {maximumFractionDigits: 0})}
-                </div>
-                <div className="cart-item-total">
-                  ${(item.qty * item.price).toLocaleString("es-CO", {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                </div>
+              <div className="cart-item-calculation">
+                {item.qty}x {item.price?.toLocaleString("es-CO") || '0'} = ${((item.qty || 0) * (item.price || 0)).toLocaleString("es-CO")}
               </div>
             </div>
           ))
         ) : (
           <div className="empty-cart">
-            <span className="material-icons empty-cart-icon">shopping_cart</span>
+            <i className="bi bi-cart"></i>
             <p>No hay productos en el carrito</p>
           </div>
         )}
@@ -62,7 +87,7 @@ export default function Cart({
         <div className="cart-summary">
           <div className="summary-row">
             <span className="summary-label">Subtotal</span>
-            <span className="summary-value">${subtotal.toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>
+            <span className="summary-value">${subtotal.toLocaleString('es-CO')}</span>
           </div>
           <div className="summary-row">
             <span className="summary-label">Impuestos</span>
@@ -71,7 +96,7 @@ export default function Cart({
                 type="number" 
                 value={imp} 
                 onChange={(e) => setImp(Number(e.target.value))}
-                style={{width: '80px', textAlign: 'right', padding: '2px 5px', border: '1px solid #ced4da', borderRadius: '3px'}}
+                className="summary-input"
               />
             </span>
           </div>
@@ -82,13 +107,13 @@ export default function Cart({
                 type="number" 
                 value={desc} 
                 onChange={(e) => setDesc(Number(e.target.value))}
-                style={{width: '80px', textAlign: 'right', padding: '2px 5px', border: '1px solid #ced4da', borderRadius: '3px'}}
+                className="summary-input"
               />
             </span>
           </div>
           <div className="summary-row total">
             <span>Total</span>
-            <span>${total.toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>
+            <span>${total.toLocaleString('es-CO')}</span>
           </div>
         </div>
 
@@ -102,10 +127,21 @@ export default function Cart({
           />
         </div>
 
-        <button className="checkout-button">
+        <button 
+          className="checkout-button"
+          onClick={() => setShowPaymentModal(true)}
+        >
           Realizar Factura
         </button>
       </div>
+      
+      {/* Modal de pago directo */}
+      <PaymentModal 
+        show={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        cart={cart}
+        total={total}
+      />
     </div>
   );
 }

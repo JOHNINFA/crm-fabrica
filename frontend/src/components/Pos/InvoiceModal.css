@@ -1,0 +1,142 @@
+.invoice-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.invoice-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 80%;
+  max-width: 900px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.invoice-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.invoice-modal-header h4 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.invoice-modal-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.invoice-modal-footer {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.invoice-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.invoice-form-group {
+  margin-bottom: 15px;
+}
+
+.invoice-form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #495057;
+}
+
+.invoice-form-control {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.invoice-items {
+  margin-top: 20px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.invoice-items-header {
+  background-color: #f8f9fa;
+  padding: 10px 15px;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.invoice-items-body {
+  padding: 0;
+}
+
+.invoice-item {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px 100px 100px 50px;
+  padding: 10px 15px;
+  border-bottom: 1px solid #f1f1f1;
+  align-items: center;
+}
+
+.invoice-item:last-child {
+  border-bottom: none;
+}
+
+.invoice-totals {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invoice-totals-table {
+  width: 300px;
+  border-collapse: collapse;
+}
+
+.invoice-totals-table td {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.invoice-totals-table td:last-child {
+  text-align: right;
+  font-weight: 500;
+}
+
+.invoice-totals-table tr:last-child {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.invoice-totals-table tr:last-child td {
+  padding-top: 10px;
+  border-top: 1px solid #e9ecef;
+}
