@@ -74,70 +74,66 @@ const DateSelector = ({ onDateSelect }) => {
 
   return (
     <div className="date-selector">
-      <Row className="align-items-center">
-        <Col md={6}>
-          <Form.Group>
-            <Form.Label className="fw-medium">Fecha seleccionada:</Form.Label>
-            <div className="d-flex align-items-center">
-              <div className="selected-date text-capitalize">
-                {formattedDate}
+      <div className="d-flex align-items-center">
+  <Form.Label className="fw-medium mb-0 me-2">Fecha seleccionada:</Form.Label>
+  <div className="selected-date text-capitalize me-3">
+    {formattedDate}
+  </div>
+  <Button 
+    variant="outline-primary" 
+    size="sm"
+    onClick={() => setShowCalendar(!showCalendar)}
+  >
+    <i className="bi bi-calendar3"></i> {showCalendar ? 'Ocultar' : 'Cambiar'}
+  </Button>
+</div>
+
+  
+       {showCalendar && (
+  <Row className="mt-3">
+    <Col md={8} lg={9}>
+      <Card className="calendar-container">
+        <Card.Header className="d-flex justify-content-between align-items-center">
+          <Button variant="light" size="sm" onClick={handlePrevMonth}>
+            <i className="bi bi-chevron-left"></i>
+          </Button>
+          <div className="fw-bold">
+            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          </div>
+          <Button variant="light" size="sm" onClick={handleNextMonth}>
+            <i className="bi bi-chevron-right"></i>
+          </Button>
+        </Card.Header>
+        <Card.Body className="p-3">
+          <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+            {/* Días de la semana */}
+            {weekdayNames.map((day, index) => (
+              <div key={`weekday-${index}`} className="text-center p-2 fw-bold">
+                {day}
               </div>
-              <Button 
-                variant="outline-primary" 
-                size="sm" 
-                className="ms-3"
-                onClick={() => setShowCalendar(!showCalendar)}
+            ))}
+            
+            {/* Días del mes */}
+            {calendarDays.map((day, index) => (
+              <div 
+                key={`day-${index}`} 
+                className={`text-center p-2 ${day ? 'cursor-pointer' : ''} ${
+                  isSelectedDay(day) ? 'bg-primary text-white rounded' : ''
+                }`}
+                onClick={() => handleDayClick(day)}
+                style={{ cursor: day ? 'pointer' : 'default' }}
               >
-                <i className="bi bi-calendar3"></i> {showCalendar ? 'Ocultar' : 'Cambiar'}
-              </Button>
-            </div>
-          </Form.Group>
-        </Col>
-      </Row>
+                {day}
+              </div>
+            ))}
+          </div>
+        </Card.Body>
+      </Card>
+    </Col>
+  </Row>
+)}
+
       
-      {showCalendar && (
-        <Row className="mt-3">
-          <Col md={6} lg={4}>
-            <Card className="calendar-container">
-              <Card.Header className="d-flex justify-content-between align-items-center">
-                <Button variant="light" size="sm" onClick={handlePrevMonth}>
-                  <i className="bi bi-chevron-left"></i>
-                </Button>
-                <div className="fw-bold">
-                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                </div>
-                <Button variant="light" size="sm" onClick={handleNextMonth}>
-                  <i className="bi bi-chevron-right"></i>
-                </Button>
-              </Card.Header>
-              <Card.Body className="p-2">
-                <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
-                  {/* Días de la semana */}
-                  {weekdayNames.map((day, index) => (
-                    <div key={`weekday-${index}`} className="text-center p-2 fw-bold">
-                      {day}
-                    </div>
-                  ))}
-                  
-                  {/* Días del mes */}
-                  {calendarDays.map((day, index) => (
-                    <div 
-                      key={`day-${index}`} 
-                      className={`text-center p-2 ${day ? 'cursor-pointer' : ''} ${
-                        isSelectedDay(day) ? 'bg-primary text-white rounded' : ''
-                      }`}
-                      onClick={() => handleDayClick(day)}
-                      style={{ cursor: day ? 'pointer' : 'default' }}
-                    >
-                      {day}
-                    </div>
-                  ))}
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      )}
     </div>
   );
 };

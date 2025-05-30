@@ -18,7 +18,7 @@ export default function MainMenu() {
         Remision
       </button>
       <button className="menu-button" onClick={() => navigate("/inventario")}>
-        Produccion
+        Inventario
       </button>
     </div>
   );

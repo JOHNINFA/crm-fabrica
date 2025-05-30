@@ -1,14 +1,17 @@
 // src/pages/InventarioScreen.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/InventarioScreen.css";
 import "../styles/InventarioProduccion.css";
 import InventarioProduccion from "../components/inventario/InventarioProduccion";
+import InventarioMaquilas from "../components/inventario/InventarioMaquilas";
+import TablaMovimientos from "../components/inventario/TablaMovimientos";
 
 export default function InventarioScreen() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("produccion");
   const [search, setSearch] = useState("");
+  const [movimientos, setMovimientos] = useState([]);
   
   // Datos de ejemplo para inventario
   const [inventarioData, setInventarioData] = useState([
@@ -22,6 +25,41 @@ export default function InventarioScreen() {
     { id: 8, producto: "ENVUELTO DE MAÍZ", stock: 200 }
   ]);
   
+  // Cargar datos iniciales de movimientos
+  useEffect(() => {
+    const movimientosIniciales = [
+      { 
+        id: 1, 
+        fecha: '2023-05-10', 
+        hora: '10:30', 
+        producto: 'AREPA TIPO OBLEA', 
+        cantidad: 5, 
+        tipo: 'Entrada', 
+        usuario: 'Admin',
+        lote: 'L001',
+        fechaVencimiento: '10/11/2023'
+      },
+      { 
+        id: 2, 
+        fecha: '2023-05-09', 
+        hora: '15:45', 
+        producto: 'AREPA MEDIANA', 
+        cantidad: 3, 
+        tipo: 'Salida', 
+        usuario: 'Usuario',
+        lote: 'L002',
+        fechaVencimiento: '-'
+      },
+    ];
+    
+    setMovimientos(movimientosIniciales);
+  }, []);
+  
+  // Función para actualizar movimientos desde el componente InventarioProduccion
+  const handleActualizarMovimientos = (nuevosMovimientos) => {
+    setMovimientos(nuevosMovimientos);
+  };
+  
   // Filtrar productos por búsqueda
   const filteredInventario = inventarioData.filter(item => 
     item.producto.toLowerCase().includes(search.toLowerCase())
@@ -30,7 +68,6 @@ export default function InventarioScreen() {
   return (
     <div className="inventario-screen">
       <div className="header">
-        <h2>Gestión de Producción e Inventario</h2>
         <button onClick={() => navigate(-1)} className="back-button">
           Volver al Menú
         </button>
@@ -44,49 +81,60 @@ export default function InventarioScreen() {
           Producción
         </button>
         <button 
-          className={`tab-button ${activeTab === 'inventario' ? 'active' : ''}`}
-          onClick={() => setActiveTab('inventario')}
+          className={`tab-button ${activeTab === 'maquilas' ? 'active' : ''}`}
+          onClick={() => setActiveTab('maquilas')}
         >
-          Inventario
+          Maquilas
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'planeacion' ? 'active' : ''}`}
+          onClick={() => setActiveTab('planeacion')}
+        >
+          Planeación
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'kardex' ? 'active' : ''}`}
+          onClick={() => setActiveTab('kardex')}
+        >
+          Kardex
         </button>
       </div>
       
       {activeTab === 'produccion' && (
         <div className="tab-content">
-          <InventarioProduccion />
+          <h2 className="mb-4">Ingreso de Productos</h2>
+          <InventarioProduccion onActualizarMovimientos={handleActualizarMovimientos} />
         </div>
       )}
       
-      {activeTab === 'inventario' && (
+      {activeTab === 'maquilas' && (
         <div className="tab-content">
-          <div className="d-flex align-items-center gap-2 mb-3">
-            <input 
-              className="form-control" 
-              style={{ maxWidth: 300 }} 
-              placeholder="Buscar en Inventario" 
-              value={search}
-              onChange={e => setSearch(e.target.value)} 
-            />
-          </div>
-          
+          <h2 className="mb-4">Gestión de Maquilas</h2>
+          <InventarioMaquilas onActualizarMovimientos={handleActualizarMovimientos} />
+        </div>
+      )}
+      
+      {activeTab === 'planeacion' && (
+        <div className="tab-content">
           <div className="card-bg">
-            <h3>Estado del Inventario</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Stock Actual</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInventario.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.producto}</td>
-                    <td>{item.stock}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h3>Planeación de Producción</h3>
+            <p className="text-muted">Módulo en desarrollo. Estará disponible próximamente.</p>
+          </div>
+        </div>
+      )}
+      
+      {activeTab === 'kardex' && (
+        <div className="tab-content">
+          <div className="card-bg">
+            <h3>Kardex de Inventario</h3>
+            <div className="card">
+              <div className="card-header">
+                <h5 className="mb-0">Historial de Movimientos</h5>
+              </div>
+              <div className="card-body">
+                <TablaMovimientos movimientos={movimientos} />
+              </div>
+            </div>
           </div>
         </div>
       )}

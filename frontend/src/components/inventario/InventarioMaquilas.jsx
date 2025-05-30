@@ -6,10 +6,10 @@ import ModalEditarExistencias from './ModalEditarExistencias';
 import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
 import DateSelector from '../common/DateSelector';
-import productosIniciales from '../../data/productos';
+import productosMaquilas from '../../data/productosMaquilas';
 import '../../styles/InventarioProduccion.css';
 
-const InventarioProduccion = ({ onActualizarMovimientos }) => {
+const InventarioMaquilas = ({ onActualizarMovimientos }) => {
   // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
@@ -30,29 +30,29 @@ const InventarioProduccion = ({ onActualizarMovimientos }) => {
   // Cargar datos iniciales
   useEffect(() => {
     // Cargar productos desde el archivo de datos
-    setProductos(productosIniciales);
+    setProductos(productosMaquilas);
     
     const movimientosIniciales = [
       { 
         id: 1, 
         fecha: '2023-05-10', 
         hora: '10:30', 
-        producto: 'AREPA TIPO OBLEA', 
+        producto: 'AREPA BOYACENSE X5', 
         cantidad: 5, 
         tipo: 'Entrada', 
         usuario: 'Admin',
-        lote: 'L001',
+        lote: 'M001',
         fechaVencimiento: '10/11/2023'
       },
       { 
         id: 2, 
         fecha: '2023-05-09', 
         hora: '15:45', 
-        producto: 'AREPA MEDIANA', 
+        producto: 'ALMOJABANAS X5', 
         cantidad: 3, 
         tipo: 'Salida', 
         usuario: 'Usuario',
-        lote: 'L002',
+        lote: 'M002',
         fechaVencimiento: '-'
       },
     ];
@@ -171,14 +171,14 @@ const InventarioProduccion = ({ onActualizarMovimientos }) => {
   const handleAgregarLote = () => {
     if (!lote) {
       setMensaje({ texto: 'Debe ingresar un número de lote', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 6000);
       return;
     }
 
     // Verificar si el lote ya existe
     if (lotes.some(l => l.numero === lote)) {
       setMensaje({ texto: 'Este número de lote ya fue agregado', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 6000);
       return;
     }
 
@@ -205,13 +205,13 @@ const InventarioProduccion = ({ onActualizarMovimientos }) => {
     
     if (productosConCantidad.length === 0) {
       setMensaje({ texto: 'No hay cantidades para registrar', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 6000);
       return;
     }
     
     if (lotes.length === 0) {
-      setMensaje({ texto: 'Debe Ingresar Lote', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      setMensaje({ texto: 'Debe ingresar al menos un lote antes de grabar el movimiento', tipo: 'warning' });
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 6000);
       return;
     }
     
@@ -252,7 +252,7 @@ const InventarioProduccion = ({ onActualizarMovimientos }) => {
           fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
           hora: hora,
           producto: producto.nombre,
-          cantidad: producto.cantidad / lotes.length, // Distribuir la cantidad entre los lotes
+          cantidad: cantidadAAgregar,
           tipo: 'Entrada',
           usuario,
           lote: lote.numero,
@@ -488,4 +488,4 @@ const InventarioProduccion = ({ onActualizarMovimientos }) => {
   );
 };
 
-export default InventarioProduccion;
+export default InventarioMaquilas;

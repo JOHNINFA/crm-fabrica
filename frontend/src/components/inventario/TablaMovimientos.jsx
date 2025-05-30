@@ -12,6 +12,8 @@ const TablaMovimientos = ({ movimientos }) => {
             <th>Producto</th>
             <th>Tipo</th>
             <th>Cantidad</th>
+            <th>Lote</th>
+            <th>Vencimiento</th>
             <th>Usuario</th>
           </tr>
         </thead>
@@ -30,6 +32,8 @@ const TablaMovimientos = ({ movimientos }) => {
                 </Badge>
               </td>
               <td className="fw-bold">{movimiento.cantidad} und</td>
+              <td>{movimiento.lote || '-'}</td>
+              <td>{movimiento.fechaVencimiento || '-'}</td>
               <td>
                 <small className="text-muted">
                   <i className="bi bi-person" /> {movimiento.usuario}
@@ -39,7 +43,7 @@ const TablaMovimientos = ({ movimientos }) => {
           ))}
           {movimientos.length === 0 && (
             <tr>
-              <td colSpan="6" className="text-center py-4">
+              <td colSpan="8" className="text-center py-4">
                 <p className="text-muted">No hay movimientos registrados</p>
               </td>
             </tr>
