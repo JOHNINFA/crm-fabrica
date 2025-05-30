@@ -1,0 +1,73 @@
+/* Estilos específicos para la pestaña Maquilas */
+.lote-input, .vencimiento-input {
+  width: 100%;
+  text-align: center;
+  margin: 0 auto;
+  font-size: 0.85rem;
+}
+
+.lote-col, .vencimiento-col {
+  width: 15%;
+}
+
+/* Estilos responsivos para Maquilas */
+@media (max-width: 767.98px) {
+  .lote-input, .vencimiento-input {
+    width: 100%;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .nombre-col {
+    width: 40%;
+  }
+  
+  .existencias-col {
+    width: 15%;
+  }
+  
+  .cantidad-col {
+    width: 15%;
+  }
+  
+  .lote-col {
+    width: 15%;
+  }
+  
+  .vencimiento-col {
+    width: 15%;
+  }
+  
+  .lote-input, .vencimiento-input {
+    font-size: 0.75rem;
+    padding: 0.2rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .nombre-col {
+    width: 35%;
+  }
+  
+  .existencias-col {
+    width: 15%;
+  }
+  
+  .cantidad-col {
+    width: 15%;
+  }
+  
+  .lote-col {
+    width: 15%;
+  }
+  
+  .vencimiento-col {
+    width: 20%;
+  }
+  
+  .lote-input, .vencimiento-input {
+    font-size: 0.7rem;
+    padding: 0.15rem;
+  }
+}
