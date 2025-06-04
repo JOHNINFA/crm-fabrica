@@ -22,12 +22,6 @@
   font-weight: 500;
 }
 
-/* Estilo para el badge de existencias */
-.existencias-badge {
-  font-size: 0.85rem;
-  padding: 0.35em 0.65em;
-}
-
 /* Estilos para el modal de editar cantidades */
 .cantidad-input-modal {
   text-align: center;
@@ -98,7 +92,7 @@
   
   /* Ajustar anchos de columnas restantes */
   .nombre-col {
-    width: 55%;
+    width: 60%;
     padding-left: 0.5rem !important;
   }
   
@@ -109,12 +103,8 @@
     word-break: break-word;
   }
   
-  .existencias-col {
-    width: 22%;
-  }
-  
   .cantidad-col {
-    width: 23%;
+    width: 40%;
   }
   
   /* Estilo para botón de editar global */
@@ -184,7 +174,7 @@
   
   /* Ajustar anchos de columnas restantes */
   .nombre-col {
-    width: 55%;
+    width: 60%;
     padding-left: 0.5rem !important;
   }
   
@@ -195,12 +185,8 @@
     word-break: break-word;
   }
   
-  .existencias-col {
-    width: 22%;
-  }
-  
   .cantidad-col {
-    width: 23%;
+    width: 40%;
   }
   
   /* Estilo para botón de editar global */
@@ -235,11 +221,6 @@
   .btn-xs-custom {
     padding: 0.15rem 0.3rem;
     font-size: 0.75rem;
-  }
-  
-  .existencias-badge {
-    font-size: 0.7rem !important;
-    padding: 0.2em 0.4em !important;
   }
   
   .cantidad-input {

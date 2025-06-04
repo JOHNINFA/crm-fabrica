@@ -9,7 +9,7 @@ import DateSelector from '../common/DateSelector';
 import productosIniciales from '../../data/productos';
 import '../../styles/InventarioProduccion.css';
 
-const InventarioProduccion = ({ onActualizarMovimientos }) => {
+const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }) => {
   // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
@@ -59,6 +59,13 @@ const InventarioProduccion = ({ onActualizarMovimientos }) => {
     
     setMovimientos(movimientosIniciales);
   }, []);
+
+  // Efecto para actualizar productos en el componente padre cuando cambian
+  useEffect(() => {
+    if (onActualizarProductos) {
+      onActualizarProductos(productos);
+    }
+  }, [productos, onActualizarProductos]);
 
   // Manejadores de eventos
   const handleAgregarProducto = (nuevoProducto) => {

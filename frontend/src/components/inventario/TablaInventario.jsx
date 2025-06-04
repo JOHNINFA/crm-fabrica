@@ -1,6 +1,5 @@
 import React from 'react';
 import { Table, Form, Button } from 'react-bootstrap';
-import { getExistenciasBadge } from '../../utils/inventarioUtils';
 
 const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => {
   // Función para manejar el foco en el input
@@ -16,14 +15,12 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => 
       <Table hover className="inventario-table">
         <colgroup>
           <col className="nombre-col" />
-          <col className="existencias-col" />
           <col className="cantidad-col" />
           <col className="acciones-col" />
         </colgroup>
         <thead className="table-light">
           <tr>
             <th className="nombre-col">Nombre</th>
-            <th className="text-center existencias-col">Exist.</th>
             <th className="text-center cantidad-col">Cant.</th>
             <th className="text-center acciones-col">Acc.</th>
           </tr>
@@ -36,12 +33,6 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => 
                   {producto.nombre}
                 </div>
               </td>
-              <td className="text-center align-middle existencias-col">
-                <span className={`badge ${getExistenciasBadge(producto.existencias)} rounded-pill existencias-badge`}>
-                  {producto.existencias}&nbsp;und
-                </span>
-              </td>
-
               <td className="text-center align-middle cantidad-col">
                 <Form.Control
                   type="number"
@@ -68,7 +59,7 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => 
           ))}
           {productos.length === 0 && (
             <tr>
-              <td colSpan="4" className="text-center py-4">
+              <td colSpan="3" className="text-center py-4">
                 <p className="text-muted">No hay productos disponibles</p>
               </td>
             </tr>

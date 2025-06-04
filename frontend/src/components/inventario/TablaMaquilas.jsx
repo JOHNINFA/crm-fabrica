@@ -1,6 +1,5 @@
 import React from 'react';
 import { Table, Form, Button } from 'react-bootstrap';
-import { getExistenciasBadge } from '../../utils/inventarioUtils';
 
 const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleLoteChange, handleFechaVencimientoChange }) => {
   // Función para manejar el foco en el input
@@ -16,7 +15,6 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
       <Table hover className="inventario-table">
         <colgroup>
           <col className="nombre-col" />
-          <col className="existencias-col" />
           <col className="cantidad-col" />
           <col className="lote-col" />
           <col className="vencimiento-col" />
@@ -24,7 +22,6 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
         <thead className="table-light">
           <tr>
             <th className="nombre-col">Nombre</th>
-            <th className="text-center existencias-col">Exist.</th>
             <th className="text-center cantidad-col">Cant.</th>
             <th className="text-center lote-col">Lote</th>
             <th className="text-center vencimiento-col">Vencimiento</th>
@@ -38,12 +35,6 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
                   {producto.nombre}
                 </div>
               </td>
-              <td className="text-center align-middle existencias-col">
-                <span className={`badge ${getExistenciasBadge(producto.existencias)} rounded-pill existencias-badge`}>
-                  {producto.existencias}&nbsp;und
-                </span>
-              </td>
-
               <td className="text-center align-middle cantidad-col">
                 <Form.Control
                   type="number"
@@ -81,7 +72,7 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
           ))}
           {productos.length === 0 && (
             <tr>
-              <td colSpan="5" className="text-center py-4">
+              <td colSpan="4" className="text-center py-4">
                 <p className="text-muted">No hay productos disponibles</p>
               </td>
             </tr>

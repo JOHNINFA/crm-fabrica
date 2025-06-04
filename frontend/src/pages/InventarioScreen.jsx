@@ -5,13 +5,14 @@ import "../styles/InventarioScreen.css";
 import "../styles/InventarioProduccion.css";
 import InventarioProduccion from "../components/inventario/InventarioProduccion";
 import InventarioMaquilas from "../components/inventario/InventarioMaquilas";
-import TablaMovimientos from "../components/inventario/TablaMovimientos";
+import TablaKardex from "../components/inventario/TablaKardex";
 
 export default function InventarioScreen() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("produccion");
   const [search, setSearch] = useState("");
   const [movimientos, setMovimientos] = useState([]);
+  const [productos, setProductos] = useState([]);
   
   // Datos de ejemplo para inventario
   const [inventarioData, setInventarioData] = useState([
@@ -55,9 +56,14 @@ export default function InventarioScreen() {
     setMovimientos(movimientosIniciales);
   }, []);
   
-  // Función para actualizar movimientos desde el componente InventarioProduccion
+  // Función para actualizar movimientos desde los componentes de inventario
   const handleActualizarMovimientos = (nuevosMovimientos) => {
     setMovimientos(nuevosMovimientos);
+  };
+  
+  // Función para actualizar productos desde los componentes de inventario
+  const handleActualizarProductos = (nuevosProductos) => {
+    setProductos(nuevosProductos);
   };
   
   // Filtrar productos por búsqueda
@@ -103,14 +109,20 @@ export default function InventarioScreen() {
       {activeTab === 'produccion' && (
         <div className="tab-content">
           <h2 className="mb-4">Ingreso de Productos</h2>
-          <InventarioProduccion onActualizarMovimientos={handleActualizarMovimientos} />
+          <InventarioProduccion 
+            onActualizarMovimientos={handleActualizarMovimientos}
+            onActualizarProductos={handleActualizarProductos}
+          />
         </div>
       )}
       
       {activeTab === 'maquilas' && (
         <div className="tab-content">
           <h2 className="mb-4">Gestión de Maquilas</h2>
-          <InventarioMaquilas onActualizarMovimientos={handleActualizarMovimientos} />
+          <InventarioMaquilas 
+            onActualizarMovimientos={handleActualizarMovimientos}
+            onActualizarProductos={handleActualizarProductos}
+          />
         </div>
       )}
       
@@ -132,7 +144,7 @@ export default function InventarioScreen() {
                 <h5 className="mb-0">Historial de Movimientos</h5>
               </div>
               <div className="card-body">
-                <TablaMovimientos movimientos={movimientos} />
+                <TablaKardex movimientos={movimientos} productos={productos} />
               </div>
             </div>
           </div>

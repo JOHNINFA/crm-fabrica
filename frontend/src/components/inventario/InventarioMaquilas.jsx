@@ -10,7 +10,7 @@ import productosMaquilas from '../../data/productosMaquilas';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioMaquilas.css';
 
-const InventarioMaquilas = ({ onActualizarMovimientos }) => {
+const InventarioMaquilas = ({ onActualizarMovimientos, onActualizarProductos }) => {
   // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
@@ -62,6 +62,13 @@ const InventarioMaquilas = ({ onActualizarMovimientos }) => {
     
     setMovimientos(movimientosIniciales);
   }, []);
+
+  // Efecto para actualizar productos en el componente padre cuando cambian
+  useEffect(() => {
+    if (onActualizarProductos) {
+      onActualizarProductos(productos);
+    }
+  }, [productos, onActualizarProductos]);
 
   // Manejadores de eventos
   const handleAgregarProducto = (nuevoProducto) => {
