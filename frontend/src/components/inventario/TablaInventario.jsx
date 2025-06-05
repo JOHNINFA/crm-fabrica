@@ -11,48 +11,40 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => 
   };
 
   return (
-    <div className="table-responsive">
-      <Table hover className="inventario-table">
-        <colgroup>
-          <col className="nombre-col" />
-          <col className="cantidad-col" />
-          <col className="acciones-col" />
-        </colgroup>
-        <thead className="table-light">
+    <div className="table-container">
+      <Table hover striped className="align-middle mb-0">
+        <thead>
           <tr>
-            <th className="nombre-col">Nombre</th>
-            <th className="text-center cantidad-col">Cant.</th>
-            <th className="text-center acciones-col">Acc.</th>
+            <th scope="col" style={{ width: '60%' }}>Producto</th>
+            <th scope="col" className="text-center" style={{ width: '20%' }}>Cantidad</th>
+            <th scope="col" className="text-center" style={{ width: '20%' }}>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {productos.map((producto) => (
-            <tr key={producto.id}>
-              <td className="align-middle nombre-col">
-                <div className="fw-medium nombre-producto">
-                  {producto.nombre}
-                </div>
-              </td>
-              <td className="text-center align-middle cantidad-col">
+            <tr key={producto.id} className="product-row">
+              <td className="product-name">{producto.nombre}</td>
+              <td className="text-center">
                 <Form.Control
                   type="number"
                   min="0"
                   value={producto.cantidad || 0}
                   onChange={(e) => handleCantidadChange(producto.id, Number.parseInt(e.target.value) || 0)}
                   onFocus={handleFocus}
-                  className="cantidad-input mx-auto"
-                  style={{ maxWidth: '100%' }}
-                  placeholder="0"
+                  className="quantity-input mx-auto"
+                  aria-label={`Cantidad de ${producto.nombre}`}
                 />
               </td>
-              <td className="text-center align-middle acciones-col">
+              <td className="text-center">
                 <Button
                   variant="outline-primary"
                   size="sm"
                   onClick={() => onEditarClick(producto)}
-                  className="btn-xs-custom"
+                  className="edit-button"
+                  title={`Editar ${producto.nombre}`}
                 >
-                  <i className="bi bi-pencil-square"></i> <span className="btn-text">Editar</span>
+                  <i className="bi bi-pencil me-1"></i>
+                  Editar
                 </Button>
               </td>
             </tr>

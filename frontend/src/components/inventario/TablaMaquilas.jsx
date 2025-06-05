@@ -11,44 +11,32 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
   };
 
   return (
-    <div className="table-responsive">
-      <Table hover className="inventario-table">
-        <colgroup>
-          <col className="nombre-col" />
-          <col className="cantidad-col" />
-          <col className="lote-col" />
-          <col className="vencimiento-col" />
-        </colgroup>
-        <thead className="table-light">
+    <div className="table-container">
+      <Table hover striped className="align-middle mb-0">
+        <thead>
           <tr>
-            <th className="nombre-col">Nombre</th>
-            <th className="text-center cantidad-col">Cant.</th>
-            <th className="text-center lote-col">Lote</th>
-            <th className="text-center vencimiento-col">Vencimiento</th>
+            <th scope="col" style={{ width: '40%' }}>Producto</th>
+            <th scope="col" className="text-center" style={{ width: '20%' }}>Cantidad</th>
+            <th scope="col" className="text-center" style={{ width: '20%' }}>Lote</th>
+            <th scope="col" className="text-center" style={{ width: '20%' }}>Vencimiento</th>
           </tr>
         </thead>
         <tbody>
           {productos.map((producto) => (
-            <tr key={producto.id}>
-              <td className="align-middle nombre-col">
-                <div className="fw-medium nombre-producto">
-                  {producto.nombre}
-                </div>
-              </td>
-              <td className="text-center align-middle cantidad-col">
+            <tr key={producto.id} className="product-row">
+              <td className="product-name">{producto.nombre}</td>
+              <td className="text-center">
                 <Form.Control
                   type="number"
                   min="0"
                   value={producto.cantidad || 0}
                   onChange={(e) => handleCantidadChange(producto.id, e.target.value)}
                   onFocus={handleFocus}
-                  className="cantidad-input mx-auto"
-                  style={{ maxWidth: '100%' }}
-                  placeholder="0"
+                  className="quantity-input mx-auto"
+                  aria-label={`Cantidad de ${producto.nombre}`}
                 />
               </td>
-              
-              <td className="text-center align-middle lote-col">
+              <td className="text-center">
                 <Form.Control
                   type="text"
                   value={producto.lote || ''}
@@ -58,8 +46,7 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
                   placeholder="Lote"
                 />
               </td>
-              
-              <td className="text-center align-middle vencimiento-col">
+              <td className="text-center">
                 <Form.Control
                   type="date"
                   value={producto.fechaVencimiento || ''}

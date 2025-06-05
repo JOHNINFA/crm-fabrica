@@ -5,6 +5,7 @@ import "../styles/InventarioScreen.css";
 import "../styles/InventarioProduccion.css";
 import InventarioProduccion from "../components/inventario/InventarioProduccion";
 import InventarioMaquilas from "../components/inventario/InventarioMaquilas";
+import InventarioPlaneacion from "../components/inventario/InventarioPlaneacion";
 import TablaKardex from "../components/inventario/TablaKardex";
 
 export default function InventarioScreen() {
@@ -128,10 +129,11 @@ export default function InventarioScreen() {
       
       {activeTab === 'planeacion' && (
         <div className="tab-content">
-          <div className="card-bg">
-            <h3>Planeación de Producción</h3>
-            <p className="text-muted">Módulo en desarrollo. Estará disponible próximamente.</p>
-          </div>
+          <h2 className="mb-4">Planeación de Producción</h2>
+          <InventarioPlaneacion 
+            onActualizarMovimientos={handleActualizarMovimientos}
+            onActualizarProductos={handleActualizarProductos}
+          />
         </div>
       )}
       

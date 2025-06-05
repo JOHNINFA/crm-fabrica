@@ -1,14 +1,49 @@
 /* Estilos para la tabla de inventario */
-.inventario-table {
-  width: 100%;
-  margin-bottom: 1rem;
-  table-layout: fixed;
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.cantidad-input {
-  width: 80px;
+.table th {
+  background-color: #f8f9fa;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.table-dark th {
+  background-color: #212529 !important;
+  color: white !important;
+  border-color: #32383e !important;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+.quantity-input {
+  width: 80px !important;
   text-align: center;
-  margin: 0 auto;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.075);
+  transition: background-color 0.15s ease-in-out;
+}
+
+.edit-button {
+  color: #0d6efd;
+  border: 1px solid #0d6efd;
+  background-color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.edit-button:hover {
+  color: white;
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  text-decoration: none;
 }
 
 .grabar-btn {
@@ -16,15 +51,25 @@
   font-weight: 500;
   max-width: 200px;
   margin-left: auto;
+  background-color: #198754;
+  border-color: #198754;
+  transition: all 0.15s ease-in-out;
 }
 
-.selected-date {
-  font-weight: 500;
+.grabar-btn:hover {
+  background-color: #157347;
+  border-color: #146c43;
 }
 
-/* Estilos para el modal de editar cantidades */
-.cantidad-input-modal {
-  text-align: center;
+/* Eliminar flechas del input number */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 /* Estilos para los botones de encabezado */
@@ -42,28 +87,19 @@
     -webkit-overflow-scrolling: touch;
   }
   
-  .inventario-table th,
-  .inventario-table td {
-    white-space: nowrap;
+  .table th,
+  .table td {
+    font-size: 0.875rem;
+    padding: 0.5rem;
   }
   
-  .cantidad-input {
-    width: 70px;
+  .quantity-input {
+    width: 60px !important;
   }
 }
 
 /* Estilos para dispositivos muy pequeños */
 @media (max-width: 575.98px) {
-  .inventario-table th,
-  .inventario-table td {
-    padding: 0.5rem;
-    font-size: 0.9rem;
-  }
-  
-  .cantidad-input {
-    width: 60px;
-  }
-  
   .botones-container {
     display: flex;
     flex-direction: row;
@@ -223,7 +259,7 @@
     font-size: 0.75rem;
   }
   
-  .cantidad-input {
+  .quantity-input {
     padding: 0.15rem 0.3rem;
     font-size: 0.75rem;
     width: 100% !important;

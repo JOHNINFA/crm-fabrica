@@ -14,11 +14,27 @@
   width: 25%;
 }
 
+/* Eliminar flechas del input date en algunos navegadores */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+input[type="date"]::-webkit-inner-spin-button {
+  display: none;
+}
+
 /* Estilos responsivos para Maquilas */
 @media (max-width: 767.98px) {
   .lote-input, .vencimiento-input {
     width: 100%;
     font-size: 0.8rem;
+  }
+  
+  .table th,
+  .table td {
+    font-size: 0.875rem;
+    padding: 0.5rem;
   }
 }
 
@@ -43,6 +59,12 @@
     font-size: 0.75rem;
     padding: 0.2rem;
   }
+  
+  /* Ajustar tamaño de los controles de cantidad */
+  .quantity-control .btn {
+    padding: 0.15rem 0.3rem;
+    font-size: 0.75rem;
+  }
 }
 
 @media (max-width: 400px) {
@@ -65,5 +87,11 @@
   .lote-input, .vencimiento-input {
     font-size: 0.7rem;
     padding: 0.15rem;
+  }
+  
+  /* Ajustar tamaño de los controles de cantidad */
+  .quantity-control .btn {
+    padding: 0.1rem 0.25rem;
+    font-size: 0.7rem;
   }
 }
