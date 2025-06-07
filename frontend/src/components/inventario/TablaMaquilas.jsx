@@ -10,6 +10,24 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
     }
   };
 
+  // Lista de productos permitidos en Maquilas
+  const productosMaquilas = [
+    'MUTE BOYACENSE',
+    'ENVUELTO DE MAIZ X 5 UND',
+    'AREPA BOYACENSE X10',
+    'AREPA BOYACENSE X5',
+    'AREPA DE CHOCLO CON QUESO PEQUEÑA',
+    'AREPA DE CHOCLO CON QUESO GRANDE',
+    'AREPA DE CHOCLO-CORRIENTE',
+    'ALMOJABANAS X5',
+    'ALMOJABANAS X10'
+  ];
+  
+  // Filtrar solo los productos permitidos
+  const productosFiltrados = productos.filter(producto => 
+    productosMaquilas.includes(producto.nombre)
+  );
+
   return (
     <div className="table-container">
       <Table hover striped className="align-middle mb-0">
@@ -22,7 +40,7 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
           </tr>
         </thead>
         <tbody>
-          {productos.map((producto) => (
+          {productosFiltrados.map((producto) => (
             <tr key={producto.id} className="product-row">
               <td className="product-name">{producto.nombre}</td>
               <td className="text-center">
@@ -57,7 +75,7 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
               </td>
             </tr>
           ))}
-          {productos.length === 0 && (
+          {productosFiltrados.length === 0 && (
             <tr>
               <td colSpan="4" className="text-center py-4">
                 <p className="text-muted">No hay productos disponibles</p>

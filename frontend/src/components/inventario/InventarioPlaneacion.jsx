@@ -1,34 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, Table, Badge } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
-import productosIniciales from '../../data/productos';
+import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioPlaneacion.css';
 
-const InventarioPlaneacion = ({ onActualizarMovimientos, onActualizarProductos }) => {
+const InventarioPlaneacion = () => {
+  // Obtener productos del contexto
+  const { productos: productosContext } = useProductos();
+  
   // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const [planeacion, setPlaneacion] = useState([]);
   
-  // Cargar datos iniciales
+  // Cargar datos iniciales desde el contexto
   useEffect(() => {
-    // Cargar productos desde el archivo de datos
-    const productosConPlaneacion = productosIniciales.map(producto => ({
-      ...producto,
-      solicitado: 0,
-      orden: 0
-    }));
-    setProductos(productosConPlaneacion);
-  }, []);
-
-  // Efecto para actualizar productos en el componente padre cuando cambian
-  useEffect(() => {
-    if (onActualizarProductos) {
-      onActualizarProductos(productos);
+    if (productosContext && productosContext.length > 0) {
+      const productosConPlaneacion = productosContext.map(producto => ({
+        ...producto,
+        solicitado: 0,
+        orden: 0
+      }));
+      setProductos(productosConPlaneacion);
     }
-  }, [productos, onActualizarProductos]);
+  }, [productosContext]);
 
   const handleSolicitadoChange = (id, cantidad) => {
     const nuevosProductos = productos.map(producto => 

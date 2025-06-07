@@ -6,13 +6,15 @@ import ModalEditarExistencias from './ModalEditarExistencias';
 import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
 import DateSelector from '../common/DateSelector';
-import productosIniciales from '../../data/productos';
+import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioProduccion.css';
 
-const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }) => {
+const InventarioProduccion = () => {
+  // Obtener productos y funciones del contexto
+  const { productos: productosContext, actualizarExistencias, agregarMovimientos } = useProductos();
+  
   // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
-  const [movimientos, setMovimientos] = useState([]);
   const [usuario, setUsuario] = useState('Usuario Predeterminado');
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [lote, setLote] = useState('');
@@ -27,49 +29,18 @@ const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }
   const [productoEditar, setProductoEditar] = useState(null);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
 
-  // Cargar datos iniciales
+  // Cargar datos iniciales desde el contexto
   useEffect(() => {
-    // Cargar productos desde el archivo de datos
-    setProductos(productosIniciales);
-    
-    const movimientosIniciales = [
-      { 
-        id: 1, 
-        fecha: '2023-05-10', 
-        hora: '10:30', 
-        producto: 'AREPA TIPO OBLEA', 
-        cantidad: 5, 
-        tipo: 'Entrada', 
-        usuario: 'Admin',
-        lote: 'L001',
-        fechaVencimiento: '10/11/2023'
-      },
-      { 
-        id: 2, 
-        fecha: '2023-05-09', 
-        hora: '15:45', 
-        producto: 'AREPA MEDIANA', 
-        cantidad: 3, 
-        tipo: 'Salida', 
-        usuario: 'Usuario',
-        lote: 'L002',
-        fechaVencimiento: '-'
-      },
-    ];
-    
-    setMovimientos(movimientosIniciales);
-  }, []);
-
-  // Efecto para actualizar productos en el componente padre cuando cambian
-  useEffect(() => {
-    if (onActualizarProductos) {
-      onActualizarProductos(productos);
+    if (productosContext && productosContext.length > 0) {
+      setProductos(productosContext);
     }
-  }, [productos, onActualizarProductos]);
+  }, [productosContext]);
 
   // Manejadores de eventos
   const handleAgregarProducto = (nuevoProducto) => {
-    setProductos([...productos, { ...nuevoProducto, id: Date.now(), cantidad: 0 }]);
+    const nuevosProductos = [...productos, { ...nuevoProducto, id: Date.now(), cantidad: 0 }];
+    setProductos(nuevosProductos);
+    actualizarExistencias(nuevosProductos);
     setMensaje({ texto: 'Producto agregado correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
@@ -91,6 +62,7 @@ const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }
     );
     
     setProductos(nuevosProductos);
+    actualizarExistencias(nuevosProductos);
     
     // Obtener hora actual
     const ahora = new Date();
@@ -108,19 +80,13 @@ const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }
       usuario
     };
     
-    const nuevosMovimientos = [nuevoMovimiento, ...movimientos];
-    setMovimientos(nuevosMovimientos);
-    
-    if (onActualizarMovimientos) {
-      onActualizarMovimientos(nuevosMovimientos);
-    }
+    agregarMovimientos([nuevoMovimiento]);
     
     setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
   const handleCantidadChange = (id, cantidad) => {
-    console.log('Cambiando cantidad:', { id, cantidad });
     const nuevosProductos = productos.map(producto => 
       producto.id === id ? { ...producto, cantidad: parseInt(cantidad) || 0 } : producto
     );
@@ -134,6 +100,7 @@ const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }
       existencias: existencias[producto.id] || 0
     }));
     setProductos(nuevosProductos);
+    actualizarExistencias(nuevosProductos);
     
     // Registrar movimientos para cada producto modificado
     const ahora = new Date();
@@ -162,13 +129,7 @@ const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }
     });
     
     if (nuevosMovimientos.length > 0) {
-      const todosMovimientos = [...nuevosMovimientos, ...movimientos];
-      setMovimientos(todosMovimientos);
-      
-      // Actualizar movimientos en el componente padre
-      if (onActualizarMovimientos) {
-        onActualizarMovimientos(todosMovimientos);
-      }
+      agregarMovimientos(nuevosMovimientos);
     }
     
     setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
@@ -268,16 +229,11 @@ const InventarioProduccion = ({ onActualizarMovimientos, onActualizarProductos }
       });
     });
     
-    // Actualizar estado
+    // Actualizar estado local y contexto
     setProductos(nuevosProductos);
-    const todosMovimientos = [...nuevosMovimientos, ...movimientos];
-    setMovimientos(todosMovimientos);
+    actualizarExistencias(nuevosProductos);
+    agregarMovimientos(nuevosMovimientos);
     setLotes([]);
-    
-    // Actualizar movimientos en el componente padre
-    if (onActualizarMovimientos) {
-      onActualizarMovimientos(todosMovimientos);
-    }
     
     setMensaje({ texto: 'Movimientos registrados correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
