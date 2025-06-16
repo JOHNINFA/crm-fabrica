@@ -8,13 +8,15 @@ import ModalEditarCantidades from './ModalEditarCantidades';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioProduccion.css';
+import '../../styles/TablaKardex.css';
+
+
 
 const InventarioProduccion = () => {
-  // Obtener productos y funciones del contexto
-  const { productos: productosContext, actualizarExistencias, agregarMovimientos } = useProductos();
+  // Obtener funciones del contexto (no usamos productosContext porque definimos nuestros propios productos)
+  const { actualizarExistencias, agregarMovimientos } = useProductos();
   
   // Estados para manejar los datos
-  const [productos, setProductos] = useState([]);
   const [usuario, setUsuario] = useState('Usuario Predeterminado');
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [lote, setLote] = useState('');
@@ -29,12 +31,128 @@ const InventarioProduccion = () => {
   const [productoEditar, setProductoEditar] = useState(null);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
 
-  // Cargar datos iniciales desde el contexto
-  useEffect(() => {
-    if (productosContext && productosContext.length > 0) {
-      setProductos(productosContext);
+  // Inicializar productos directamente en el estado inicial
+  const [productos, setProductos] = useState([
+    { id: 1, nombre: 'AREPA TIPO OBLEA', existencias: 0, cantidad: 0 },
+    { id: 2, nombre: 'AREPA MEDIANA', existencias: 0, cantidad: 0 },
+    { id: 3, nombre: 'AREPA TIPO PINCHO', existencias: 0, cantidad: 0 },
+    { id: 4, nombre: 'AREPA CON QUESO-CORRIENTE', existencias: 0, cantidad: 0 },
+    { id: 5, nombre: 'AREPA CON QUESO-ESPECIAL GRANDE', existencias: 0, cantidad: 0 },
+    { id: 6, nombre: 'AREPA CON QUESO-ESPECIAL PEQUEÑA', existencias: 0, cantidad: 0 },
+    { id: 7, nombre: 'AREPA CON QUESO MINI X 10', existencias: 0, cantidad: 0 },
+    { id: 8, nombre: 'AREPA CON QUESO CUADRADA', existencias: 0, cantidad: 0 },
+    { id: 14, nombre: 'AREPA SANTADERANA', existencias: 0, cantidad: 0 },
+    { id: 17, nombre: 'AREPA CON SEMILLA DE QUINUA', existencias: 0, cantidad: 0 },
+    { id: 18, nombre: 'AREPA CON SEMILLA DE CHIA', existencias: 0, cantidad: 0 },
+    { id: 19, nombre: 'AREPA CON SEMILLA DE AJONJOLI', existencias: 0, cantidad: 0 },
+    { id: 20, nombre: 'AREPA CON SEMILLA DE LINANZA', existencias: 0, cantidad: 0 },
+    { id: 21, nombre: 'AREPA CON SEMILLA DE GIRASOL', existencias: 0, cantidad: 0 },
+    { id: 22, nombre: 'AREPA CHORICERA', existencias: 0, cantidad: 0 },
+    { id: 23, nombre: 'AREPA LONCHERIA', existencias: 0, cantidad: 0 },
+    { id: 24, nombre: 'AREPA CON MARGARINA Y SAL', existencias: 0, cantidad: 0 },
+    { id: 25, nombre: 'YUCAREPA', existencias: 0, cantidad: 0 },
+    { id: 26, nombre: 'AREPA TIPO ASADERO X 10', existencias: 0, cantidad: 0 },
+    { id: 27, nombre: 'AREPA PARA RELLENAR #1', existencias: 0, cantidad: 0 },
+    { id: 28, nombre: 'AREPA PARA RELLENAR #2', existencias: 0, cantidad: 0 },
+    { id: 29, nombre: 'AREPA PARA RELLENAR #3', existencias: 0, cantidad: 0 },
+    { id: 30, nombre: 'PORCION DE AREPAS X 2 UND', existencias: 0, cantidad: 0 },
+    { id: 31, nombre: 'PORCION DE AREPAS X 3 UND', existencias: 0, cantidad: 0 },
+    { id: 32, nombre: 'PORCION DE AREPAS X 4 UND', existencias: 0, cantidad: 0 },
+    { id: 33, nombre: 'PORCION DE AREPAS X 5 UND', existencias: 0, cantidad: 0 },
+    { id: 34, nombre: 'AREPA SUPER OBLEA', existencias: 0, cantidad: 0 },
+    { id: 35, nombre: 'BLOQUE DE MASA', existencias: 0, cantidad: 0 },
+    { id: 36, nombre: 'LIBRAS DE MASA', existencias: 0, cantidad: 0 },
+    { id: 37, nombre: 'MUTE BOYACENSE', existencias: 0, cantidad: 0 },
+    { id: 38, nombre: 'LIBRA DE MAIZ PETO', existencias: 0, cantidad: 0 }
+  ]);
+  
+  // Obtener movimientos del contexto
+  const { movimientos } = useProductos();
+  
+  // Filtrar movimientos según la fecha seleccionada
+  const movimientosFiltrados = movimientos.filter(movimiento => {
+    if (!movimiento.fecha) {
+      console.error('Movimiento sin fecha encontrado:', movimiento);
+      return false;
     }
-  }, [productosContext]);
+    
+    try {
+      // Intentar convertir la fecha del movimiento a objeto Date
+      // Manejar diferentes formatos de fecha (YYYY-MM-DD o DD/MM/YYYY)
+      let fechaMovimiento;
+      if (movimiento.fecha.includes('-')) {
+        fechaMovimiento = new Date(movimiento.fecha);
+      } else {
+        fechaMovimiento = new Date(movimiento.fecha.split('/').reverse().join('-'));
+      }
+      
+      // Verificar si la fecha del movimiento es la misma que la fecha seleccionada
+      const mismaFecha = 
+        fechaMovimiento.getDate() === fechaSeleccionada.getDate() &&
+        fechaMovimiento.getMonth() === fechaSeleccionada.getMonth() &&
+        fechaMovimiento.getFullYear() === fechaSeleccionada.getFullYear();
+      
+      // Filtrar por fecha
+      return mismaFecha;
+    } catch (error) {
+      console.error('Error al procesar la fecha del movimiento:', movimiento.fecha, error);
+      return false;
+    }
+  });
+  
+  // Actualizar el estado de los productos basado en los movimientos de la fecha seleccionada
+  useEffect(() => {
+    // Solo proceder si hay productos
+    if (productos.length === 0) {
+      console.log("No hay productos para actualizar");
+      return;
+    }
+    
+    console.log("Actualizando productos con movimientos:", productos.length, "productos disponibles");
+    
+    // Intentar cargar productos guardados para esta fecha
+    const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
+    try {
+      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+      const productosGuardados = JSON.parse(productosGuardadosStr);
+      
+      if (productosGuardados[fechaStr]) {
+        // Si hay productos guardados para esta fecha, usarlos
+        const productosActualizados = productos.map(producto => {
+          const productoGuardado = productosGuardados[fechaStr].find(p => p.id === producto.id);
+          if (productoGuardado) {
+            return {
+              ...producto,
+              cantidad: productoGuardado.cantidad
+            };
+          }
+          return producto;
+        });
+        
+        setProductos(productosActualizados);
+        return; // Salir temprano si encontramos productos guardados
+      }
+    } catch (error) {
+      console.error('Error al cargar productos guardados:', error);
+    }
+    
+    // Si no hay productos guardados, proceder con la lógica normal
+    // Crear un mapa para agrupar movimientos por producto
+    const movimientosPorProducto = {};
+    
+    movimientosFiltrados.forEach(movimiento => {
+      if (!movimientosPorProducto[movimiento.producto]) {
+        movimientosPorProducto[movimiento.producto] = [];
+      }
+      movimientosPorProducto[movimiento.producto].push(movimiento);
+    });
+    
+    // Ya no necesitamos actualizar las cantidades registradas
+    // porque hemos eliminado esa funcionalidad
+    
+    // Forzar actualización de la UI
+    setProductos([...productos]);
+  }, [fechaSeleccionada]);
 
   // Manejadores de eventos
   const handleAgregarProducto = (nuevoProducto) => {
@@ -57,9 +175,28 @@ const InventarioProduccion = () => {
     const tipoMovimiento = diferenciaExistencias > 0 ? 'Entrada' : 'Salida';
     
     // Actualizar productos
-    const nuevosProductos = productos.map(producto => 
-      producto.id === id ? { ...producto, existencias: nuevasExistencias } : producto
-    );
+    const nuevosProductos = productos.map(producto => {
+      if (producto.id === id) {
+        // Actualizar también la cantidad en el input
+        const cantidadActual = producto.cantidad || 0;
+        return { 
+          ...producto, 
+          existencias: nuevasExistencias,
+          cantidad: cantidadActual + diferenciaExistencias
+        };
+      }
+      return producto;
+    });
+    
+    // Actualizar los inputs de cantidad en la UI
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.quantity-input');
+      inputs.forEach((input, index) => {
+        if (index < productos.length && productos[index].id === id) {
+          input.value = nuevosProductos.find(p => p.id === id).cantidad;
+        }
+      });
+    }, 100);
     
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
@@ -82,15 +219,41 @@ const InventarioProduccion = () => {
     
     agregarMovimientos([nuevoMovimiento]);
     
+    // Guardar el estado actualizado en localStorage
+    try {
+      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+      const productosGuardados = JSON.parse(productosGuardadosStr);
+      
+      const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
+      if (productosGuardados[fechaStr]) {
+        // Actualizar el producto específico
+        const productoIndex = productosGuardados[fechaStr].findIndex(p => p.id === id);
+        if (productoIndex !== -1) {
+          productosGuardados[fechaStr][productoIndex] = {
+            ...productosGuardados[fechaStr][productoIndex],
+            existencias: nuevasExistencias,
+            cantidad: nuevosProductos.find(p => p.id === id).cantidad
+          };
+        }
+        localStorage.setItem('productosRegistrados', JSON.stringify(productosGuardados));
+      }
+    } catch (error) {
+      console.error('Error al actualizar productos guardados:', error);
+    }
+    
     setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
   const handleCantidadChange = (id, cantidad) => {
-    const nuevosProductos = productos.map(producto => 
-      producto.id === id ? { ...producto, cantidad: parseInt(cantidad) || 0 } : producto
-    );
-    setProductos(nuevosProductos);
+    // Almacenar las cantidades en un objeto separado para evitar re-renderizados
+    const cantidadNumerica = parseInt(cantidad) || 0;
+    
+    // Actualizar directamente el producto específico sin recrear todo el array
+    const index = productos.findIndex(p => p.id === id);
+    if (index !== -1) {
+      productos[index].cantidad = cantidadNumerica;
+    }
   };
   
   // Función para manejar cambios de existencias desde el modal
@@ -123,7 +286,8 @@ const InventarioProduccion = () => {
           tipo: diferenciaExistencias > 0 ? 'Entrada' : 'Salida',
           usuario,
           lote: 'Ajuste',
-          fechaVencimiento: '-'
+          fechaVencimiento: '-',
+          registrado: true
         });
       }
     });
@@ -168,6 +332,33 @@ const InventarioProduccion = () => {
   };
 
   const handleGrabarMovimiento = () => {
+    // Recopilar las cantidades de los inputs
+    const inputs = document.querySelectorAll('.quantity-input');
+    inputs.forEach((input, index) => {
+      if (index < productos.length) {
+        productos[index].cantidad = parseInt(input.value) || 0;
+      }
+    });
+    
+    // Guardar el estado actual de los productos para esta fecha
+    try {
+      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+      const productosGuardados = JSON.parse(productosGuardadosStr);
+      
+      // Guardar productos con sus cantidades para esta fecha
+      const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
+      productosGuardados[fechaStr] = productos.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        cantidad: p.cantidad,
+        existencias: p.existencias
+      }));
+      
+      localStorage.setItem('productosRegistrados', JSON.stringify(productosGuardados));
+    } catch (error) {
+      console.error('Error al guardar productos:', error);
+    }
+    
     // Filtrar productos con cantidad > 0
     const productosConCantidad = productos.filter(p => p.cantidad > 0);
     
@@ -203,7 +394,8 @@ const InventarioProduccion = () => {
       nuevosProductos[index] = {
         ...nuevosProductos[index],
         existencias: existenciasActuales + cantidadAAgregar,
-        cantidad: 0 // Resetear cantidad
+        // Ya no acumulamos la cantidad registrada
+        // No resetear la cantidad para mantenerla visible
       };
       
       console.log('Actualizando existencias:', {
@@ -224,7 +416,8 @@ const InventarioProduccion = () => {
           tipo: 'Entrada',
           usuario,
           lote: lote.numero,
-          fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString('es-ES') : '-'
+          fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString('es-ES') : '-',
+          registrado: true // Marcar como registrado
         });
       });
     });
@@ -233,7 +426,29 @@ const InventarioProduccion = () => {
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
     agregarMovimientos(nuevosMovimientos);
-    setLotes([]);
+    
+    // Mantener los lotes para que se muestren en la tabla
+    // Guardar los lotes en localStorage para recuperarlos por fecha
+    const lotesConFecha = {
+      fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
+      lotes: lotes
+    };
+    try {
+      // Obtener lotes guardados anteriormente
+      const lotesGuardadosStr = localStorage.getItem('lotesRegistrados') || '[]';
+      const lotesGuardados = JSON.parse(lotesGuardadosStr);
+      
+      // Filtrar lotes de la misma fecha si existen
+      const lotesFiltrados = lotesGuardados.filter(item => item.fecha !== lotesConFecha.fecha);
+      
+      // Añadir los nuevos lotes
+      lotesFiltrados.push(lotesConFecha);
+      
+      // Guardar en localStorage
+      localStorage.setItem('lotesRegistrados', JSON.stringify(lotesFiltrados));
+    } catch (error) {
+      console.error('Error al guardar lotes:', error);
+    }
     
     setMensaje({ texto: 'Movimientos registrados correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
@@ -247,6 +462,26 @@ const InventarioProduccion = () => {
 
   const handleDateSelect = (date) => {
     setFechaSeleccionada(date);
+    
+    // Al cambiar la fecha, cargar los lotes guardados para esa fecha
+    const fechaStr = date.toLocaleDateString('es-ES');
+    try {
+      const lotesGuardadosStr = localStorage.getItem('lotesRegistrados') || '[]';
+      const lotesGuardados = JSON.parse(lotesGuardadosStr);
+      
+      // Buscar lotes para la fecha seleccionada
+      const lotesFecha = lotesGuardados.find(item => item.fecha === fechaStr);
+      
+      if (lotesFecha && lotesFecha.lotes) {
+        setLotes(lotesFecha.lotes);
+      } else {
+        // Si no hay lotes guardados para esta fecha, resetear
+        setLotes([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar lotes:', error);
+      setLotes([]);
+    }
   };
 
   return (
@@ -296,7 +531,7 @@ const InventarioProduccion = () => {
         <Col xs={12} md={6} className="mb-3 mb-md-0">
           <Card className="p-2 h-100">
             <Form.Group className="mb-2">
-              <Form.Label className="fw-bold small-text">LOTE</Form.Label>
+              <Form.Label className="fw-bold small-text" style={{color: '#1e293b'}}>LOTE</Form.Label>
               <div className="d-flex">
                 <Form.Control
                   type="text"
@@ -304,6 +539,7 @@ const InventarioProduccion = () => {
                   value={lote}
                   onChange={(e) => setLote(e.target.value)}
                   className="fw-bold me-1 compact-input"
+                  style={{ width: "498px" }}
                 />
                 <Button 
                   variant="primary"
@@ -316,7 +552,7 @@ const InventarioProduccion = () => {
             </Form.Group>
             
             <Form.Group>
-              <Form.Label className="fw-bold small-text">VENCIMIENTO</Form.Label>
+              <Form.Label className="fw-bold small-text" style={{color: '#1e293b'}}>VENCIMIENTO</Form.Label>
               <div className="d-flex">
                 <Form.Control
                   type="date"
@@ -339,11 +575,11 @@ const InventarioProduccion = () => {
         {/* Tabla de lotes */}
         <Col xs={12} md={6}>
           <Card className="p-3 h-100">
-            <h6 className="mb-2">Lotes Agregados:</h6>
+            <h6 className="mb-2 fw-bold" style={{color: '#1e293b'}}>Lotes Agregados:</h6>
             {lotes.length > 0 ? (
               <div style={{maxHeight: '150px', overflowY: 'auto'}}>
                 <div className="table-responsive">
-                  <Table striped bordered hover size="sm">
+                  <Table className="table-kardex" size="sm">
                     <thead>
                       <tr>
                         <th>Lote</th>
@@ -406,7 +642,7 @@ const InventarioProduccion = () => {
               className="d-md-none editar-global-btn"
               onClick={() => setShowModalCantidades(true)}
             >
-              <i className="bi bi-pencil-square"></i> Editar
+              <i className="bi bi-pencil-square me-2"></i> Editar
             </Button>
             
             <Button 
@@ -414,7 +650,7 @@ const InventarioProduccion = () => {
               className="grabar-btn"
               onClick={handleGrabarMovimiento}
             >
-              <i className="bi bi-save"></i> Grabar Movimiento
+              <i className="bi bi-save me-2"></i> Grabar Movimiento
             </Button>
           </div>
         </Col>
@@ -428,11 +664,13 @@ const InventarioProduccion = () => {
       />
       
       <ModalEditarExistencias 
-        show={showModalEditar}
-        onHide={() => setShowModalEditar(false)}
-        producto={productoEditar}
-        onEditar={handleEditarExistencias}
-      />
+  show={showModalEditar}
+  onHide={() => setShowModalEditar(false)}
+  producto={productoEditar}
+  onEditar={handleEditarExistencias}
+/>
+
+      
       
       <ModalCambiarUsuario 
         show={showModalUsuario}

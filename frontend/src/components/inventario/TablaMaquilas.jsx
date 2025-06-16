@@ -1,7 +1,11 @@
 import React from 'react';
-import { Table, Form, Button } from 'react-bootstrap';
+import { Table, Form, Button, Row, Col } from 'react-bootstrap';
+import '../../styles/TablaKardex.css';
+import '../../styles/InventarioMaquilas.css';
+import productosMaquilasData from '../../data/productosMaquilas';
 
-const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleLoteChange, handleFechaVencimientoChange }) => {
+// Componente para la fila de producto
+const FilaProducto = ({ producto, onEditarClick, handleCantidadChange, handleLoteChange, handleFechaVencimientoChange }) => {
   // Función para manejar el foco en el input
   const handleFocus = (e) => {
     // Si el valor es 0, seleccionar todo el texto para que se reemplace al escribir
@@ -10,70 +14,109 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
     }
   };
 
-  // Lista de productos permitidos en Maquilas
-  const productosMaquilas = [
-    'MUTE BOYACENSE',
-    'ENVUELTO DE MAIZ X 5 UND',
-    'AREPA BOYACENSE X10',
-    'AREPA BOYACENSE X5',
-    'AREPA DE CHOCLO CON QUESO PEQUEÑA',
-    'AREPA DE CHOCLO CON QUESO GRANDE',
-    'AREPA DE CHOCLO-CORRIENTE',
-    'ALMOJABANAS X5',
-    'ALMOJABANAS X10'
-  ];
+  // Estilos comunes para inputs
+  const inputStyle = {
+    width: '100%',
+    minWidth: '150px',
+    fontSize: '0.9rem'
+  };
+
+  return (
+    <tr className="product-row">
+      <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
+      <td className="text-center">
+        <div className="d-flex justify-content-center">
+          <Form.Control
+            type="number"
+            min="0"
+            value={producto.cantidad || 0}
+            onChange={(e) => handleCantidadChange(producto.id, e.target.value)}
+            onFocus={handleFocus}
+            className="quantity-input"
+            style={{color: '#1e293b'}}
+            aria-label={`Cantidad de ${producto.nombre}`}
+          />
+        </div>
+      </td>
+      <td className="text-center">
+        <div className="d-flex justify-content-center">
+          <Form.Control
+            type="text"
+            value={producto.lote || ''}
+            onChange={(e) => handleLoteChange(producto.id, e.target.value)}
+            className="quantity-input lote-input"
+            style={{...inputStyle, color: '#1e293b'}}
+            placeholder="Lote"
+          />
+        </div>
+      </td>
+      <td className="text-center">
+        <div className="d-flex justify-content-center">
+          <Form.Control
+            type="date"
+            value={producto.fechaVencimiento || ''}
+            onChange={(e) => handleFechaVencimientoChange(producto.id, e.target.value)}
+            className="quantity-input vencimiento-input"
+            style={{...inputStyle, color: '#1e293b'}}
+          />
+        </div>
+      </td>
+      <td className="text-center d-none d-md-table-cell">
+        <button
+          className="btn btn-outline-primary btn-sm rounded-pill-sm"
+          style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
+          onClick={() => onEditarClick(producto)}
+          title={`Editar ${producto.nombre}`}
+        >
+          <i className="bi bi-pencil me-1"></i>
+          Editar
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// Componente principal
+const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleLoteChange, handleFechaVencimientoChange }) => {
+  // Lista de nombres de productos permitidos en Maquilas
+  const nombresMaquilas = productosMaquilasData.map(producto => producto.nombre);
   
   // Filtrar solo los productos permitidos
   const productosFiltrados = productos.filter(producto => 
-    productosMaquilas.includes(producto.nombre)
+    nombresMaquilas.includes(producto.nombre)
   );
+
+  // Definición de anchos de columnas
+  const columnWidths = {
+    producto: '20%',
+    cantidad: '15%',
+    lote: '25%',
+    vencimiento: '25%',
+    acciones: '15%'
+  };
 
   return (
     <div className="table-container">
-      <Table hover striped className="align-middle mb-0">
+      <Table responsive className="align-middle mb-0 table-kardex">
         <thead>
           <tr>
-            <th scope="col" style={{ width: '40%' }}>Producto</th>
-            <th scope="col" className="text-center" style={{ width: '20%' }}>Cantidad</th>
-            <th scope="col" className="text-center" style={{ width: '20%' }}>Lote</th>
-            <th scope="col" className="text-center" style={{ width: '20%' }}>Vencimiento</th>
+            <th scope="col" style={{ width: columnWidths.producto }}>Producto</th>
+            <th scope="col" className="text-center" style={{ width: columnWidths.cantidad }}>Cantidad</th>
+            <th scope="col" className="text-center" style={{ width: columnWidths.lote, color: '#1e293b' }}>LOTE</th>
+            <th scope="col" className="text-center" style={{ width: columnWidths.vencimiento, color: '#1e293b' }}>VENCIMIENTO</th>
+            <th scope="col" className="text-center d-none d-md-table-cell" style={{ width: columnWidths.acciones }}>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {productosFiltrados.map((producto) => (
-            <tr key={producto.id} className="product-row">
-              <td className="product-name">{producto.nombre}</td>
-              <td className="text-center">
-                <Form.Control
-                  type="number"
-                  min="0"
-                  value={producto.cantidad || 0}
-                  onChange={(e) => handleCantidadChange(producto.id, e.target.value)}
-                  onFocus={handleFocus}
-                  className="quantity-input mx-auto"
-                  aria-label={`Cantidad de ${producto.nombre}`}
-                />
-              </td>
-              <td className="text-center">
-                <Form.Control
-                  type="text"
-                  value={producto.lote || ''}
-                  onChange={(e) => handleLoteChange(producto.id, e.target.value)}
-                  className="lote-input mx-auto"
-                  style={{ maxWidth: '100%' }}
-                  placeholder="Lote"
-                />
-              </td>
-              <td className="text-center">
-                <Form.Control
-                  type="date"
-                  value={producto.fechaVencimiento || ''}
-                  onChange={(e) => handleFechaVencimientoChange(producto.id, e.target.value)}
-                  className="vencimiento-input mx-auto"
-                  style={{ maxWidth: '100%' }}
-                />
-              </td>
-            </tr>
+            <FilaProducto
+              key={producto.id}
+              producto={producto}
+              onEditarClick={onEditarClick}
+              handleCantidadChange={handleCantidadChange}
+              handleLoteChange={handleLoteChange}
+              handleFechaVencimientoChange={handleFechaVencimientoChange}
+            />
           ))}
           {productosFiltrados.length === 0 && (
             <tr>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Table, Badge, Form, InputGroup, Row, Col } from 'react-bootstrap';
+import { Table, Form, InputGroup, Row, Col } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioPlaneacion.css';
+import '../../styles/TablaKardex.css';
 
 const TablaKardex = () => {
   const [filtro, setFiltro] = useState('');
@@ -15,32 +16,59 @@ const TablaKardex = () => {
     return producto ? producto.existencias : 0;
   };
 
-  // Función para determinar la clase del badge según las existencias
-  const getExistenciasBadge = (existencias) => {
-    if (existencias <= 0) return 'badge-custom badge-custom-red';
-    if (existencias <= 30) return 'badge-custom badge-custom-yellow';
-    return 'badge-custom badge-custom-green';
+  // Función para determinar la clase según las existencias
+  const getExistenciasClass = (existencias) => {
+    if (existencias <= 0) return 'bg-light-red';
+    if (existencias <= 30) return 'bg-light-yellow';
+    return 'bg-light-green';
   };
+
+  // Filtrar productos según el texto de búsqueda
+  const productosFiltrados = productos.filter(producto => 
+    producto.nombre.toLowerCase().includes(filtro.toLowerCase())
+  );
 
   // Filtrar movimientos según el texto de búsqueda y la fecha seleccionada
   const movimientosFiltrados = movimientos.filter(movimiento => {
+    if (!movimiento.fecha) return false;
+    
     // Convertir la fecha del movimiento a objeto Date
-    const fechaMovimiento = new Date(movimiento.fecha.split('/').reverse().join('-'));
-    
-    // Verificar si la fecha del movimiento es la misma que la fecha seleccionada
-    const mismaFecha = 
-      fechaMovimiento.getDate() === fechaSeleccionada.getDate() &&
-      fechaMovimiento.getMonth() === fechaSeleccionada.getMonth() &&
-      fechaMovimiento.getFullYear() === fechaSeleccionada.getFullYear();
-    
-    // Filtrar por nombre de producto y fecha
-    return movimiento.producto.toLowerCase().includes(filtro.toLowerCase()) && mismaFecha;
+    // Manejar diferentes formatos de fecha (YYYY-MM-DD o DD/MM/YYYY)
+    let fechaMovimiento;
+    try {
+      if (movimiento.fecha.includes('-')) {
+        fechaMovimiento = new Date(movimiento.fecha);
+      } else {
+        fechaMovimiento = new Date(movimiento.fecha.split('/').reverse().join('-'));
+      }
+      
+      // Verificar si la fecha del movimiento es la misma que la fecha seleccionada
+      const mismaFecha = 
+        fechaMovimiento.getDate() === fechaSeleccionada.getDate() &&
+        fechaMovimiento.getMonth() === fechaSeleccionada.getMonth() &&
+        fechaMovimiento.getFullYear() === fechaSeleccionada.getFullYear();
+      
+      // Filtrar por nombre de producto y fecha
+      return movimiento.producto.toLowerCase().includes(filtro.toLowerCase()) && mismaFecha;
+    } catch (error) {
+      console.error('Error al procesar la fecha del movimiento:', movimiento.fecha, error);
+      return false;
+    }
   });
 
   // Manejar cambio de fecha
   const handleDateSelect = (date) => {
     setFechaSeleccionada(date);
   };
+  
+  // Función para formatear tipo de movimiento
+  const getTipoMovimientoBadge = (tipo) => {
+    if (tipo === 'Entrada') return 'text-success';
+    if (tipo === 'Salida') return 'text-danger';
+    return '';
+  };
+
+
 
   return (
     <>
@@ -64,48 +92,129 @@ const TablaKardex = () => {
         </Col>
       </Row>
       <div className="table-responsive">
-        <Table size="sm" className="mb-0">
-          <thead className="table-light">
+        <Table size="sm" className="mb-0 table-kardex">
+          <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Hora</th>
               <th>Producto</th>
               <th>Existencias</th>
-              <th>Cantidad</th>
-              <th>Lote</th>
-              <th>Vencimiento</th>
+              <th>Fecha</th>
+              <th>Hora</th>
               <th>Usuario</th>
+              <th>Movimiento</th>
             </tr>
           </thead>
           <tbody>
-            {movimientosFiltrados.map((movimiento) => {
-              const existencias = getExistencias(movimiento.producto);
-              return (
-                <tr key={movimiento.id}>
-                  <td className="text-muted small">{movimiento.fecha}</td>
-                  <td className="text-muted small">{movimiento.hora || '12:00'}</td>
-                  <td className="fw-medium">{movimiento.producto}</td>
+            {/* Mostrar movimientos agrupados por producto */}
+            {(() => {
+              // Crear un mapa para agrupar movimientos por producto
+              const productosConMovimientos = new Map();
+              
+              // Agrupar movimientos por producto
+              movimientosFiltrados.forEach(movimiento => {
+                if (!productosConMovimientos.has(movimiento.producto)) {
+                  // Buscar el producto correspondiente
+                  const producto = productosFiltrados.find(p => p.nombre === movimiento.producto);
+                  if (producto) {
+                    productosConMovimientos.set(movimiento.producto, {
+                      producto,
+                      movimientos: [movimiento]
+                    });
+                  }
+                } else {
+                  productosConMovimientos.get(movimiento.producto).movimientos.push(movimiento);
+                }
+              });
+              
+              // Productos filtrados sin movimientos
+              const productosSinMovimientos = productosFiltrados.filter(
+                producto => !productosConMovimientos.has(producto.nombre)
+              );
+              
+              // Generar filas para productos con movimientos
+              const filasConMovimientos = Array.from(productosConMovimientos.values()).map(({ producto, movimientos }) => 
+                movimientos.map((movimiento, idx) => (
+                  <tr key={`${movimiento.id}-${idx}`}>
+                    <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
+                    <td>
+                      <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
+                        {producto.existencias} und
+                      </span>
+                    </td>
+                    <td>
+                      <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
+                        {(() => {
+                          try {
+                            if (movimiento.fecha.includes('-')) {
+                              return new Date(movimiento.fecha).toLocaleDateString('es-ES');
+                            } else {
+                              return movimiento.fecha;
+                            }
+                          } catch (e) {
+                            return movimiento.fecha || '-';
+                          }
+                        })()}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
+                        {movimiento.hora || '12:00'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="rounded-pill-sm" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>
+                        <i className="bi bi-person" /> {movimiento.usuario}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`rounded-pill-sm ${movimiento.tipo === 'Entrada' ? 'bg-light-green' : 'bg-light-red'}`}>
+                        <i className={`bi ${movimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle'}`} /> 
+                        {movimiento.cantidad} und
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ).flat();
+              
+              // Generar filas para productos sin movimientos
+              const filasSinMovimientos = productosSinMovimientos.map(producto => (
+                <tr key={`no-mov-${producto.id}`}>
+                  <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                   <td>
-                    <Badge className={`${getExistenciasBadge(existencias)} existencias-badge-lg`} style={{ minWidth: '80px', display: 'inline-block' }}>
-                      {existencias} und
-                    </Badge>
+                    <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
+                      {producto.existencias} und
+                    </span>
                   </td>
-                  <td className="fw-bold">{movimiento.cantidad} und</td>
-                  <td>{movimiento.lote || '-'}</td>
-                  <td>{movimiento.fechaVencimiento || '-'}</td>
                   <td>
-                    <small className="text-muted">
-                      <i className="bi bi-person" /> {movimiento.usuario}
-                    </small>
+                    <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
+                      {fechaSeleccionada.toLocaleDateString('es-ES')}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
+                      --:--
+                    </span>
+                  </td>
+                  <td>
+                    <span className="rounded-pill-sm" style={{backgroundColor: '#f1f5f9', color: '#64748b'}}>
+                      <i className="bi bi-dash" /> Sin usuario
+                    </span>
+                  </td>
+                  <td>
+                    <span className="rounded-pill-sm bg-light-yellow">
+                      <i className="bi bi-dash" /> 0 und
+                    </span>
                   </td>
                 </tr>
-              );
-            })}
-            {movimientosFiltrados.length === 0 && (
+              ));
+              
+              // Combinar todas las filas
+              return [...filasConMovimientos, ...filasSinMovimientos];
+            })()}
+            {productosFiltrados.length === 0 && (
               <tr>
-                <td colSpan="8" className="text-center py-4">
+                <td colSpan="6" className="text-center py-4">
                   <p className="text-muted">
-                    {filtro ? 'No se encontraron movimientos para este producto en la fecha seleccionada' : 'No hay movimientos registrados para la fecha seleccionada'}
+                    No se encontraron productos
                   </p>
                 </td>
               </tr>

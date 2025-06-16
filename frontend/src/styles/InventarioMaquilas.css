@@ -4,6 +4,9 @@
   text-align: center;
   margin: 0 auto;
   font-size: 0.85rem;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: nowrap;
 }
 
 .lote-col {

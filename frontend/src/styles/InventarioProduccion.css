@@ -145,12 +145,16 @@ input[type="number"] {
   
   /* Estilo para botón de editar global */
   .editar-global-btn {
+    padding: 0.4rem 1rem;
+    font-weight: 500;
+    max-width: 200px;
     width: 40%;
     margin-top: 0;
     margin-bottom: 0;
     background-color: #0d6efd;
     color: white;
     border-color: #0d6efd;
+    transition: all 0.15s ease-in-out;
   }
   
   /* Estilos para los botones de encabezado en pantallas pequeñas */

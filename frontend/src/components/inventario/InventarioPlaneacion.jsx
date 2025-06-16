@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Alert, Card, Table, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Alert, Card, Table } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioPlaneacion.css';
+import '../../styles/TablaKardex.css';
 
 const InventarioPlaneacion = () => {
   // Obtener productos del contexto
@@ -41,10 +42,10 @@ const InventarioPlaneacion = () => {
     setProductos(nuevosProductos);
   };
 
-  const getExistenciasBadge = (existencias) => {
-    if (existencias <= 0) return 'badge-custom badge-custom-red';
-    if (existencias <= 10) return 'badge-custom badge-custom-yellow';
-    return 'badge-custom badge-custom-green';
+  const getExistenciasClass = (existencias) => {
+    if (existencias <= 0) return 'bg-light-red';
+    if (existencias <= 10) return 'bg-light-yellow';
+    return 'bg-light-green';
   };
 
   const handleGuardarPlaneacion = () => {
@@ -92,7 +93,7 @@ const InventarioPlaneacion = () => {
       {/* Encabezado y controles */}
       <Row className="mb-4">
         <Col>
-          <p className="text-muted">Planifique la cantidad de productos a fabricar para una fecha específica.</p>
+          <p className="text-muted fw-medium" style={{fontSize: '0.95rem'}}>Planifique la cantidad de productos a fabricar para una fecha específica.</p>
         </Col>
       </Row>
 
@@ -118,7 +119,7 @@ const InventarioPlaneacion = () => {
       <Row className="mb-4">
         <Col>
           <div className="table-container">
-            <Table hover striped className="align-middle mb-0">
+            <Table className="align-middle mb-0 table-kardex">
               <thead>
                 <tr>
                   <th scope="col" style={{ width: '40%' }}>Producto</th>
@@ -130,31 +131,35 @@ const InventarioPlaneacion = () => {
               <tbody>
                 {productos.map((producto) => (
                   <tr key={producto.id} className="product-row">
-                    <td className="product-name">{producto.nombre}</td>
+                    <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                     <td className="text-center">
-                      <Badge className={`${getExistenciasBadge(producto.existencias)} existencias-badge-lg`}>
-                        {producto.existencias || 0}&nbsp;und
-                      </Badge>
+                      <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
+                        {producto.existencias || 0} und
+                      </span>
                     </td>
                     <td className="text-center">
-                      <Form.Control
-                        type="number"
-                        min="0"
-                        value={producto.solicitado || 0}
-                        onChange={(e) => handleSolicitadoChange(producto.id, e.target.value)}
-                        className="quantity-input mx-auto"
-                        aria-label={`Cantidad solicitada de ${producto.nombre}`}
-                      />
+                      <div className="d-flex justify-content-center">
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          value={producto.solicitado || 0}
+                          onChange={(e) => handleSolicitadoChange(producto.id, e.target.value)}
+                          className="quantity-input"
+                          aria-label={`Cantidad solicitada de ${producto.nombre}`}
+                        />
+                      </div>
                     </td>
                     <td className="text-center">
-                      <Form.Control
-                        type="number"
-                        min="0"
-                        value={producto.orden || 0}
-                        onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
-                        className="quantity-input mx-auto"
-                        aria-label={`Orden de ${producto.nombre}`}
-                      />
+                      <div className="d-flex justify-content-center">
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          value={producto.orden || 0}
+                          onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
+                          className="quantity-input"
+                          aria-label={`Orden de ${producto.nombre}`}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -176,10 +181,11 @@ const InventarioPlaneacion = () => {
         <Col className="text-end">
           <Button 
             variant="primary" 
-            className="grabar-btn"
+            className="grabar-btn rounded-pill-sm"
+            style={{backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem'}}
             onClick={handleGuardarPlaneacion}
           >
-            <i className="bi bi-save"></i> Guardar Planeación
+            <i className="bi bi-save me-2"></i> Guardar Planeación
           </Button>
         </Col>
       </Row>
@@ -188,9 +194,9 @@ const InventarioPlaneacion = () => {
       {planeacion.length > 0 && (
         <Row className="mt-5">
           <Col>
-            <h5 className="mb-3">Historial de Planeación</h5>
+            <h5 className="mb-3 fw-bold" style={{color: '#1e293b'}}>Historial de Planeación</h5>
             <div className="table-container">
-              <Table hover striped className="align-middle mb-0">
+              <Table className="align-middle mb-0 table-kardex">
                 <thead>
                   <tr>
                     <th scope="col">Fecha</th>
@@ -201,11 +207,21 @@ const InventarioPlaneacion = () => {
                 <tbody>
                   {planeacion.map((plan) => (
                     <tr key={plan.id}>
-                      <td>{plan.fecha}</td>
+                      <td>
+                        <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
+                          {plan.fecha}
+                        </span>
+                      </td>
                       <td>
                         {plan.productos.map(p => (
-                          <div key={p.id}>
-                            {p.nombre}: Solicitado: {p.solicitado} und, Orden: {p.orden} und
+                          <div key={p.id} className="mb-1">
+                            <span className="fw-medium" style={{color: '#1e293b'}}>{p.nombre}:</span>
+                            <span className="rounded-pill-sm bg-light-green ms-2">
+                              <i className="bi bi-box-seam me-1"></i> {p.solicitado} und
+                            </span>
+                            <span className="rounded-pill-sm bg-light-yellow ms-2">
+                              <i className="bi bi-clipboard-check me-1"></i> {p.orden} und
+                            </span>
                           </div>
                         ))}
                       </td>
@@ -213,7 +229,8 @@ const InventarioPlaneacion = () => {
                         <Button
                           variant="outline-primary"
                           size="sm"
-                          className="edit-button"
+                          className="rounded-pill-sm"
+                          style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
                         >
                           <i className="bi bi-eye me-1"></i>
                           Ver Detalles
