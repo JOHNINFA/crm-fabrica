@@ -23,6 +23,7 @@ import ProductList from "../components/Pos/ProductList";
 import Cart from "../components/Pos/Cart";
 import ConsumerForm from "../components/Pos/ConsumerForm";
 import PanelToolbar from "../components/Pos/PanelToolbar";
+import ImageSyncButton from "../components/common/ImageSyncButton";
 
 const defaultSellers = ["jose", "maria", "luis"];
 

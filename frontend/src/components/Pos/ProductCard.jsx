@@ -1,6 +1,30 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { localImageService } from "../../services/localImageService";
 
 export default function ProductCard({ product, onClick }) {
+  // Estado para la imagen
+  const [imageSource, setImageSource] = useState(product.image || null);
+  
+  // Cargar imagen desde IndexedDB si no está disponible en el producto
+  useEffect(() => {
+    const loadLocalImage = async () => {
+      // Si ya tenemos una imagen, no hacer nada
+      if (imageSource) return;
+      
+      try {
+        // Intentar cargar la imagen desde IndexedDB
+        const localImage = await localImageService.getImage(product.id);
+        if (localImage) {
+          setImageSource(localImage);
+        }
+      } catch (error) {
+        console.error('Error al cargar imagen local:', error);
+      }
+    };
+    
+    loadLocalImage();
+  }, [product.id, imageSource]);
+  
   // Asegurarse de que el precio sea un número válido
   const price = typeof product.price === 'number' ? product.price : 0;
   
@@ -16,9 +40,9 @@ export default function ProductCard({ product, onClick }) {
       }}
     >
       <div className="card-body d-flex flex-column align-items-center text-center">
-        {product.image ? (
+        {imageSource ? (
           <img 
-            src={product.image} 
+            src={imageSource} 
             alt={product.name || 'Producto'} 
             className="mb-2" 
             style={{ maxHeight: 80, maxWidth: '100%', objectFit: 'contain' }} 

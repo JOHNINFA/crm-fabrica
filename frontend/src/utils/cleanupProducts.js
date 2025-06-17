@@ -1,42 +1,50 @@
-// src/utils/cleanupProducts.js
-
 /**
- * Elimina productos específicos del inventario
+ * Script para eliminar productos sin imagen
+ * 
+ * Para usar este script:
+ * 1. Abre la consola del navegador (F12)
+ * 2. Copia y pega todo el contenido de este archivo
+ * 3. Presiona Enter para ejecutar
  */
-export const eliminarProductosEspecificos = () => {
+
+// Función para eliminar productos sin imagen
+const removeProductsWithoutImage = () => {
   try {
-    // IDs de productos a eliminar
-    const idsAEliminar = [2, 12, 14, 15, 16, 37, 39];
-    
-    // Eliminar de localStorage 'productos'
-    const productosStr = localStorage.getItem('productos');
-    if (productosStr) {
-      const productos = JSON.parse(productosStr);
-      const productosFiltrados = productos.filter(p => !idsAEliminar.includes(p.id));
-      localStorage.setItem('productos', JSON.stringify(productosFiltrados));
+    // Obtener productos de localStorage
+    const productsStr = localStorage.getItem('products');
+    if (!productsStr) {
+      console.log('No hay productos en localStorage');
+      return;
     }
     
-    // Disparar evento para actualizar la UI
-    const event = new Event('productosUpdated');
-    window.dispatchEvent(event);
+    const products = JSON.parse(productsStr);
+    console.log(`Total de productos antes: ${products.length}`);
     
-    return true;
+    // Filtrar productos sin imagen
+    const productsWithImage = products.filter(product => 
+      product.image && typeof product.image === 'string' && 
+      (product.image.startsWith('data:') || product.image.startsWith('/'))
+    );
+    
+    console.log(`Productos con imagen: ${productsWithImage.length}`);
+    console.log(`Productos sin imagen a eliminar: ${products.length - productsWithImage.length}`);
+    
+    // Guardar productos filtrados en localStorage
+    localStorage.setItem('products', JSON.stringify(productsWithImage));
+    
+    // Notificar a la aplicación que los productos han cambiado
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('productosUpdated'));
+    
+    console.log('Productos sin imagen eliminados correctamente');
+    console.log('Recarga la página para ver los cambios');
+    
+    return productsWithImage;
   } catch (error) {
-    console.error('Error al eliminar productos específicos:', error);
-    return false;
+    console.error('Error al eliminar productos sin imagen:', error);
+    return null;
   }
 };
 
-/**
- * Limpia completamente el localStorage y recarga la página
- */
-export const limpiarLocalStorage = () => {
-  try {
-    localStorage.clear();
-    window.location.reload();
-    return true;
-  } catch (error) {
-    console.error('Error al limpiar localStorage:', error);
-    return false;
-  }
-};
+// Ejecutar la función
+removeProductsWithoutImage();

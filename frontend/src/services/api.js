@@ -4,7 +4,7 @@ const API_URL = 'http://localhost:8000/api';
 // Función para manejar errores de la API
 const handleApiError = (error) => {
   console.warn('API no disponible, usando almacenamiento local:', error);
-  throw new Error('API no disponible, usando almacenamiento local');
+  return { error: 'API_UNAVAILABLE', message: 'API no disponible, usando almacenamiento local' };
 };
 
 // Servicios para Productos
@@ -12,10 +12,12 @@ export const productoService = {
   // Obtener todos los productos
   getAll: async () => {
     try {
+      console.log('Intentando obtener productos desde:', `${API_URL}/productos/`);
       const response = await fetch(`${API_URL}/productos/`);
-      if (!response.ok) throw new Error('Error al obtener productos');
+      if (!response.ok) throw new Error(`Error al obtener productos: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en getAll:', error);
       return handleApiError(error);
     }
   },
@@ -23,10 +25,12 @@ export const productoService = {
   // Obtener un producto por ID
   getById: async (id) => {
     try {
+      console.log('Intentando obtener producto por ID:', id);
       const response = await fetch(`${API_URL}/productos/${id}/`);
-      if (!response.ok) throw new Error(`Error al obtener producto con ID ${id}`);
+      if (!response.ok) throw new Error(`Error al obtener producto con ID ${id}: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en getById:', error);
       return handleApiError(error);
     }
   },
@@ -34,6 +38,7 @@ export const productoService = {
   // Crear un nuevo producto
   create: async (productoData) => {
     try {
+      console.log('Intentando crear producto:', productoData);
       // Usar FormData para enviar archivos
       const formData = new FormData();
       
@@ -51,9 +56,10 @@ export const productoService = {
         body: formData, // No establecer Content-Type, fetch lo hará automáticamente
       });
 
-      if (!response.ok) throw new Error('Error al crear producto');
+      if (!response.ok) throw new Error(`Error al crear producto: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en create:', error);
       return handleApiError(error);
     }
   },
@@ -61,6 +67,7 @@ export const productoService = {
   // Actualizar un producto existente
   update: async (id, productoData) => {
     try {
+      console.log('Intentando actualizar producto:', id, productoData);
       // Usar FormData para enviar archivos
       const formData = new FormData();
       
@@ -78,9 +85,10 @@ export const productoService = {
         body: formData,
       });
 
-      if (!response.ok) throw new Error(`Error al actualizar producto con ID ${id}`);
+      if (!response.ok) throw new Error(`Error al actualizar producto con ID ${id}: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en update:', error);
       return handleApiError(error);
     }
   },
@@ -88,6 +96,7 @@ export const productoService = {
   // Actualizar el stock de un producto
   updateStock: async (id, cantidad, usuario, nota) => {
     try {
+      console.log('Intentando actualizar stock:', id, cantidad);
       const response = await fetch(`${API_URL}/productos/${id}/actualizar_stock/`, {
         method: 'POST',
         headers: {
@@ -96,9 +105,10 @@ export const productoService = {
         body: JSON.stringify({ cantidad, usuario, nota }),
       });
 
-      if (!response.ok) throw new Error(`Error al actualizar stock del producto con ID ${id}`);
+      if (!response.ok) throw new Error(`Error al actualizar stock del producto con ID ${id}: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en updateStock:', error);
       return handleApiError(error);
     }
   },
@@ -109,10 +119,12 @@ export const categoriaService = {
   // Obtener todas las categorías
   getAll: async () => {
     try {
+      console.log('Intentando obtener categorías');
       const response = await fetch(`${API_URL}/categorias/`);
-      if (!response.ok) throw new Error('Error al obtener categorías');
+      if (!response.ok) throw new Error(`Error al obtener categorías: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en getAll categorías:', error);
       return handleApiError(error);
     }
   },
@@ -120,6 +132,7 @@ export const categoriaService = {
   // Crear una nueva categoría
   create: async (nombre) => {
     try {
+      console.log('Intentando crear categoría:', nombre);
       const response = await fetch(`${API_URL}/categorias/`, {
         method: 'POST',
         headers: {
@@ -128,9 +141,10 @@ export const categoriaService = {
         body: JSON.stringify({ nombre }),
       });
 
-      if (!response.ok) throw new Error('Error al crear categoría');
+      if (!response.ok) throw new Error(`Error al crear categoría: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en create categoría:', error);
       return handleApiError(error);
     }
   },
@@ -144,10 +158,12 @@ export const loteService = {
       let url = `${API_URL}/lotes/`;
       if (productoId) url += `?producto=${productoId}`;
       
+      console.log('Intentando obtener lotes:', url);
       const response = await fetch(url);
-      if (!response.ok) throw new Error('Error al obtener lotes');
+      if (!response.ok) throw new Error(`Error al obtener lotes: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en getAll lotes:', error);
       return handleApiError(error);
     }
   },
@@ -155,6 +171,7 @@ export const loteService = {
   // Crear un nuevo lote
   create: async (loteData) => {
     try {
+      console.log('Intentando crear lote:', loteData);
       const response = await fetch(`${API_URL}/lotes/`, {
         method: 'POST',
         headers: {
@@ -163,9 +180,10 @@ export const loteService = {
         body: JSON.stringify(loteData),
       });
 
-      if (!response.ok) throw new Error('Error al crear lote');
+      if (!response.ok) throw new Error(`Error al crear lote: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en create lote:', error);
       return handleApiError(error);
     }
   },
@@ -183,11 +201,13 @@ export const movimientoService = {
       });
       
       const url = `${API_URL}/movimientos/?${queryParams.toString()}`;
+      console.log('Intentando obtener movimientos:', url);
       const response = await fetch(url);
       
-      if (!response.ok) throw new Error('Error al obtener movimientos');
+      if (!response.ok) throw new Error(`Error al obtener movimientos: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en getAll movimientos:', error);
       return handleApiError(error);
     }
   },
@@ -195,6 +215,7 @@ export const movimientoService = {
   // Crear un nuevo movimiento
   create: async (movimientoData) => {
     try {
+      console.log('Intentando crear movimiento:', movimientoData);
       const response = await fetch(`${API_URL}/movimientos/`, {
         method: 'POST',
         headers: {
@@ -203,9 +224,10 @@ export const movimientoService = {
         body: JSON.stringify(movimientoData),
       });
 
-      if (!response.ok) throw new Error('Error al crear movimiento');
+      if (!response.ok) throw new Error(`Error al crear movimiento: ${response.status}`);
       return await response.json();
     } catch (error) {
+      console.error('Error en create movimiento:', error);
       return handleApiError(error);
     }
   },

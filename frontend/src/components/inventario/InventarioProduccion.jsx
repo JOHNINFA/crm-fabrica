@@ -15,7 +15,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, Table } from 'react-bootstrap';
 import TablaInventario from './TablaInventario';
-import ModalAgregarProducto from './ModalAgregarProducto';
+// // import ModalAgregarProducto from './ModalAgregarProducto'; // Eliminado // Eliminado para optimizar
 import ModalEditarExistencias from './ModalEditarExistencias';
 import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
@@ -46,7 +46,7 @@ const InventarioProduccion = () => {
   const [lotes, setLotes] = useState([]); // Lista de lotes agregados
   
   // Estados para controlar la visibilidad de los modales
-  const [showModalAgregar, setShowModalAgregar] = useState(false); // Modal para agregar producto
+  // Estado para modal de agregar producto eliminado
   const [showModalEditar, setShowModalEditar] = useState(false); // Modal para editar existencias
   const [showModalUsuario, setShowModalUsuario] = useState(false); // Modal para cambiar usuario
   const [showModalCantidades, setShowModalCantidades] = useState(false); // Modal para editar cantidades
@@ -279,44 +279,7 @@ const InventarioProduccion = () => {
   }, [fechaSeleccionada]);
 
   // Manejadores de eventos
-  const handleAgregarProducto = async (nuevoProducto) => {
-    try {
-      // Preparar datos para la API (asegurar que el nombre esté en mayúsculas para consistencia)
-      const nombreNormalizado = nuevoProducto.nombre.trim().toUpperCase();
-      
-      // Crear un nuevo producto localmente sin usar la API
-      const nuevoId = Date.now();
-      const productoCreado = {
-        id: nuevoId,
-        nombre: nombreNormalizado,
-        stock_total: nuevoProducto.existencias || 0,
-        precio: nuevoProducto.precio || 0,
-        categoria_nombre: nuevoProducto.categoria || 'General'
-      };
-      
-      // Actualizar la lista local
-      const nuevoProductoFormateado = {
-        id: productoCreado.id,
-        nombre: productoCreado.nombre,
-        existencias: productoCreado.stock_total,
-        cantidad: 0,
-        precio: productoCreado.precio,
-        categoria: productoCreado.categoria_nombre,
-        imagen: null
-      };
-      
-      const nuevosProductos = [...productos, nuevoProductoFormateado];
-      setProductos(nuevosProductos);
-      actualizarExistencias(nuevosProductos);
-      
-      setMensaje({ texto: 'Producto agregado correctamente', tipo: 'success' });
-    } catch (error) {
-      console.error('Error al agregar producto:', error);
-      setMensaje({ texto: 'Error al agregar producto', tipo: 'danger' });
-    } finally {
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
-    }
-  };
+  // Función handleAgregarProducto eliminada para optimizar el código
 
   const handleEditarClick = (producto) => {
     setProductoEditar(producto);
@@ -759,13 +722,20 @@ const InventarioProduccion = () => {
       const lotesFecha = lotesGuardados.find(item => item.fecha === fechaStr);
       
       if (lotesFecha && lotesFecha.lotes) {
+        // Si hay lotes guardados para esta fecha, cargarlos
         setLotes(lotesFecha.lotes);
       } else {
-        // No resetear los lotes, mantener los actuales
-        // Esto permite que los lotes persistan entre cambios de fecha
+        // Si no hay lotes para esta fecha, limpiar los lotes actuales
+        // para empezar con una lista vacía en el nuevo día
+        setLotes([]);
+        // También limpiar los campos de entrada
+        setLote('');
+        setFechaVencimiento('');
       }
     } catch (error) {
       console.error('Error al cargar lotes:', error);
+      // En caso de error, también limpiar los lotes
+      setLotes([]);
     }
     
     // También cargar las cantidades guardadas para esta fecha
@@ -788,9 +758,27 @@ const InventarioProduccion = () => {
         
         // Actualizar productos con las cantidades guardadas
         setProductos(productosActualizados);
+      } else {
+        // Si no hay productos guardados para esta fecha, resetear todas las cantidades a 0
+        const productosReseteados = productos.map(producto => ({
+          ...producto,
+          cantidad: 0
+        }));
+        
+        // Actualizar productos con cantidades en 0
+        setProductos(productosReseteados);
+        
+        // También resetear el estado de productos grabados
+        setProductosGrabados({});
       }
     } catch (error) {
       console.error('Error al cargar productos guardados:', error);
+      // En caso de error, también resetear las cantidades
+      const productosReseteados = productos.map(producto => ({
+        ...producto,
+        cantidad: 0
+      }));
+      setProductos(productosReseteados);
     }
   };
 
@@ -807,30 +795,10 @@ const InventarioProduccion = () => {
             >
               <i className="bi bi-person"></i> {usuario}
             </Button>
-            <Button 
-              variant="primary"
-              onClick={() => setShowModalAgregar(true)}
-              className="mb-2 mb-md-0 me-md-2"
-            >
-              <i className="bi bi-plus-lg"></i> Agregar Producto
-            </Button>
-            <Button 
-              variant="outline-primary" 
-              onClick={() => {
-                // Importar dinámicamente para evitar problemas de circular dependency
-                import('../../utils/inventarioUtils').then(utils => {
-                  utils.limpiarInventario();
-                  cargarProductos(); // Recargar productos después de limpiar
-                  setMensaje({ 
-                    texto: 'Inventario sincronizado correctamente', 
-                    tipo: 'success' 
-                  });
-                  setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
-                });
-              }}
-            >
-              <i className="bi bi-sync"></i> Sincronizar con POS
-            </Button>
+            
+            
+            
+            
           </div>
         </Col>
       </Row>
@@ -1000,11 +968,7 @@ const InventarioProduccion = () => {
       </Row>
 
       {/* Modales */}
-      <ModalAgregarProducto 
-        show={showModalAgregar}
-        onHide={() => setShowModalAgregar(false)}
-        onAgregar={handleAgregarProducto}
-      />
+    
       
       <ModalEditarExistencias 
         show={showModalEditar}
