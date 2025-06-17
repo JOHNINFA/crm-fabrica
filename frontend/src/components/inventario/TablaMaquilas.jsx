@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Form, Button, Row, Col } from 'react-bootstrap';
+import { Table, Form } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
 import '../../styles/InventarioMaquilas.css';
 import productosMaquilasData from '../../data/productosMaquilas';
@@ -12,6 +12,11 @@ const FilaProducto = ({ producto, onEditarClick, handleCantidadChange, handleLot
     if (e.target.value === '0') {
       e.target.select();
     }
+  };
+  
+  // Función para mostrar existencias (no utilizada, se muestra el valor directo)
+  const mostrarExistencias = (existencias) => {
+    return `${existencias} und`;
   };
 
   // Estilos comunes para inputs
@@ -120,7 +125,7 @@ const TablaMaquilas = ({ productos, onEditarClick, handleCantidadChange, handleL
           ))}
           {productosFiltrados.length === 0 && (
             <tr>
-              <td colSpan="4" className="text-center py-4">
+              <td colSpan="5" className="text-center py-4">
                 <p className="text-muted">No hay productos disponibles</p>
               </td>
             </tr>

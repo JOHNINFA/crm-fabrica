@@ -1,3 +1,16 @@
+/**
+ * TablaKardex.jsx
+ * 
+ * Este componente muestra el historial de movimientos de inventario (kardex)
+ * para todos los productos, filtrados por fecha y búsqueda.
+ * 
+ * Características principales:
+ * - Filtrado por fecha y texto
+ * - Agrupación de movimientos por producto
+ * - Visualización del último movimiento por producto
+ * - Indicadores visuales para tipos de movimiento (Entrada/Salida)
+ */
+
 import React, { useState } from 'react';
 import { Table, Form, InputGroup, Row, Col } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
@@ -130,50 +143,69 @@ const TablaKardex = () => {
                 producto => !productosConMovimientos.has(producto.nombre)
               );
               
-              // Generar filas para productos con movimientos
-              const filasConMovimientos = Array.from(productosConMovimientos.values()).map(({ producto, movimientos }) => 
-                movimientos.map((movimiento, idx) => (
-                  <tr key={`${movimiento.id}-${idx}`}>
+              // Generar filas para productos con movimientos (solo el último movimiento por producto)
+              const filasConMovimientos = Array.from(productosConMovimientos.values()).map(({ producto, movimientos }) => {
+                // Ordenar movimientos por fecha y hora (más reciente primero)
+                const movimientosOrdenados = [...movimientos].sort((a, b) => {
+                  // Comparar por fecha
+                  const fechaA = a.fecha ? new Date(a.fecha.includes('-') ? a.fecha : a.fecha.split('/').reverse().join('-')) : new Date(0);
+                  const fechaB = b.fecha ? new Date(b.fecha.includes('-') ? b.fecha : b.fecha.split('/').reverse().join('-')) : new Date(0);
+                  
+                  if (fechaA.getTime() !== fechaB.getTime()) {
+                    return fechaB.getTime() - fechaA.getTime(); // Orden descendente por fecha
+                  }
+                  
+                  // Si las fechas son iguales, comparar por hora
+                  const horaA = a.hora || '00:00';
+                  const horaB = b.hora || '00:00';
+                  return horaB.localeCompare(horaA); // Orden descendente por hora
+                });
+                
+                // Tomar solo el movimiento más reciente
+                const ultimoMovimiento = movimientosOrdenados[0];
+                
+                return (
+                  <tr key={`${ultimoMovimiento.id}`}>
                     <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                     <td>
                       <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-                        {producto.existencias} und
+                        {producto.existencias}
                       </span>
                     </td>
                     <td>
                       <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
                         {(() => {
                           try {
-                            if (movimiento.fecha.includes('-')) {
-                              return new Date(movimiento.fecha).toLocaleDateString('es-ES');
+                            if (ultimoMovimiento.fecha.includes('-')) {
+                              return new Date(ultimoMovimiento.fecha).toLocaleDateString('es-ES');
                             } else {
-                              return movimiento.fecha;
+                              return ultimoMovimiento.fecha;
                             }
                           } catch (e) {
-                            return movimiento.fecha || '-';
+                            return ultimoMovimiento.fecha || '-';
                           }
                         })()}
                       </span>
                     </td>
                     <td>
                       <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
-                        {movimiento.hora || '12:00'}
+                        {ultimoMovimiento.hora || '12:00'}
                       </span>
                     </td>
                     <td>
                       <span className="rounded-pill-sm" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>
-                        <i className="bi bi-person" /> {movimiento.usuario}
+                        <i className="bi bi-person" /> {ultimoMovimiento.usuario}
                       </span>
                     </td>
                     <td>
-                      <span className={`rounded-pill-sm ${movimiento.tipo === 'Entrada' ? 'bg-light-green' : 'bg-light-red'}`}>
-                        <i className={`bi ${movimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle'}`} /> 
-                        {movimiento.cantidad} und
+                      <span className={`rounded-pill-sm ${ultimoMovimiento.tipo === 'Entrada' ? 'bg-light-green' : 'bg-light-red'}`}>
+                        <i className={`bi ${ultimoMovimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle'}`} /> 
+                        {ultimoMovimiento.tipo}
                       </span>
                     </td>
                   </tr>
-                ))
-              ).flat();
+                );
+              });
               
               // Generar filas para productos sin movimientos
               const filasSinMovimientos = productosSinMovimientos.map(producto => (
@@ -181,7 +213,7 @@ const TablaKardex = () => {
                   <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                   <td>
                     <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-                      {producto.existencias} und
+                      {producto.existencias}
                     </span>
                   </td>
                   <td>
@@ -201,7 +233,7 @@ const TablaKardex = () => {
                   </td>
                   <td>
                     <span className="rounded-pill-sm bg-light-yellow">
-                      <i className="bi bi-dash" /> 0 und
+                      <i className="bi bi-dash" /> Sin movimientos
                     </span>
                   </td>
                 </tr>

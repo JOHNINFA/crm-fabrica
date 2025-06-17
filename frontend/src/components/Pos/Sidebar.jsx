@@ -31,6 +31,9 @@ export default function Sidebar() {
 
         <div className="w-100 flex-grow-1 overflow-auto">
           <ul className="nav flex-column w-100 mt-3">
+            {/* Inicio primero */}
+            <li className="nav-item sidebar-item active px-3 py-2"><span className="material-icons me-2 align-middle">home</span>Inicio</li>
+            
             {/* Productos con Modal */}
             <li 
               className="nav-item sidebar-item px-3 py-2" 
@@ -40,14 +43,14 @@ export default function Sidebar() {
               <span className="material-icons me-2 align-middle">apps</span>Productos
             </li>
 
-            {/* Resto sin modificar */}
-            <li className="nav-item sidebar-item active px-3 py-2"><span className="material-icons me-2 align-middle">home</span>Inicio</li>
+            {/* Factura Rápida */}
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">point_of_sale</span>Factura Rápida(POS)</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">keyboard_double_arrow_down</span>Ingresos</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">upload</span>Gastos</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">balance</span>Inventarios</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">local_shipping</span>Logística</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">groups</span>Contactos</li>
+            <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">person_search</span>CRM</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">account_balance</span>Bancos</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">calculate</span>Contabilidad</li>
             <li className="nav-item sidebar-item px-3 py-2"><span className="material-icons me-2 align-middle">finance</span>Informes</li>

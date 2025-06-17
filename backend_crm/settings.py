@@ -45,6 +45,10 @@ INSTALLED_APPS = [
     'api',
 ]
 
+# Configuración para almacenamiento de archivos
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Middleware de CORS
     'django.middleware.security.SecurityMiddleware',

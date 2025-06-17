@@ -134,7 +134,7 @@ const InventarioPlaneacion = () => {
                     <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                     <td className="text-center">
                       <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-                        {producto.existencias || 0} und
+                        {producto.existencias}
                       </span>
                     </td>
                     <td className="text-center">
@@ -217,10 +217,10 @@ const InventarioPlaneacion = () => {
                           <div key={p.id} className="mb-1">
                             <span className="fw-medium" style={{color: '#1e293b'}}>{p.nombre}:</span>
                             <span className="rounded-pill-sm bg-light-green ms-2">
-                              <i className="bi bi-box-seam me-1"></i> {p.solicitado} und
+                              <i className="bi bi-box-seam me-1"></i> {p.solicitado}
                             </span>
                             <span className="rounded-pill-sm bg-light-yellow ms-2">
-                              <i className="bi bi-clipboard-check me-1"></i> {p.orden} und
+                              <i className="bi bi-clipboard-check me-1"></i> {p.orden}
                             </span>
                           </div>
                         ))}

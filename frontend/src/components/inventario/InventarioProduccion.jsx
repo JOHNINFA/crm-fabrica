@@ -1,3 +1,17 @@
+/**
+ * InventarioProduccion.jsx
+ * 
+ * Este componente maneja la pantalla de producción del inventario.
+ * Permite registrar la producción de productos, gestionar lotes y fechas de vencimiento,
+ * y actualizar las existencias en el inventario.
+ * 
+ * Características principales:
+ * - Gestión de lotes y fechas de vencimiento
+ * - Registro de cantidades producidas por producto
+ * - Persistencia de datos entre navegaciones usando localStorage
+ * - Sincronización con el sistema POS
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, Table } from 'react-bootstrap';
 import TablaInventario from './TablaInventario';
@@ -7,64 +21,43 @@ import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
+import { productoService, loteService, movimientoService } from '../../services/api';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/TablaKardex.css';
 
 
 
 const InventarioProduccion = () => {
-  // Obtener funciones del contexto (no usamos productosContext porque definimos nuestros propios productos)
+  /**
+   * SECCIÓN 1: ESTADOS Y CONTEXTO
+   * 
+   * Esta sección define todos los estados que maneja el componente y
+   * obtiene las funciones necesarias del contexto de productos.
+   */
+  
+  // Obtener funciones del contexto para actualizar el inventario global
   const { actualizarExistencias, agregarMovimientos } = useProductos();
   
-  // Estados para manejar los datos
-  const [usuario, setUsuario] = useState('Usuario Predeterminado');
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
-  const [lote, setLote] = useState('');
-  const [fechaVencimiento, setFechaVencimiento] = useState('');
-  const [lotes, setLotes] = useState([]);
+  // Estados para manejar los datos de producción
+  const [usuario, setUsuario] = useState('Usuario Predeterminado'); // Usuario actual
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date()); // Fecha de producción
+  const [lote, setLote] = useState(''); // Input para nuevo lote
+  const [fechaVencimiento, setFechaVencimiento] = useState(''); // Input para fecha de vencimiento
+  const [lotes, setLotes] = useState([]); // Lista de lotes agregados
   
-  // Estados para modales
-  const [showModalAgregar, setShowModalAgregar] = useState(false);
-  const [showModalEditar, setShowModalEditar] = useState(false);
-  const [showModalUsuario, setShowModalUsuario] = useState(false);
-  const [showModalCantidades, setShowModalCantidades] = useState(false);
-  const [productoEditar, setProductoEditar] = useState(null);
-  const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
+  // Estados para controlar la visibilidad de los modales
+  const [showModalAgregar, setShowModalAgregar] = useState(false); // Modal para agregar producto
+  const [showModalEditar, setShowModalEditar] = useState(false); // Modal para editar existencias
+  const [showModalUsuario, setShowModalUsuario] = useState(false); // Modal para cambiar usuario
+  const [showModalCantidades, setShowModalCantidades] = useState(false); // Modal para editar cantidades
+  const [productoEditar, setProductoEditar] = useState(null); // Producto seleccionado para editar
+  const [mensaje, setMensaje] = useState({ texto: '', tipo: '' }); // Mensajes de alerta
 
-  // Inicializar productos directamente en el estado inicial
-  const [productos, setProductos] = useState([
-    { id: 1, nombre: 'AREPA TIPO OBLEA', existencias: 0, cantidad: 0 },
-    { id: 2, nombre: 'AREPA MEDIANA', existencias: 0, cantidad: 0 },
-    { id: 3, nombre: 'AREPA TIPO PINCHO', existencias: 0, cantidad: 0 },
-    { id: 4, nombre: 'AREPA CON QUESO-CORRIENTE', existencias: 0, cantidad: 0 },
-    { id: 5, nombre: 'AREPA CON QUESO-ESPECIAL GRANDE', existencias: 0, cantidad: 0 },
-    { id: 6, nombre: 'AREPA CON QUESO-ESPECIAL PEQUEÑA', existencias: 0, cantidad: 0 },
-    { id: 7, nombre: 'AREPA CON QUESO MINI X 10', existencias: 0, cantidad: 0 },
-    { id: 8, nombre: 'AREPA CON QUESO CUADRADA', existencias: 0, cantidad: 0 },
-    { id: 14, nombre: 'AREPA SANTADERANA', existencias: 0, cantidad: 0 },
-    { id: 17, nombre: 'AREPA CON SEMILLA DE QUINUA', existencias: 0, cantidad: 0 },
-    { id: 18, nombre: 'AREPA CON SEMILLA DE CHIA', existencias: 0, cantidad: 0 },
-    { id: 19, nombre: 'AREPA CON SEMILLA DE AJONJOLI', existencias: 0, cantidad: 0 },
-    { id: 20, nombre: 'AREPA CON SEMILLA DE LINANZA', existencias: 0, cantidad: 0 },
-    { id: 21, nombre: 'AREPA CON SEMILLA DE GIRASOL', existencias: 0, cantidad: 0 },
-    { id: 22, nombre: 'AREPA CHORICERA', existencias: 0, cantidad: 0 },
-    { id: 23, nombre: 'AREPA LONCHERIA', existencias: 0, cantidad: 0 },
-    { id: 24, nombre: 'AREPA CON MARGARINA Y SAL', existencias: 0, cantidad: 0 },
-    { id: 25, nombre: 'YUCAREPA', existencias: 0, cantidad: 0 },
-    { id: 26, nombre: 'AREPA TIPO ASADERO X 10', existencias: 0, cantidad: 0 },
-    { id: 27, nombre: 'AREPA PARA RELLENAR #1', existencias: 0, cantidad: 0 },
-    { id: 28, nombre: 'AREPA PARA RELLENAR #2', existencias: 0, cantidad: 0 },
-    { id: 29, nombre: 'AREPA PARA RELLENAR #3', existencias: 0, cantidad: 0 },
-    { id: 30, nombre: 'PORCION DE AREPAS X 2 UND', existencias: 0, cantidad: 0 },
-    { id: 31, nombre: 'PORCION DE AREPAS X 3 UND', existencias: 0, cantidad: 0 },
-    { id: 32, nombre: 'PORCION DE AREPAS X 4 UND', existencias: 0, cantidad: 0 },
-    { id: 33, nombre: 'PORCION DE AREPAS X 5 UND', existencias: 0, cantidad: 0 },
-    { id: 34, nombre: 'AREPA SUPER OBLEA', existencias: 0, cantidad: 0 },
-    { id: 35, nombre: 'BLOQUE DE MASA', existencias: 0, cantidad: 0 },
-    { id: 36, nombre: 'LIBRAS DE MASA', existencias: 0, cantidad: 0 },
-    { id: 37, nombre: 'MUTE BOYACENSE', existencias: 0, cantidad: 0 },
-    { id: 38, nombre: 'LIBRA DE MAIZ PETO', existencias: 0, cantidad: 0 }
-  ]);
+  // Estados para la lista de productos
+  const [productos, setProductos] = useState([]); // Lista de productos
+  const [cargando, setCargando] = useState(true); // Indicador de carga
+  // Estado para controlar qué productos han sido grabados (para UI)
+  const [productosGrabados, setProductosGrabados] = useState({});
   
   // Obtener movimientos del contexto
   const { movimientos } = useProductos();
@@ -100,67 +93,229 @@ const InventarioProduccion = () => {
     }
   });
   
-  // Actualizar el estado de los productos basado en los movimientos de la fecha seleccionada
+  /**
+   * SECCIÓN 3: CARGA DE PRODUCTOS
+   * 
+   * Esta función carga los productos desde localStorage (sistema POS)
+   * y recupera las cantidades guardadas para la fecha seleccionada.
+   */
+  const cargarProductos = async () => {
+    try {
+      setCargando(true);
+      
+      // Obtener productos del sistema POS (almacenados en localStorage)
+      const posProductsStr = localStorage.getItem('products');
+      const posProducts = posProductsStr ? JSON.parse(posProductsStr) : [];
+      
+      if (posProducts.length > 0) {
+        // Transformar los productos del POS al formato esperado por el componente
+        const productosFormateados = posProducts.map(producto => ({
+          id: producto.id,
+          nombre: producto.name ? producto.name.toUpperCase() : "SIN NOMBRE",
+          existencias: producto.stock || 0,
+          cantidad: 0, // Inicializar cantidad en 0, pero se actualizará después si hay datos guardados
+          precio: producto.price || 0,
+          categoria: producto.category || "General",
+          imagen: producto.image || null
+        }));
+        
+        // Actualizar el estado con los nuevos productos (una sola vez)
+        setProductos(productosFormateados);
+        
+        // Intentar cargar datos guardados para la fecha actual
+        const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
+        try {
+          // Cargar productos guardados
+          const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+          const productosGuardados = JSON.parse(productosGuardadosStr);
+          
+          if (productosGuardados[fechaStr]) {
+            // Si hay productos guardados para esta fecha, actualizar cantidades
+            const productosActualizados = productosFormateados.map(producto => {
+              const productoGuardado = productosGuardados[fechaStr].find(p => p.id === producto.id);
+              if (productoGuardado) {
+                return {
+                  ...producto,
+                  cantidad: productoGuardado.cantidad || 0
+                };
+              }
+              return producto;
+            });
+            
+            // Actualizar productos con las cantidades guardadas
+            setProductos(productosActualizados);
+          }
+        } catch (error) {
+          console.error('Error al cargar productos guardados:', error);
+        }
+      } else {
+        // Si no hay productos en el POS, mostrar mensaje
+        setProductos([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+      setMensaje({ 
+        texto: 'Error al cargar productos. Por favor, intente de nuevo.', 
+        tipo: 'danger' 
+      });
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  /**
+   * SECCIÓN 2: PERSISTENCIA DE LOTES
+   * 
+   * Estas funciones manejan la persistencia de los lotes en localStorage
+   * para mantener el estado entre navegaciones y recargas de página.
+   */
+  
+  // Guarda los lotes actuales en localStorage para persistencia
+  const guardarLotes = () => {
+    try {
+      // Guardar los lotes actuales directamente en localStorage
+      if (lotes && lotes.length > 0) {
+        localStorage.setItem('inventarioLotesActuales', JSON.stringify(lotes));
+      }
+    } catch (error) {
+      console.error('Error al guardar lotes:', error);
+    }
+  };
+
+  // Recupera los lotes guardados previamente en localStorage
+  const cargarLotesGuardados = () => {
+    try {
+      const lotesGuardadosStr = localStorage.getItem('inventarioLotesActuales');
+      if (lotesGuardadosStr) {
+        const lotesGuardados = JSON.parse(lotesGuardadosStr);
+        if (lotesGuardados && lotesGuardados.length > 0) {
+          setLotes(lotesGuardados);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar lotes guardados:', error);
+    }
+  };
+
+  /**
+   * SECCIÓN 4: EFECTOS (LIFECYCLE)
+   * 
+   * Estos efectos manejan la persistencia de datos y la sincronización
+   * entre componentes cuando cambian los datos.
+   */
+  
+  // Efecto para guardar los lotes automáticamente cuando cambian
   useEffect(() => {
-    // Solo proceder si hay productos
-    if (productos.length === 0) {
-      console.log("No hay productos para actualizar");
+    if (lotes && lotes.length > 0) {
+      localStorage.setItem('inventarioLotesActuales', JSON.stringify(lotes));
+    }
+  }, [lotes]);
+
+  // Efecto que se ejecuta al montar el componente para cargar datos iniciales
+  useEffect(() => {
+    // Cargar productos y lotes guardados
+    cargarProductos();
+    cargarLotesGuardados();
+    
+    // Detectar cambios en localStorage (para sincronización entre pestañas)
+    const handleStorageChange = (e) => {
+      if (e.key === 'productos') {
+        cargarProductos();
+      }
+    };
+    
+    // Detectar evento personalizado de actualización de productos
+    const handleProductosUpdated = () => {
+      cargarProductos();
+    };
+    
+    // Registrar event listeners
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('productosUpdated', handleProductosUpdated);
+    
+    // Limpiar event listeners al desmontar el componente
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('productosUpdated', handleProductosUpdated);
+    };
+  }, []);
+  
+  // Cargar movimientos de inventario para la fecha seleccionada
+  useEffect(() => {
+    // Solo proceder si hay productos y no estamos cargando
+    if (productos.length === 0 || cargando) {
       return;
     }
     
-    console.log("Actualizando productos con movimientos:", productos.length, "productos disponibles");
-    
-    // Intentar cargar productos guardados para esta fecha
-    const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
-    try {
-      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
-      const productosGuardados = JSON.parse(productosGuardadosStr);
-      
-      if (productosGuardados[fechaStr]) {
-        // Si hay productos guardados para esta fecha, usarlos
-        const productosActualizados = productos.map(producto => {
-          const productoGuardado = productosGuardados[fechaStr].find(p => p.id === producto.id);
-          if (productoGuardado) {
-            return {
-              ...producto,
-              cantidad: productoGuardado.cantidad
-            };
-          }
-          return producto;
-        });
+    const cargarMovimientosPorFecha = async () => {
+      try {
+        // Intentar cargar productos guardados para esta fecha (mantener compatibilidad)
+        const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
+        const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+        const productosGuardados = JSON.parse(productosGuardadosStr);
         
-        setProductos(productosActualizados);
-        return; // Salir temprano si encontramos productos guardados
+        if (productosGuardados[fechaStr]) {
+          // Actualizar cantidades desde los productos guardados
+          const productosActualizados = productos.map(producto => {
+            const productoGuardado = productosGuardados[fechaStr].find(p => p.id === producto.id);
+            if (productoGuardado) {
+              return {
+                ...producto,
+                cantidad: productoGuardado.cantidad || 0
+              };
+            }
+            return producto;
+          });
+          
+          // Actualizar productos con las cantidades guardadas
+          setProductos(productosActualizados);
+        }
+      } catch (error) {
+        console.error('Error al cargar productos guardados:', error);
       }
-    } catch (error) {
-      console.error('Error al cargar productos guardados:', error);
-    }
+    };
     
-    // Si no hay productos guardados, proceder con la lógica normal
-    // Crear un mapa para agrupar movimientos por producto
-    const movimientosPorProducto = {};
-    
-    movimientosFiltrados.forEach(movimiento => {
-      if (!movimientosPorProducto[movimiento.producto]) {
-        movimientosPorProducto[movimiento.producto] = [];
-      }
-      movimientosPorProducto[movimiento.producto].push(movimiento);
-    });
-    
-    // Ya no necesitamos actualizar las cantidades registradas
-    // porque hemos eliminado esa funcionalidad
-    
-    // Forzar actualización de la UI
-    setProductos([...productos]);
+    cargarMovimientosPorFecha();
   }, [fechaSeleccionada]);
 
   // Manejadores de eventos
-  const handleAgregarProducto = (nuevoProducto) => {
-    const nuevosProductos = [...productos, { ...nuevoProducto, id: Date.now(), cantidad: 0 }];
-    setProductos(nuevosProductos);
-    actualizarExistencias(nuevosProductos);
-    setMensaje({ texto: 'Producto agregado correctamente', tipo: 'success' });
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+  const handleAgregarProducto = async (nuevoProducto) => {
+    try {
+      // Preparar datos para la API (asegurar que el nombre esté en mayúsculas para consistencia)
+      const nombreNormalizado = nuevoProducto.nombre.trim().toUpperCase();
+      
+      // Crear un nuevo producto localmente sin usar la API
+      const nuevoId = Date.now();
+      const productoCreado = {
+        id: nuevoId,
+        nombre: nombreNormalizado,
+        stock_total: nuevoProducto.existencias || 0,
+        precio: nuevoProducto.precio || 0,
+        categoria_nombre: nuevoProducto.categoria || 'General'
+      };
+      
+      // Actualizar la lista local
+      const nuevoProductoFormateado = {
+        id: productoCreado.id,
+        nombre: productoCreado.nombre,
+        existencias: productoCreado.stock_total,
+        cantidad: 0,
+        precio: productoCreado.precio,
+        categoria: productoCreado.categoria_nombre,
+        imagen: null
+      };
+      
+      const nuevosProductos = [...productos, nuevoProductoFormateado];
+      setProductos(nuevosProductos);
+      actualizarExistencias(nuevosProductos);
+      
+      setMensaje({ texto: 'Producto agregado correctamente', tipo: 'success' });
+    } catch (error) {
+      console.error('Error al agregar producto:', error);
+      setMensaje({ texto: 'Error al agregar producto', tipo: 'danger' });
+    } finally {
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    }
   };
 
   const handleEditarClick = (producto) => {
@@ -168,92 +323,108 @@ const InventarioProduccion = () => {
     setShowModalEditar(true);
   };
 
-  const handleEditarExistencias = (id, nuevasExistencias) => {
-    const productoEditado = productos.find(p => p.id === id);
-    const existenciasAnteriores = productoEditado.existencias;
-    const diferenciaExistencias = nuevasExistencias - existenciasAnteriores;
-    const tipoMovimiento = diferenciaExistencias > 0 ? 'Entrada' : 'Salida';
-    
-    // Actualizar productos
-    const nuevosProductos = productos.map(producto => {
-      if (producto.id === id) {
-        // Actualizar también la cantidad en el input
-        const cantidadActual = producto.cantidad || 0;
-        return { 
-          ...producto, 
-          existencias: nuevasExistencias,
-          cantidad: cantidadActual + diferenciaExistencias
-        };
-      }
-      return producto;
-    });
-    
-    // Actualizar los inputs de cantidad en la UI
-    setTimeout(() => {
-      const inputs = document.querySelectorAll('.quantity-input');
-      inputs.forEach((input, index) => {
-        if (index < productos.length && productos[index].id === id) {
-          input.value = nuevosProductos.find(p => p.id === id).cantidad;
-        }
-      });
-    }, 100);
-    
-    setProductos(nuevosProductos);
-    actualizarExistencias(nuevosProductos);
-    
-    // Obtener hora actual
-    const ahora = new Date();
-    const hora = ahora.getHours().toString().padStart(2, '0') + ':' + 
-                ahora.getMinutes().toString().padStart(2, '0');
-    
-    // Registrar movimiento
-    const nuevoMovimiento = {
-      id: Date.now(),
-      fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
-      hora: hora,
-      producto: productoEditado.nombre,
-      cantidad: Math.abs(diferenciaExistencias),
-      tipo: tipoMovimiento,
-      usuario
-    };
-    
-    agregarMovimientos([nuevoMovimiento]);
-    
-    // Guardar el estado actualizado en localStorage
+  const handleEditarExistencias = async (id, nuevasExistencias) => {
     try {
-      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
-      const productosGuardados = JSON.parse(productosGuardadosStr);
+      const productoEditado = productos.find(p => p.id === id);
+      if (!productoEditado) {
+        setMensaje({ texto: 'Producto no encontrado', tipo: 'danger' });
+        return;
+      }
       
-      const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
-      if (productosGuardados[fechaStr]) {
-        // Actualizar el producto específico
-        const productoIndex = productosGuardados[fechaStr].findIndex(p => p.id === id);
-        if (productoIndex !== -1) {
-          productosGuardados[fechaStr][productoIndex] = {
-            ...productosGuardados[fechaStr][productoIndex],
+      const existenciasAnteriores = productoEditado.existencias;
+      const diferenciaExistencias = nuevasExistencias - existenciasAnteriores;
+      const tipoMovimiento = diferenciaExistencias > 0 ? 'ENTRADA' : 'SALIDA';
+      
+      // Actualizar localmente sin usar la API
+      // Actualizar productos localmente
+      const nuevosProductos = productos.map(producto => {
+        if (producto.id === id) {
+          // Actualizar también la cantidad en el input
+          const cantidadActual = producto.cantidad || 0;
+          return { 
+            ...producto, 
             existencias: nuevasExistencias,
-            cantidad: nuevosProductos.find(p => p.id === id).cantidad
+            cantidad: cantidadActual + diferenciaExistencias
           };
         }
-        localStorage.setItem('productosRegistrados', JSON.stringify(productosGuardados));
+        return producto;
+      });
+      
+      setProductos(nuevosProductos);
+      actualizarExistencias(nuevosProductos);
+      
+      // Sincronizar con el POS
+      try {
+        // Obtener productos del POS
+        const posProductsStr = localStorage.getItem('products');
+        if (posProductsStr) {
+          const posProducts = JSON.parse(posProductsStr);
+          
+          // Actualizar existencias en productos del POS
+          const updatedPosProducts = posProducts.map(posProduct => {
+            if (posProduct.id === id) {
+              // Actualizar existencias
+              return {
+                ...posProduct,
+                stock: nuevasExistencias
+              };
+            }
+            return posProduct;
+          });
+          
+          // Guardar productos actualizados en localStorage
+          localStorage.setItem('products', JSON.stringify(updatedPosProducts));
+        }
+      } catch (error) {
+        console.error('Error al sincronizar con POS:', error);
       }
+      
+      // Crear un movimiento local
+      if (diferenciaExistencias !== 0) {
+        const nuevoMovimiento = {
+          id: Date.now(),
+          fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
+          hora: new Date().toLocaleTimeString('es-ES'),
+          producto: productoEditado.nombre,
+          cantidad: Math.abs(diferenciaExistencias),
+          tipo: tipoMovimiento,
+          usuario: usuario,
+          lote: 'Ajuste',
+          fechaVencimiento: '-',
+          registrado: true
+        };
+        
+        agregarMovimientos([nuevoMovimiento]);
+      }
+      
+      setMensaje({ texto: 'Existencias actualizadas correctamente y sincronizadas con POS', tipo: 'success' });
     } catch (error) {
-      console.error('Error al actualizar productos guardados:', error);
+      console.error('Error al actualizar existencias:', error);
+      setMensaje({ texto: 'Error al actualizar existencias', tipo: 'danger' });
+    } finally {
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
     }
-    
-    setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
   const handleCantidadChange = (id, cantidad) => {
-    // Almacenar las cantidades en un objeto separado para evitar re-renderizados
+    // Convertir a número
     const cantidadNumerica = parseInt(cantidad) || 0;
     
-    // Actualizar directamente el producto específico sin recrear todo el array
-    const index = productos.findIndex(p => p.id === id);
-    if (index !== -1) {
-      productos[index].cantidad = cantidadNumerica;
+    // Verificar si el producto existe y si la cantidad ha cambiado realmente
+    const productoActual = productos.find(p => p.id === id);
+    if (!productoActual || productoActual.cantidad === cantidadNumerica) {
+      return; // No hacer nada si no hay cambios
     }
+    
+    // Crear una copia del array de productos y actualizar solo el producto específico
+    const nuevosProductos = productos.map(producto => 
+      producto.id === id 
+        ? { ...producto, cantidad: cantidadNumerica } 
+        : producto
+    );
+    
+    // Actualizar el estado con la nueva copia
+    setProductos(nuevosProductos);
   };
   
   // Función para manejar cambios de existencias desde el modal
@@ -296,49 +467,94 @@ const InventarioProduccion = () => {
       agregarMovimientos(nuevosMovimientos);
     }
     
-    setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
+    // Sincronizar con el POS
+    try {
+      // Obtener productos del POS
+      const posProductsStr = localStorage.getItem('products');
+      if (posProductsStr) {
+        const posProducts = JSON.parse(posProductsStr);
+        
+        // Actualizar existencias en productos del POS
+        const updatedPosProducts = posProducts.map(posProduct => {
+          // Buscar el producto correspondiente en nuevosProductos
+          const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
+          if (inventoryProduct) {
+            // Actualizar existencias
+            return {
+              ...posProduct,
+              stock: inventoryProduct.existencias
+            };
+          }
+          return posProduct;
+        });
+        
+        // Guardar productos actualizados en localStorage
+        localStorage.setItem('products', JSON.stringify(updatedPosProducts));
+      }
+    } catch (error) {
+      console.error('Error al sincronizar con POS:', error);
+    }
+    
+    setMensaje({ texto: 'Existencias actualizadas correctamente y sincronizadas con POS', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
+  /**
+   * SECCIÓN 5: GESTIÓN DE LOTES
+   * 
+   * Estas funciones manejan la adición y eliminación de lotes
+   * para los productos que se están produciendo.
+   */
+  
+  // Agrega un nuevo lote a la lista de lotes
   const handleAgregarLote = () => {
+    // Validar que se haya ingresado un número de lote
     if (!lote) {
       setMensaje({ texto: 'Debe ingresar un número de lote', tipo: 'warning' });
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
       return;
     }
 
-    // Verificar si el lote ya existe
+    // Verificar si el lote ya existe para evitar duplicados
     if (lotes.some(l => l.numero === lote)) {
       setMensaje({ texto: 'Este número de lote ya fue agregado', tipo: 'warning' });
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
       return;
     }
 
+    // Crear objeto de nuevo lote
     const nuevoLote = {
       id: Date.now(),
       numero: lote,
       fechaVencimiento: fechaVencimiento || '' // Puede ser vacío
     };
 
+    // Actualizar los lotes (el efecto se encargará de guardarlos en localStorage)
     setLotes([...lotes, nuevoLote]);
+    
+    // Limpiar los campos del formulario
     setLote('');
     setFechaVencimiento('');
     setMensaje({ texto: 'Lote agregado correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
+  // Elimina un lote de la lista de lotes
   const handleEliminarLote = (id) => {
+    // Actualizar los lotes (el efecto se encargará de guardarlos en localStorage)
     setLotes(lotes.filter(lote => lote.id !== id));
   };
 
+  /**
+   * SECCIÓN 6: REGISTRO DE MOVIMIENTOS
+   * 
+   * Esta función es la más importante del componente, ya que registra
+   * los movimientos de inventario, actualiza las existencias y sincroniza
+   * con el sistema POS.
+   */
   const handleGrabarMovimiento = () => {
-    // Recopilar las cantidades de los inputs
-    const inputs = document.querySelectorAll('.quantity-input');
-    inputs.forEach((input, index) => {
-      if (index < productos.length) {
-        productos[index].cantidad = parseInt(input.value) || 0;
-      }
-    });
+    // Las cantidades ya están en los objetos de productos gracias al handleCantidadChange
+    // No necesitamos recopilarlas de los inputs
     
     // Guardar el estado actual de los productos para esta fecha
     try {
@@ -361,6 +577,12 @@ const InventarioProduccion = () => {
     
     // Filtrar productos con cantidad > 0
     const productosConCantidad = productos.filter(p => p.cantidad > 0);
+    
+    // Marcar estos productos como grabados
+    const nuevosProductosGrabados = { ...productosGrabados };
+    productosConCantidad.forEach(producto => {
+      nuevosProductosGrabados[producto.id] = true;
+    });
     
     if (productosConCantidad.length === 0) {
       setMensaje({ texto: 'No hay cantidades para registrar', tipo: 'warning' });
@@ -394,8 +616,8 @@ const InventarioProduccion = () => {
       nuevosProductos[index] = {
         ...nuevosProductos[index],
         existencias: existenciasActuales + cantidadAAgregar,
-        // Ya no acumulamos la cantidad registrada
-        // No resetear la cantidad para mantenerla visible
+        // Mantener la cantidad para que sea visible después de grabar
+        cantidad: cantidadAAgregar
       };
       
       console.log('Actualizando existencias:', {
@@ -412,7 +634,7 @@ const InventarioProduccion = () => {
           fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
           hora: hora,
           producto: producto.nombre,
-          cantidad: producto.cantidad / lotes.length, // Distribuir la cantidad entre los lotes
+          cantidad: producto.cantidad, // Usar la cantidad completa, sin dividir
           tipo: 'Entrada',
           usuario,
           lote: lote.numero,
@@ -426,6 +648,34 @@ const InventarioProduccion = () => {
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
     agregarMovimientos(nuevosMovimientos);
+    
+    // Sincronizar con el POS
+    try {
+      // Obtener productos del POS
+      const posProductsStr = localStorage.getItem('products');
+      if (posProductsStr) {
+        const posProducts = JSON.parse(posProductsStr);
+        
+        // Actualizar existencias en productos del POS
+        const updatedPosProducts = posProducts.map(posProduct => {
+          // Buscar el producto correspondiente en nuevosProductos
+          const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
+          if (inventoryProduct) {
+            // Actualizar existencias
+            return {
+              ...posProduct,
+              stock: inventoryProduct.existencias
+            };
+          }
+          return posProduct;
+        });
+        
+        // Guardar productos actualizados en localStorage
+        localStorage.setItem('products', JSON.stringify(updatedPosProducts));
+      }
+    } catch (error) {
+      console.error('Error al sincronizar con POS:', error);
+    }
     
     // Mantener los lotes para que se muestren en la tabla
     // Guardar los lotes en localStorage para recuperarlos por fecha
@@ -450,7 +700,13 @@ const InventarioProduccion = () => {
       console.error('Error al guardar lotes:', error);
     }
     
-    setMensaje({ texto: 'Movimientos registrados correctamente', tipo: 'success' });
+    // Actualizar el estado de productos grabados pero no bloquear los campos
+    // para permitir seguir editando
+    setProductosGrabados({});
+    
+    // No resetear lotes ni cantidades para mantener el registro
+    // Solo mostrar mensaje de éxito
+    setMensaje({ texto: 'Movimientos registrados correctamente y existencias sincronizadas con POS', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
@@ -458,6 +714,36 @@ const InventarioProduccion = () => {
     setUsuario(nuevoUsuario);
     setMensaje({ texto: 'Usuario cambiado correctamente', tipo: 'info' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+  };
+  
+  // Función para resetear todas las cantidades a 0
+  const resetearCantidades = () => {
+    // Importar la utilidad de reseteo
+    import('../../utils/resetHelper').then(({ resetearCantidadesCompletamente }) => {
+      // Resetear cantidades en localStorage
+      resetearCantidadesCompletamente();
+      
+      // Crear una copia de los productos con cantidades en 0
+      const productosReseteados = productos.map(producto => ({
+        ...producto,
+        cantidad: 0
+      }));
+      
+      // Actualizar el estado
+      setProductos(productosReseteados);
+      
+      // Resetear también el estado de productos grabados
+      setProductosGrabados({});
+      
+      // Forzar recarga de productos desde localStorage
+      setTimeout(() => {
+        cargarProductos();
+      }, 100);
+      
+      // Mostrar mensaje
+      setMensaje({ texto: 'Cantidades reseteadas a 0', tipo: 'info' });
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    });
   };
 
   const handleDateSelect = (date) => {
@@ -475,12 +761,36 @@ const InventarioProduccion = () => {
       if (lotesFecha && lotesFecha.lotes) {
         setLotes(lotesFecha.lotes);
       } else {
-        // Si no hay lotes guardados para esta fecha, resetear
-        setLotes([]);
+        // No resetear los lotes, mantener los actuales
+        // Esto permite que los lotes persistan entre cambios de fecha
       }
     } catch (error) {
       console.error('Error al cargar lotes:', error);
-      setLotes([]);
+    }
+    
+    // También cargar las cantidades guardadas para esta fecha
+    try {
+      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+      const productosGuardados = JSON.parse(productosGuardadosStr);
+      
+      if (productosGuardados[fechaStr]) {
+        // Si hay productos guardados para esta fecha, actualizar cantidades
+        const productosActualizados = productos.map(producto => {
+          const productoGuardado = productosGuardados[fechaStr].find(p => p.id === producto.id);
+          if (productoGuardado) {
+            return {
+              ...producto,
+              cantidad: productoGuardado.cantidad || 0
+            };
+          }
+          return producto;
+        });
+        
+        // Actualizar productos con las cantidades guardadas
+        setProductos(productosActualizados);
+      }
+    } catch (error) {
+      console.error('Error al cargar productos guardados:', error);
     }
   };
 
@@ -500,8 +810,26 @@ const InventarioProduccion = () => {
             <Button 
               variant="primary"
               onClick={() => setShowModalAgregar(true)}
+              className="mb-2 mb-md-0 me-md-2"
             >
               <i className="bi bi-plus-lg"></i> Agregar Producto
+            </Button>
+            <Button 
+              variant="outline-primary" 
+              onClick={() => {
+                // Importar dinámicamente para evitar problemas de circular dependency
+                import('../../utils/inventarioUtils').then(utils => {
+                  utils.limpiarInventario();
+                  cargarProductos(); // Recargar productos después de limpiar
+                  setMensaje({ 
+                    texto: 'Inventario sincronizado correctamente', 
+                    tipo: 'success' 
+                  });
+                  setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+                });
+              }}
+            >
+              <i className="bi bi-sync"></i> Sincronizar con POS
             </Button>
           </div>
         </Col>
@@ -627,6 +955,7 @@ const InventarioProduccion = () => {
               productos={productos} 
               onEditarClick={handleEditarClick}
               handleCantidadChange={handleCantidadChange}
+              productosGrabados={productosGrabados}
             />
           </div>
         </Col>
@@ -647,11 +976,25 @@ const InventarioProduccion = () => {
             
             <Button 
               variant="success" 
-              className="grabar-btn"
+              className="grabar-btn me-2"
               onClick={handleGrabarMovimiento}
             >
               <i className="bi bi-save me-2"></i> Grabar Movimiento
             </Button>
+            
+            {/* Botón para desbloquear productos grabados */}
+            {Object.keys(productosGrabados).length > 0 && (
+              <Button 
+                variant="outline-secondary" 
+                onClick={() => setProductosGrabados({})}
+                className="me-2"
+              >
+                <i className="bi bi-unlock me-2"></i> Desbloquear Campos
+              </Button>
+            )}
+            
+
+
           </div>
         </Col>
       </Row>
@@ -664,13 +1007,11 @@ const InventarioProduccion = () => {
       />
       
       <ModalEditarExistencias 
-  show={showModalEditar}
-  onHide={() => setShowModalEditar(false)}
-  producto={productoEditar}
-  onEditar={handleEditarExistencias}
-/>
-
-      
+        show={showModalEditar}
+        onHide={() => setShowModalEditar(false)}
+        producto={productoEditar}
+        onEditar={handleEditarExistencias}
+      />
       
       <ModalCambiarUsuario 
         show={showModalUsuario}

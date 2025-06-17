@@ -5,7 +5,7 @@ import DateSelector from '../common/DateSelector';
 import ModalAgregarProducto from './ModalAgregarProducto';
 import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
-import ModalEditarExistencias from './ModalEditarExistencias';
+import ModalEditarMaquilas from './ModalEditarMaquilas';
 import { useProductos } from '../../context/ProductosContext';
 import productosMaquilasData from '../../data/productosMaquilas';
 import '../../styles/InventarioProduccion.css';
@@ -221,7 +221,7 @@ const InventarioMaquilas = () => {
     setShowModalEditar(true);
   };
 
-  const handleEditarExistencias = (id, nuevasExistencias) => {
+  const handleEditarExistencias = (id, nuevasExistencias, nuevoLote, nuevaFechaVencimiento) => {
     const productoEditado = productos.find(p => p.id === id);
     const existenciasAnteriores = productoEditado.existencias;
     const diferenciaExistencias = nuevasExistencias - existenciasAnteriores;
@@ -232,7 +232,9 @@ const InventarioMaquilas = () => {
       if (producto.id === id) {
         return { 
           ...producto, 
-          existencias: nuevasExistencias
+          existencias: nuevasExistencias,
+          lote: nuevoLote || producto.lote,
+          fechaVencimiento: nuevaFechaVencimiento || producto.fechaVencimiento
         };
       }
       return producto;
@@ -246,20 +248,24 @@ const InventarioMaquilas = () => {
     const hora = ahora.getHours().toString().padStart(2, '0') + ':' + 
                 ahora.getMinutes().toString().padStart(2, '0');
     
-    // Registrar movimiento
-    const nuevoMovimiento = {
-      id: Date.now(),
-      fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
-      hora: hora,
-      producto: productoEditado.nombre,
-      cantidad: Math.abs(diferenciaExistencias),
-      tipo: tipoMovimiento,
-      usuario
-    };
+    // Registrar movimiento solo si hay cambio en existencias
+    if (diferenciaExistencias !== 0) {
+      const nuevoMovimiento = {
+        id: Date.now(),
+        fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
+        hora: hora,
+        producto: productoEditado.nombre,
+        cantidad: Math.abs(diferenciaExistencias),
+        tipo: tipoMovimiento,
+        usuario,
+        lote: nuevoLote || 'Ajuste',
+        fechaVencimiento: nuevaFechaVencimiento ? new Date(nuevaFechaVencimiento).toLocaleDateString('es-ES') : '-'
+      };
+      
+      agregarMovimientos([nuevoMovimiento]);
+    }
     
-    agregarMovimientos([nuevoMovimiento]);
-    
-    setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
+    setMensaje({ texto: 'Producto actualizado correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
@@ -370,7 +376,7 @@ const InventarioMaquilas = () => {
         onGuardar={handleGuardarCantidades}
       />
       
-      <ModalEditarExistencias 
+      <ModalEditarMaquilas 
         show={showModalEditar}
         onHide={() => setShowModalEditar(false)}
         producto={productoEditar}

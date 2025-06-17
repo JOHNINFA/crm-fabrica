@@ -80,7 +80,12 @@ const AddProductModal = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    addProduct(formData);
+    // Si estamos editando un producto existente, incluir su ID
+    const productToSave = selectedProduct 
+      ? { ...formData, id: selectedProduct.id } 
+      : formData;
+    
+    addProduct(productToSave);
     closeAddProductModal();
     setFormData({
       nombre: "",

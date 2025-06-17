@@ -14,6 +14,54 @@ export const ProductosProvider = ({ children }) => {
 
   // Cargar datos iniciales y persistir estado
   useEffect(() => {
+    // Sincronizar productos del POS al inventario manualmente
+    try {
+      // Obtener productos del POS desde localStorage
+      const posProductsStr = localStorage.getItem('products');
+      if (posProductsStr) {
+        const posProducts = JSON.parse(posProductsStr);
+        
+        // Convertir productos del POS al formato de inventario
+        const convertedPosProducts = posProducts.map(posProduct => ({
+          id: posProduct.id,
+          nombre: posProduct.name.toUpperCase(),
+          existencias: posProduct.stock || 0,
+          categoria: posProduct.category || 'General',
+          cantidad: 0,
+          precio: posProduct.price || 0
+        }));
+        
+        // Obtener productos de inventario desde localStorage
+        const inventoryProductsStr = localStorage.getItem('productos');
+        const inventoryProducts = inventoryProductsStr ? JSON.parse(inventoryProductsStr) : [];
+        
+        // Combinar productos, evitando duplicados por ID
+        const combinedProducts = [...inventoryProducts];
+        
+        convertedPosProducts.forEach(posProduct => {
+          const existingIndex = combinedProducts.findIndex(p => p.id === posProduct.id);
+          if (existingIndex >= 0) {
+            // Actualizar producto existente
+            combinedProducts[existingIndex] = {
+              ...combinedProducts[existingIndex],
+              nombre: posProduct.nombre,
+              existencias: posProduct.existencias,
+              categoria: posProduct.categoria,
+              precio: posProduct.precio
+            };
+          } else {
+            // Agregar nuevo producto
+            combinedProducts.push(posProduct);
+          }
+        });
+        
+        // Guardar productos combinados en localStorage
+        localStorage.setItem('productos', JSON.stringify(combinedProducts));
+      }
+    } catch (error) {
+      console.error('Error al sincronizar productos:', error);
+    }
+    
     // Intentar cargar productos y movimientos desde localStorage
     try {
       const productosGuardados = localStorage.getItem('productos');
@@ -38,7 +86,12 @@ export const ProductosProvider = ({ children }) => {
           return productoInicial;
         });
         
-        setProductos(productosCompletos);
+        // Incluir productos del POS que no estén en los productos iniciales
+        const productosDelPOS = productosGuardadosObj.filter(
+          p => !productosIniciales.some(pi => pi.id === p.id)
+        );
+        
+        setProductos([...productosCompletos, ...productosDelPOS]);
       } else {
         setProductos(productosIniciales);
       }

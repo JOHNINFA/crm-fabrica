@@ -1,98 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, ListGroup } from 'react-bootstrap';
+import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
 
-const ModalEditarMaquilas = ({ show, onHide, productos, onGuardar }) => {
-  const [productosEditados, setProductosEditados] = useState([]);
+const ModalEditarMaquilas = ({ show, onHide, producto, onEditar }) => {
+  const [existencias, setExistencias] = useState(0);
+  const [lote, setLote] = useState('');
+  const [fechaVencimiento, setFechaVencimiento] = useState('');
 
-  // Inicializar datos cuando se abre el modal
   useEffect(() => {
-    if (show) {
-      setProductosEditados(JSON.parse(JSON.stringify(productos)));
+    if (producto) {
+      setExistencias(producto.existencias || 0);
+      setLote(producto.lote || '');
+      setFechaVencimiento(producto.fechaVencimiento || '');
     }
-  }, [show, productos]);
+  }, [producto]);
 
-  const handleCantidadChange = (id, value) => {
-    setProductosEditados(prevProductos => 
-      prevProductos.map(producto => 
-        producto.id === id ? { ...producto, cantidad: parseInt(value) || 0 } : producto
-      )
-    );
-  };
-
-  const handleLoteChange = (id, value) => {
-    setProductosEditados(prevProductos => 
-      prevProductos.map(producto => 
-        producto.id === id ? { ...producto, lote: value } : producto
-      )
-    );
-  };
-
-  const handleFechaVencimientoChange = (id, value) => {
-    setProductosEditados(prevProductos => 
-      prevProductos.map(producto => 
-        producto.id === id ? { ...producto, fechaVencimiento: value } : producto
-      )
-    );
-  };
-
-  const handleGuardar = () => {
-    onGuardar(productosEditados);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!producto) return;
+    
+    // Notificar al componente padre
+    onEditar(producto.id, existencias, lote, fechaVencimiento);
     onHide();
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered size="lg">
+    <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton>
-        <Modal.Title>Editar Productos</Modal.Title>
+        <Modal.Title>Editar {producto?.nombre || 'Producto'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-        <ListGroup variant="flush">
-          {productosEditados.map(producto => (
-            <ListGroup.Item key={producto.id} className="py-3">
-              <div className="fw-medium mb-2">{producto.nombre}</div>
-              <div className="row mb-2">
-                <div className="col-md-4 mb-2 mb-md-0">
-                  <Form.Label>Cantidad:</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    value={producto.cantidad || 0}
-                    onChange={(e) => handleCantidadChange(producto.id, e.target.value)}
-                    className="form-control-sm"
-                  />
-                </div>
-                <div className="col-md-4 mb-2 mb-md-0">
-                  <Form.Label>Lote:</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={producto.lote || ''}
-                    onChange={(e) => handleLoteChange(producto.id, e.target.value)}
-                    className="form-control-sm"
-                    placeholder="Lote"
-                  />
-                </div>
-                <div className="col-md-4">
-                  <Form.Label>Vencimiento:</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={producto.fechaVencimiento || ''}
-                    onChange={(e) => handleFechaVencimientoChange(producto.id, e.target.value)}
-                    className="form-control-sm"
-                  />
-                </div>
-              </div>
-            </ListGroup.Item>
-          ))}
-        </ListGroup>
+      <Modal.Body>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm={4}>Existencias:</Form.Label>
+            <Col sm={8}>
+              <Form.Control
+                type="number"
+                min="0"
+                value={existencias}
+                onChange={(e) => setExistencias(parseInt(e.target.value) || 0)}
+                required
+              />
+            </Col>
+          </Form.Group>
+          
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm={4}>Lote:</Form.Label>
+            <Col sm={8}>
+              <Form.Control
+                type="text"
+                value={lote}
+                onChange={(e) => setLote(e.target.value)}
+                placeholder="Número de lote"
+              />
+            </Col>
+          </Form.Group>
+          
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm={4}>Fecha Vencimiento:</Form.Label>
+            <Col sm={8}>
+              <Form.Control
+                type="date"
+                value={fechaVencimiento}
+                onChange={(e) => setFechaVencimiento(e.target.value)}
+              />
+            </Col>
+          </Form.Group>
+          
+          <div className="d-flex justify-content-end">
+            <Button variant="secondary" onClick={onHide} className="me-2">
+              Cancelar
+            </Button>
+            <Button 
+              variant="primary" 
+              type="submit"
+            >
+              Guardar Cambios
+            </Button>
+          </div>
+        </Form>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancelar
-        </Button>
-        <Button variant="primary" onClick={handleGuardar}>
-          Guardar Cambios
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 };

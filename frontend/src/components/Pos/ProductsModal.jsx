@@ -10,9 +10,11 @@ const ProductsModal = () => {
     openAddProductModal
   } = useModalContext();
 
-  const { products } = useProducts();
+  const { products, deleteProduct } = useProducts();
   const [activeTab, setActiveTab] = useState('Activos');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   // Filtrar productos según búsqueda y pestaña activa
   const filteredProducts = products.filter(product =>
@@ -106,7 +108,13 @@ const ProductsModal = () => {
                         <button className="btn btn-warning">
                           <span className="material-icons" style={{fontSize: '14px'}}>refresh</span>
                         </button>
-                        <button className="btn btn-danger">
+                        <button 
+                          className="btn btn-danger"
+                          onClick={() => {
+                            setProductToDelete(product);
+                            setShowConfirmDelete(true);
+                          }}
+                        >
                           <span className="material-icons" style={{fontSize: '14px'}}>close</span>
                         </button>
                         <button className="btn btn-success">
@@ -128,6 +136,40 @@ const ProductsModal = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación para eliminar producto */}
+      {showConfirmDelete && productToDelete && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h5>Confirmar Eliminación</h5>
+              <button className="close-button" onClick={() => setShowConfirmDelete(false)}>×</button>
+            </div>
+            <div className="modal-body p-3">
+              <p>¿Estás seguro de que deseas eliminar el producto <strong>{productToDelete.name}</strong>?</p>
+              <p className="text-danger">Esta acción no se puede deshacer.</p>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowConfirmDelete(false)}
+              >
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-danger" 
+                onClick={() => {
+                  deleteProduct(productToDelete.id);
+                  setShowConfirmDelete(false);
+                  setProductToDelete(null);
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

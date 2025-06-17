@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, Form, Button } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
 
-const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => {
+const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {} }) => {
   // Función para manejar el cambio de cantidad localmente
   const handleChange = (id, value) => {
+    // Notificar al componente padre directamente
     handleCantidadChange(id, value);
   };
 
@@ -30,26 +31,52 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange }) => 
                     <input
                       type="number"
                       min="0"
-                      defaultValue="0"
+                      value={producto.cantidad || 0}
                       onChange={(e) => handleChange(producto.id, e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="quantity-input"
+                      className={`quantity-input ${productosGrabados[producto.id] ? 'grabado' : ''}`}
+                      disabled={productosGrabados[producto.id]}
+                      style={productosGrabados[producto.id] ? { color: '#aaa', backgroundColor: '#f9f9f9' } : {}}
                       aria-label={`Cantidad de ${producto.nombre}`}
                     />
                   </div>
                 </td>
                 <td className="text-center d-none d-md-table-cell">
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => onEditarClick(producto)}
-                    className="rounded-pill-sm"
-                    style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
-                    title={`Editar ${producto.nombre}`}
-                  >
-                    <i className="bi bi-pencil me-1"></i>
-                    Editar
-                  </Button>
+                  <div className="d-flex justify-content-center gap-2">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => onEditarClick(producto)}
+                      className="rounded-pill-sm"
+                      style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
+                      title={`Editar ${producto.nombre}`}
+                    >
+                      <i className="bi bi-pencil me-1"></i>
+                      Editar
+                    </Button>
+                    
+                    {/* Solo mostrar botón eliminar para productos que no son iniciales (ID > 39) */}
+                    {producto.id > 39 && (
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => {
+                          if (window.confirm(`¿Estás seguro de eliminar el producto "${producto.nombre}"?`)) {
+                            // Importar dinámicamente para evitar problemas de circular dependency
+                            import('../../utils/inventarioUtils').then(utils => {
+                              utils.eliminarProductoInventario(producto.id);
+                            });
+                          }
+                        }}
+                        className="rounded-pill-sm"
+                        style={{backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca'}}
+                        title={`Eliminar ${producto.nombre}`}
+                      >
+                        <i className="bi bi-trash me-1"></i>
+                        Eliminar
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))

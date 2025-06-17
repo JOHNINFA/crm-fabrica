@@ -1,3 +1,18 @@
+/**
+ * PosScreen.jsx
+ * 
+ * Este componente es la pantalla principal del sistema POS (Point of Sale).
+ * Integra todos los componentes necesarios para la venta de productos,
+ * gestión del carrito, y procesamiento de pagos.
+ * 
+ * Características principales:
+ * - Listado de productos con filtrado por categoría
+ * - Carrito de compras con cálculo de totales
+ * - Formulario de cliente y vendedor
+ * - Procesamiento de pagos y generación de facturas
+ * - Persistencia de datos en localStorage
+ */
+
 import React, { useState } from "react";
 import { ModalProvider } from "../context/ModalContext";
 import { ProductProvider } from "../context/ProductContext";

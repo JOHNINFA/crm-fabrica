@@ -10,11 +10,7 @@ const productosIniciales = [
   { id: 9, nombre: 'AREPA DE CHOCLO-CORRIENTE', existencias: 0, categoria: 'Arepas de choclo', cantidad: 0 },
   { id: 10, nombre: 'AREPA DE CHOCLO CON QUESO GRANDE', existencias: 0, categoria: 'Arepas de choclo', cantidad: 0 },
   { id: 11, nombre: 'AREPA DE CHOCLO CON QUESO PEQUEÑA', existencias: 0, categoria: 'Arepas de choclo', cantidad: 0 },
-  { id: 12, nombre: 'AREPA BOYACENSE X5', existencias: 0, categoria: 'Arepas regionales', cantidad: 0 },
   { id: 13, nombre: 'AREPA BOYACENSE X10', existencias: 0, categoria: 'Arepas regionales', cantidad: 0 },
-  { id: 14, nombre: 'AREPA SANTADERANA', existencias: 0, categoria: 'Arepas regionales', cantidad: 0 },
-  { id: 15, nombre: 'ALMOJABANAS X5', existencias: 0, categoria: 'Almojábanas', cantidad: 0 },
-  { id: 16, nombre: 'ALMOJABANAS X10', existencias: 0, categoria: 'Almojábanas', cantidad: 0 },
   { id: 17, nombre: 'AREPA CON SEMILLA DE QUINUA', existencias: 0, categoria: 'Arepas con semillas', cantidad: 0 },
   { id: 18, nombre: 'AREPA CON SEMILLA DE CHIA', existencias: 0, categoria: 'Arepas con semillas', cantidad: 0 },
   { id: 19, nombre: 'AREPA CON SEMILLA DE AJONJOLI', existencias: 0, categoria: 'Arepas con semillas', cantidad: 0 },
@@ -35,9 +31,7 @@ const productosIniciales = [
   { id: 34, nombre: 'AREPA SUPER OBLEA', existencias: 0, categoria: 'Arepas especiales', cantidad: 0 },
   { id: 35, nombre: 'BLOQUE DE MASA', existencias: 0, categoria: 'Masa', cantidad: 0 },
   { id: 36, nombre: 'LIBRAS DE MASA', existencias: 0, categoria: 'Masa', cantidad: 0 },
-  { id: 37, nombre: 'MUTE BOYACENSE', existencias: 0, categoria: 'Otros', cantidad: 0 },
-  { id: 38, nombre: 'LIBRA DE MAIZ PETO', existencias: 0, categoria: 'Otros', cantidad: 0 },
-  { id: 39, nombre: 'ENVUELTO DE MAIZ X 5 UND', existencias: 0, categoria: 'Otros', cantidad: 0 }
+  { id: 38, nombre: 'LIBRA DE MAIZ PETO', existencias: 0, categoria: 'Otros', cantidad: 0 }
 ];
 
 export default productosIniciales;
