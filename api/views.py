@@ -25,15 +25,54 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
 
 class ProductoViewSet(viewsets.ModelViewSet):
+    """
+    API para gestionar productos.
+    
+    ENDPOINTS:
+    - GET /api/productos/ - Lista todos los productos
+    - POST /api/productos/ - Crea un nuevo producto
+    - GET /api/productos/{id}/ - Obtiene un producto específico
+    - PUT/PATCH /api/productos/{id}/ - Actualiza un producto
+    - DELETE /api/productos/{id}/ - Elimina un producto
+    - POST /api/productos/save_image/ - Guarda una imagen de producto
+    - POST /api/productos/{id}/actualizar_stock/ - Actualiza el stock de un producto
+    
+    FLUJO DE COMUNICACIÓN:
+    1. Frontend envía solicitud HTTP a uno de los endpoints
+    2. Django REST Framework valida la solicitud y los permisos
+    3. El viewset procesa la solicitud y accede a la base de datos
+    4. Se serializa la respuesta y se devuelve al frontend
+    
+    NOTAS IMPORTANTES:
+    - El campo 'categoria' espera un ID numérico, no un nombre de categoría
+    - Las imágenes se guardan en dos ubicaciones: media/productos/ y frontend/public/images/productos/
+    """
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
     permission_classes = [permissions.AllowAny]
+    # Soporta múltiples formatos de datos: form-data, multipart y JSON
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
     
     @action(detail=False, methods=['post'])
     def save_image(self, request):
         """
         Guarda una imagen base64 en el sistema de archivos y devuelve la URL.
+        
+        FLUJO DE COMUNICACIÓN:
+        1. Frontend envía POST con imagen en base64
+        2. Backend decodifica la imagen y la guarda en dos ubicaciones
+        3. Backend devuelve las URLs de las imágenes guardadas
+        
+        PARÁMETROS:
+        - image: String base64 de la imagen
+        - productId: ID del producto (opcional)
+        - productName: Nombre del producto (opcional)
+        
+        RESPUESTA:
+        - success: Boolean indicando éxito
+        - frontendUrl: URL para acceso desde el frontend
+        - mediaUrl: URL para acceso desde Django
+        - filename: Nombre del archivo guardado
         """
         try:
             # Obtener datos de la solicitud
@@ -56,6 +95,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
             filename = f"producto_{product_id or uuid.uuid4()}_{uuid.uuid4().hex[:8]}.{extension}"
             
             # Crear carpetas si no existen
+            # Se guarda en dos ubicaciones:
+            # 1. frontend/public/images/productos/ - Para acceso directo desde el frontend
+            # 2. media/productos/ - Para acceso a través de Django
             frontend_path = os.path.join(settings.BASE_DIR, 'frontend', 'public', 'images', 'productos')
             media_path = os.path.join(settings.MEDIA_ROOT, 'productos')
             
@@ -88,7 +130,27 @@ class ProductoViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def actualizar_stock(self, request, pk=None):
+        """
+        Actualiza el stock de un producto y registra un movimiento de inventario.
+        
+        FLUJO DE COMUNICACIÓN:
+        1. Frontend envía POST con la cantidad a modificar
+        2. Backend actualiza el stock del producto
+        3. Backend crea un registro de movimiento en la tabla api_movimientoinventario
+        4. Backend devuelve el stock actualizado y el ID del movimiento
+        
+        PARÁMETROS:
+        - cantidad: Número entero (positivo para entrada, negativo para salida)
+        - usuario: Nombre del usuario que realiza el movimiento
+        - nota: Descripción opcional del movimiento
+        
+        RESPUESTA:
+        - success: Boolean indicando éxito
+        - stock_actual: Nuevo valor de stock
+        - movimiento_id: ID del movimiento creado
+        """
         try:
+            # Obtener el producto por ID (pk)
             producto = self.get_object()
             cantidad = request.data.get('cantidad', 0)
             usuario = request.data.get('usuario', 'Sistema')
@@ -103,11 +165,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
             # Determinar tipo de movimiento
             tipo = 'ENTRADA' if cantidad > 0 else 'SALIDA'
             
-            # Actualizar stock
+            # Actualizar stock en la tabla api_producto
             producto.stock_total += cantidad
             producto.save()
             
-            # Registrar movimiento
+            # Registrar movimiento en la tabla api_movimientoinventario
             movimiento = MovimientoInventario.objects.create(
                 producto=producto,
                 tipo=tipo,

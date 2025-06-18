@@ -3,6 +3,21 @@ from django.utils import timezone
 
 # Modelo para Categorías
 class Categoria(models.Model):
+    """
+    Modelo para almacenar categorías de productos.
+    
+    ESTRUCTURA EN BASE DE DATOS (tabla api_categoria):
+    - id: Integer (clave primaria, autogenerada)
+    - nombre: Varchar(100) (único)
+    
+    RELACIONES:
+    - Una categoría puede tener muchos productos (relación uno a muchos)
+    
+    NOTAS:
+    - El frontend maneja las categorías como strings (nombres)
+    - El backend espera IDs numéricos para las categorías en las solicitudes
+    - Al crear un producto, se debe proporcionar el ID de la categoría, no el nombre
+    """
     nombre = models.CharField(max_length=100, unique=True)
     
     def __str__(self):
@@ -10,6 +25,49 @@ class Categoria(models.Model):
 
 # Modelo para el Inventario General
 class Producto(models.Model):
+    """
+    Modelo principal para productos en el sistema.
+    
+    ESTRUCTURA EN BASE DE DATOS (tabla api_producto):
+    - id: Integer (clave primaria, autogenerada)
+    - nombre: Varchar(255) (único)
+    - descripcion: Text (opcional)
+    - precio: Decimal(10,2)
+    - precio_compra: Decimal(10,2)
+    - stock_total: Integer
+    - categoria_id: Integer (clave foránea a api_categoria)
+    - imagen: Varchar (ruta al archivo)
+    - codigo_barras: Varchar(100) (opcional)
+    - marca: Varchar(100)
+    - impuesto: Varchar(20)
+    - fecha_creacion: DateTime
+    - activo: Boolean
+    
+    RELACIONES:
+    - Cada producto pertenece a una categoría (ForeignKey)
+    - Un producto puede tener muchos lotes (relación uno a muchos)
+    - Un producto puede tener muchos movimientos (relación uno a muchos)
+    
+    MAPEO CON FRONTEND:
+    Backend (Django)    | Frontend (React)
+    -------------------|------------------
+    id                 | id
+    nombre             | name
+    precio             | price
+    precio_compra      | purchasePrice
+    stock_total        | stock
+    categoria_id       | (no mapeado directamente)
+    categoria.nombre   | category
+    imagen             | image
+    marca              | brand
+    impuesto           | tax
+    activo             | (no mapeado directamente)
+    
+    NOTAS:
+    - El campo 'categoria' es una relación ForeignKey que espera un ID numérico
+    - El frontend envía el nombre de la categoría, pero el backend necesita el ID
+    - La sincronización entre POS e Inventario se hace a través de localStorage
+    """
     nombre = models.CharField(max_length=255, unique=True)  # Nombre del producto
     descripcion = models.TextField(blank=True, null=True)  # Descripción opcional
     precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Precio de venta

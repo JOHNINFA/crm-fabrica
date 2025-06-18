@@ -211,22 +211,47 @@ export const ProductProvider = ({ children }) => {
   };
 
   
-  // Actualiza todos los productos a la vez (útil para sincronización con API)
+  /**
+   * Actualiza todos los productos a la vez y los sincroniza con el backend
+   * 
+   * FLUJO DE COMUNICACIÓN:
+   * 1. Frontend: Guarda productos en localStorage para respaldo
+   * 2. Frontend: Obtiene categorías del backend para mapear nombres a IDs
+   * 3. Frontend: Crea categorías nuevas en el backend si es necesario
+   * 4. Frontend: Para cada producto:
+   *    a. Si tiene ID numérico: Envía PATCH a /api/productos/{id}/
+   *    b. Si no tiene ID o es temporal: Envía POST a /api/productos/
+   * 5. Backend: Recibe la solicitud y valida los datos con ProductoSerializer
+   * 6. Backend: Guarda en la tabla api_producto de la base de datos
+   * 7. Backend: Si hay imagen, la guarda en media/productos/
+   * 8. Backend: Devuelve el producto creado/actualizado con su ID
+   * 9. Frontend: Actualiza el ID local con el ID del backend
+   * 
+   * ESTRUCTURA EN BASE DE DATOS:
+   * - api_producto: id, nombre, precio, precio_compra, stock_total, categoria, imagen, marca, impuesto, activo
+   * - api_categoria: id, nombre
+   * 
+   * @param {Array} newProducts - Lista de productos a actualizar
+   * @returns {Promise<boolean>} - True si la operación fue exitosa
+   */
   const updateProducts = async (newProducts) => {
     try {
       console.log("Guardando productos:", newProducts.length);
       
       // Primero guardar localmente para asegurar que los cambios persistan
+      // Esto garantiza que los datos no se pierdan incluso si falla la sincronización
       saveProductsLocally(newProducts);
       
       // Intentar sincronizar con el backend (pero no depender de ello)
       try {
         // Obtener categorías del backend para mapear nombres a IDs
+        // IMPORTANTE: El backend espera IDs numéricos para las categorías, no nombres
         let categoriasMap = {};
         try {
+          // GET /api/categorias/ -> Devuelve lista de objetos {id, nombre}
           const backendCategorias = await categoriaService.getAll();
           if (backendCategorias && Array.isArray(backendCategorias)) {
-            // Crear un mapa de nombre de categoría a ID
+            // Crear un mapa de nombre de categoría a ID para búsqueda rápida
             categoriasMap = backendCategorias.reduce((map, cat) => {
               map[cat.nombre.toLowerCase()] = cat.id;
               return map;
@@ -242,10 +267,12 @@ export const ProductProvider = ({ children }) => {
         if (uniqueCategories.length > 0) {
           console.log("Sincronizando categorías:", uniqueCategories);
           
-          // Crear categorías en el backend directamente
+          // Crear categorías en el backend directamente si no existen
           for (const categoryName of uniqueCategories) {
             try {
               if (!categoriasMap[categoryName.toLowerCase()]) {
+                // POST /api/categorias/ {nombre: categoryName}
+                // El backend crea un registro en la tabla api_categoria
                 const createdCat = await categoriaService.create(categoryName);
                 if (createdCat && createdCat.id) {
                   categoriasMap[categoryName.toLowerCase()] = createdCat.id;
@@ -275,12 +302,14 @@ export const ProductProvider = ({ children }) => {
               // Producto existente con ID numérico (del backend), actualizarlo
               console.log(`Actualizando producto en backend: ${product.name} (ID: ${product.id})`);
               
+              // Preparar datos para enviar al backend
+              // NOTA: Los nombres de campos deben coincidir con el modelo en Django
               const updateData = {
                 nombre: product.name,
                 precio: product.price,
                 precio_compra: product.purchasePrice || 0,
                 stock_total: product.stock || 0,
-                categoria: categoriaId, // Usar ID de categoría
+                categoria: categoriaId, // Usar ID de categoría, no el nombre
                 marca: product.brand || 'GENERICA',
                 impuesto: product.tax || 'IVA(0%)',
                 activo: true
@@ -291,6 +320,8 @@ export const ProductProvider = ({ children }) => {
                 updateData.imagen = product.image;
               }
               
+              // PATCH /api/productos/{id}/ con los datos actualizados
+              // El backend actualiza el registro en la tabla api_producto
               await productoService.update(product.id, updateData);
             } else {
               // Producto nuevo o con ID temporal, crearlo
@@ -301,7 +332,7 @@ export const ProductProvider = ({ children }) => {
                 precio: product.price,
                 precio_compra: product.purchasePrice || 0,
                 stock_total: product.stock || 0,
-                categoria: categoriaId, // Usar ID de categoría
+                categoria: categoriaId, // Usar ID de categoría, no el nombre
                 marca: product.brand || 'GENERICA',
                 impuesto: product.tax || 'IVA(0%)',
                 activo: true
@@ -312,9 +343,12 @@ export const ProductProvider = ({ children }) => {
                 createData.imagen = product.image;
               }
               
+              // POST /api/productos/ con los datos del nuevo producto
+              // El backend crea un registro en la tabla api_producto
               const createdProduct = await productoService.create(createData);
               if (createdProduct?.id) {
                 console.log(`Producto creado con ID: ${createdProduct.id}`);
+                // Actualizar el ID temporal con el ID real asignado por el backend
                 product.id = createdProduct.id;
               }
             }
@@ -916,29 +950,63 @@ export const ProductProvider = ({ children }) => {
     }
   };
   
-  // Función simplificada para cargar productos desde el backend
+  /**
+   * Carga productos directamente desde el backend y actualiza el estado local
+   * 
+   * FLUJO DE COMUNICACIÓN:
+   * 1. Frontend: Envía GET a /api/productos/
+   * 2. Backend: Consulta la tabla api_producto en la base de datos
+   * 3. Backend: Serializa los productos con ProductoSerializer
+   * 4. Backend: Devuelve lista de productos con todos sus campos
+   * 5. Frontend: Convierte el formato del backend al formato local
+   * 6. Frontend: Actualiza el estado y localStorage
+   * 
+   * MAPEO DE CAMPOS:
+   * Backend (Django)    | Frontend (React)
+   * -------------------|------------------
+   * id                 | id
+   * nombre             | name
+   * precio             | price
+   * precio_compra      | purchasePrice
+   * stock_total        | stock
+   * categoria_nombre   | category
+   * marca              | brand
+   * impuesto           | tax
+   * imagen             | image
+   * 
+   * @returns {Promise<boolean>} - True si la operación fue exitosa
+   */
   const loadProductsFromBackend = async () => {
     setIsSyncing(true);
     try {
+      // GET /api/productos/ -> Devuelve lista completa de productos
       const backendProducts = await productoService.getAll();
       if (backendProducts?.length > 0 && !backendProducts.error) {
+        // Filtrar productos activos y convertir al formato del frontend
         const formattedProducts = backendProducts
-          .filter(p => p.activo !== false)
+          .filter(p => p.activo !== false) // Solo incluir productos activos
           .map(p => ({
+            // Mapeo de campos del backend al frontend
             id: p.id,
             name: p.nombre,
             price: parseFloat(p.precio) || 0,
             purchasePrice: parseFloat(p.precio_compra) || 0,
             stock: p.stock_total || 0,
-            category: p.categoria_nombre || 'General',
+            category: p.categoria_nombre || 'General', // Usamos el nombre, no el ID
             brand: p.marca || 'GENERICA',
             tax: p.impuesto || 'IVA(0%)',
             image: p.imagen || null
           }));
         
         if (formattedProducts.length > 0) {
+          // Actualizar el estado de React con los productos cargados
           setProducts(formattedProducts);
+          
+          // Guardar en localStorage para persistencia y acceso offline
           localStorage.setItem('products', JSON.stringify(formattedProducts));
+          
+          // IMPORTANTE: Esto también debería sincronizar con el módulo de inventario
+          // pero actualmente no lo hace, lo que causa inconsistencias
         }
       }
       return true;
