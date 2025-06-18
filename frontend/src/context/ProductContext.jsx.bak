@@ -17,121 +17,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { syncService } from '../services/syncService';
 import { localImageService } from '../services/localImageService';
 import { fileSystemImageService } from '../services/fileSystemImageService';
-import { productoService, categoriaService } from '../services/api';
-
-// Crear el contexto
-const ProductContext = createContext();
-
-// Hook personalizado para usar el contexto
-export const useProducts = () => useContext(ProductContext);
-
-/**
- * SECCIÓN 1: PROVEEDOR DEL CONTEXTO
- * 
- * Este componente proporciona el contexto de productos a toda la aplicación.
- * Inicializa los estados desde localStorage y define las funciones para
- * manipular productos y categorías.
- */
-export const ProductProvider = ({ children }) => {
-  /**
-   * SECCIÓN 1.1: ESTADOS INICIALES
-   * 
-   * Estos estados se cargan desde el backend, con localStorage como respaldo.
-   */
-  
-  // Estados para productos y categorías
-  const [products, setProducts] = useState([
-    { id: 2, name: "Servicio", price: 0, category: "Servicios", image: null, stock: 0, brand: "GENERICA", tax: "IVA(0%)" },
-  ]);
-  const [categories, setCategories] = useState(["Servicios"]);
-  
-  // Estado para controlar si estamos sincronizando con el backend
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Efecto para cargar datos desde el backend y localStorage
-  useEffect(() => {
-    const loadData = async () => {
-      setIsSyncing(true);
-      setIsLoading(true);
-      
-      try {
-        // Intentar cargar productos desde el backend primero
-        console.log("Intentando cargar productos desde el backend...");
-        let backendProductsLoaded = false;
-        
-        try {
-          const backendProducts = await productoService.getAll();
-          
-          if (backendProducts && backendProducts.length > 0 && !backendProducts.error) {
-            // Convertir productos del backend al formato local
-            const formattedProducts = backendProducts
-              .filter(product => product.activo !== false) // Solo productos activos
-              .map(product => {
-                console.log("Procesando producto:", product.nombre, "Imagen:", product.imagen);
-                return {
-                  id: product.id,
-                  name: product.nombre,
-                  price: parseFloat(product.precio) || 0,
-                  purchasePrice: parseFloat(product.precio_compra) || 0,
-                  stock: product.stock_total || 0,
-                  category: product.categoria_nombre || 'General',
-                  brand: product.marca || 'GENERICA',
-                  tax: product.impuesto || 'IVA(0%)',
-                  image: product.imagen || null
-                };
-              });
-            
-            console.log("Productos cargados desde backend:", formattedProducts.length);
-            
-            if (formattedProducts.length > 0) {
-              setProducts(formattedProducts);
-              
-              // Guardar en localStorage como respaldo
-              localStorage.setItem('products', JSON.stringify(formattedProducts));
-              backendProductsLoaded = true;
-            }
-          }
-        } catch (backendError) {
-          console.log('Error al cargar datos desde el backend:', backendError);
-        }
-        
-        // Si no se pudieron cargar productos desde el backend, intentar desde localStorage
-        if (!backendProductsLoaded) {
-          console.log("Cargando productos desde localStorage como respaldo");
-          const savedProducts = localStorage.getItem('products');
-          if (savedProducts) {
-            const parsedProducts = JSON.parse(savedProducts);
-            setProducts(parsedProducts);
-            console.log("Productos cargados desde localStorage:", parsedProducts.length);
-          }
-        }
-        
-        // Cargar categorías (primero desde backend, luego desde localStorage como respaldo)
-        let backendCategoriesLoaded = false;
-        
-        try {
-          const backendCategories = await categoriaService.getAll();
-          if (backendCategories && backendCategories.length > 0 && !backendCategories.error) {
-            const categoryNames = backendCategories.map(cat => cat.nombre);
-            setCategories(categoryNames);
-            localStorage.setItem('categories', JSON.stringify(categoryNames));
-            backendCategoriesLoaded = true;
-          }
-        } catch (catError) {
-          console.log('Error al cargar categorías desde el backend:', catError);
-        }
-        
-        // Si no se pudieron cargar categorías desde el backend, intentar desde localStorage
-        if (!backendCategoriesLoaded) {
-          const savedCategories = localStorage.getItem('categories');
-          if (savedCategories) {
-            setCategories(JSON.parse(savedCategories));
-          }
-        }
-      } catch (error) {
-        console.log('Error al cargar datos:', error);
-      } finally {
         setIsSyncing(false);
         setIsLoading(false);
       }
@@ -210,7 +95,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  
   // Actualiza todos los productos a la vez (útil para sincronización con API)
   const updateProducts = async (newProducts) => {
     try {
@@ -221,22 +105,6 @@ export const ProductProvider = ({ children }) => {
       
       // Intentar sincronizar con el backend (pero no depender de ello)
       try {
-        // Obtener categorías del backend para mapear nombres a IDs
-        let categoriasMap = {};
-        try {
-          const backendCategorias = await categoriaService.getAll();
-          if (backendCategorias && Array.isArray(backendCategorias)) {
-            // Crear un mapa de nombre de categoría a ID
-            categoriasMap = backendCategorias.reduce((map, cat) => {
-              map[cat.nombre.toLowerCase()] = cat.id;
-              return map;
-            }, {});
-            console.log("Mapa de categorías cargado:", categoriasMap);
-          }
-        } catch (catMapError) {
-          console.error("Error al cargar mapa de categorías:", catMapError);
-        }
-        
         // Extraer categorías únicas de los productos y actualizarlas
         const uniqueCategories = [...new Set(newProducts.map(p => p.category).filter(Boolean))];
         if (uniqueCategories.length > 0) {
@@ -245,17 +113,10 @@ export const ProductProvider = ({ children }) => {
           // Crear categorías en el backend directamente
           for (const categoryName of uniqueCategories) {
             try {
-              if (!categoriasMap[categoryName.toLowerCase()]) {
-                const createdCat = await categoriaService.create(categoryName);
-                if (createdCat && createdCat.id) {
-                  categoriasMap[categoryName.toLowerCase()] = createdCat.id;
-                  console.log(`Categoría creada: ${categoryName} con ID ${createdCat.id}`);
-                }
-              } else {
-                console.log(`Categoría ya existe: ${categoryName} con ID ${categoriasMap[categoryName.toLowerCase()]}`);
-              }
+              await categoriaService.create(categoryName);
+              console.log(`Categoría creada/actualizada: ${categoryName}`);
             } catch (catError) {
-              console.log(`Error al crear categoría ${categoryName}:`, catError);
+              console.log(`Categoría ya existe o error: ${categoryName}`, catError);
             }
           }
         }
@@ -265,56 +126,39 @@ export const ProductProvider = ({ children }) => {
         
         for (const product of newProducts) {
           try {
-            // Obtener el ID de la categoría del mapa
-            let categoriaId = 3; // ID por defecto (General)
-            if (product.category && categoriasMap[product.category.toLowerCase()]) {
-              categoriaId = categoriasMap[product.category.toLowerCase()];
-            }
-            
             if (product.id && !product.id.toString().includes('-')) {
               // Producto existente con ID numérico (del backend), actualizarlo
               console.log(`Actualizando producto en backend: ${product.name} (ID: ${product.id})`);
               
-              const updateData = {
+              await productoService.update(product.id, {
                 nombre: product.name,
                 precio: product.price,
                 precio_compra: product.purchasePrice || 0,
                 stock_total: product.stock || 0,
-                categoria: categoriaId, // Usar ID de categoría
+                categoria: product.category,
                 marca: product.brand || 'GENERICA',
                 impuesto: product.tax || 'IVA(0%)',
                 activo: true
-              };
-              
-              // Si hay imagen, incluirla en la actualización
-              if (product.image?.startsWith('data:')) {
-                updateData.imagen = product.image;
-              }
-              
-              await productoService.update(product.id, updateData);
+              });
             } else {
               // Producto nuevo o con ID temporal, crearlo
               console.log(`Creando producto en backend: ${product.name}`);
               
-              const createData = {
+              const createdProduct = await productoService.create({
                 nombre: product.name,
                 precio: product.price,
                 precio_compra: product.purchasePrice || 0,
                 stock_total: product.stock || 0,
-                categoria: categoriaId, // Usar ID de categoría
+                categoria: product.category,
                 marca: product.brand || 'GENERICA',
                 impuesto: product.tax || 'IVA(0%)',
                 activo: true
-              };
+              });
               
-              // Si hay imagen, incluirla en la creación
-              if (product.image?.startsWith('data:')) {
-                createData.imagen = product.image;
-              }
-              
-              const createdProduct = await productoService.create(createData);
-              if (createdProduct?.id) {
+              if (createdProduct && createdProduct.id) {
                 console.log(`Producto creado con ID: ${createdProduct.id}`);
+                
+                // Actualizar el ID en el producto local
                 product.id = createdProduct.id;
               }
             }
@@ -329,6 +173,7 @@ export const ProductProvider = ({ children }) => {
         console.log("Sincronización completada");
       } catch (syncError) {
         console.error("Error en sincronización:", syncError);
+        // Continuar con la operación local aunque falle la sincronización
       }
       
       return true;
@@ -337,6 +182,7 @@ export const ProductProvider = ({ children }) => {
       return false;
     }
   };
+
   /**
    * SECCIÓN 1.3: FUNCIONES DE GESTIÓN DE CATEGORÍAS
    * 
@@ -459,24 +305,6 @@ export const ProductProvider = ({ children }) => {
     // Si el producto ya existe (tiene id), actualizarlo
     if (productData.id) {
       try {
-        // Obtener categorías del backend para mapear nombres a IDs
-        let categoriaId = 3; // ID por defecto (General)
-        try {
-          const backendCategorias = await categoriaService.getAll();
-          if (backendCategorias && Array.isArray(backendCategorias)) {
-            // Buscar la categoría por nombre
-            const categoriaName = productData.categoria || productData.category || '';
-            const categoria = backendCategorias.find(
-              cat => cat.nombre.toLowerCase() === categoriaName.toLowerCase()
-            );
-            if (categoria) {
-              categoriaId = categoria.id;
-            }
-          }
-        } catch (catError) {
-          console.error("Error al obtener categorías:", catError);
-        }
-        
         // Preparar datos para el backend
         const backendData = {
           id: productData.id,
@@ -484,18 +312,11 @@ export const ProductProvider = ({ children }) => {
           precio: productData.precioVenta || productData.price || 0,
           precio_compra: productData.precioCompra || productData.purchasePrice || 0,
           stock_total: productData.existencias || productData.stock || 0,
-          categoria: categoriaId, // Usar ID de categoría
+          categoria: productData.categoria || productData.category,
           marca: productData.marca || productData.brand || 'GENERICA',
           impuesto: productData.impuesto || productData.tax || 'IVA(0%)',
           activo: true
         };
-        
-        // Si hay imagen, incluirla en los datos
-        if (productData.imagen && typeof productData.imagen === 'string' && productData.imagen.startsWith('data:')) {
-          backendData.imagen = productData.imagen;
-        } else if (productData.image && typeof productData.image === 'string' && productData.image.startsWith('data:')) {
-          backendData.imagen = productData.image;
-        }
         
         // Actualizar en el backend
         const updatedBackendProduct = await productoService.update(productData.id, backendData);
@@ -603,41 +424,17 @@ export const ProductProvider = ({ children }) => {
     } else {
       // Si es un producto nuevo, crearlo
       try {
-        // Obtener categorías del backend para mapear nombres a IDs
-        let categoriaId = 3; // ID por defecto (General)
-        try {
-          const backendCategorias = await categoriaService.getAll();
-          if (backendCategorias && Array.isArray(backendCategorias)) {
-            // Buscar la categoría por nombre
-            const categoria = backendCategorias.find(
-              cat => cat.nombre.toLowerCase() === (productData.categoria || '').toLowerCase()
-            );
-            if (categoria) {
-              categoriaId = categoria.id;
-            }
-          }
-        } catch (catError) {
-          console.error("Error al obtener categorías:", catError);
-        }
-        
         // Preparar datos para el backend
         const backendData = {
           nombre: productData.nombre,
           precio: productData.precioVenta || productData.precioCompra || 0,
           precio_compra: productData.precioCompra || 0,
           stock_total: productData.existencias || 0,
-          categoria: categoriaId, // Usar ID de categoría
+          categoria: productData.categoria,
           marca: productData.marca || 'GENERICA',
           impuesto: productData.impuesto || 'IVA(0%)',
           activo: true
         };
-        
-        // Si hay imagen, incluirla en los datos
-        if (productData.imagen && typeof productData.imagen === 'string' && productData.imagen.startsWith('data:')) {
-          backendData.imagen = productData.imagen;
-        } else if (productData.image && typeof productData.image === 'string' && productData.image.startsWith('data:')) {
-          backendData.imagen = productData.image;
-        }
         
         // Crear en el backend
         const createdBackendProduct = await productoService.create(backendData);
@@ -915,40 +712,6 @@ export const ProductProvider = ({ children }) => {
       setIsSyncing(false);
     }
   };
-  
-  // Función simplificada para cargar productos desde el backend
-  const loadProductsFromBackend = async () => {
-    setIsSyncing(true);
-    try {
-      const backendProducts = await productoService.getAll();
-      if (backendProducts?.length > 0 && !backendProducts.error) {
-        const formattedProducts = backendProducts
-          .filter(p => p.activo !== false)
-          .map(p => ({
-            id: p.id,
-            name: p.nombre,
-            price: parseFloat(p.precio) || 0,
-            purchasePrice: parseFloat(p.precio_compra) || 0,
-            stock: p.stock_total || 0,
-            category: p.categoria_nombre || 'General',
-            brand: p.marca || 'GENERICA',
-            tax: p.impuesto || 'IVA(0%)',
-            image: p.imagen || null
-          }));
-        
-        if (formattedProducts.length > 0) {
-          setProducts(formattedProducts);
-          localStorage.setItem('products', JSON.stringify(formattedProducts));
-        }
-      }
-      return true;
-    } catch (error) {
-      console.error("Error al cargar productos:", error);
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   return (
     <ProductContext.Provider value={{ 
@@ -962,7 +725,6 @@ export const ProductProvider = ({ children }) => {
       deleteProduct,
       updateStock,
       syncWithBackend,
-      loadProductsFromBackend,
       isSyncing
     }}>
       {children}

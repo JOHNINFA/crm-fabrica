@@ -245,25 +245,51 @@ export const ProductosProvider = ({ children }) => {
       localStorage.setItem('productos', JSON.stringify(productosFormateados));
       
       // Intentar cargar movimientos desde el backend
-      const backendMovimientos = await movimientoService.getAll();
-      
-      // Convertir movimientos del backend al formato local
-      const movimientosFormateados = backendMovimientos.map(movimiento => ({
-        id: movimiento.id,
-        fecha: new Date(movimiento.fecha).toLocaleDateString('es-ES'),
-        hora: new Date(movimiento.fecha).toLocaleTimeString('es-ES'),
-        producto: movimiento.producto_nombre,
-        cantidad: movimiento.cantidad,
-        tipo: movimiento.tipo === 'ENTRADA' ? 'Entrada' : 'Salida',
-        usuario: movimiento.usuario,
-        lote: movimiento.lote_codigo || '-',
-        fechaVencimiento: '-',
-        registrado: true
-      }));
-      
-      // Actualizar movimientos locales
-      setMovimientos(movimientosFormateados);
-      localStorage.setItem('movimientos', JSON.stringify(movimientosFormateados));
+      try {
+        const backendMovimientos = await movimientoService.getAll();
+        
+        // Convertir movimientos del backend al formato local
+        const movimientosFormateados = backendMovimientos.map(movimiento => ({
+          id: movimiento.id,
+          fecha: new Date(movimiento.fecha).toLocaleDateString('es-ES'),
+          hora: new Date(movimiento.fecha).toLocaleTimeString('es-ES'),
+          producto: movimiento.producto_nombre,
+          cantidad: movimiento.cantidad,
+          tipo: movimiento.tipo === 'ENTRADA' ? 'Entrada' : 'Salida',
+          usuario: movimiento.usuario,
+          lote: movimiento.lote_codigo || '-',
+          fechaVencimiento: '-',
+          registrado: true
+        }));
+        
+        // Obtener movimientos locales actuales
+        const movimientosLocalesStr = localStorage.getItem('movimientos');
+        const movimientosLocales = movimientosLocalesStr ? JSON.parse(movimientosLocalesStr) : [];
+        
+        // Crear un mapa de IDs de movimientos del backend para búsqueda rápida
+        const backendMovimientosIds = new Set(backendMovimientos.map(m => m.id));
+        
+        // Filtrar movimientos locales que no están en el backend
+        const movimientosLocalesUnicos = movimientosLocales.filter(
+          m => !backendMovimientosIds.has(m.id) && m.id.toString().includes('-')
+        );
+        
+        // Combinar movimientos del backend y locales únicos
+        const movimientosCombinados = [...movimientosFormateados, ...movimientosLocalesUnicos];
+        
+        // Actualizar movimientos locales
+        setMovimientos(movimientosCombinados);
+        localStorage.setItem('movimientos', JSON.stringify(movimientosCombinados));
+      } catch (error) {
+        console.error('Error al cargar movimientos desde el backend:', error);
+        
+        // Si falla la carga desde el backend, mantener los movimientos locales
+        const movimientosLocalesStr = localStorage.getItem('movimientos');
+        if (movimientosLocalesStr) {
+          const movimientosLocales = JSON.parse(movimientosLocalesStr);
+          setMovimientos(movimientosLocales);
+        }
+      }
       
       return true;
     } catch (error) {

@@ -7,6 +7,31 @@ const handleApiError = (error) => {
   return { error: 'API_UNAVAILABLE', message: 'API no disponible, usando almacenamiento local' };
 };
 
+// Función para convertir una imagen base64 a un archivo
+const base64ToFile = (base64String, filename = 'image.jpg') => {
+  if (!base64String || typeof base64String !== 'string' || !base64String.startsWith('data:')) {
+    return null;
+  }
+  
+  try {
+    // Extraer el tipo MIME y los datos
+    const arr = base64String.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new File([u8arr], filename, { type: mime });
+  } catch (error) {
+    console.error('Error al convertir base64 a archivo:', error);
+    return null;
+  }
+};
+
 // Servicios para Productos
 export const productoService = {
   // Obtener todos los productos
@@ -15,7 +40,9 @@ export const productoService = {
       console.log('Intentando obtener productos desde:', `${API_URL}/productos/`);
       const response = await fetch(`${API_URL}/productos/`);
       if (!response.ok) throw new Error(`Error al obtener productos: ${response.status}`);
-      return await response.json();
+      const data = await response.json();
+      console.log('Productos obtenidos:', data.length);
+      return data;
     } catch (error) {
       console.error('Error en getAll:', error);
       return handleApiError(error);
@@ -39,25 +66,56 @@ export const productoService = {
   create: async (productoData) => {
     try {
       console.log('Intentando crear producto:', productoData);
-      // Usar FormData para enviar archivos
-      const formData = new FormData();
       
-      // Agregar todos los campos del producto al FormData
-      Object.keys(productoData).forEach(key => {
-        if (key === 'imagen' && productoData[key] instanceof File) {
-          formData.append(key, productoData[key]);
-        } else if (productoData[key] !== null && productoData[key] !== undefined) {
-          formData.append(key, productoData[key]);
+      // Verificar si hay una imagen en formato base64
+      if (productoData.imagen && typeof productoData.imagen === 'string' && productoData.imagen.startsWith('data:')) {
+        // Usar FormData para enviar la imagen
+        const formData = new FormData();
+        
+        // Convertir la imagen base64 a un archivo
+        const imageFile = base64ToFile(productoData.imagen, 'producto.jpg');
+        if (imageFile) {
+          formData.append('imagen', imageFile);
         }
-      });
+        
+        // Agregar el resto de los datos del producto
+        Object.keys(productoData).forEach(key => {
+          if (key !== 'imagen' && productoData[key] !== null && productoData[key] !== undefined) {
+            formData.append(key, productoData[key]);
+          }
+        });
+        
+        console.log('Enviando FormData con imagen');
+        const response = await fetch(`${API_URL}/productos/`, {
+          method: 'POST',
+          body: formData,
+          // No establecer Content-Type, fetch lo hará automáticamente con el boundary correcto
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Error al crear producto: ${response.status}`);
+        }
+        return await response.json();
+      } else {
+        // Sin imagen, usar JSON normal
+        console.log('Enviando JSON sin imagen');
+        const response = await fetch(`${API_URL}/productos/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(productoData),
+        });
 
-      const response = await fetch(`${API_URL}/productos/`, {
-        method: 'POST',
-        body: formData, // No establecer Content-Type, fetch lo hará automáticamente
-      });
-
-      if (!response.ok) throw new Error(`Error al crear producto: ${response.status}`);
-      return await response.json();
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Error al crear producto: ${response.status}`);
+        }
+        return await response.json();
+      }
     } catch (error) {
       console.error('Error en create:', error);
       return handleApiError(error);
@@ -68,25 +126,56 @@ export const productoService = {
   update: async (id, productoData) => {
     try {
       console.log('Intentando actualizar producto:', id, productoData);
-      // Usar FormData para enviar archivos
-      const formData = new FormData();
       
-      // Agregar todos los campos del producto al FormData
-      Object.keys(productoData).forEach(key => {
-        if (key === 'imagen' && productoData[key] instanceof File) {
-          formData.append(key, productoData[key]);
-        } else if (productoData[key] !== null && productoData[key] !== undefined) {
-          formData.append(key, productoData[key]);
+      // Verificar si hay una imagen en formato base64
+      if (productoData.imagen && typeof productoData.imagen === 'string' && productoData.imagen.startsWith('data:')) {
+        // Usar FormData para enviar la imagen
+        const formData = new FormData();
+        
+        // Convertir la imagen base64 a un archivo
+        const imageFile = base64ToFile(productoData.imagen, 'producto.jpg');
+        if (imageFile) {
+          formData.append('imagen', imageFile);
         }
-      });
+        
+        // Agregar el resto de los datos del producto
+        Object.keys(productoData).forEach(key => {
+          if (key !== 'imagen' && productoData[key] !== null && productoData[key] !== undefined) {
+            formData.append(key, productoData[key]);
+          }
+        });
+        
+        console.log('Enviando FormData con imagen');
+        const response = await fetch(`${API_URL}/productos/${id}/`, {
+          method: 'PATCH',
+          body: formData,
+          // No establecer Content-Type, fetch lo hará automáticamente con el boundary correcto
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Error al actualizar producto: ${response.status}`);
+        }
+        return await response.json();
+      } else {
+        // Sin imagen, usar JSON normal
+        console.log('Enviando JSON sin imagen');
+        const response = await fetch(`${API_URL}/productos/${id}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(productoData),
+        });
 
-      const response = await fetch(`${API_URL}/productos/${id}/`, {
-        method: 'PATCH', // Usar PATCH para actualización parcial
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error(`Error al actualizar producto con ID ${id}: ${response.status}`);
-      return await response.json();
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Error al actualizar producto con ID ${id}: ${response.status}`);
+        }
+        return await response.json();
+      }
     } catch (error) {
       console.error('Error en update:', error);
       return handleApiError(error);
@@ -112,6 +201,42 @@ export const productoService = {
       return handleApiError(error);
     }
   },
+  
+  // Subir una imagen para un producto
+  uploadImage: async (id, imageData) => {
+    try {
+      console.log('Intentando subir imagen para producto:', id);
+      
+      if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:')) {
+        throw new Error('Formato de imagen inválido');
+      }
+      
+      // Convertir la imagen base64 a un archivo
+      const imageFile = base64ToFile(imageData, 'producto.jpg');
+      if (!imageFile) {
+        throw new Error('No se pudo convertir la imagen');
+      }
+      
+      const formData = new FormData();
+      formData.append('imagen', imageFile);
+      
+      const response = await fetch(`${API_URL}/productos/${id}/`, {
+        method: 'PATCH',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error al subir imagen: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error en uploadImage:', error);
+      return handleApiError(error);
+    }
+  }
 };
 
 // Servicios para Categorías
@@ -141,7 +266,11 @@ export const categoriaService = {
         body: JSON.stringify({ nombre }),
       });
 
-      if (!response.ok) throw new Error(`Error al crear categoría: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error al crear categoría: ${response.status}`);
+      }
       return await response.json();
     } catch (error) {
       console.error('Error en create categoría:', error);

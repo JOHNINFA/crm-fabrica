@@ -58,11 +58,6 @@ const processSyncQueue = async () => {
     const operationKeys = new Set();
     
     for (const operation of syncQueue) {
-      // Ignorar operaciones de movimientos
-      if (operation.type === 'MOVEMENT_CREATE') {
-        continue;
-      }
-      
       // Crear una clave única para la operación
       const key = `${operation.type}-${JSON.stringify(operation.data)}`;
       
@@ -99,11 +94,6 @@ const processSyncQueue = async () => {
 const processOperation = async (operation) => {
   const { type, data } = operation;
   
-  // Ignorar operaciones de movimientos
-  if (type === 'MOVEMENT_CREATE') {
-    return true;
-  }
-  
   try {
     let result;
     
@@ -122,6 +112,9 @@ const processOperation = async (operation) => {
         break;
       case 'LOT_CREATE':
         result = await loteService.create(data);
+        break;
+      case 'MOVEMENT_CREATE':
+        result = await movimientoService.create(data);
         break;
       default:
         console.warn('Tipo de operación desconocido:', type);
@@ -151,12 +144,6 @@ const processOperation = async (operation) => {
 
 // Añadir operación a la cola
 const queueOperation = (type, data) => {
-  // No encolar operaciones de movimientos
-  if (type === 'MOVEMENT_CREATE') {
-    console.log('Sincronización de movimientos desactivada, no se encola:', type);
-    return;
-  }
-  
   // Verificar si ya existe una operación idéntica en la cola
   const operationKey = `${type}-${JSON.stringify(data)}`;
   const isDuplicate = syncQueue.some(op => 
@@ -223,9 +210,41 @@ const syncCategoriesToBackend = () => {
 
 // Sincronizar movimientos desde localStorage al backend
 const syncMovementsToBackend = () => {
-  // Sincronización de movimientos desactivada
-  console.log('Sincronización de movimientos desactivada');
-  return;
+  try {
+    const movimientosStr = localStorage.getItem('movimientos');
+    if (movimientosStr) {
+      const movimientos = JSON.parse(movimientosStr);
+      
+      // Filtrar movimientos que no tienen ID del backend (tienen guiones)
+      const movimientosLocales = movimientos.filter(m => 
+        m.id && m.id.toString().includes('-')
+      );
+      
+      console.log(`Sincronizando ${movimientosLocales.length} movimientos locales`);
+      
+      // Encolar cada movimiento para sincronización
+      movimientosLocales.forEach(movimiento => {
+        // Buscar el producto por nombre en localStorage
+        const productsStr = localStorage.getItem('products');
+        if (productsStr) {
+          const products = JSON.parse(productsStr);
+          const producto = products.find(p => p.name === movimiento.producto);
+          
+          if (producto) {
+            queueOperation('MOVEMENT_CREATE', {
+              producto: producto.id,
+              tipo: movimiento.tipo.toUpperCase(),
+              cantidad: movimiento.cantidad,
+              usuario: movimiento.usuario || 'Sistema',
+              nota: movimiento.lote ? `Lote: ${movimiento.lote}` : 'Movimiento desde inventario'
+            });
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error al sincronizar movimientos con backend:', error);
+  }
 };
 
 // Sincronizar todo desde localStorage al backend
@@ -245,8 +264,7 @@ const syncAllToBackend = async () => {
     // Primero sincronizar categorías y productos básicos
     syncCategoriesToBackend();
     syncProductsToBackend();
-    // Movimientos desactivados
-    // syncMovementsToBackend();
+    syncMovementsToBackend();
     
     // Luego sincronizar imágenes (esto puede tardar más tiempo)
     try {
@@ -304,7 +322,8 @@ const syncFromBackend = async () => {
           stock: backendProduct.stock_total,
           price: backendProduct.precio,
           purchasePrice: backendProduct.precio_compra,
-          category: backendProduct.categoria_nombre
+          category: backendProduct.categoria_nombre,
+          image: backendProduct.imagen || localProduct.image
         };
       }
       
@@ -353,6 +372,48 @@ const syncFromBackend = async () => {
     } catch (error) {
       console.error('Error al sincronizar categorías:', error);
       // No fallar toda la sincronización por un error en categorías
+    }
+    
+    // Sincronizar movimientos
+    try {
+      const backendMovimientos = await movimientoService.getAll();
+      if (backendMovimientos && backendMovimientos.length > 0) {
+        // Convertir movimientos del backend al formato local
+        const movimientosFormateados = backendMovimientos.map(movimiento => ({
+          id: movimiento.id,
+          fecha: new Date(movimiento.fecha).toLocaleDateString('es-ES'),
+          hora: new Date(movimiento.fecha).toLocaleTimeString('es-ES'),
+          producto: movimiento.producto_nombre,
+          productoId: movimiento.producto, // Guardar el ID del producto para sincronización
+          cantidad: movimiento.cantidad,
+          tipo: movimiento.tipo === 'ENTRADA' ? 'Entrada' : 'Salida',
+          usuario: movimiento.usuario,
+          lote: movimiento.lote_codigo || '-',
+          fechaVencimiento: '-',
+          registrado: true
+        }));
+        
+        // Obtener movimientos locales
+        const localMovimientosStr = localStorage.getItem('movimientos');
+        const localMovimientos = localMovimientosStr ? JSON.parse(localMovimientosStr) : [];
+        
+        // Crear un mapa de IDs de movimientos del backend para búsqueda rápida
+        const backendMovimientosIds = new Set(backendMovimientos.map(m => m.id));
+        
+        // Filtrar movimientos locales que no están en el backend
+        const localOnlyMovimientos = localMovimientos.filter(m => 
+          !backendMovimientosIds.has(m.id) && m.id.toString().includes('-')
+        );
+        
+        // Combinar movimientos del backend y locales
+        const combinedMovimientos = [...movimientosFormateados, ...localOnlyMovimientos];
+        
+        // Guardar movimientos actualizados en localStorage
+        localStorage.setItem('movimientos', JSON.stringify(combinedMovimientos));
+      }
+    } catch (error) {
+      console.error('Error al sincronizar movimientos:', error);
+      // No fallar toda la sincronización por un error en movimientos
     }
     
     return true;

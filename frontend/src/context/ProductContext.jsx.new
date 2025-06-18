@@ -1,0 +1,86 @@
+  // Actualiza todos los productos a la vez (útil para sincronización con API)
+  const updateProducts = async (newProducts) => {
+    try {
+      console.log("Guardando productos:", newProducts.length);
+      
+      // Primero guardar localmente para asegurar que los cambios persistan
+      saveProductsLocally(newProducts);
+      
+      // Intentar sincronizar con el backend (pero no depender de ello)
+      try {
+        // Extraer categorías únicas de los productos y actualizarlas
+        const uniqueCategories = [...new Set(newProducts.map(p => p.category).filter(Boolean))];
+        if (uniqueCategories.length > 0) {
+          console.log("Sincronizando categorías:", uniqueCategories);
+          
+          // Crear categorías en el backend directamente
+          for (const categoryName of uniqueCategories) {
+            try {
+              await categoriaService.create(categoryName);
+              console.log(`Categoría creada/actualizada: ${categoryName}`);
+            } catch (catError) {
+              console.log(`Categoría ya existe o error: ${categoryName}`, catError);
+            }
+          }
+        }
+        
+        // Sincronizar productos con el backend directamente
+        console.log("Sincronizando productos con el backend...");
+        
+        for (const product of newProducts) {
+          try {
+            if (product.id && !product.id.toString().includes('-')) {
+              // Producto existente con ID numérico (del backend), actualizarlo
+              console.log(`Actualizando producto en backend: ${product.name} (ID: ${product.id})`);
+              
+              await productoService.update(product.id, {
+                nombre: product.name,
+                precio: product.price,
+                precio_compra: product.purchasePrice || 0,
+                stock_total: product.stock || 0,
+                categoria: product.category,
+                marca: product.brand || 'GENERICA',
+                impuesto: product.tax || 'IVA(0%)',
+                activo: true
+              });
+            } else {
+              // Producto nuevo o con ID temporal, crearlo
+              console.log(`Creando producto en backend: ${product.name}`);
+              
+              const createdProduct = await productoService.create({
+                nombre: product.name,
+                precio: product.price,
+                precio_compra: product.purchasePrice || 0,
+                stock_total: product.stock || 0,
+                categoria: product.category,
+                marca: product.brand || 'GENERICA',
+                impuesto: product.tax || 'IVA(0%)',
+                activo: true
+              });
+              
+              if (createdProduct && createdProduct.id) {
+                console.log(`Producto creado con ID: ${createdProduct.id}`);
+                
+                // Actualizar el ID en el producto local
+                product.id = createdProduct.id;
+              }
+            }
+          } catch (productError) {
+            console.error(`Error al sincronizar producto ${product.name}:`, productError);
+          }
+        }
+        
+        // Actualizar productos locales con los IDs actualizados
+        saveProductsLocally(newProducts);
+        
+        console.log("Sincronización completada");
+      } catch (syncError) {
+        console.error("Error en sincronización:", syncError);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error al guardar productos:", error);
+      return false;
+    }
+  };
