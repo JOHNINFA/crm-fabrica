@@ -590,20 +590,22 @@ const InventarioProduccion = () => {
         existenciasDespues: existenciasActuales + cantidadAAgregar
       });
       
-      // Crear un movimiento por cada lote
-      lotes.forEach(lote => {
-        nuevosMovimientos.push({
-          id: Date.now() + nuevosMovimientos.length,
-          fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
-          hora: hora,
-          producto: producto.nombre,
-          cantidad: producto.cantidad, // Usar la cantidad completa, sin dividir
-          tipo: 'Entrada',
-          usuario,
-          lote: lote.numero,
-          fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString('es-ES') : '-',
-          registrado: true // Marcar como registrado
-        });
+      // Crear un solo movimiento con la cantidad total del producto
+      // Los lotes son solo informativos, no afectan el cálculo de existencias
+      const loteInfo = lotes.length > 0 ? lotes.map(l => l.numero).join(', ') : 'Sin lote';
+      
+      nuevosMovimientos.push({
+        id: Date.now() + nuevosMovimientos.length,
+        fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
+        hora: hora,
+        producto: producto.nombre,
+        cantidad: producto.cantidad, // Cantidad exacta ingresada
+        tipo: 'Entrada',
+        usuario,
+        lote: loteInfo, // Información de lotes como texto
+        fechaVencimiento: lotes.length > 0 && lotes[0].fechaVencimiento ? 
+          new Date(lotes[0].fechaVencimiento).toLocaleDateString('es-ES') : '-',
+        registrado: true
       });
     });
     

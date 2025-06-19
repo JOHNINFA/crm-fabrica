@@ -107,6 +107,42 @@ export const ProductProvider = ({ children }) => {
           }
         }
         
+        // SINCRONIZACIÓN CON INVENTARIO: Verificar si hay existencias actualizadas en el inventario
+        try {
+          const inventoryProductsStr = localStorage.getItem('productos');
+          if (inventoryProductsStr) {
+            const inventoryProducts = JSON.parse(inventoryProductsStr);
+            
+            // Actualizar existencias de productos del POS con datos del inventario
+            const currentProducts = JSON.parse(localStorage.getItem('products') || '[]');
+            const updatedProducts = currentProducts.map(posProduct => {
+              // Buscar el producto correspondiente en el inventario
+              const inventoryProduct = inventoryProducts.find(invProduct => invProduct.id === posProduct.id);
+              if (inventoryProduct) {
+                console.log(`Sincronizando desde inventario: ${posProduct.name} - Stock POS: ${posProduct.stock} - Stock Inventario: ${inventoryProduct.existencias}`);
+                return {
+                  ...posProduct,
+                  stock: inventoryProduct.existencias
+                };
+              }
+              return posProduct;
+            });
+            
+            // Solo actualizar si hay cambios
+            const hasChanges = updatedProducts.some((product, index) => 
+              product.stock !== currentProducts[index]?.stock
+            );
+            
+            if (hasChanges) {
+              setProducts(updatedProducts);
+              localStorage.setItem('products', JSON.stringify(updatedProducts));
+              console.log('Existencias sincronizadas desde inventario al POS');
+            }
+          }
+        } catch (error) {
+          console.error('Error al sincronizar con inventario:', error);
+        }
+        
         // Cargar categorías (primero desde backend, luego desde localStorage como respaldo)
         let backendCategoriesLoaded = false;
         
@@ -140,17 +176,11 @@ export const ProductProvider = ({ children }) => {
     // Cargar datos al iniciar
     loadData();
     
-    // Activar sincronización periódica en segundo plano
+    // Procesamiento de cola de sincronización (frecuencia normal)
     const syncInterval = setInterval(() => {
-      console.log("Ejecutando sincronización periódica...");
-      // Sincronizar productos actuales con el backend
-      const currentProducts = JSON.parse(localStorage.getItem('products') || '[]');
-      if (currentProducts.length > 0) {
-        updateProducts(currentProducts).catch(e => 
-          console.error("Error en sincronización periódica:", e)
-        );
-      }
-    }, 60000); // Sincronizar cada minuto
+      console.log("Procesando cola de sincronización...");
+      syncService.processSyncQueue();
+    }, 30000); // Procesar cada 30 segundos
     
     // Escuchar eventos de storage para mantener sincronizado entre pestañas
     const handleStorageChange = (e) => {
@@ -162,6 +192,32 @@ export const ProductProvider = ({ children }) => {
           }
         } catch (error) {
           console.error('Error al procesar cambios en localStorage:', error);
+        }
+      } else if (e.key === 'productos') {
+        // ESCUCHAR CAMBIOS DEL INVENTARIO: Cuando el inventario actualiza existencias
+        try {
+          const inventoryProducts = JSON.parse(e.newValue || '[]');
+          const currentProducts = JSON.parse(localStorage.getItem('products') || '[]');
+          
+          // Actualizar existencias de productos del POS con datos del inventario
+          const updatedProducts = currentProducts.map(posProduct => {
+            const inventoryProduct = inventoryProducts.find(invProduct => invProduct.id === posProduct.id);
+            if (inventoryProduct) {
+              console.log(`Actualizando desde inventario: ${posProduct.name} - Stock anterior: ${posProduct.stock} - Stock nuevo: ${inventoryProduct.existencias}`);
+              return {
+                ...posProduct,
+                stock: inventoryProduct.existencias
+              };
+            }
+            return posProduct;
+          });
+          
+          // Actualizar estado y localStorage del POS
+          setProducts(updatedProducts);
+          localStorage.setItem('products', JSON.stringify(updatedProducts));
+          console.log('Existencias actualizadas desde inventario');
+        } catch (error) {
+          console.error('Error al procesar cambios del inventario:', error);
         }
       }
     };
@@ -302,13 +358,13 @@ export const ProductProvider = ({ children }) => {
               // Producto existente con ID numérico (del backend), actualizarlo
               console.log(`Actualizando producto en backend: ${product.name} (ID: ${product.id})`);
               
-              // Preparar datos para enviar al backend
+              // Preparar datos para enviar al backend (CON stock_total)
               // NOTA: Los nombres de campos deben coincidir con el modelo en Django
               const updateData = {
                 nombre: product.name,
                 precio: product.price,
                 precio_compra: product.purchasePrice || 0,
-                stock_total: product.stock || 0,
+                stock_total: product.stock || 0, // Enviar stock total directamente
                 categoria: categoriaId, // Usar ID de categoría, no el nombre
                 marca: product.brand || 'GENERICA',
                 impuesto: product.tax || 'IVA(0%)',
@@ -331,7 +387,7 @@ export const ProductProvider = ({ children }) => {
                 nombre: product.name,
                 precio: product.price,
                 precio_compra: product.purchasePrice || 0,
-                stock_total: product.stock || 0,
+                stock_total: product.stock || 0, // Enviar stock total directamente
                 categoria: categoriaId, // Usar ID de categoría, no el nombre
                 marca: product.brand || 'GENERICA',
                 impuesto: product.tax || 'IVA(0%)',
@@ -461,6 +517,35 @@ export const ProductProvider = ({ children }) => {
       setProducts(updatedProducts);
       localStorage.setItem('products', JSON.stringify(updatedProducts));
       
+      // SINCRONIZAR CON INVENTARIO: Actualizar existencias en el inventario
+      try {
+        const inventoryProductsStr = localStorage.getItem('productos');
+        if (inventoryProductsStr) {
+          const inventoryProducts = JSON.parse(inventoryProductsStr);
+          
+          // Actualizar existencias en el inventario
+          const updatedInventoryProducts = inventoryProducts.map(invProduct => {
+            if (invProduct.id === productId) {
+              console.log(`Sincronizando POS → Inventario: ${invProduct.nombre} - Stock: ${invProduct.existencias} → ${newStock}`);
+              return {
+                ...invProduct,
+                existencias: newStock
+              };
+            }
+            return invProduct;
+          });
+          
+          // Guardar en localStorage del inventario
+          localStorage.setItem('productos', JSON.stringify(updatedInventoryProducts));
+          
+          // Disparar evento para notificar al inventario
+          window.dispatchEvent(new Event('storage'));
+          window.dispatchEvent(new Event('productosUpdated'));
+        }
+      } catch (error) {
+        console.error('Error al sincronizar con inventario:', error);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error al actualizar stock en el backend:', error);
@@ -474,13 +559,22 @@ export const ProductProvider = ({ children }) => {
       setProducts(updatedProducts);
       localStorage.setItem('products', JSON.stringify(updatedProducts));
       
-      // Encolar para sincronización posterior
-      syncService.queueOperation('PRODUCT_UPDATE_STOCK', {
-        id: productId,
-        stock: diferencia, // Enviamos la diferencia, no el nuevo total
-        usuario,
-        nota
-      });
+      // También sincronizar con inventario en caso de error
+      try {
+        const inventoryProductsStr = localStorage.getItem('productos');
+        if (inventoryProductsStr) {
+          const inventoryProducts = JSON.parse(inventoryProductsStr);
+          const updatedInventoryProducts = inventoryProducts.map(invProduct => {
+            if (invProduct.id === productId) {
+              return { ...invProduct, existencias: newStock };
+            }
+            return invProduct;
+          });
+          localStorage.setItem('productos', JSON.stringify(updatedInventoryProducts));
+        }
+      } catch (syncError) {
+        console.error('Error al sincronizar con inventario:', syncError);
+      }
       
       return true;
     }
