@@ -66,19 +66,30 @@ class ProductoSerializer(serializers.ModelSerializer):
         read_only_fields = ('fecha_creacion',)
 
 class LoteSerializer(serializers.ModelSerializer):
-    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+    """
+    Serializer simplificado para registro de lotes.
+    
+    CAMPOS:
+    - id: ID único del lote
+    - lote: Número del lote
+    - fecha_vencimiento: Fecha de vencimiento (opcional)
+    - usuario: Usuario que creó el lote
+    - fecha_produccion: Fecha de producción
+    - activo: Estado del lote
+    - fecha_creacion: Fecha de creación (solo lectura)
+    """
     
     class Meta:
         model = Lote
         fields = [
-            'id', 'producto', 'producto_nombre', 'codigo', 
-            'fecha_vencimiento', 'cantidad', 'fecha_creacion'
+            'id', 'lote', 'fecha_vencimiento', 
+            'usuario', 'fecha_produccion', 'activo', 'fecha_creacion'
         ]
         read_only_fields = ('fecha_creacion',)
 
 class MovimientoInventarioSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
-    lote_codigo = serializers.ReadOnlyField(source='lote.codigo', allow_null=True)
+    lote_codigo = serializers.ReadOnlyField(source='lote.lote', allow_null=True)
     
     class Meta:
         model = MovimientoInventario

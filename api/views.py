@@ -194,10 +194,18 @@ class LoteViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = Lote.objects.all()
+        
+        # Filtrar por producto
         producto_id = self.request.query_params.get('producto')
         if producto_id:
             queryset = queryset.filter(producto_id=producto_id)
-        return queryset
+        
+        # Filtrar por fecha de producción
+        fecha_produccion = self.request.query_params.get('fecha_produccion')
+        if fecha_produccion:
+            queryset = queryset.filter(fecha_produccion=fecha_produccion)
+            
+        return queryset.order_by('-fecha_creacion')
 
 class MovimientoInventarioViewSet(viewsets.ModelViewSet):
     queryset = MovimientoInventario.objects.all()

@@ -14,10 +14,10 @@ class ProductoAdmin(admin.ModelAdmin):
 
 @admin.register(Lote)
 class LoteAdmin(admin.ModelAdmin):
-    list_display = ('id', 'producto', 'codigo', 'cantidad', 'fecha_vencimiento')
-    list_filter = ('producto__categoria',)
-    search_fields = ('codigo', 'producto__nombre')
-    date_hierarchy = 'fecha_creacion'
+    list_display = ('id', 'lote', 'fecha_produccion', 'fecha_vencimiento', 'usuario', 'activo')
+    list_filter = ('fecha_produccion', 'usuario', 'activo')
+    search_fields = ('lote', 'usuario')
+    date_hierarchy = 'fecha_produccion'
 
 @admin.register(MovimientoInventario)
 class MovimientoInventarioAdmin(admin.ModelAdmin):

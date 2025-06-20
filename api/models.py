@@ -84,16 +84,34 @@ class Producto(models.Model):
     def __str__(self):
         return f"{self.nombre} - Stock: {self.stock_total}"
 
-# Modelo para Lotes de Productos
+# Modelo para Registro de Lotes (Simplificado)
 class Lote(models.Model):
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='lotes')
-    codigo = models.CharField(max_length=100)  # Código del lote
+    """
+    Modelo simplificado para registro de lotes por fecha.
+    
+    ESTRUCTURA EN BASE DE DATOS (tabla api_lote):
+    - id: Integer (clave primaria, autogenerada)
+    - lote: Varchar(100) (número del lote)
+    - fecha_vencimiento: Date (fecha de vencimiento, opcional)
+    - usuario: Varchar(100) (usuario que creó el lote)
+    - fecha_produccion: Date (fecha cuando se creó el lote)
+    - fecha_creacion: DateTime (fecha de creación del registro)
+    - activo: Boolean (estado del lote)
+    
+    PROPÓSITO:
+    - Registrar solo los lotes creados por día
+    - Sin vincular a productos específicos
+    - Solo información de trazabilidad
+    """
+    lote = models.CharField(max_length=100)  # Número del lote
     fecha_vencimiento = models.DateField(null=True, blank=True)  # Fecha de vencimiento
-    cantidad = models.IntegerField(default=0)  # Cantidad en este lote
-    fecha_creacion = models.DateTimeField(default=timezone.now)  # Fecha de creación del lote
+    usuario = models.CharField(max_length=100, default='Sistema')  # Usuario que creó el lote
+    fecha_produccion = models.DateField(default='2025-06-17')  # Fecha de producción
+    activo = models.BooleanField(default=True)  # Estado del lote
+    fecha_creacion = models.DateTimeField(default=timezone.now)  # Fecha de creación
     
     def __str__(self):
-        return f"Lote {self.codigo} - {self.producto.nombre} - Cant: {self.cantidad}"
+        return f"Lote {self.lote} - {self.fecha_produccion} - {self.usuario}"
 
 # Modelo para Movimientos de Inventario
 class MovimientoInventario(models.Model):

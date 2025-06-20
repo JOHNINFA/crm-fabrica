@@ -21,7 +21,8 @@ import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
-import { productoService, loteService, movimientoService } from '../../services/api';
+import { productoService, movimientoService } from '../../services/api';
+import { loteService } from '../../services/loteService';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/TablaKardex.css';
 
@@ -163,32 +164,13 @@ const InventarioProduccion = () => {
     }
   };
 
-  /**
-   * SECCIÓN 2: PERSISTENCIA DE LOTES
-   * 
-   * Estas funciones manejan la persistencia de los lotes en localStorage
-   * para mantener el estado entre navegaciones y recargas de página.
-   */
-  
-  // Guarda los lotes actuales en localStorage para persistencia
-  const guardarLotes = () => {
-    try {
-      // Guardar los lotes actuales directamente en localStorage
-      if (lotes && lotes.length > 0) {
-        localStorage.setItem('inventarioLotesActuales', JSON.stringify(lotes));
-      }
-    } catch (error) {
-      console.error('Error al guardar lotes:', error);
-    }
-  };
-
-  // Recupera los lotes guardados previamente en localStorage
+  // Cargar lotes guardados para la fecha seleccionada
   const cargarLotesGuardados = () => {
     try {
       const lotesGuardadosStr = localStorage.getItem('inventarioLotesActuales');
       if (lotesGuardadosStr) {
         const lotesGuardados = JSON.parse(lotesGuardadosStr);
-        if (lotesGuardados && lotesGuardados.length > 0) {
+        if (lotesGuardados?.length > 0) {
           setLotes(lotesGuardados);
         }
       }
@@ -469,33 +451,29 @@ const InventarioProduccion = () => {
    * para los productos que se están produciendo.
    */
   
-  // Agrega un nuevo lote a la lista de lotes
+  // Agregar lote (solo local - se guarda en BD al grabar movimiento)
   const handleAgregarLote = () => {
-    // Validar que se haya ingresado un número de lote
     if (!lote) {
       setMensaje({ texto: 'Debe ingresar un número de lote', tipo: 'warning' });
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
       return;
     }
 
-    // Verificar si el lote ya existe para evitar duplicados
     if (lotes.some(l => l.numero === lote)) {
       setMensaje({ texto: 'Este número de lote ya fue agregado', tipo: 'warning' });
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
       return;
     }
 
-    // Crear objeto de nuevo lote
     const nuevoLote = {
       id: Date.now(),
       numero: lote,
-      fechaVencimiento: fechaVencimiento || '' // Puede ser vacío
+      fechaVencimiento: fechaVencimiento || ''
     };
 
-    // Actualizar los lotes (el efecto se encargará de guardarlos en localStorage)
+    // Solo agregar localmente - se guardará en BD al presionar "Grabar Movimiento"
     setLotes([...lotes, nuevoLote]);
     
-    // Limpiar los campos del formulario
     setLote('');
     setFechaVencimiento('');
     setMensaje({ texto: 'Lote agregado correctamente', tipo: 'success' });
@@ -509,43 +487,14 @@ const InventarioProduccion = () => {
   };
 
   /**
-   * SECCIÓN 6: REGISTRO DE MOVIMIENTOS
+   * REGISTRO DE PRODUCCIÓN POR FECHA
    * 
-   * Esta función es la más importante del componente, ya que registra
-   * los movimientos de inventario, actualiza las existencias y sincroniza
-   * con el sistema POS.
+   * Registra cantidades producidas por fecha y actualiza existencias globales.
+   * Las cantidades son específicas por fecha, las existencias son acumulativas.
    */
-  const handleGrabarMovimiento = () => {
-    // Las cantidades ya están en los objetos de productos gracias al handleCantidadChange
-    // No necesitamos recopilarlas de los inputs
-    
-    // Guardar el estado actual de los productos para esta fecha
-    try {
-      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
-      const productosGuardados = JSON.parse(productosGuardadosStr);
-      
-      // Guardar productos con sus cantidades para esta fecha
-      const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
-      productosGuardados[fechaStr] = productos.map(p => ({
-        id: p.id,
-        nombre: p.nombre,
-        cantidad: p.cantidad,
-        existencias: p.existencias
-      }));
-      
-      localStorage.setItem('productosRegistrados', JSON.stringify(productosGuardados));
-    } catch (error) {
-      console.error('Error al guardar productos:', error);
-    }
-    
-    // Filtrar productos con cantidad > 0
+  const handleGrabarMovimiento = async () => {
+    const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
     const productosConCantidad = productos.filter(p => p.cantidad > 0);
-    
-    // Marcar estos productos como grabados
-    const nuevosProductosGrabados = { ...productosGrabados };
-    productosConCantidad.forEach(producto => {
-      nuevosProductosGrabados[producto.id] = true;
-    });
     
     if (productosConCantidad.length === 0) {
       setMensaje({ texto: 'No hay cantidades para registrar', tipo: 'warning' });
@@ -559,119 +508,100 @@ const InventarioProduccion = () => {
       return;
     }
     
-    // Obtener hora actual
+    // Persistencia por fecha: Guardar cantidades específicas del día
+    try {
+      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
+      const productosGuardados = JSON.parse(productosGuardadosStr);
+      
+      productosGuardados[fechaStr] = productosConCantidad.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        cantidad: p.cantidad
+      }));
+      
+      localStorage.setItem('productosRegistrados', JSON.stringify(productosGuardados));
+    } catch (error) {
+      console.error('Error al guardar productos por fecha:', error);
+    }
+    
+    // Acumulación de existencias: SUMAR cantidades a existencias actuales
     const ahora = new Date();
     const hora = ahora.getHours().toString().padStart(2, '0') + ':' + 
                 ahora.getMinutes().toString().padStart(2, '0');
     
-    // Crear nuevos movimientos y actualizar existencias
     const nuevosMovimientos = [];
     const nuevosProductos = [...productos];
     
     productosConCantidad.forEach(producto => {
-      // Actualizar existencias
       const index = nuevosProductos.findIndex(p => p.id === producto.id);
-      
-      // Asegurarse de que existencias sea un número
       const existenciasActuales = parseInt(nuevosProductos[index].existencias) || 0;
       const cantidadAAgregar = parseInt(producto.cantidad) || 0;
       
+      // Acumulación: Sumar nueva producción a existencias actuales
       nuevosProductos[index] = {
         ...nuevosProductos[index],
         existencias: existenciasActuales + cantidadAAgregar,
-        // Mantener la cantidad para que sea visible después de grabar
         cantidad: cantidadAAgregar
       };
       
-      console.log('Actualizando existencias:', {
-        producto: producto.nombre,
-        existenciasAntes: existenciasActuales,
-        cantidadAgregada: cantidadAAgregar,
-        existenciasDespues: existenciasActuales + cantidadAAgregar
-      });
+      console.log(`Producción ${fechaStr}: ${producto.nombre} +${cantidadAAgregar} = ${existenciasActuales + cantidadAAgregar}`);
       
-      // Crear un solo movimiento con la cantidad total del producto
-      // Los lotes son solo informativos, no afectan el cálculo de existencias
-      const loteInfo = lotes.length > 0 ? lotes.map(l => l.numero).join(', ') : 'Sin lote';
-      
+      // Crear movimiento para kardex y asociar con lotes en BD
+      const loteInfo = lotes.map(l => l.numero).join(', ');
       nuevosMovimientos.push({
         id: Date.now() + nuevosMovimientos.length,
-        fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
+        fecha: fechaStr,
         hora: hora,
         producto: producto.nombre,
-        cantidad: producto.cantidad, // Cantidad exacta ingresada
+        cantidad: cantidadAAgregar,
         tipo: 'Entrada',
         usuario,
-        lote: loteInfo, // Información de lotes como texto
-        fechaVencimiento: lotes.length > 0 && lotes[0].fechaVencimiento ? 
-          new Date(lotes[0].fechaVencimiento).toLocaleDateString('es-ES') : '-',
+        lote: loteInfo,
+        fechaVencimiento: lotes[0]?.fechaVencimiento ? 
+          new Date(lotes[0].fechaVencimiento + 'T00:00:00').toLocaleDateString('es-ES') : '-',
         registrado: true
       });
+      
+
     });
     
-    // Actualizar estado local y contexto
+    // Guardar lotes en BD (una sola vez por lote, no por producto)
+    const guardarLotesEnBD = async () => {
+      for (const loteLocal of lotes) {
+        try {
+          const loteData = {
+            lote: loteLocal.numero,
+            fechaVencimiento: loteLocal.fechaVencimiento || null,
+            fechaProduccion: fechaSeleccionada.toISOString().split('T')[0],
+            usuario: usuario
+          };
+          
+          console.log('Enviando lote a BD:', loteData);
+          const resultado = await loteService.create(loteData);
+          
+          if (resultado && !resultado.error) {
+            console.log(`✅ Lote ${loteLocal.numero} guardado en BD`);
+          } else {
+            console.error('❌ Error en respuesta del servidor:', resultado);
+          }
+        } catch (error) {
+          console.error('❌ Error al guardar lote en BD:', error);
+        }
+      }
+    };
+    
+    // Ejecutar guardado de lotes
+    await guardarLotesEnBD();
+    
+    // Actualizar existencias globales y sincronizar
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
     agregarMovimientos(nuevosMovimientos);
     
-    // Sincronizar con el POS
-    try {
-      // Obtener productos del POS
-      const posProductsStr = localStorage.getItem('products');
-      if (posProductsStr) {
-        const posProducts = JSON.parse(posProductsStr);
-        
-        // Actualizar existencias en productos del POS
-        const updatedPosProducts = posProducts.map(posProduct => {
-          // Buscar el producto correspondiente en nuevosProductos
-          const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
-          if (inventoryProduct) {
-            // Actualizar existencias
-            return {
-              ...posProduct,
-              stock: inventoryProduct.existencias
-            };
-          }
-          return posProduct;
-        });
-        
-        // Guardar productos actualizados en localStorage
-        localStorage.setItem('products', JSON.stringify(updatedPosProducts));
-      }
-    } catch (error) {
-      console.error('Error al sincronizar con POS:', error);
-    }
-    
-    // Mantener los lotes para que se muestren en la tabla
-    // Guardar los lotes en localStorage para recuperarlos por fecha
-    const lotesConFecha = {
-      fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
-      lotes: lotes
-    };
-    try {
-      // Obtener lotes guardados anteriormente
-      const lotesGuardadosStr = localStorage.getItem('lotesRegistrados') || '[]';
-      const lotesGuardados = JSON.parse(lotesGuardadosStr);
-      
-      // Filtrar lotes de la misma fecha si existen
-      const lotesFiltrados = lotesGuardados.filter(item => item.fecha !== lotesConFecha.fecha);
-      
-      // Añadir los nuevos lotes
-      lotesFiltrados.push(lotesConFecha);
-      
-      // Guardar en localStorage
-      localStorage.setItem('lotesRegistrados', JSON.stringify(lotesFiltrados));
-    } catch (error) {
-      console.error('Error al guardar lotes:', error);
-    }
-    
-    // Actualizar el estado de productos grabados pero no bloquear los campos
-    // para permitir seguir editando
+    // Limpiar campos después de grabar
     setProductosGrabados({});
     
-    // No resetear lotes ni cantidades para mantener el registro
-    // Solo mostrar mensaje de éxito
-    setMensaje({ texto: 'Movimientos registrados correctamente y existencias sincronizadas con POS', tipo: 'success' });
+    setMensaje({ texto: `Producción registrada para ${fechaStr}`, tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
@@ -681,107 +611,71 @@ const InventarioProduccion = () => {
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
   
-  // Función para resetear todas las cantidades a 0
-  const resetearCantidades = () => {
-    // Importar la utilidad de reseteo
-    import('../../utils/resetHelper').then(({ resetearCantidadesCompletamente }) => {
-      // Resetear cantidades en localStorage
-      resetearCantidadesCompletamente();
-      
-      // Crear una copia de los productos con cantidades en 0
-      const productosReseteados = productos.map(producto => ({
-        ...producto,
-        cantidad: 0
-      }));
-      
-      // Actualizar el estado
-      setProductos(productosReseteados);
-      
-      // Resetear también el estado de productos grabados
-      setProductosGrabados({});
-      
-      // Forzar recarga de productos desde localStorage
-      setTimeout(() => {
-        cargarProductos();
-      }, 100);
-      
-      // Mostrar mensaje
-      setMensaje({ texto: 'Cantidades reseteadas a 0', tipo: 'info' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
-    });
-  };
 
-  const handleDateSelect = (date) => {
+
+  const handleDateSelect = async (date) => {
     setFechaSeleccionada(date);
     
-    // Al cambiar la fecha, cargar los lotes guardados para esa fecha
-    const fechaStr = date.toLocaleDateString('es-ES');
-    try {
-      const lotesGuardadosStr = localStorage.getItem('lotesRegistrados') || '[]';
-      const lotesGuardados = JSON.parse(lotesGuardadosStr);
-      
-      // Buscar lotes para la fecha seleccionada
-      const lotesFecha = lotesGuardados.find(item => item.fecha === fechaStr);
-      
-      if (lotesFecha && lotesFecha.lotes) {
-        // Si hay lotes guardados para esta fecha, cargarlos
-        setLotes(lotesFecha.lotes);
-      } else {
-        // Si no hay lotes para esta fecha, limpiar los lotes actuales
-        // para empezar con una lista vacía en el nuevo día
-        setLotes([]);
-        // También limpiar los campos de entrada
-        setLote('');
-        setFechaVencimiento('');
-      }
-    } catch (error) {
-      console.error('Error al cargar lotes:', error);
-      // En caso de error, también limpiar los lotes
-      setLotes([]);
-    }
+    // Limpiar campos al cambiar fecha
+    setLote('');
+    setFechaVencimiento('');
+    setLotes([]);
     
-    // También cargar las cantidades guardadas para esta fecha
+    // Cargar lotes y cantidades desde la base de datos
+    const fechaStr = date.toISOString().split('T')[0]; // Formato YYYY-MM-DD
     try {
-      const productosGuardadosStr = localStorage.getItem('productosRegistrados') || '{}';
-      const productosGuardados = JSON.parse(productosGuardadosStr);
+      // Cargar lotes desde BD
+      const lotesFromBD = await loteService.getByFecha(fechaStr);
       
-      if (productosGuardados[fechaStr]) {
-        // Si hay productos guardados para esta fecha, actualizar cantidades
+      if (lotesFromBD && !lotesFromBD.error && lotesFromBD.length > 0) {
+        // Convertir lotes de BD al formato local
+        const lotesFormateados = lotesFromBD.map(lote => ({
+          id: lote.id,
+          numero: lote.lote,
+          fechaVencimiento: lote.fecha_vencimiento || ''
+        }));
+        
+        setLotes(lotesFormateados);
+        
+        // Actualizar cantidades de productos desde BD
         const productosActualizados = productos.map(producto => {
-          const productoGuardado = productosGuardados[fechaStr].find(p => p.id === producto.id);
-          if (productoGuardado) {
-            return {
-              ...producto,
-              cantidad: productoGuardado.cantidad || 0
-            };
-          }
-          return producto;
+          const loteProducto = lotesFromBD.find(l => l.producto === producto.id);
+          return {
+            ...producto,
+            cantidad: loteProducto ? loteProducto.cantidad : 0
+          };
         });
         
-        // Actualizar productos con las cantidades guardadas
         setProductos(productosActualizados);
+        console.log(`Cargados ${lotesFromBD.length} lotes desde BD para ${fechaStr}`);
       } else {
-        // Si no hay productos guardados para esta fecha, resetear todas las cantidades a 0
+        // No hay lotes para esta fecha, resetear cantidades
         const productosReseteados = productos.map(producto => ({
           ...producto,
           cantidad: 0
         }));
-        
-        // Actualizar productos con cantidades en 0
         setProductos(productosReseteados);
-        
-        // También resetear el estado de productos grabados
-        setProductosGrabados({});
+        console.log(`No hay lotes en BD para ${fechaStr}`);
       }
     } catch (error) {
-      console.error('Error al cargar productos guardados:', error);
-      // En caso de error, también resetear las cantidades
+      console.error('Error al cargar lotes desde BD:', error);
+      // En caso de error, resetear
       const productosReseteados = productos.map(producto => ({
         ...producto,
         cantidad: 0
       }));
       setProductos(productosReseteados);
     }
+    
+    // Resetear cantidades de productos (ya no usamos localStorage)
+    const productosReseteados = productos.map(producto => ({
+      ...producto,
+      cantidad: 0
+    }));
+    setProductos(productosReseteados);
+    setProductosGrabados({});
+    
+    console.log(`🔄 Fecha cambiada a ${fechaStr} - datos cargados desde BD únicamente`);
   };
 
   return (
@@ -891,7 +785,7 @@ const InventarioProduccion = () => {
                           <td>{lote.numero}</td>
                           <td>
                             {lote.fechaVencimiento ? 
-                              new Date(lote.fechaVencimiento).toLocaleDateString('es-ES') : 
+                              new Date(lote.fechaVencimiento + 'T00:00:00').toLocaleDateString('es-ES') : 
                               '-'
                             }
                           </td>
