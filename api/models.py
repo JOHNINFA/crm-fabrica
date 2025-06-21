@@ -113,6 +113,41 @@ class Lote(models.Model):
     def __str__(self):
         return f"Lote {self.lote} - {self.fecha_produccion} - {self.usuario}"
 
+# Modelo para Registro de Inventario (Cantidades por fecha)
+class RegistroInventario(models.Model):
+    """
+    Modelo para registrar cantidades de productos por fecha.
+    
+    ESTRUCTURA EN BASE DE DATOS (tabla api_registroinventario):
+    - id: Integer (clave primaria, autogenerada)
+    - producto_id: Integer (clave foránea a api_producto)
+    - producto_nombre: Varchar(255) (nombre del producto)
+    - cantidad: Integer (cantidad producida)
+    - fecha_produccion: Date (fecha de producción)
+    - usuario: Varchar(100) (usuario que registró)
+    - fecha_creacion: DateTime (fecha de creación del registro)
+    - activo: Boolean (estado del registro)
+    
+    PROPÓSITO:
+    - Reemplazar localStorage para cantidades por fecha
+    - Al cambiar fecha, se cargan cantidades desde BD
+    - Cada día tiene sus propios registros de cantidades
+    """
+    producto_id = models.IntegerField()  # ID del producto
+    producto_nombre = models.CharField(max_length=255)  # Nombre del producto
+    cantidad = models.IntegerField(default=0)  # Cantidad del movimiento
+    entradas = models.IntegerField(default=0)  # Cantidad de entradas
+    salidas = models.IntegerField(default=0)  # Cantidad de salidas
+    saldo = models.IntegerField(default=0)  # Saldo actual después del movimiento
+    tipo_movimiento = models.CharField(max_length=20, default='ENTRADA')  # ENTRADA, SIN_MOVIMIENTO, SALIDA
+    fecha_produccion = models.DateField(default='2025-06-17')  # Fecha del movimiento
+    usuario = models.CharField(max_length=100, default='Sistema')  # Usuario que registró
+    activo = models.BooleanField(default=True)  # Estado del registro
+    fecha_creacion = models.DateTimeField(default=timezone.now)  # Fecha de creación
+    
+    def __str__(self):
+        return f"{self.producto_nombre} - {self.cantidad} - {self.fecha_produccion} - {self.usuario}"
+
 # Modelo para Movimientos de Inventario
 class MovimientoInventario(models.Model):
     TIPO_CHOICES = [

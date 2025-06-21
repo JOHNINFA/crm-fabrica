@@ -11,17 +11,19 @@
  * - Indicadores visuales para tipos de movimiento (Entrada/Salida)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, Form, InputGroup, Row, Col } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
+import { registroInventarioService } from '../../services/registroInventarioService';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
 
 const TablaKardex = () => {
   const [filtro, setFiltro] = useState('');
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
-  const { productos, movimientos } = useProductos();
+  const [movimientosFromBD, setMovimientosFromBD] = useState([]);
+  const { productos } = useProductos();
 
   // Función para obtener las existencias actuales de un producto
   const getExistencias = (nombreProducto) => {
@@ -41,34 +43,90 @@ const TablaKardex = () => {
     producto.nombre.toLowerCase().includes(filtro.toLowerCase())
   );
 
-  // Filtrar movimientos según el texto de búsqueda y la fecha seleccionada
-  const movimientosFiltrados = movimientos.filter(movimiento => {
-    if (!movimiento.fecha) return false;
-    
-    // Convertir la fecha del movimiento a objeto Date
-    // Manejar diferentes formatos de fecha (YYYY-MM-DD o DD/MM/YYYY)
-    let fechaMovimiento;
-    try {
-      if (movimiento.fecha.includes('-')) {
-        fechaMovimiento = new Date(movimiento.fecha);
-      } else {
-        fechaMovimiento = new Date(movimiento.fecha.split('/').reverse().join('-'));
-      }
-      
-      // Verificar si la fecha del movimiento es la misma que la fecha seleccionada
-      const mismaFecha = 
-        fechaMovimiento.getDate() === fechaSeleccionada.getDate() &&
-        fechaMovimiento.getMonth() === fechaSeleccionada.getMonth() &&
-        fechaMovimiento.getFullYear() === fechaSeleccionada.getFullYear();
-      
-      // Filtrar por nombre de producto y fecha
-      return movimiento.producto.toLowerCase().includes(filtro.toLowerCase()) && mismaFecha;
-    } catch (error) {
-      console.error('Error al procesar la fecha del movimiento:', movimiento.fecha, error);
-      return false;
-    }
-  });
+  // Filtrar movimientos desde BD según el texto de búsqueda (ya están filtrados por fecha)
+  const movimientosFiltrados = movimientosFromBD.filter(movimiento => 
+    movimiento.producto.toLowerCase().includes(filtro.toLowerCase())
+  );
 
+  // Cargar movimientos y calcular existencias acumuladas
+  const cargarMovimientosFromBD = async (fecha) => {
+    try {
+      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+      
+      // Obtener TODOS los registros (sin filtrar por fecha para mostrar última fecha real)
+      const response = await fetch('http://localhost:8000/api/registro-inventario/');
+      if (!response.ok) throw new Error('Error al obtener registros');
+      
+      const todosLosRegistros = await response.json();
+      
+      // NO filtrar por fecha - usar todos los registros para obtener el estado actual
+      
+      // Calcular existencias acumuladas por producto (usando todos los registros)
+      const existenciasPorProducto = {};
+      todosLosRegistros.forEach(registro => {
+        const productoId = registro.producto_id;
+        if (!existenciasPorProducto[productoId]) {
+          existenciasPorProducto[productoId] = {
+            nombre: registro.producto_nombre,
+            existencias: 0,
+            ultimoMovimiento: null,
+            ultimaFecha: null,
+            ultimaFechaProduccion: null
+          };
+        }
+        
+        // Siempre actualizar con el registro más reciente (por fecha_creacion)
+        if (!existenciasPorProducto[productoId].ultimaFecha || 
+            new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
+          existenciasPorProducto[productoId].existencias = registro.saldo;
+          existenciasPorProducto[productoId].ultimaFecha = registro.fecha_creacion;
+          existenciasPorProducto[productoId].ultimaFechaProduccion = registro.fecha_produccion;
+          existenciasPorProducto[productoId].ultimoMovimiento = registro; // Usar el mismo registro más reciente
+        }
+      });
+      
+      // Convertir a formato de movimientos para mostrar
+      const movimientosConvertidos = Object.values(existenciasPorProducto).map(data => {
+        const movimiento = data.ultimoMovimiento;
+        
+        return {
+          id: movimiento ? movimiento.id : `no-mov-${data.nombre}`,
+          fecha: movimiento ? new Date(movimiento.fecha_produccion).toLocaleDateString('es-ES') : fechaStr,
+          hora: movimiento ? new Date(movimiento.fecha_creacion).toLocaleTimeString('es-ES') : '--:--',
+          producto: data.nombre,
+          cantidad: movimiento ? movimiento.cantidad : 0,
+          existencias: data.existencias, // Existencias acumuladas
+          tipo: movimiento ? 
+                (movimiento.tipo_movimiento === 'ENTRADA' ? 'Entrada' : 
+                 movimiento.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento') : 'Sin movimientos',
+          usuario: movimiento ? movimiento.usuario : 'Sin usuario',
+          lote: '-',
+          fechaVencimiento: '-',
+          registrado: true
+        };
+      });
+      
+      setMovimientosFromBD(movimientosConvertidos);
+      console.log(`✅ Kardex actualizado con ${movimientosConvertidos.length} productos`);
+      
+    } catch (error) {
+      console.error('Error al cargar movimientos desde BD:', error);
+      setMovimientosFromBD([]);
+    }
+  };
+  
+  // Efecto para cargar movimientos al cambiar fecha
+  useEffect(() => {
+    cargarMovimientosFromBD(fechaSeleccionada);
+  }, [fechaSeleccionada]);
+  
+  // Efecto para cargar al montar el componente
+  useEffect(() => {
+    cargarMovimientosFromBD(fechaSeleccionada);
+  }, []);
+  
+
+  
   // Manejar cambio de fecha
   const handleDateSelect = (date) => {
     setFechaSeleccionada(date);
@@ -168,8 +226,8 @@ const TablaKardex = () => {
                   <tr key={`${ultimoMovimiento.id}`}>
                     <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                     <td>
-                      <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-                        {producto.existencias}
+                      <span className={`${getExistenciasClass(ultimoMovimiento.existencias)} rounded-pill-sm`}>
+                        {ultimoMovimiento.existencias}
                       </span>
                     </td>
                     <td>

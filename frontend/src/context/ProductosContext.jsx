@@ -38,8 +38,41 @@ export const ProductosProvider = ({ children }) => {
     };
   }, []);
   
+  // Función para sincronizar stock desde BD
+  const syncStockFromBD = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/productos/');
+      if (response.ok) {
+        const productosFromBD = await response.json();
+        
+        // Actualizar localStorage de products (POS) con stock real
+        const posProductsStr = localStorage.getItem('products');
+        if (posProductsStr) {
+          const posProducts = JSON.parse(posProductsStr);
+          const updatedPosProducts = posProducts.map(posProduct => {
+            const productoBD = productosFromBD.find(p => p.id === posProduct.id);
+            if (productoBD) {
+              return {
+                ...posProduct,
+                stock: productoBD.stock_total
+              };
+            }
+            return posProduct;
+          });
+          
+          localStorage.setItem('products', JSON.stringify(updatedPosProducts));
+          console.log('✅ Stock sincronizado desde BD para POS');
+        }
+      }
+    } catch (error) {
+      console.error('Error al sincronizar stock desde BD:', error);
+    }
+  };
+  
   // Cargar datos iniciales y persistir estado
   useEffect(() => {
+    // Sincronizar stock desde BD al iniciar
+    syncStockFromBD();
     // Sincronizar productos del POS al inventario manualmente
     try {
       // Obtener productos del POS desde localStorage

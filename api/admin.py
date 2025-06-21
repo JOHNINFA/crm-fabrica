@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Producto, Registro, Categoria, Lote, MovimientoInventario
+from .models import Producto, Registro, Categoria, Lote, MovimientoInventario, RegistroInventario
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
@@ -31,3 +31,10 @@ class RegistroAdmin(admin.ModelAdmin):
     list_display = ('dia', 'id_sheet', 'producto', 'cantidad', 'total', 'neto')
     list_filter = ('dia', 'id_sheet')
     search_fields = ('producto__nombre',)
+
+@admin.register(RegistroInventario)
+class RegistroInventarioAdmin(admin.ModelAdmin):
+    list_display = ('id', 'producto_nombre', 'tipo_movimiento', 'entradas', 'salidas', 'saldo', 'fecha_produccion', 'usuario', 'activo')
+    list_filter = ('fecha_produccion', 'usuario', 'activo')
+    search_fields = ('producto_nombre', 'usuario')
+    date_hierarchy = 'fecha_produccion'

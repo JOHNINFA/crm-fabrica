@@ -8,10 +8,10 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
-    LoteSerializer, MovimientoInventarioSerializer
+    LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -235,3 +235,18 @@ class MovimientoInventarioViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(fecha__lte=fecha_fin)
         
         return queryset
+
+class RegistroInventarioViewSet(viewsets.ModelViewSet):
+    queryset = RegistroInventario.objects.all()
+    serializer_class = RegistroInventarioSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = RegistroInventario.objects.all()
+        
+        # Filtrar por fecha de producción
+        fecha_produccion = self.request.query_params.get('fecha_produccion')
+        if fecha_produccion:
+            queryset = queryset.filter(fecha_produccion=fecha_produccion)
+            
+        return queryset.order_by('-fecha_creacion')

@@ -1,6 +1,6 @@
 # api/serializers.py
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """
@@ -117,3 +117,17 @@ class RegistroSerializer(serializers.ModelSerializer):
             'total','neto',
         ]
         read_only_fields = ('total','neto')
+
+class RegistroInventarioSerializer(serializers.ModelSerializer):
+    """
+    Serializer para registro de cantidades de inventario.
+    """
+    
+    class Meta:
+        model = RegistroInventario
+        fields = [
+            'id', 'producto_id', 'producto_nombre', 'cantidad',
+            'entradas', 'salidas', 'saldo', 'tipo_movimiento',
+            'fecha_produccion', 'usuario', 'activo', 'fecha_creacion'
+        ]
+        read_only_fields = ('fecha_creacion',)

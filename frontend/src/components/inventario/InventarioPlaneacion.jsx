@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, Table } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
+import { registroInventarioService } from '../../services/registroInventarioService';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
@@ -16,16 +17,68 @@ const InventarioPlaneacion = () => {
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const [planeacion, setPlaneacion] = useState([]);
   
-  // Cargar datos iniciales desde el contexto
-  useEffect(() => {
-    if (productosContext && productosContext.length > 0) {
-      const productosConPlaneacion = productosContext.map(producto => ({
-        ...producto,
-        solicitado: 0,
-        orden: 0
-      }));
-      setProductos(productosConPlaneacion);
+  // Cargar existencias reales desde BD
+  const cargarExistenciasReales = async () => {
+    try {
+      // Obtener todos los registros
+      const response = await fetch('http://localhost:8000/api/registro-inventario/');
+      if (!response.ok) throw new Error('Error al obtener registros');
+      
+      const todosLosRegistros = await response.json();
+      
+      // Calcular existencias acumuladas por producto (usar el saldo más reciente)
+      const existenciasPorProducto = {};
+      todosLosRegistros.forEach(registro => {
+        const productoId = registro.producto_id;
+        
+        if (!existenciasPorProducto[productoId] || 
+            new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
+          existenciasPorProducto[productoId] = {
+            id: productoId,
+            nombre: registro.producto_nombre,
+            existencias: registro.saldo, // Saldo más reciente
+            ultimaFecha: registro.fecha_creacion
+          };
+        }
+      });
+      
+      // Si no hay registros, usar productos del contexto con existencias 0
+      if (Object.keys(existenciasPorProducto).length === 0 && productosContext.length > 0) {
+        const productosConPlaneacion = productosContext.map(producto => ({
+          ...producto,
+          existencias: 0,
+          solicitado: 0,
+          orden: 0
+        }));
+        setProductos(productosConPlaneacion);
+      } else {
+        // Usar existencias reales de BD
+        const productosConExistenciasReales = Object.values(existenciasPorProducto).map(producto => ({
+          ...producto,
+          solicitado: 0,
+          orden: 0
+        }));
+        setProductos(productosConExistenciasReales);
+      }
+      
+      console.log('✅ Existencias cargadas en Planeación desde BD');
+    } catch (error) {
+      console.error('Error al cargar existencias:', error);
+      // Fallback al contexto
+      if (productosContext && productosContext.length > 0) {
+        const productosConPlaneacion = productosContext.map(producto => ({
+          ...producto,
+          solicitado: 0,
+          orden: 0
+        }));
+        setProductos(productosConPlaneacion);
+      }
     }
+  };
+  
+  // Cargar datos iniciales
+  useEffect(() => {
+    cargarExistenciasReales();
   }, [productosContext]);
 
   const handleSolicitadoChange = (id, cantidad) => {
