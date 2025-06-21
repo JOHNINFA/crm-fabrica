@@ -1,27 +1,11 @@
-/**
- * InventarioProduccion.jsx
- * 
- * Este componente maneja la pantalla de producción del inventario.
- * Permite registrar la producción de productos, gestionar lotes y fechas de vencimiento,
- * y actualizar las existencias en el inventario.
- * 
- * Características principales:
- * - Gestión de lotes y fechas de vencimiento
- * - Registro de cantidades producidas por producto
- * - Persistencia de datos entre navegaciones usando localStorage
- * - Sincronización con el sistema POS
- */
-
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, Table } from 'react-bootstrap';
 import TablaInventario from './TablaInventario';
-// // import ModalAgregarProducto from './ModalAgregarProducto'; // Eliminado // Eliminado para optimizar
 import ModalEditarExistencias from './ModalEditarExistencias';
 import ModalCambiarUsuario from './ModalCambiarUsuario';
 import ModalEditarCantidades from './ModalEditarCantidades';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
-import { productoService, movimientoService } from '../../services/api';
 import { loteService } from '../../services/loteService';
 import { registroInventarioService } from '../../services/registroInventarioService';
 import '../../styles/InventarioProduccion.css';
@@ -30,225 +14,135 @@ import '../../styles/TablaKardex.css';
 
 
 const InventarioProduccion = () => {
-  /**
-   * SECCIÓN 1: ESTADOS Y CONTEXTO
-   * 
-   * Esta sección define todos los estados que maneja el componente y
-   * obtiene las funciones necesarias del contexto de productos.
-   */
+  // Context y estados principales
+  const { actualizarExistencias, agregarMovimientos, movimientos } = useProductos();
   
-  // Obtener funciones del contexto para actualizar el inventario global
-  const { actualizarExistencias, agregarMovimientos } = useProductos();
+  // Estados de producción
+  const [usuario, setUsuario] = useState('Usuario Predeterminado');
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
+  const [lote, setLote] = useState('');
+  const [fechaVencimiento, setFechaVencimiento] = useState('');
+  const [lotes, setLotes] = useState([]);
   
-  // Estados para manejar los datos de producción
-  const [usuario, setUsuario] = useState('Usuario Predeterminado'); // Usuario actual
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date()); // Fecha de producción
-  const [lote, setLote] = useState(''); // Input para nuevo lote
-  const [fechaVencimiento, setFechaVencimiento] = useState(''); // Input para fecha de vencimiento
-  const [lotes, setLotes] = useState([]); // Lista de lotes agregados
-  
-  // Estados para controlar la visibilidad de los modales
-  // Estado para modal de agregar producto eliminado
-  const [showModalEditar, setShowModalEditar] = useState(false); // Modal para editar existencias
-  const [showModalUsuario, setShowModalUsuario] = useState(false); // Modal para cambiar usuario
-  const [showModalCantidades, setShowModalCantidades] = useState(false); // Modal para editar cantidades
-  const [productoEditar, setProductoEditar] = useState(null); // Producto seleccionado para editar
-  const [mensaje, setMensaje] = useState({ texto: '', tipo: '' }); // Mensajes de alerta
-
-  // Estados para la lista de productos
-  const [productos, setProductos] = useState([]); // Lista de productos
-  const [cargando, setCargando] = useState(true); // Indicador de carga
-  // Estado para controlar qué productos han sido grabados (para UI)
+  // Estados de UI
+  const [showModalEditar, setShowModalEditar] = useState(false);
+  const [showModalUsuario, setShowModalUsuario] = useState(false);
+  const [showModalCantidades, setShowModalCantidades] = useState(false);
+  const [productoEditar, setProductoEditar] = useState(null);
+  const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
+  const [productos, setProductos] = useState([]);
+  const [cargando, setCargando] = useState(true);
   const [productosGrabados, setProductosGrabados] = useState({});
   
-  // Obtener movimientos del contexto
-  const { movimientos } = useProductos();
-  
-  // Filtrar movimientos según la fecha seleccionada
+  // Filtrar movimientos por fecha seleccionada
   const movimientosFiltrados = movimientos.filter(movimiento => {
-    if (!movimiento.fecha) {
-      console.error('Movimiento sin fecha encontrado:', movimiento);
-      return false;
-    }
+    if (!movimiento.fecha) return false;
     
     try {
-      // Intentar convertir la fecha del movimiento a objeto Date
-      // Manejar diferentes formatos de fecha (YYYY-MM-DD o DD/MM/YYYY)
-      let fechaMovimiento;
-      if (movimiento.fecha.includes('-')) {
-        fechaMovimiento = new Date(movimiento.fecha);
-      } else {
-        fechaMovimiento = new Date(movimiento.fecha.split('/').reverse().join('-'));
-      }
+      const fechaMovimiento = movimiento.fecha.includes('-') 
+        ? new Date(movimiento.fecha)
+        : new Date(movimiento.fecha.split('/').reverse().join('-'));
       
-      // Verificar si la fecha del movimiento es la misma que la fecha seleccionada
-      const mismaFecha = 
-        fechaMovimiento.getDate() === fechaSeleccionada.getDate() &&
-        fechaMovimiento.getMonth() === fechaSeleccionada.getMonth() &&
-        fechaMovimiento.getFullYear() === fechaSeleccionada.getFullYear();
-      
-      // Filtrar por fecha
-      return mismaFecha;
+      return fechaMovimiento.toDateString() === fechaSeleccionada.toDateString();
     } catch (error) {
-      console.error('Error al procesar la fecha del movimiento:', movimiento.fecha, error);
+      console.error('Error al procesar fecha:', error);
       return false;
     }
   });
   
-  /**
-   * SECCIÓN 3: CARGA DE PRODUCTOS
-   * 
-   * Esta función carga los productos desde localStorage (sistema POS)
-   * y recupera las cantidades guardadas para la fecha seleccionada.
-   */
+  // Cargar productos desde localStorage (POS)
   const cargarProductos = async () => {
     try {
       setCargando(true);
-      
-      // Obtener productos del sistema POS (almacenados en localStorage)
-      const posProductsStr = localStorage.getItem('products');
-      const posProducts = posProductsStr ? JSON.parse(posProductsStr) : [];
+      const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
       
       if (posProducts.length > 0) {
-        // Transformar los productos del POS al formato esperado por el componente
         const productosFormateados = posProducts.map(producto => ({
           id: producto.id,
-          nombre: producto.name ? producto.name.toUpperCase() : "SIN NOMBRE",
+          nombre: producto.name?.toUpperCase() || "SIN NOMBRE",
           existencias: producto.stock || 0,
-          cantidad: 0, // Inicializar cantidad en 0, pero se actualizará después si hay datos guardados
+          cantidad: 0,
           precio: producto.price || 0,
           categoria: producto.category || "General",
           imagen: producto.image || null
         }));
         
-        // Ordenar productos: AREPA TIPO OBLEA 500GR primero
+        // Ordenar: AREPA TIPO OBLEA 500GR primero
         const productosOrdenados = productosFormateados.sort((a, b) => {
           if (a.nombre.includes('AREPA TIPO OBLEA 500GR')) return -1;
           if (b.nombre.includes('AREPA TIPO OBLEA 500GR')) return 1;
           return a.nombre.localeCompare(b.nombre);
         });
         
-        // Actualizar el estado con los productos ordenados
         setProductos(productosOrdenados);
-        
-        // Ya no cargamos cantidades desde localStorage - solo desde BD
       } else {
-        // Si no hay productos en el POS, mostrar mensaje
         setProductos([]);
       }
     } catch (error) {
       console.error('Error al cargar productos:', error);
-      setMensaje({ 
-        texto: 'Error al cargar productos. Por favor, intente de nuevo.', 
-        tipo: 'danger' 
-      });
+      setMensaje({ texto: 'Error al cargar productos', tipo: 'danger' });
     } finally {
       setCargando(false);
     }
   };
 
-  // Ya no cargamos lotes desde localStorage - solo desde BD
-
-  /**
-   * SECCIÓN 4: EFECTOS (LIFECYCLE)
-   * 
-   * Estos efectos manejan la persistencia de datos y la sincronización
-   * entre componentes cuando cambian los datos.
-   */
-  
-  // Ya no guardamos lotes en localStorage - solo en BD
-
-  // Efecto que se ejecuta al montar el componente para cargar datos iniciales
+  // Inicialización del componente
   useEffect(() => {
-    // Limpiar localStorage (ya no se usa para lotes ni cantidades)
-    localStorage.removeItem('inventarioLotesActuales');
-    localStorage.removeItem('productosRegistrados');
+    // Limpiar localStorage obsoleto
+    ['inventarioLotesActuales', 'productosRegistrados'].forEach(key => 
+      localStorage.removeItem(key)
+    );
     
-    // Limpiar productos antiguos de localStorage para sincronizar con BD
-    const productosActualesStr = localStorage.getItem('products');
-    if (productosActualesStr) {
+    // Sincronizar productos con BD
+    const sincronizarProductos = async () => {
       try {
-        const productosActuales = JSON.parse(productosActualesStr);
-        // Filtrar solo productos que existen en BD (IDs 17 y 18) y resetear stock
-        const productosValidos = productosActuales.filter(p => p.id === 17 || p.id === 18)
-          .map(p => ({ ...p, stock: 0 })); // Forzar stock a 0
+        const productosActuales = JSON.parse(localStorage.getItem('products') || '[]');
+        const productosValidos = productosActuales
+          .filter(p => [17, 18].includes(p.id))
+          .map(p => ({ ...p, stock: 0 }));
+        
         localStorage.setItem('products', JSON.stringify(productosValidos));
         
-        // Limpiar también localStorage de inventario usado por otros componentes
-        localStorage.removeItem('productos'); // Usado por Kardex/Planeación
+        // Cargar existencias desde BD
+        const response = await fetch('http://localhost:8000/api/productos/');
+        if (response.ok) {
+          const productosFromBD = await response.json();
+          const productosParaInventario = productosFromBD.map(p => ({
+            id: p.id,
+            nombre: p.nombre,
+            existencias: p.stock_total,
+            categoria: p.categoria_nombre || 'General',
+            cantidad: 0
+          }));
+          localStorage.setItem('productos', JSON.stringify(productosParaInventario));
+        }
         
-        // Cargar existencias reales desde BD para inventario
-        const cargarExistenciasRealesParaInventario = async () => {
-          try {
-            const response = await fetch('http://localhost:8000/api/productos/');
-            if (response.ok) {
-              const productosFromBD = await response.json();
-              const productosParaInventario = productosFromBD.map(p => ({
-                id: p.id,
-                nombre: p.nombre,
-                existencias: p.stock_total,
-                categoria: p.categoria_nombre || 'General',
-                cantidad: 0
-              }));
-              localStorage.setItem('productos', JSON.stringify(productosParaInventario));
-              console.log('✅ Existencias cargadas desde BD para inventario');
-            }
-          } catch (error) {
-            console.error('Error al cargar existencias desde BD:', error);
-            // Fallback
-            const productosLimpios = [
-              { id: 17, nombre: 'AREPA TIPO OBLEA 500GR', existencias: 0, categoria: 'Maiz', cantidad: 0 },
-              { id: 18, nombre: 'AREPA MEDIANA 330GR', existencias: 0, categoria: 'General', cantidad: 0 }
-            ];
-            localStorage.setItem('productos', JSON.stringify(productosLimpios));
-          }
-        };
-        
-        cargarExistenciasRealesParaInventario();
-        
-        // NO eliminar movimientos - el Kardex los necesita
-        
-        // Forzar recarga del contexto de productos
-        window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new Event('productosUpdated'));
-        
-        console.log('✅ localStorage completo limpiado - solo productos válidos');
+        // Notificar cambios
+        ['storage', 'productosUpdated'].forEach(event => 
+          window.dispatchEvent(new Event(event))
+        );
       } catch (error) {
-        console.error('Error al limpiar productos:', error);
+        console.error('Error en sincronización:', error);
       }
-    }
+    };
     
-    // Cargar solo productos (lotes y cantidades se cargan por fecha desde BD)
+    sincronizarProductos();
     cargarProductos();
     
-    // Detectar cambios en localStorage (para sincronización entre pestañas)
-    const handleStorageChange = (e) => {
-      if (e.key === 'productos') {
-        cargarProductos();
-      }
-    };
+    // Event listeners
+    const handleStorageChange = (e) => e.key === 'productos' && cargarProductos();
+    const handleProductosUpdated = () => cargarProductos();
     
-    // Detectar evento personalizado de actualización de productos
-    const handleProductosUpdated = () => {
-      cargarProductos();
-    };
-    
-    // Registrar event listeners
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('productosUpdated', handleProductosUpdated);
     
-    // Limpiar event listeners al desmontar el componente
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('productosUpdated', handleProductosUpdated);
     };
   }, []);
   
-  // Ya no cargamos cantidades desde localStorage - solo desde BD al cambiar fecha
-
   // Manejadores de eventos
-  // Función handleAgregarProducto eliminada para optimizar el código
-
   const handleEditarClick = (producto) => {
     setProductoEditar(producto);
     setShowModalEditar(true);
@@ -262,55 +156,32 @@ const InventarioProduccion = () => {
         return;
       }
       
-      const existenciasAnteriores = productoEditado.existencias;
-      const diferenciaExistencias = nuevasExistencias - existenciasAnteriores;
-      const tipoMovimiento = diferenciaExistencias > 0 ? 'ENTRADA' : 'SALIDA';
+      const diferenciaExistencias = nuevasExistencias - productoEditado.existencias;
       
-      // Actualizar localmente sin usar la API
       // Actualizar productos localmente
-      const nuevosProductos = productos.map(producto => {
-        if (producto.id === id) {
-          // Actualizar también la cantidad en el input
-          const cantidadActual = producto.cantidad || 0;
-          return { 
-            ...producto, 
-            existencias: nuevasExistencias,
-            cantidad: cantidadActual + diferenciaExistencias
-          };
-        }
-        return producto;
-      });
+      const nuevosProductos = productos.map(producto => 
+        producto.id === id 
+          ? { 
+              ...producto, 
+              existencias: nuevasExistencias,
+              cantidad: (producto.cantidad || 0) + diferenciaExistencias
+            }
+          : producto
+      );
       
       setProductos(nuevosProductos);
       actualizarExistencias(nuevosProductos);
       
-      // Sincronizar con el POS
-      try {
-        // Obtener productos del POS
-        const posProductsStr = localStorage.getItem('products');
-        if (posProductsStr) {
-          const posProducts = JSON.parse(posProductsStr);
-          
-          // Actualizar existencias en productos del POS
-          const updatedPosProducts = posProducts.map(posProduct => {
-            if (posProduct.id === id) {
-              // Actualizar existencias
-              return {
-                ...posProduct,
-                stock: nuevasExistencias
-              };
-            }
-            return posProduct;
-          });
-          
-          // Guardar productos actualizados en localStorage
-          localStorage.setItem('products', JSON.stringify(updatedPosProducts));
-        }
-      } catch (error) {
-        console.error('Error al sincronizar con POS:', error);
-      }
+      // Sincronizar con POS
+      const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      const updatedPosProducts = posProducts.map(posProduct => 
+        posProduct.id === id 
+          ? { ...posProduct, stock: nuevasExistencias }
+          : posProduct
+      );
+      localStorage.setItem('products', JSON.stringify(updatedPosProducts));
       
-      // Crear un movimiento local
+      // Crear movimiento si hay diferencia
       if (diferenciaExistencias !== 0) {
         const nuevoMovimiento = {
           id: Date.now(),
@@ -318,17 +189,16 @@ const InventarioProduccion = () => {
           hora: new Date().toLocaleTimeString('es-ES'),
           producto: productoEditado.nombre,
           cantidad: Math.abs(diferenciaExistencias),
-          tipo: tipoMovimiento,
-          usuario: usuario,
+          tipo: diferenciaExistencias > 0 ? 'ENTRADA' : 'SALIDA',
+          usuario,
           lote: 'Ajuste',
           fechaVencimiento: '-',
           registrado: true
         };
-        
         agregarMovimientos([nuevoMovimiento]);
       }
       
-      setMensaje({ texto: 'Existencias actualizadas correctamente y sincronizadas con POS', tipo: 'success' });
+      setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
     } catch (error) {
       console.error('Error al actualizar existencias:', error);
       setMensaje({ texto: 'Error al actualizar existencias', tipo: 'danger' });
@@ -338,116 +208,86 @@ const InventarioProduccion = () => {
   };
 
   const handleCantidadChange = (id, cantidad) => {
-    // Convertir a número
     const cantidadNumerica = parseInt(cantidad) || 0;
-    
-    // Verificar si el producto existe y si la cantidad ha cambiado realmente
     const productoActual = productos.find(p => p.id === id);
-    if (!productoActual || productoActual.cantidad === cantidadNumerica) {
-      return; // No hacer nada si no hay cambios
-    }
     
-    // Crear una copia del array de productos y actualizar solo el producto específico
+    if (!productoActual || productoActual.cantidad === cantidadNumerica) return;
+    
     const nuevosProductos = productos.map(producto => 
-      producto.id === id 
-        ? { ...producto, cantidad: cantidadNumerica } 
-        : producto
+      producto.id === id ? { ...producto, cantidad: cantidadNumerica } : producto
     );
     
-    // Actualizar el estado con la nueva copia
     setProductos(nuevosProductos);
   };
   
-  // Función para manejar cambios de existencias desde el modal
+  // Guardar cantidades desde modal
   const handleGuardarCantidades = (existencias) => {
     const nuevosProductos = productos.map(producto => ({
       ...producto,
       existencias: existencias[producto.id] || 0
     }));
+    
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
     
-    // Registrar movimientos para cada producto modificado
-    const ahora = new Date();
-    const hora = ahora.getHours().toString().padStart(2, '0') + ':' + 
-                ahora.getMinutes().toString().padStart(2, '0');
+    // Crear movimientos para productos modificados
+    const hora = new Date().toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
     
-    const nuevosMovimientos = [];
-    
-    productos.forEach(producto => {
-      const nuevaExistencia = existencias[producto.id] || 0;
-      const diferenciaExistencias = nuevaExistencia - (producto.existencias || 0);
-      
-      if (diferenciaExistencias !== 0) {
-        nuevosMovimientos.push({
-          id: Date.now() + nuevosMovimientos.length,
+    const nuevosMovimientos = productos
+      .map(producto => {
+        const nuevaExistencia = existencias[producto.id] || 0;
+        const diferencia = nuevaExistencia - (producto.existencias || 0);
+        
+        return diferencia !== 0 ? {
+          id: Date.now() + Math.random(),
           fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
-          hora: hora,
+          hora,
           producto: producto.nombre,
-          cantidad: Math.abs(diferenciaExistencias),
-          tipo: diferenciaExistencias > 0 ? 'Entrada' : 'Salida',
+          cantidad: Math.abs(diferencia),
+          tipo: diferencia > 0 ? 'Entrada' : 'Salida',
           usuario,
           lote: 'Ajuste',
           fechaVencimiento: '-',
           registrado: true
-        });
-      }
-    });
+        } : null;
+      })
+      .filter(Boolean);
     
     if (nuevosMovimientos.length > 0) {
       agregarMovimientos(nuevosMovimientos);
     }
     
-    // Sincronizar con el POS
-    try {
-      // Obtener productos del POS
-      const posProductsStr = localStorage.getItem('products');
-      if (posProductsStr) {
-        const posProducts = JSON.parse(posProductsStr);
-        
-        // Actualizar existencias en productos del POS
-        const updatedPosProducts = posProducts.map(posProduct => {
-          // Buscar el producto correspondiente en nuevosProductos
-          const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
-          if (inventoryProduct) {
-            // Actualizar existencias
-            return {
-              ...posProduct,
-              stock: inventoryProduct.existencias
-            };
-          }
-          return posProduct;
-        });
-        
-        // Guardar productos actualizados en localStorage
-        localStorage.setItem('products', JSON.stringify(updatedPosProducts));
-      }
-    } catch (error) {
-      console.error('Error al sincronizar con POS:', error);
-    }
+    // Sincronizar con POS
+    const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
+    const updatedPosProducts = posProducts.map(posProduct => {
+      const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
+      return inventoryProduct 
+        ? { ...posProduct, stock: inventoryProduct.existencias }
+        : posProduct;
+    });
+    localStorage.setItem('products', JSON.stringify(updatedPosProducts));
     
-    setMensaje({ texto: 'Existencias actualizadas correctamente y sincronizadas con POS', tipo: 'success' });
+    setMensaje({ texto: 'Existencias actualizadas correctamente', tipo: 'success' });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
-  /**
-   * SECCIÓN 5: GESTIÓN DE LOTES
-   * 
-   * Estas funciones manejan la adición y eliminación de lotes
-   * para los productos que se están produciendo.
-   */
+  // Gestión de lotes
+  const mostrarMensaje = (texto, tipo) => {
+    setMensaje({ texto, tipo });
+    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+  };
   
-  // Agregar lote (solo local - se guarda en BD al grabar movimiento)
   const handleAgregarLote = () => {
     if (!lote) {
-      setMensaje({ texto: 'Debe ingresar un número de lote', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      mostrarMensaje('Debe ingresar un número de lote', 'warning');
       return;
     }
 
     if (lotes.some(l => l.numero === lote)) {
-      setMensaje({ texto: 'Este número de lote ya fue agregado', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      mostrarMensaje('Este número de lote ya fue agregado', 'warning');
       return;
     }
 
@@ -457,262 +297,183 @@ const InventarioProduccion = () => {
       fechaVencimiento: fechaVencimiento || ''
     };
 
-    // Solo agregar localmente - se guardará en BD al presionar "Grabar Movimiento"
     setLotes([...lotes, nuevoLote]);
-    
     setLote('');
     setFechaVencimiento('');
-    setMensaje({ texto: 'Lote agregado correctamente', tipo: 'success' });
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    mostrarMensaje('Lote agregado correctamente', 'success');
   };
 
-  // Elimina un lote de la lista de lotes
   const handleEliminarLote = (id) => {
-    // Actualizar los lotes (el efecto se encargará de guardarlos en localStorage)
     setLotes(lotes.filter(lote => lote.id !== id));
   };
 
-  /**
-   * REGISTRO DE PRODUCCIÓN POR FECHA
-   * 
-   * Registra cantidades producidas por fecha y actualiza existencias globales.
-   * Las cantidades son específicas por fecha, las existencias son acumulativas.
-   */
+  // Registrar producción
   const handleGrabarMovimiento = async () => {
-    const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
     const productosConCantidad = productos.filter(p => p.cantidad > 0);
     
+    // Validaciones
     if (productosConCantidad.length === 0) {
-      setMensaje({ texto: 'No hay cantidades para registrar', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      mostrarMensaje('No hay cantidades para registrar', 'warning');
       return;
     }
     
     if (lotes.length === 0) {
-      setMensaje({ texto: 'Debe Ingresar Lote', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      mostrarMensaje('Debe Ingresar Lote', 'warning');
       return;
     }
     
-    // Ya no guardamos en localStorage - todo en BD
+    const fechaStr = fechaSeleccionada.toLocaleDateString('es-ES');
+    const hora = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     
-    // Acumulación de existencias: SUMAR cantidades a existencias actuales
-    const ahora = new Date();
-    const hora = ahora.getHours().toString().padStart(2, '0') + ':' + 
-                ahora.getMinutes().toString().padStart(2, '0');
-    
+    // Preparar datos
     const nuevosMovimientos = [];
-    const nuevosProductos = [...productos];
-    
-    productosConCantidad.forEach(producto => {
-      const index = nuevosProductos.findIndex(p => p.id === producto.id);
-      const existenciasActuales = parseInt(nuevosProductos[index].existencias) || 0;
-      const cantidadAAgregar = parseInt(producto.cantidad) || 0;
-      
-      // Acumulación: Sumar nueva producción a existencias actuales
-      nuevosProductos[index] = {
-        ...nuevosProductos[index],
-        existencias: existenciasActuales + cantidadAAgregar,
-        cantidad: cantidadAAgregar
-      };
-      
-      console.log(`Producción ${fechaStr}: ${producto.nombre} +${cantidadAAgregar} = ${existenciasActuales + cantidadAAgregar}`);
-      
-      // Crear movimiento para kardex y asociar con lotes en BD
-      const loteInfo = lotes.map(l => l.numero).join(', ');
-      nuevosMovimientos.push({
-        id: Date.now() + nuevosMovimientos.length,
-        fecha: fechaStr,
-        hora: hora,
-        producto: producto.nombre,
-        cantidad: cantidadAAgregar,
-        tipo: 'Entrada',
-        usuario,
-        lote: loteInfo,
-        fechaVencimiento: lotes[0]?.fechaVencimiento ? 
-          new Date(lotes[0].fechaVencimiento + 'T00:00:00').toLocaleDateString('es-ES') : '-',
-        registrado: true
-      });
-      
-
+    const nuevosProductos = productos.map(producto => {
+      if (producto.cantidad > 0) {
+        const existenciasActuales = parseInt(producto.existencias) || 0;
+        const cantidadAAgregar = parseInt(producto.cantidad) || 0;
+        
+        // Crear movimiento
+        const loteInfo = lotes.map(l => l.numero).join(', ');
+        nuevosMovimientos.push({
+          id: Date.now() + Math.random(),
+          fecha: fechaStr,
+          hora,
+          producto: producto.nombre,
+          cantidad: cantidadAAgregar,
+          tipo: 'Entrada',
+          usuario,
+          lote: loteInfo,
+          fechaVencimiento: lotes[0]?.fechaVencimiento ? 
+            new Date(lotes[0].fechaVencimiento + 'T00:00:00').toLocaleDateString('es-ES') : '-',
+          registrado: true
+        });
+        
+        return {
+          ...producto,
+          existencias: existenciasActuales + cantidadAAgregar,
+          cantidad: cantidadAAgregar
+        };
+      }
+      return producto;
     });
     
-    // Guardar lotes en BD (una sola vez por lote, no por producto)
-    const guardarLotesEnBD = async () => {
-      for (const loteLocal of lotes) {
-        try {
-          const loteData = {
-            lote: loteLocal.numero,
-            fechaVencimiento: loteLocal.fechaVencimiento || null,
-            fechaProduccion: `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, '0')}-${String(fechaSeleccionada.getDate()).padStart(2, '0')}`,
-            usuario: usuario
-          };
-          
-          console.log('Enviando lote a BD:', loteData);
-          const resultado = await loteService.create(loteData);
-          
-          if (resultado && !resultado.error) {
-            console.log(`✅ Lote ${loteLocal.numero} guardado en BD`);
-          } else {
-            console.error('❌ Error en respuesta del servidor:', resultado);
-          }
-        } catch (error) {
-          console.error('❌ Error al guardar lote en BD:', error);
-        }
+    // Guardar lotes en BD
+    const fechaProduccion = `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, '0')}-${String(fechaSeleccionada.getDate()).padStart(2, '0')}`;
+    
+    for (const loteLocal of lotes) {
+      try {
+        const loteData = {
+          lote: loteLocal.numero,
+          fechaVencimiento: loteLocal.fechaVencimiento || null,
+          fechaProduccion,
+          usuario
+        };
+        
+        await loteService.create(loteData);
+      } catch (error) {
+        console.error('Error al guardar lote:', error);
       }
-    };
+    }
     
-    // Ejecutar guardado de lotes
-    await guardarLotesEnBD();
-    
-    // Guardar cantidades en BD (nueva tabla RegistroInventario)
-    const guardarCantidadesEnBD = async () => {
-      for (const producto of productosConCantidad) {
+    // Guardar cantidades en BD
+    for (const producto of productosConCantidad) {
+      try {
+        const cantidadMovimiento = producto.cantidad;
+        
+        // Calcular saldo acumulado
+        let saldoActual;
         try {
-          // Determinar tipo de movimiento y calcular saldo
-          const cantidadMovimiento = producto.cantidad;
-          let tipoMovimiento, entradas, salidas;
-          
-          if (cantidadMovimiento > 0) {
-            tipoMovimiento = 'ENTRADA';
-            entradas = cantidadMovimiento;
-            salidas = 0;
-          } else if (cantidadMovimiento < 0) {
-            tipoMovimiento = 'SALIDA';
-            entradas = 0;
-            salidas = Math.abs(cantidadMovimiento);
-          } else {
-            tipoMovimiento = 'SIN_MOVIMIENTO';
-            entradas = 0;
-            salidas = 0;
-          }
-          
-          // Calcular saldo actual: obtener último saldo de BD + cantidad nueva
-          let saldoActual;
-          try {
-            const response = await fetch('http://localhost:8000/api/registro-inventario/');
-            if (response.ok) {
-              const todosRegistros = await response.json();
-              const registrosProducto = todosRegistros.filter(r => r.producto_id === producto.id);
-              
-              if (registrosProducto.length > 0) {
-                // Obtener el último saldo registrado
-                const ultimoRegistro = registrosProducto.sort((a, b) => 
-                  new Date(b.fecha_creacion) - new Date(a.fecha_creacion)
-                )[0];
-                saldoActual = ultimoRegistro.saldo + cantidadMovimiento;
-              } else {
-                // Primer registro del producto
-                saldoActual = cantidadMovimiento;
-              }
+          const response = await fetch('http://localhost:8000/api/registro-inventario/');
+          if (response.ok) {
+            const todosRegistros = await response.json();
+            const registrosProducto = todosRegistros.filter(r => r.producto_id === producto.id);
+            
+            if (registrosProducto.length > 0) {
+              const ultimoRegistro = registrosProducto.sort((a, b) => 
+                new Date(b.fecha_creacion) - new Date(a.fecha_creacion)
+              )[0];
+              saldoActual = ultimoRegistro.saldo + cantidadMovimiento;
             } else {
-              // Fallback: usar existencias locales
-              saldoActual = (producto.existencias || 0) + cantidadMovimiento;
+              saldoActual = cantidadMovimiento;
             }
-          } catch (error) {
-            console.error('Error al obtener último saldo:', error);
+          } else {
             saldoActual = (producto.existencias || 0) + cantidadMovimiento;
           }
-          
-          const registroData = {
-            productoId: producto.id,
-            productoNombre: producto.nombre,
-            cantidad: cantidadMovimiento,
-            entradas: entradas,
-            salidas: salidas,
-            saldo: saldoActual,
-            tipoMovimiento: tipoMovimiento,
-            fechaProduccion: `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, '0')}-${String(fechaSeleccionada.getDate()).padStart(2, '0')}`,
-            usuario: usuario
-          };
-          
-          console.log('Enviando registro a BD:', registroData);
-          const resultado = await registroInventarioService.create(registroData);
-          
-          if (resultado && !resultado.error) {
-            console.log(`✅ Cantidad guardada en BD: ${producto.nombre} - ${producto.cantidad}`);
-          } else {
-            console.error('❌ Error en respuesta del servidor:', resultado);
-          }
         } catch (error) {
-          console.error('❌ Error al guardar cantidad en BD:', error);
+          saldoActual = (producto.existencias || 0) + cantidadMovimiento;
         }
+        
+        const registroData = {
+          productoId: producto.id,
+          productoNombre: producto.nombre,
+          cantidad: cantidadMovimiento,
+          entradas: cantidadMovimiento > 0 ? cantidadMovimiento : 0,
+          salidas: cantidadMovimiento < 0 ? Math.abs(cantidadMovimiento) : 0,
+          saldo: saldoActual,
+          tipoMovimiento: cantidadMovimiento > 0 ? 'ENTRADA' : cantidadMovimiento < 0 ? 'SALIDA' : 'SIN_MOVIMIENTO',
+          fechaProduccion,
+          usuario
+        };
+        
+        await registroInventarioService.create(registroData);
+      } catch (error) {
+        console.error('Error al guardar cantidad:', error);
       }
-    };
+    }
     
-    // Ejecutar guardado de cantidades
-    await guardarCantidadesEnBD();
-    
-    // Actualizar stock en tabla api_producto usando el saldo acumulado
-    const actualizarStockEnBD = async () => {
-      for (const producto of productosConCantidad) {
-        try {
-          // Obtener el último saldo del producto desde api_registroinventario
-          let stockActual;
-          try {
-            const response = await fetch('http://localhost:8000/api/registro-inventario/');
-            if (response.ok) {
-              const todosRegistros = await response.json();
-              const registrosProducto = todosRegistros.filter(r => r.producto_id === producto.id);
-              
-              if (registrosProducto.length > 0) {
-                // Obtener el registro más reciente (que acabamos de crear)
-                const ultimoRegistro = registrosProducto.sort((a, b) => 
-                  new Date(b.fecha_creacion) - new Date(a.fecha_creacion)
-                )[0];
-                stockActual = ultimoRegistro.saldo;
-              } else {
-                stockActual = producto.cantidad;
-              }
-            } else {
-              stockActual = (producto.existencias || 0) + producto.cantidad;
-            }
-          } catch (error) {
-            console.error('Error al obtener saldo para stock:', error);
-            stockActual = (producto.existencias || 0) + producto.cantidad;
-          }
-          
-          // Actualizar stock_total en api_producto
-          const response = await fetch(`http://localhost:8000/api/productos/${producto.id}/`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              stock_total: stockActual
-            })
-          });
-          
-          if (response.ok) {
-            console.log(`✅ Stock actualizado en BD: ${producto.nombre} = ${stockActual}`);
-          } else {
-            console.error(`❌ Error al actualizar stock en BD: ${producto.nombre}`);
-          }
-        } catch (error) {
-          console.error(`❌ Error al actualizar stock para ${producto.nombre}:`, error);
-        }
+    // 🔧 CORREGIDO: Actualizar stock en api_producto
+    for (const producto of productosConCantidad) {
+      try {
+        // Calcular stock correcto: existencias actuales + cantidad agregada
+        const existenciasActuales = parseInt(producto.existencias) || 0;
+        const cantidadAAgregar = parseInt(producto.cantidad) || 0;
+        const stockActual = existenciasActuales + cantidadAAgregar;
+        
+        console.log(`📊 Actualizando stock BD - ${producto.nombre}: ${existenciasActuales} + ${cantidadAAgregar} = ${stockActual}`);
+        
+        await fetch(`http://localhost:8000/api/productos/${producto.id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stock_total: stockActual })
+        });
+      } catch (error) {
+        console.error('Error al actualizar stock:', error);
       }
-    };
+    }
     
-    // Ejecutar actualización de stock
-    await actualizarStockEnBD();
+    // Sincronizar con POS - CRÍTICO
+    try {
+      const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      const updatedPosProducts = posProducts.map(posProduct => {
+        const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
+        return inventoryProduct 
+          ? { ...posProduct, stock: inventoryProduct.existencias }
+          : posProduct;
+      });
+      
+      localStorage.setItem('products', JSON.stringify(updatedPosProducts));
+      
+      // Disparar eventos para notificar cambios
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('productosUpdated'));
+      
+      console.log('✅ Sincronización POS completada:', updatedPosProducts.filter(p => p.stock > 0));
+    } catch (error) {
+      console.error('❌ Error sincronizando con POS:', error);
+    }
     
-    // Actualizar existencias globales y sincronizar
+    // Finalizar
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
     agregarMovimientos(nuevosMovimientos);
-    
-    // Limpiar campos después de grabar
     setProductosGrabados({});
     
-    setMensaje({ texto: `Producción registrada para ${fechaStr}`, tipo: 'success' });
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    mostrarMensaje(`Producción registrada para ${fechaStr}`, 'success');
   };
 
   const handleCambiarUsuario = (nuevoUsuario) => {
     setUsuario(nuevoUsuario);
-    setMensaje({ texto: 'Usuario cambiado correctamente', tipo: 'info' });
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    mostrarMensaje('Usuario cambiado correctamente', 'info');
   };
   
 
@@ -720,72 +481,51 @@ const InventarioProduccion = () => {
   const handleDateSelect = async (date) => {
     setFechaSeleccionada(date);
     
-    // Limpiar campos al cambiar fecha
-    setLote('');
-    setFechaVencimiento('');
-    setLotes([]);
-    setProductosGrabados({});
+    // Limpiar campos
+    [setLote, setFechaVencimiento, setLotes, setProductosGrabados].forEach(fn => 
+      fn(fn === setLotes || fn === setProductosGrabados ? [] : '')
+    );
     
-    // Cargar lotes y cantidades desde la base de datos
-    const fechaStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; // Formato YYYY-MM-DD sin zona horaria
-    console.log(`🔄 Cargando datos para fecha: ${fechaStr}`);
+    const fechaStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     
     try {
       // Cargar lotes desde BD
       const lotesFromBD = await loteService.getByFecha(fechaStr);
-      
-      if (lotesFromBD && !lotesFromBD.error && lotesFromBD.length > 0) {
+      if (lotesFromBD?.length > 0) {
         const lotesFormateados = lotesFromBD.map(lote => ({
           id: lote.id,
           numero: lote.lote,
           fechaVencimiento: lote.fecha_vencimiento || ''
         }));
-        
         setLotes(lotesFormateados);
-        console.log(`✅ Cargados ${lotesFromBD.length} lotes desde BD`);
-      } else {
-        console.log(`❌ No hay lotes para ${fechaStr}`);
       }
       
       // Cargar cantidades desde BD
       const registrosFromBD = await registroInventarioService.getByFecha(fechaStr);
-      console.log('Registros obtenidos:', registrosFromBD);
-      
-      if (registrosFromBD && !registrosFromBD.error && registrosFromBD.length > 0) {
-        console.log(`✅ Encontrados ${registrosFromBD.length} registros de cantidades`);
-        
-        // Cargar usuario de esa fecha (del primer registro)
+      if (registrosFromBD?.length > 0) {
+        // Cargar usuario del día
         const usuarioDelDia = registrosFromBD[0].usuario;
         if (usuarioDelDia && usuarioDelDia !== 'Sistema') {
           setUsuario(usuarioDelDia);
-          console.log(`✅ Usuario cargado: ${usuarioDelDia}`);
         }
         
-        // Esperar a que productos esté disponible
+        // Actualizar cantidades
         if (productos.length > 0) {
           const productosActualizados = productos.map(producto => {
             const registro = registrosFromBD.find(r => r.producto_id === producto.id);
-            console.log(`Producto ${producto.id} (${producto.nombre}): cantidad ${registro ? registro.cantidad : 0}`);
             return {
               ...producto,
               cantidad: registro ? registro.cantidad : 0
             };
           });
-          
           setProductos(productosActualizados);
-          console.log('✅ Cantidades actualizadas en productos');
         } else {
-          console.log('⚠️ Productos aún no están cargados, reintentando...');
-          // Reintentar después de un breve delay
           setTimeout(() => handleDateSelect(date), 100);
           return;
         }
       } else {
-        console.log(`❌ No hay cantidades para ${fechaStr} - reseteando a 0`);
-        
-        // Resetear usuario a predeterminado si no hay registros
+        // Resetear si no hay registros
         setUsuario('Usuario Predeterminado');
-        
         if (productos.length > 0) {
           const productosReseteados = productos.map(producto => ({
             ...producto,
@@ -795,18 +535,13 @@ const InventarioProduccion = () => {
         }
       }
     } catch (error) {
-      console.error('❌ Error al cargar desde BD:', error);
-      // En caso de error, resetear cantidades
+      console.error('Error al cargar datos:', error);
       const productosReseteados = productos.map(producto => ({
         ...producto,
         cantidad: 0
       }));
       setProductos(productosReseteados);
     }
-    
-    setProductosGrabados({});
-    
-    console.log(`🔄 Fecha cambiada a ${fechaStr} - datos cargados desde BD únicamente`);
   };
 
   return (

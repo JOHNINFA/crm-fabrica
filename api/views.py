@@ -1,8 +1,6 @@
-# api/views.py
 from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db import transaction
 from django.conf import settings
 import os
 import base64
@@ -25,103 +23,53 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
 
 class ProductoViewSet(viewsets.ModelViewSet):
-    """
-    API para gestionar productos.
-    
-    ENDPOINTS:
-    - GET /api/productos/ - Lista todos los productos
-    - POST /api/productos/ - Crea un nuevo producto
-    - GET /api/productos/{id}/ - Obtiene un producto específico
-    - PUT/PATCH /api/productos/{id}/ - Actualiza un producto
-    - DELETE /api/productos/{id}/ - Elimina un producto
-    - POST /api/productos/save_image/ - Guarda una imagen de producto
-    - POST /api/productos/{id}/actualizar_stock/ - Actualiza el stock de un producto
-    
-    FLUJO DE COMUNICACIÓN:
-    1. Frontend envía solicitud HTTP a uno de los endpoints
-    2. Django REST Framework valida la solicitud y los permisos
-    3. El viewset procesa la solicitud y accede a la base de datos
-    4. Se serializa la respuesta y se devuelve al frontend
-    
-    NOTAS IMPORTANTES:
-    - El campo 'categoria' espera un ID numérico, no un nombre de categoría
-    - Las imágenes se guardan en dos ubicaciones: media/productos/ y frontend/public/images/productos/
-    """
+    """API para gestionar productos"""
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
     permission_classes = [permissions.AllowAny]
-    # Soporta múltiples formatos de datos: form-data, multipart y JSON
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+    
+    def _save_image_to_paths(self, image_data, filename):
+        """Guarda imagen en ambas ubicaciones"""
+        # Crear carpetas
+        frontend_path = os.path.join(settings.BASE_DIR, 'frontend', 'public', 'images', 'productos')
+        media_path = os.path.join(settings.MEDIA_ROOT, 'productos')
+        
+        os.makedirs(frontend_path, exist_ok=True)
+        os.makedirs(media_path, exist_ok=True)
+        
+        # Guardar en ambas ubicaciones
+        for path in [frontend_path, media_path]:
+            filepath = os.path.join(path, filename)
+            with open(filepath, 'wb') as f:
+                f.write(base64.b64decode(image_data))
     
     @action(detail=False, methods=['post'])
     def save_image(self, request):
-        """
-        Guarda una imagen base64 en el sistema de archivos y devuelve la URL.
-        
-        FLUJO DE COMUNICACIÓN:
-        1. Frontend envía POST con imagen en base64
-        2. Backend decodifica la imagen y la guarda en dos ubicaciones
-        3. Backend devuelve las URLs de las imágenes guardadas
-        
-        PARÁMETROS:
-        - image: String base64 de la imagen
-        - productId: ID del producto (opcional)
-        - productName: Nombre del producto (opcional)
-        
-        RESPUESTA:
-        - success: Boolean indicando éxito
-        - frontendUrl: URL para acceso desde el frontend
-        - mediaUrl: URL para acceso desde Django
-        - filename: Nombre del archivo guardado
-        """
+        """Guarda imagen base64 y devuelve URLs"""
         try:
-            # Obtener datos de la solicitud
             image_data = request.data.get('image')
             product_id = request.data.get('productId')
-            product_name = request.data.get('productName', 'producto')
             
             if not image_data or not image_data.startswith('data:'):
                 return Response({'error': 'Datos de imagen no válidos'}, status=status.HTTP_400_BAD_REQUEST)
             
-            # Extraer tipo MIME y datos base64
+            # Extraer datos base64
             match = re.match(r'data:([^;]+);base64,(.+)', image_data)
             if not match:
                 return Response({'error': 'Formato de imagen no válido'}, status=status.HTTP_400_BAD_REQUEST)
             
             mime_type, base64_data = match.groups()
             extension = mime_type.split('/')[-1]
-            
-            # Crear nombre de archivo único
             filename = f"producto_{product_id or uuid.uuid4()}_{uuid.uuid4().hex[:8]}.{extension}"
             
-            # Crear carpetas si no existen
-            # Se guarda en dos ubicaciones:
-            # 1. frontend/public/images/productos/ - Para acceso directo desde el frontend
-            # 2. media/productos/ - Para acceso a través de Django
-            frontend_path = os.path.join(settings.BASE_DIR, 'frontend', 'public', 'images', 'productos')
-            media_path = os.path.join(settings.MEDIA_ROOT, 'productos')
-            
-            os.makedirs(frontend_path, exist_ok=True)
-            os.makedirs(media_path, exist_ok=True)
-            
-            # Guardar en frontend/public/images/productos
-            frontend_filepath = os.path.join(frontend_path, filename)
-            with open(frontend_filepath, 'wb') as f:
-                f.write(base64.b64decode(base64_data))
-            
-            # Guardar también en media/productos
-            media_filepath = os.path.join(media_path, filename)
-            with open(media_filepath, 'wb') as f:
-                f.write(base64.b64decode(base64_data))
-            
-            # Devolver URLs
-            frontend_url = f"/images/productos/{filename}"
-            media_url = f"/media/productos/{filename}"
+            # Guardar imagen
+            self._save_image_to_paths(base64_data, filename)
             
             return Response({
                 'success': True,
-                'frontendUrl': frontend_url,
-                'mediaUrl': media_url,
+                'frontendUrl': f"/images/productos/{filename}",
+                'mediaUrl': f"/media/productos/{filename}",
                 'filename': filename
             })
             
@@ -130,49 +78,21 @@ class ProductoViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def actualizar_stock(self, request, pk=None):
-        """
-        Actualiza el stock de un producto y registra un movimiento de inventario.
-        
-        FLUJO DE COMUNICACIÓN:
-        1. Frontend envía POST con la cantidad a modificar
-        2. Backend actualiza el stock del producto
-        3. Backend crea un registro de movimiento en la tabla api_movimientoinventario
-        4. Backend devuelve el stock actualizado y el ID del movimiento
-        
-        PARÁMETROS:
-        - cantidad: Número entero (positivo para entrada, negativo para salida)
-        - usuario: Nombre del usuario que realiza el movimiento
-        - nota: Descripción opcional del movimiento
-        
-        RESPUESTA:
-        - success: Boolean indicando éxito
-        - stock_actual: Nuevo valor de stock
-        - movimiento_id: ID del movimiento creado
-        """
+        """Actualiza stock y registra movimiento"""
         try:
-            # Obtener el producto por ID (pk)
             producto = self.get_object()
-            cantidad = request.data.get('cantidad', 0)
+            cantidad = int(request.data.get('cantidad', 0))
             usuario = request.data.get('usuario', 'Sistema')
             nota = request.data.get('nota', '')
             
-            # Validar cantidad
-            try:
-                cantidad = int(cantidad)
-            except (ValueError, TypeError):
-                return Response({'error': 'La cantidad debe ser un número entero'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Determinar tipo de movimiento
-            tipo = 'ENTRADA' if cantidad > 0 else 'SALIDA'
-            
-            # Actualizar stock en la tabla api_producto
+            # Actualizar stock
             producto.stock_total += cantidad
             producto.save()
             
-            # Registrar movimiento en la tabla api_movimientoinventario
+            # Registrar movimiento
             movimiento = MovimientoInventario.objects.create(
                 producto=producto,
-                tipo=tipo,
+                tipo='ENTRADA' if cantidad > 0 else 'SALIDA',
                 cantidad=abs(cantidad),
                 usuario=usuario,
                 nota=nota
@@ -184,6 +104,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 'movimiento_id': movimiento.id
             })
             
+        except (ValueError, TypeError):
+            return Response({'error': 'La cantidad debe ser un número entero'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -195,12 +117,11 @@ class LoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Lote.objects.all()
         
-        # Filtrar por producto
+        # Filtros
         producto_id = self.request.query_params.get('producto')
         if producto_id:
             queryset = queryset.filter(producto_id=producto_id)
         
-        # Filtrar por fecha de producción
         fecha_produccion = self.request.query_params.get('fecha_produccion')
         if fecha_produccion:
             queryset = queryset.filter(fecha_produccion=fecha_produccion)
@@ -215,24 +136,20 @@ class MovimientoInventarioViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = MovimientoInventario.objects.all().order_by('-fecha')
         
-        # Filtrar por producto
-        producto_id = self.request.query_params.get('producto')
-        if producto_id:
-            queryset = queryset.filter(producto_id=producto_id)
+        # Aplicar filtros
+        filters = {
+            'producto': 'producto_id',
+            'tipo': 'tipo',
+            'fecha_inicio': 'fecha__gte',
+            'fecha_fin': 'fecha__lte'
+        }
         
-        # Filtrar por tipo
-        tipo = self.request.query_params.get('tipo')
-        if tipo:
-            queryset = queryset.filter(tipo=tipo.upper())
-        
-        # Filtrar por fecha
-        fecha_inicio = self.request.query_params.get('fecha_inicio')
-        if fecha_inicio:
-            queryset = queryset.filter(fecha__gte=fecha_inicio)
-        
-        fecha_fin = self.request.query_params.get('fecha_fin')
-        if fecha_fin:
-            queryset = queryset.filter(fecha__lte=fecha_fin)
+        for param, field in filters.items():
+            value = self.request.query_params.get(param)
+            if value:
+                if param == 'tipo':
+                    value = value.upper()
+                queryset = queryset.filter(**{field: value})
         
         return queryset
 
@@ -244,7 +161,6 @@ class RegistroInventarioViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = RegistroInventario.objects.all()
         
-        # Filtrar por fecha de producción
         fecha_produccion = self.request.query_params.get('fecha_produccion')
         if fecha_produccion:
             queryset = queryset.filter(fecha_produccion=fecha_produccion)

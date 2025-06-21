@@ -16,8 +16,76 @@ export default function Cart({
   const [nota, setNota] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  // Formatear moneda
+  const formatCurrency = (amount) => `$${(amount || 0).toLocaleString('es-CO')}`;
+
+  // Renderizar item del carrito
+  const renderCartItem = (item) => (
+    <div key={item.id} className="cart-item">
+      <div className="cart-item-row">
+        <div className="cart-item-info">
+          <div className="cart-item-name">
+            <i className="bi bi-chevron-right"></i>
+            <span className="product-badge">{item.name}</span>
+          </div>
+          <div className="cart-item-actions">
+            <button onClick={() => removeProduct(item.id)} title="Eliminar">
+              <i className="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+        <div className="cart-item-controls">
+          <div className="quantity-control">
+            <button 
+              onClick={() => changeQty(item.id, -1)}
+              disabled={item.qty <= 1}
+              className="qty-btn"
+            >
+              <i className="bi bi-dash"></i>
+            </button>
+            <input
+              type="number"
+              className="qty-input"
+              value={item.qty}
+              onChange={(e) => changeQty(item.id, parseInt(e.target.value) - item.qty || 0)}
+            />
+            <button 
+              onClick={() => changeQty(item.id, 1)}
+              className="qty-btn"
+            >
+              <i className="bi bi-plus"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="cart-item-calculation">
+        {item.qty}x {formatCurrency(item.price)} = {formatCurrency((item.qty || 0) * (item.price || 0))}
+      </div>
+    </div>
+  );
+
+  // Renderizar fila de resumen
+  const renderSummaryRow = (label, value, isInput = false, onChange = null) => (
+    <div className="summary-row">
+      <span className="summary-label">{label}</span>
+      <span className="summary-value">
+        {isInput ? (
+          <input 
+            type="number" 
+            value={value} 
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="summary-input"
+          />
+        ) : (
+          formatCurrency(value)
+        )}
+      </span>
+    </div>
+  );
+
   return (
     <div className="cart-container">
+      {/* Header */}
       <div className="cart-header">
         <h5>Carrito de Compras</h5>
         <div className="cart-header-actions">
@@ -30,51 +98,10 @@ export default function Cart({
         </div>
       </div>
 
+      {/* Body */}
       <div className="cart-body">
         {cart.length > 0 ? (
-          cart.map(item => (
-            <div key={item.id} className="cart-item">
-              <div className="cart-item-row">
-                <div className="cart-item-info">
-                  <div className="cart-item-name">
-                    <i className="bi bi-chevron-right"></i>
-                    <span className="product-badge">{item.name}</span>
-                  </div>
-                  <div className="cart-item-actions">
-                    <button onClick={() => removeProduct(item.id)} title="Eliminar">
-                      <i className="bi bi-x"></i>
-                    </button>
-                  </div>
-                </div>
-                <div className="cart-item-controls">
-                  <div className="quantity-control">
-                    <button 
-                      onClick={() => changeQty(item.id, -1)}
-                      disabled={item.qty <= 1}
-                      className="qty-btn"
-                    >
-                      <i className="bi bi-dash"></i>
-                    </button>
-                    <input
-                      type="number"
-                      className="qty-input"
-                      value={item.qty}
-                      onChange={(e) => changeQty(item.id, parseInt(e.target.value) - item.qty || 0)}
-                    />
-                    <button 
-                      onClick={() => changeQty(item.id, 1)}
-                      className="qty-btn"
-                    >
-                      <i className="bi bi-plus"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="cart-item-calculation">
-                {item.qty}x {item.price?.toLocaleString("es-CO") || '0'} = ${((item.qty || 0) * (item.price || 0)).toLocaleString("es-CO")}
-              </div>
-            </div>
-          ))
+          cart.map(renderCartItem)
         ) : (
           <div className="empty-cart">
             <i className="bi bi-cart"></i>
@@ -83,37 +110,15 @@ export default function Cart({
         )}
       </div>
 
+      {/* Footer */}
       <div className="cart-footer">
         <div className="cart-summary">
-          <div className="summary-row">
-            <span className="summary-label">Subtotal</span>
-            <span className="summary-value">${subtotal.toLocaleString('es-CO')}</span>
-          </div>
-          <div className="summary-row">
-            <span className="summary-label">Impuestos</span>
-            <span className="summary-value">
-              <input 
-                type="number" 
-                value={imp} 
-                onChange={(e) => setImp(Number(e.target.value))}
-                className="summary-input"
-              />
-            </span>
-          </div>
-          <div className="summary-row">
-            <span className="summary-label">Descuento</span>
-            <span className="summary-value">
-              <input 
-                type="number" 
-                value={desc} 
-                onChange={(e) => setDesc(Number(e.target.value))}
-                className="summary-input"
-              />
-            </span>
-          </div>
+          {renderSummaryRow("Subtotal", subtotal)}
+          {renderSummaryRow("Impuestos", imp, true, setImp)}
+          {renderSummaryRow("Descuento", desc, true, setDesc)}
           <div className="summary-row total">
             <span>Total</span>
-            <span>${total.toLocaleString('es-CO')}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
         </div>
 
@@ -135,7 +140,7 @@ export default function Cart({
         </button>
       </div>
       
-      {/* Modal de pago directo */}
+      {/* Modal de pago */}
       <PaymentModal 
         show={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}

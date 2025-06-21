@@ -1,33 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Alert, Card, Table } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Alert, Table } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
-import { registroInventarioService } from '../../services/registroInventarioService';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
 
 const InventarioPlaneacion = () => {
-  // Obtener productos del contexto
   const { productos: productosContext } = useProductos();
-  
-  // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const [planeacion, setPlaneacion] = useState([]);
   
-  // Cargar existencias reales desde BD
+  // Cargar existencias desde BD
   const cargarExistenciasReales = async () => {
     try {
-      // Obtener todos los registros
       const response = await fetch('http://localhost:8000/api/registro-inventario/');
       if (!response.ok) throw new Error('Error al obtener registros');
       
       const todosLosRegistros = await response.json();
-      
-      // Calcular existencias acumuladas por producto (usar el saldo más reciente)
       const existenciasPorProducto = {};
+      
+      // Obtener saldo más reciente por producto
       todosLosRegistros.forEach(registro => {
         const productoId = registro.producto_id;
         
@@ -36,82 +31,69 @@ const InventarioPlaneacion = () => {
           existenciasPorProducto[productoId] = {
             id: productoId,
             nombre: registro.producto_nombre,
-            existencias: registro.saldo, // Saldo más reciente
+            existencias: registro.saldo,
             ultimaFecha: registro.fecha_creacion
           };
         }
       });
       
-      // Si no hay registros, usar productos del contexto con existencias 0
-      if (Object.keys(existenciasPorProducto).length === 0 && productosContext.length > 0) {
-        const productosConPlaneacion = productosContext.map(producto => ({
-          ...producto,
-          existencias: 0,
-          solicitado: 0,
-          orden: 0
-        }));
-        setProductos(productosConPlaneacion);
-      } else {
-        // Usar existencias reales de BD
-        const productosConExistenciasReales = Object.values(existenciasPorProducto).map(producto => ({
-          ...producto,
-          solicitado: 0,
-          orden: 0
-        }));
-        setProductos(productosConExistenciasReales);
-      }
+      // Preparar productos con planeación
+      const productosBase = Object.keys(existenciasPorProducto).length > 0 
+        ? Object.values(existenciasPorProducto)
+        : productosContext.map(p => ({ ...p, existencias: 0 }));
       
-      console.log('✅ Existencias cargadas en Planeación desde BD');
+      const productosConPlaneacion = productosBase.map(producto => ({
+        ...producto,
+        solicitado: 0,
+        orden: 0
+      }));
+      
+      setProductos(productosConPlaneacion);
     } catch (error) {
       console.error('Error al cargar existencias:', error);
-      // Fallback al contexto
-      if (productosContext && productosContext.length > 0) {
-        const productosConPlaneacion = productosContext.map(producto => ({
-          ...producto,
-          solicitado: 0,
-          orden: 0
-        }));
-        setProductos(productosConPlaneacion);
-      }
+      const productosConPlaneacion = productosContext.map(producto => ({
+        ...producto,
+        solicitado: 0,
+        orden: 0
+      }));
+      setProductos(productosConPlaneacion);
     }
   };
+  // Utilidades
+  const mostrarMensaje = (texto, tipo) => {
+    setMensaje({ texto, tipo });
+    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+  };
   
-  // Cargar datos iniciales
-  useEffect(() => {
-    cargarExistenciasReales();
-  }, [productosContext]);
-
-  const handleSolicitadoChange = (id, cantidad) => {
-    const nuevosProductos = productos.map(producto => 
-      producto.id === id ? { ...producto, solicitado: parseInt(cantidad) || 0 } : producto
-    );
-    setProductos(nuevosProductos);
-  };
-
-  const handleOrdenChange = (id, cantidad) => {
-    const nuevosProductos = productos.map(producto => 
-      producto.id === id ? { ...producto, orden: parseInt(cantidad) || 0 } : producto
-    );
-    setProductos(nuevosProductos);
-  };
-
   const getExistenciasClass = (existencias) => {
     if (existencias <= 0) return 'bg-light-red';
     if (existencias <= 10) return 'bg-light-yellow';
     return 'bg-light-green';
   };
+  
+  const updateProducto = (id, field, value) => {
+    const nuevosProductos = productos.map(producto => 
+      producto.id === id ? { ...producto, [field]: parseInt(value) || 0 } : producto
+    );
+    setProductos(nuevosProductos);
+  };
+  
+  // Effects
+  useEffect(() => {
+    cargarExistenciasReales();
+  }, [productosContext]);
+
+  const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad);
+  const handleOrdenChange = (id, cantidad) => updateProducto(id, 'orden', cantidad);
 
   const handleGuardarPlaneacion = () => {
-    // Filtrar productos con solicitado > 0 o orden > 0
     const productosConPlaneacion = productos.filter(p => p.solicitado > 0 || p.orden > 0);
     
     if (productosConPlaneacion.length === 0) {
-      setMensaje({ texto: 'No hay cantidades planeadas para registrar', tipo: 'warning' });
-      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      mostrarMensaje('No hay cantidades planeadas para registrar', 'warning');
       return;
     }
     
-    // Crear nueva planeación
     const nuevaPlaneacion = {
       id: Date.now(),
       fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
@@ -125,7 +107,7 @@ const InventarioPlaneacion = () => {
     
     setPlaneacion([nuevaPlaneacion, ...planeacion]);
     
-    // Resetear cantidades planeadas
+    // Resetear cantidades
     const productosReseteados = productos.map(producto => ({
       ...producto,
       solicitado: 0,
@@ -133,13 +115,10 @@ const InventarioPlaneacion = () => {
     }));
     setProductos(productosReseteados);
     
-    setMensaje({ texto: 'Planeación guardada correctamente', tipo: 'success' });
-    setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    mostrarMensaje('Planeación guardada correctamente', 'success');
   };
 
-  const handleDateSelect = (date) => {
-    setFechaSeleccionada(date);
-  };
+  const handleDateSelect = (date) => setFechaSeleccionada(date);
 
   return (
     <Container fluid className="py-4">

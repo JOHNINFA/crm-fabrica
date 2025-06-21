@@ -3,150 +3,112 @@ import productosIniciales from '../data/productos';
 import { syncService } from '../services/syncService';
 import { productoService, movimientoService } from '../services/api';
 
-// Crear el contexto
 const ProductosContext = createContext();
 
-// Hook personalizado para usar el contexto
 export const useProductos = () => useContext(ProductosContext);
 
-// Proveedor del contexto
 export const ProductosProvider = ({ children }) => {
   const [productos, setProductos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Efecto para intentar sincronizar con el backend al iniciar
-  useEffect(() => {
-    // DESHABILITADO: Sincronización automática al iniciar para evitar sobrescribir datos locales
-    // const syncWithBackend = async () => {
-    //   try {
-    //     await sincronizarConBackend();
-    //   } catch (error) {
-    //     console.log('Usando datos locales, backend no disponible');
-    //   }
-    // };
-    // syncWithBackend();
-    console.log('Sincronización automática al iniciar deshabilitada');
-    
-    // Procesamiento de cola de sincronización (frecuencia normal)
-    const syncInterval = setInterval(() => {
-      console.log('Procesando cola de sincronización...');
-      syncService.processSyncQueue();
-    }, 30000); // Procesar cada 30 segundos
-    
-    return () => {
-      clearInterval(syncInterval);
-    };
-  }, []);
-  
-  // Función para sincronizar stock desde BD
+  // Utilidades
+  const saveToLocalStorage = (key, data) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+      if (key === 'productos') {
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('productosUpdated'));
+      }
+    } catch (error) {
+      console.error(`Error saving ${key}:`, error);
+    }
+  };
+
+  const getFromLocalStorage = (key, defaultValue = []) => {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : defaultValue;
+    } catch (error) {
+      console.error(`Error loading ${key}:`, error);
+      return defaultValue;
+    }
+  };
+
+  // Sincronizar stock desde BD
   const syncStockFromBD = async () => {
     try {
       const response = await fetch('http://localhost:8000/api/productos/');
-      if (response.ok) {
-        const productosFromBD = await response.json();
-        
-        // Actualizar localStorage de products (POS) con stock real
-        const posProductsStr = localStorage.getItem('products');
-        if (posProductsStr) {
-          const posProducts = JSON.parse(posProductsStr);
-          const updatedPosProducts = posProducts.map(posProduct => {
-            const productoBD = productosFromBD.find(p => p.id === posProduct.id);
-            if (productoBD) {
-              return {
-                ...posProduct,
-                stock: productoBD.stock_total
-              };
-            }
-            return posProduct;
-          });
-          
-          localStorage.setItem('products', JSON.stringify(updatedPosProducts));
-          console.log('✅ Stock sincronizado desde BD para POS');
-        }
-      }
+      if (!response.ok) return;
+      
+      const productosFromBD = await response.json();
+      const posProducts = getFromLocalStorage('products', []);
+      
+      const updatedPosProducts = posProducts.map(posProduct => {
+        const productoBD = productosFromBD.find(p => p.id === posProduct.id);
+        return productoBD 
+          ? { ...posProduct, stock: productoBD.stock_total }
+          : posProduct;
+      });
+      
+      saveToLocalStorage('products', updatedPosProducts);
     } catch (error) {
-      console.error('Error al sincronizar stock desde BD:', error);
+      console.error('Error syncing stock from BD:', error);
     }
   };
-  
-  // Cargar datos iniciales y persistir estado
-  useEffect(() => {
-    // Sincronizar stock desde BD al iniciar
-    syncStockFromBD();
-    // Sincronizar productos del POS al inventario manualmente
+
+  // Sincronizar productos POS con inventario
+  const syncPOSWithInventory = () => {
     try {
-      // Obtener productos del POS desde localStorage
-      const posProductsStr = localStorage.getItem('products');
-      if (posProductsStr) {
-        const posProducts = JSON.parse(posProductsStr);
-        
-        // Convertir productos del POS al formato de inventario
-        const convertedPosProducts = posProducts.map(posProduct => ({
-          id: posProduct.id,
-          nombre: posProduct.name.toUpperCase(),
-          existencias: posProduct.stock || 0,
-          categoria: posProduct.category || 'General',
-          cantidad: 0,
-          precio: posProduct.price || 0
-        }));
-        
-        // Obtener productos de inventario desde localStorage
-        const inventoryProductsStr = localStorage.getItem('productos');
-        const inventoryProducts = inventoryProductsStr ? JSON.parse(inventoryProductsStr) : [];
-        
-        // Combinar productos, evitando duplicados por ID
-        const combinedProducts = [...inventoryProducts];
-        
-        convertedPosProducts.forEach(posProduct => {
-          const existingIndex = combinedProducts.findIndex(p => p.id === posProduct.id);
-          if (existingIndex >= 0) {
-            // Actualizar producto existente
-            combinedProducts[existingIndex] = {
-              ...combinedProducts[existingIndex],
-              nombre: posProduct.nombre,
-              existencias: posProduct.existencias,
-              categoria: posProduct.categoria,
-              precio: posProduct.precio
-            };
-          } else {
-            // Agregar nuevo producto
-            combinedProducts.push(posProduct);
-          }
-        });
-        
-        // Guardar productos combinados en localStorage
-        localStorage.setItem('productos', JSON.stringify(combinedProducts));
-      }
-    } catch (error) {
-      console.error('Error al sincronizar productos:', error);
-    }
-    
-    // Intentar cargar productos y movimientos desde localStorage
-    try {
-      const productosGuardados = localStorage.getItem('productos');
-      const movimientosGuardados = localStorage.getItem('movimientos');
+      const posProducts = getFromLocalStorage('products', []);
+      if (posProducts.length === 0) return;
       
-      if (productosGuardados) {
-        // Verificar que todos los productos iniciales estén presentes
-        const productosGuardadosObj = JSON.parse(productosGuardados);
-        
-        // Asegurarse de que todos los productos iniciales estén incluidos
+      const convertedPosProducts = posProducts.map(posProduct => ({
+        id: posProduct.id,
+        nombre: posProduct.name.toUpperCase(),
+        existencias: posProduct.stock || 0,
+        categoria: posProduct.category || 'General',
+        cantidad: 0,
+        precio: posProduct.price || 0
+      }));
+      
+      const inventoryProducts = getFromLocalStorage('productos', []);
+      const combinedProducts = [...inventoryProducts];
+      
+      convertedPosProducts.forEach(posProduct => {
+        const existingIndex = combinedProducts.findIndex(p => p.id === posProduct.id);
+        if (existingIndex >= 0) {
+          combinedProducts[existingIndex] = {
+            ...combinedProducts[existingIndex],
+            ...posProduct
+          };
+        } else {
+          combinedProducts.push(posProduct);
+        }
+      });
+      
+      saveToLocalStorage('productos', combinedProducts);
+    } catch (error) {
+      console.error('Error syncing POS with inventory:', error);
+    }
+  };
+
+  // Cargar datos iniciales
+  const loadInitialData = () => {
+    try {
+      const productosGuardados = getFromLocalStorage('productos');
+      
+      if (productosGuardados.length > 0) {
+        // Combinar productos iniciales con guardados
         const productosCompletos = productosIniciales.map(productoInicial => {
-          const productoGuardado = productosGuardadosObj.find(p => p.id === productoInicial.id);
-          if (productoGuardado) {
-            // Mantener los datos guardados pero asegurar que tenga todos los campos del inicial
-            return {
-              ...productoInicial,
-              ...productoGuardado,
-              // Asegurar que la categoría se mantenga del inicial
-              categoria: productoInicial.categoria
-            };
-          }
-          return productoInicial;
+          const productoGuardado = productosGuardados.find(p => p.id === productoInicial.id);
+          return productoGuardado 
+            ? { ...productoInicial, ...productoGuardado, categoria: productoInicial.categoria }
+            : productoInicial;
         });
         
-        // Incluir productos del POS que no estén en los productos iniciales
-        const productosDelPOS = productosGuardadosObj.filter(
+        // Incluir productos del POS no iniciales
+        const productosDelPOS = productosGuardados.filter(
           p => !productosIniciales.some(pi => pi.id === p.id)
         );
         
@@ -155,8 +117,10 @@ export const ProductosProvider = ({ children }) => {
         setProductos(productosIniciales);
       }
       
-      if (movimientosGuardados) {
-        setMovimientos(JSON.parse(movimientosGuardados));
+      // Cargar movimientos
+      const movimientosGuardados = getFromLocalStorage('movimientos');
+      if (movimientosGuardados.length > 0) {
+        setMovimientos(movimientosGuardados);
       } else {
         const movimientosIniciales = [
           { 
@@ -182,113 +146,88 @@ export const ProductosProvider = ({ children }) => {
             fechaVencimiento: '-'
           },
         ];
-        
         setMovimientos(movimientosIniciales);
       }
     } catch (error) {
-      console.error('Error al cargar datos desde localStorage:', error);
+      console.error('Error loading initial data:', error);
       setProductos(productosIniciales);
       setMovimientos([]);
     }
-  }, []);
-
-  // Función para actualizar existencias
-  const actualizarExistencias = (productosActualizados) => {
-    setProductos(productosActualizados);
-    
-    // Guardar en localStorage
-    try {
-      localStorage.setItem('productos', JSON.stringify(productosActualizados));
-      
-      // SINCRONIZACIÓN CON POS: Actualizar existencias en el sistema POS
-      try {
-        const posProductsStr = localStorage.getItem('products');
-        if (posProductsStr) {
-          const posProducts = JSON.parse(posProductsStr);
-          
-          const updatedPosProducts = posProducts.map(posProduct => {
-            const inventoryProduct = productosActualizados.find(p => p.id === posProduct.id);
-            if (inventoryProduct) {
-              console.log(`Sincronizando existencias: ${posProduct.name} - Stock anterior: ${posProduct.stock} - Stock nuevo: ${inventoryProduct.existencias}`);
-              return {
-                ...posProduct,
-                stock: inventoryProduct.existencias
-              };
-            }
-            return posProduct;
-          });
-          
-          localStorage.setItem('products', JSON.stringify(updatedPosProducts));
-          window.dispatchEvent(new Event('storage'));
-          window.dispatchEvent(new Event('productosUpdated'));
-          
-          console.log('Existencias sincronizadas correctamente con el POS');
-        }
-      } catch (error) {
-        console.error('Error al sincronizar existencias con POS:', error);
-      }
-      
-      // Sincronizar stock total directamente con el backend (automático)
-      productosActualizados.forEach(async (producto) => {
-        try {
-          // Sincronizar directamente con el backend sin cola
-          await productoService.update(producto.id, {
-            stock_total: producto.existencias
-          });
-          console.log(`Stock actualizado en backend: ${producto.nombre} = ${producto.existencias}`);
-        } catch (error) {
-          console.error(`Error al actualizar stock en backend para ${producto.nombre}:`, error);
-          // Si falla, encolar para reintento
-          syncService.queueOperation('PRODUCT_UPDATE_STOCK_DIRECT', {
-            id: producto.id,
-            stock_total: producto.existencias,
-            usuario: 'Sistema Inventario',
-            nota: 'Actualización directa desde inventario'
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Error al guardar productos en localStorage:', error);
-    }
   };
 
-  // Función para agregar movimientos
+  // Inicialización
+  useEffect(() => {
+    syncStockFromBD();
+    syncPOSWithInventory();
+    loadInitialData();
+    
+    // Configurar sincronización periódica
+    const syncInterval = setInterval(() => {
+      syncService.processSyncQueue();
+    }, 30000);
+    
+    return () => clearInterval(syncInterval);
+  }, []);
+
+  // Actualizar existencias
+  const actualizarExistencias = (productosActualizados) => {
+    setProductos(productosActualizados);
+    saveToLocalStorage('productos', productosActualizados);
+    
+    // Sincronizar con POS
+    try {
+      const posProducts = getFromLocalStorage('products', []);
+      const updatedPosProducts = posProducts.map(posProduct => {
+        const inventoryProduct = productosActualizados.find(p => p.id === posProduct.id);
+        return inventoryProduct 
+          ? { ...posProduct, stock: inventoryProduct.existencias }
+          : posProduct;
+      });
+      
+      saveToLocalStorage('products', updatedPosProducts);
+    } catch (error) {
+      console.error('Error syncing with POS:', error);
+    }
+    
+    // Sincronizar con backend
+    productosActualizados.forEach(async (producto) => {
+      try {
+        await productoService.update(producto.id, {
+          stock_total: producto.existencias
+        });
+      } catch (error) {
+        console.error(`Error updating stock for ${producto.nombre}:`, error);
+        syncService.queueOperation('PRODUCT_UPDATE_STOCK_DIRECT', {
+          id: producto.id,
+          stock_total: producto.existencias,
+          usuario: 'Sistema Inventario',
+          nota: 'Actualización directa desde inventario'
+        });
+      }
+    });
+  };
+
+  // Agregar movimientos
   const agregarMovimientos = (nuevosMovimientos) => {
-    // Verificar si hay movimientos duplicados antes de agregarlos
     setMovimientos(prevMovimientos => {
-      // Filtrar movimientos que ya existen (mismo id)
+      // Filtrar duplicados
       const movimientosNoRepetidos = nuevosMovimientos.filter(
         nuevoMov => !prevMovimientos.some(prevMov => prevMov.id === nuevoMov.id)
       );
       
       const movimientosActualizados = [...movimientosNoRepetidos, ...prevMovimientos];
-      
-      // Guardar en localStorage
-      try {
-        localStorage.setItem('movimientos', JSON.stringify(movimientosActualizados));
-      } catch (error) {
-        console.error('Error al guardar movimientos en localStorage:', error);
-      }
-      
-      // Sincronizar stock total directamente con el backend (sin movimientos)
-      // Solo sincronizar productos que han cambiado
-      console.log('Sincronización directa de stock con backend habilitada');
+      saveToLocalStorage('movimientos', movimientosActualizados);
       
       return movimientosActualizados;
     });
   };
 
-  // Estado para controlar si estamos sincronizando con el backend
-  const [isSyncing, setIsSyncing] = useState(false);
-  
-  // Función para sincronizar manualmente con el backend
+  // Sincronizar con backend
   const sincronizarConBackend = async () => {
     setIsSyncing(true);
     try {
-      // Intentar cargar productos desde el backend
+      // Cargar productos desde backend
       const backendProductos = await productoService.getAll();
-      
-      // Convertir productos del backend al formato de inventario
       const productosFormateados = backendProductos.map(producto => ({
         id: producto.id,
         nombre: producto.nombre.toUpperCase(),
@@ -298,15 +237,12 @@ export const ProductosProvider = ({ children }) => {
         precio: producto.precio
       }));
       
-      // Actualizar productos locales
       setProductos(productosFormateados);
-      localStorage.setItem('productos', JSON.stringify(productosFormateados));
+      saveToLocalStorage('productos', productosFormateados);
       
-      // Intentar cargar movimientos desde el backend
+      // Cargar movimientos desde backend
       try {
         const backendMovimientos = await movimientoService.getAll();
-        
-        // Convertir movimientos del backend al formato local
         const movimientosFormateados = backendMovimientos.map(movimiento => ({
           id: movimiento.id,
           fecha: new Date(movimiento.fecha).toLocaleDateString('es-ES'),
@@ -320,45 +256,31 @@ export const ProductosProvider = ({ children }) => {
           registrado: true
         }));
         
-        // Obtener movimientos locales actuales
-        const movimientosLocalesStr = localStorage.getItem('movimientos');
-        const movimientosLocales = movimientosLocalesStr ? JSON.parse(movimientosLocalesStr) : [];
-        
-        // Crear un mapa de IDs de movimientos del backend para búsqueda rápida
+        const movimientosLocales = getFromLocalStorage('movimientos', []);
         const backendMovimientosIds = new Set(backendMovimientos.map(m => m.id));
         
-        // Filtrar movimientos locales que no están en el backend
         const movimientosLocalesUnicos = movimientosLocales.filter(
           m => !backendMovimientosIds.has(m.id) && m.id.toString().includes('-')
         );
         
-        // Combinar movimientos del backend y locales únicos
         const movimientosCombinados = [...movimientosFormateados, ...movimientosLocalesUnicos];
-        
-        // Actualizar movimientos locales
         setMovimientos(movimientosCombinados);
-        localStorage.setItem('movimientos', JSON.stringify(movimientosCombinados));
+        saveToLocalStorage('movimientos', movimientosCombinados);
       } catch (error) {
-        console.error('Error al cargar movimientos desde el backend:', error);
-        
-        // Si falla la carga desde el backend, mantener los movimientos locales
-        const movimientosLocalesStr = localStorage.getItem('movimientos');
-        if (movimientosLocalesStr) {
-          const movimientosLocales = JSON.parse(movimientosLocalesStr);
-          setMovimientos(movimientosLocales);
-        }
+        console.error('Error loading movements from backend:', error);
+        const movimientosLocales = getFromLocalStorage('movimientos', []);
+        setMovimientos(movimientosLocales);
       }
       
       return true;
     } catch (error) {
-      console.error('Error al sincronizar con backend:', error);
+      console.error('Error syncing with backend:', error);
       return false;
     } finally {
       setIsSyncing(false);
     }
   };
-  
-  // Valor del contexto
+
   const value = {
     productos,
     movimientos,

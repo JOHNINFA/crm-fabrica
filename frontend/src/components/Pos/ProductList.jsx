@@ -9,7 +9,7 @@ export default function ProductList({ addProduct, search, setSearch }) {
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   
-  // Filtrar productos por búsqueda y categoría
+  // Filtrar productos
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === "Todos" || p.category === selectedCategory;
@@ -28,6 +28,7 @@ export default function ProductList({ addProduct, search, setSearch }) {
 
   return (
     <>
+      {/* Barra de búsqueda */}
       <div className="d-flex align-items-center gap-2 mb-3">
         <button className="btn btn-light border" title="Buscar">
           <span className="material-icons">search</span>
@@ -48,7 +49,7 @@ export default function ProductList({ addProduct, search, setSearch }) {
       </div>
       
       <div className="card-bg mb-3 p-3">
-        {/* Encabezado de categorías con botón de gestión */}
+        {/* Header de categorías */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h6 className="m-0">Categorías</h6>
           <button 

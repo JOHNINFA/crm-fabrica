@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Form, Button } from 'react-bootstrap';
+import React from 'react';
+import { Table, Button } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
 
 const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {} }) => {
-  // Función para manejar el cambio de cantidad localmente
-  const handleChange = (id, value) => {
-    // Notificar al componente padre directamente
-    handleCantidadChange(id, value);
+  const handleChange = (id, value) => handleCantidadChange(id, value);
+  
+  const handleEliminar = async (producto) => {
+    if (window.confirm(`¿Estás seguro de eliminar el producto "${producto.nombre}"?`)) {
+      const utils = await import('../../utils/inventarioUtils');
+      utils.eliminarProductoInventario(producto.id);
+    }
   };
 
   return (
@@ -20,7 +23,7 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
           </tr>
         </thead>
         <tbody>
-          {productos && productos.length > 0 ? (
+          {productos?.length > 0 ? (
             productos.map((producto) => (
               <tr key={producto.id} className="product-row">
                 <td className="fw-medium" style={{color: '#1e293b'}}>
@@ -55,19 +58,11 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                       Editar
                     </Button>
                     
-                    {/* Solo mostrar botón eliminar para productos que no son iniciales (ID > 39) */}
                     {producto.id > 39 && (
                       <Button
                         variant="outline-danger"
                         size="sm"
-                        onClick={() => {
-                          if (window.confirm(`¿Estás seguro de eliminar el producto "${producto.nombre}"?`)) {
-                            // Importar dinámicamente para evitar problemas de circular dependency
-                            import('../../utils/inventarioUtils').then(utils => {
-                              utils.eliminarProductoInventario(producto.id);
-                            });
-                          }
-                        }}
+                        onClick={() => handleEliminar(producto)}
                         className="rounded-pill-sm"
                         style={{backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca'}}
                         title={`Eliminar ${producto.nombre}`}
@@ -83,14 +78,9 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
           ) : (
             <tr>
               <td colSpan="3" className="text-center py-4">
-                <p className="text-muted">Cargando productos...</p>
-              </td>
-            </tr>
-          )}
-          {productos.length === 0 && (
-            <tr>
-              <td colSpan="3" className="text-center py-4">
-                <p className="text-muted">No hay productos disponibles</p>
+                <p className="text-muted">
+                  {productos ? 'No hay productos disponibles' : 'Cargando productos...'}
+                </p>
               </td>
             </tr>
           )}
