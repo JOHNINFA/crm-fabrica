@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verificar Orden de Productos</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 15px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Verificar Orden de Productos</h1>
+    <p>Este script verifica y corrige el orden de los productos en el localStorage.</p>
+    <button id="checkButton">Verificar Orden</button>
+    <button id="fixButton">Corregir Orden</button>
+    <div id="status" style="margin-top: 20px;"></div>
+    <h2>Estado Actual</h2>
+    <div id="currentState"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        const currentStateDiv = document.getElementById('currentState');
+        
+        // Mostrar estado actual
+        function showCurrentState() {
+            try {
+                const products = JSON.parse(localStorage.getItem('products') || '[]');
+                const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+                
+                currentStateDiv.innerHTML = `
+                    <h3>LocalStorage</h3>
+                    <h4>Products (POS) - ${products.length} items</h4>
+                    <pre>${JSON.stringify(products.map(p => ({ id: p.id, name: p.name, stock: p.stock })), null, 2)}</pre>
+                    <h4>Productos (Inventario) - ${productos.length} items</h4>
+                    <pre>${JSON.stringify(productos.map(p => ({ id: p.id, nombre: p.nombre, existencias: p.existencias })), null, 2)}</pre>
+                `;
+            } catch (error) {
+                currentStateDiv.innerHTML = `<p class="error">Error al mostrar estado: ${error.message}</p>`;
+            }
+        }
+        
+        // Verificar orden
+        function checkOrder() {
+            statusDiv.innerHTML = '<p>Verificando orden...</p>';
+            
+            try {
+                const products = JSON.parse(localStorage.getItem('products') || '[]');
+                const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+                
+                // Orden esperado
+                const ordenEsperado = [
+                    'AREPA TIPO OBLEA 500GR',
+                    'AREPA MEDIANA 330GR',
+                    'AREPA TIPO PINCHO 330GR',
+                    'AREPA QUESO CORRIENTE 450GR'
+                ];
+                
+                // Verificar orden en products
+                let ordenCorrecto = true;
+                let mensajeProducts = '<p>Orden en Products (POS):</p><ul>';
+                
+                for (let i = 0; i < Math.min(ordenEsperado.length, products.length); i++) {
+                    const nombreActual = products[i].name.toUpperCase();
+                    const nombreEsperado = ordenEsperado[i];
+                    
+                    if (nombreActual === nombreEsperado) {
+                        mensajeProducts += `<li class="success">${i+1}. ${nombreActual} ✓</li>`;
+                    } else {
+                        mensajeProducts += `<li class="error">${i+1}. ${nombreActual} ✗ (esperado: ${nombreEsperado})</li>`;
+                        ordenCorrecto = false;
+                    }
+                }
+                mensajeProducts += '</ul>';
+                
+                // Verificar orden en productos
+                let ordenCorrectoInventario = true;
+                let mensajeProductos = '<p>Orden en Productos (Inventario):</p><ul>';
+                
+                for (let i = 0; i < Math.min(ordenEsperado.length, productos.length); i++) {
+                    const nombreActual = productos[i].nombre.toUpperCase();
+                    const nombreEsperado = ordenEsperado[i];
+                    
+                    if (nombreActual === nombreEsperado) {
+                        mensajeProductos += `<li class="success">${i+1}. ${nombreActual} ✓</li>`;
+                    } else {
+                        mensajeProductos += `<li class="error">${i+1}. ${nombreActual} ✗ (esperado: ${nombreEsperado})</li>`;
+                        ordenCorrectoInventario = false;
+                    }
+                }
+                mensajeProductos += '</ul>';
+                
+                // Mostrar resultado
+                statusDiv.innerHTML = `
+                    <p>${ordenCorrecto ? '<span class="success">✓ Orden correcto</span>' : '<span class="error">✗ Orden incorrecto</span>'} en Products (POS)</p>
+                    <p>${ordenCorrectoInventario ? '<span class="success">✓ Orden correcto</span>' : '<span class="error">✗ Orden incorrecto</span>'} en Productos (Inventario)</p>
+                    ${mensajeProducts}
+                    ${mensajeProductos}
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">Error al verificar orden: ${error.message}</p>`;
+            }
+        }
+        
+        // Corregir orden
+        function fixOrder() {
+            statusDiv.innerHTML = '<p>Corrigiendo orden...</p>';
+            
+            try {
+                const products = JSON.parse(localStorage.getItem('products') || '[]');
+                const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+                
+                // Orden específico
+                const ordenProductos = {
+                    'AREPA TIPO OBLEA 500GR': 1,
+                    'AREPA MEDIANA 330GR': 2,
+                    'AREPA TIPO PINCHO 330GR': 3,
+                    'AREPA QUESO CORRIENTE 450GR': 4
+                };
+                
+                // Ordenar products
+                products.sort((a, b) => {
+                    const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
+                    const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
+                    return ordenA - ordenB;
+                });
+                
+                // Ordenar productos
+                productos.sort((a, b) => {
+                    const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
+                    const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
+                    return ordenA - ordenB;
+                });
+                
+                // Guardar en localStorage
+                localStorage.setItem('products', JSON.stringify(products));
+                localStorage.setItem('productos', JSON.stringify(productos));
+                
+                // Notificar cambios
+                window.dispatchEvent(new Event('storage'));
+                window.dispatchEvent(new Event('productosUpdated'));
+                
+                statusDiv.innerHTML = `<p class="success">Orden corregido correctamente</p>`;
+                
+                // Verificar orden
+                setTimeout(checkOrder, 500);
+                
+                // Actualizar vista
+                showCurrentState();
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">Error al corregir orden: ${error.message}</p>`;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('checkButton').addEventListener('click', checkOrder);
+        document.getElementById('fixButton').addEventListener('click', fixOrder);
+        
+        // Inicializar
+        showCurrentState();
+        checkOrder();
+    </script>
+</body>
+</html>

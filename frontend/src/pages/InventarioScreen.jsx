@@ -75,9 +75,6 @@ export default function InventarioScreen() {
             <div className="card-bg">
               <h3>Kardex de Inventario</h3>
               <div className="card">
-                <div className="card-header">
-                  <h5 className="mb-0">Historial de Movimientos</h5>
-                </div>
                 <div className="card-body">
                   <TablaKardex />
                 </div>

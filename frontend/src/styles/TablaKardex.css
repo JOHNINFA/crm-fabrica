@@ -74,9 +74,9 @@ body {
 }
 
 /* Distribución de columnas */
-.table-kardex thead th:nth-child(1) { width: 40%; } /* Producto */
-.table-kardex thead th:nth-child(2) { width: 20%; } /* Existencias */
-.table-kardex thead th:nth-child(3) { width: 20%; } /* Usuario */
+.table-kardex thead th:nth-child(1) { width: 50%; } /* Producto */
+.table-kardex thead th:nth-child(2) { width: 15%; } /* Existencias */
+.table-kardex thead th:nth-child(3) { width: 15%; } /* Usuario */
 .table-kardex thead th:nth-child(4) { width: 20%; } /* Movimiento */
 
 /* Estilos para celdas de tabla */

@@ -22,18 +22,34 @@ const sincronizarConBD = async () => {
     const productosFromBD = await response.json();
     console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
     
+    // Definir el orden específico de los productos
+    const ordenProductos = {
+      'AREPA TIPO OBLEA 500GR': 1,
+      'AREPA MEDIANA 330GR': 2,
+      'AREPA TIPO PINCHO 330GR': 3,
+      'AREPA QUESO CORRIENTE 450GR': 4
+    };
+    
     // Actualizar productos en localStorage
-    const productosParaInventario = productosFromBD.map(p => ({
+    let productosParaInventario = productosFromBD.map(p => ({
       id: p.id,
       nombre: p.nombre,
       existencias: p.stock_total,
       categoria: p.categoria_nombre || 'General',
       cantidad: 0
     }));
+    
+    // Ordenar productos de inventario
+    productosParaInventario.sort((a, b) => {
+      const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
+      const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
+      return ordenA - ordenB;
+    });
+    
     localStorage.setItem('productos', JSON.stringify(productosParaInventario));
     
     // Actualizar productos en POS
-    const productosParaPOS = productosFromBD.map(p => ({
+    let productosParaPOS = productosFromBD.map(p => ({
       id: p.id,
       name: p.nombre,
       price: parseFloat(p.precio) || 0,
@@ -43,6 +59,14 @@ const sincronizarConBD = async () => {
       tax: p.impuesto || 'IVA(0%)',
       image: p.imagen || null
     }));
+    
+    // Ordenar productos del POS (usando el mismo objeto ordenProductos)
+    productosParaPOS.sort((a, b) => {
+      const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
+      const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
+      return ordenA - ordenB;
+    });
+    
     localStorage.setItem('products', JSON.stringify(productosParaPOS));
     
     // Notificar cambios

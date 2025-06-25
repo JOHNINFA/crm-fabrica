@@ -14,8 +14,23 @@ export const sync = {
         return inventoryProduct ? { ...posProduct, stock: inventoryProduct.existencias } : posProduct;
       });
       
+      // Ordenar productos en un orden específico
+      const ordenProductos = {
+        'AREPA TIPO OBLEA 500GR': 1,
+        'AREPA MEDIANA 330GR': 2,
+        'AREPA TIPO PINCHO 330GR': 3,
+        'AREPA QUESO CORRIENTE 450GR': 4
+      };
+      
+      updatedProducts.sort((a, b) => {
+        const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
+        const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
+        return ordenA - ordenB;
+      });
+      
       const hasChanges = updatedProducts.some((product, index) => 
-        product.stock !== currentProducts[index]?.stock
+        product.stock !== currentProducts[index]?.stock || 
+        product.id !== currentProducts[index]?.id
       );
       
       if (hasChanges) {
@@ -37,6 +52,20 @@ export const sync = {
           .map(mappers.toFrontend);
         
         if (formattedProducts.length > 0) {
+          // Ordenar productos en un orden específico
+          const ordenProductos = {
+            'AREPA TIPO OBLEA 500GR': 1,
+            'AREPA MEDIANA 330GR': 2,
+            'AREPA TIPO PINCHO 330GR': 3,
+            'AREPA QUESO CORRIENTE 450GR': 4
+          };
+          
+          formattedProducts.sort((a, b) => {
+            const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
+            const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
+            return ordenA - ordenB;
+          });
+          
           setProducts(formattedProducts);
           storage.save('products', formattedProducts);
         }

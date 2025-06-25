@@ -123,16 +123,6 @@ const TablaKardex = () => {
         </span>
       </td>
       <td>
-        <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
-          {movimiento.fecha}
-        </span>
-      </td>
-      <td>
-        <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
-          {movimiento.hora}
-        </span>
-      </td>
-      <td>
         <span className="rounded-pill-sm" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>
           <i className="bi bi-person" /> {movimiento.usuario}
         </span>
@@ -149,20 +139,15 @@ const TablaKardex = () => {
   // Renderizar fila sin movimiento
   const renderSinMovimientoRow = (producto) => (
     <tr key={`no-mov-${producto.id}`}>
-      <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
+      <td className="fw-medium" style={{color: '#1e293b'}}>
+        {producto.nombre}
+        <div className="small text-muted d-none d-md-block">
+          {fechaSeleccionada.toLocaleDateString('es-ES')} --:--
+        </div>
+      </td>
       <td>
         <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
           {producto.existencias}
-        </span>
-      </td>
-      <td>
-        <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
-          {fechaSeleccionada.toLocaleDateString('es-ES')}
-        </span>
-      </td>
-      <td>
-        <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
-          --:--
         </span>
       </td>
       <td>
@@ -206,8 +191,6 @@ const TablaKardex = () => {
             <tr>
               <th>Producto</th>
               <th>Existencias</th>
-              <th>Fecha</th>
-              <th>Hora</th>
               <th>Usuario</th>
               <th>Movimiento</th>
             </tr>
@@ -219,7 +202,7 @@ const TablaKardex = () => {
             ) : (
               // Si no hay movimientos filtrados, mostrar mensaje
               <tr>
-                <td colSpan="6" className="text-center py-4">
+                <td colSpan="4" className="text-center py-4">
                   <p className="text-muted">No se encontraron movimientos para los productos seleccionados</p>
                 </td>
               </tr>
