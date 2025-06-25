@@ -5,6 +5,8 @@ import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
+import '../../styles/BorderlessInputs.css';
+import '../../styles/ActionButtons.css';
 
 const InventarioPlaneacion = () => {
   const { productos: productosContext } = useProductos();
@@ -16,47 +18,64 @@ const InventarioPlaneacion = () => {
   // Cargar existencias desde BD
   const cargarExistenciasReales = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/registro-inventario/');
-      if (!response.ok) throw new Error('Error al obtener registros');
+      console.log('🔄 Actualizando datos de productos...');
       
-      const todosLosRegistros = await response.json();
-      const existenciasPorProducto = {};
+      // Obtener productos directamente de la API
+      const response = await fetch('http://localhost:8000/api/productos/');
+      if (!response.ok) throw new Error('Error al obtener productos');
       
-      // Obtener saldo más reciente por producto
-      todosLosRegistros.forEach(registro => {
-        const productoId = registro.producto_id;
-        
-        if (!existenciasPorProducto[productoId] || 
-            new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
-          existenciasPorProducto[productoId] = {
-            id: productoId,
-            nombre: registro.producto_nombre,
-            existencias: registro.saldo,
-            ultimaFecha: registro.fecha_creacion
-          };
-        }
-      });
+      const productosFromBD = await response.json();
+      console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
       
       // Preparar productos con planeación
-      const productosBase = Object.keys(existenciasPorProducto).length > 0 
-        ? Object.values(existenciasPorProducto)
-        : productosContext.map(p => ({ ...p, existencias: 0 }));
-      
-      const productosConPlaneacion = productosBase.map(producto => ({
-        ...producto,
+      const productosConPlaneacion = productosFromBD.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        existencias: p.stock_total || 0,
         solicitado: 0,
         orden: 0
       }));
       
+      // Mantener los valores de solicitado y orden si ya existen
+      if (productos.length > 0) {
+        productosConPlaneacion.forEach(producto => {
+          const productoExistente = productos.find(p => p.id === producto.id);
+          if (productoExistente) {
+            producto.solicitado = productoExistente.solicitado || 0;
+            producto.orden = productoExistente.orden || 0;
+          }
+        });
+      }
+      
+      // Definir el orden específico de los productos (igual que en Kardex)
+      const ordenProductos = {
+        'AREPA TIPO OBLEA 500GR': 1,
+        'AREPA MEDIANA 330GR': 2,
+        'AREPA TIPO PINCHO 330GR': 3,
+        'AREPA QUESO CORRIENTE 450GR': 4,
+        'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
+        'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
+      };
+      
+      // Ordenar productos según el orden específico
+      productosConPlaneacion.sort((a, b) => {
+        const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
+        const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
+        return ordenA - ordenB;
+      });
+      
       setProductos(productosConPlaneacion);
+      console.log('✅ Datos actualizados correctamente');
     } catch (error) {
       console.error('Error al cargar existencias:', error);
-      const productosConPlaneacion = productosContext.map(producto => ({
-        ...producto,
-        solicitado: 0,
-        orden: 0
-      }));
-      setProductos(productosConPlaneacion);
+      if (productos.length === 0) {
+        const productosConPlaneacion = productosContext.map(producto => ({
+          ...producto,
+          solicitado: 0,
+          orden: 0
+        }));
+        setProductos(productosConPlaneacion);
+      }
     }
   };
   // Utilidades
@@ -66,9 +85,7 @@ const InventarioPlaneacion = () => {
   };
   
   const getExistenciasClass = (existencias) => {
-    if (existencias <= 0) return 'bg-light-red';
-    if (existencias <= 10) return 'bg-light-yellow';
-    return 'bg-light-green';
+    return existencias > 0 ? 'bg-light-green' : 'bg-light-red';
   };
   
   const updateProducto = (id, field, value) => {
@@ -81,7 +98,19 @@ const InventarioPlaneacion = () => {
   // Effects
   useEffect(() => {
     cargarExistenciasReales();
+    
+    // Configurar actualización periódica cada 30 segundos
+    const interval = setInterval(() => {
+      cargarExistenciasReales();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [productosContext]);
+  
+  // Actualizar datos cuando cambia la fecha
+  useEffect(() => {
+    cargarExistenciasReales();
+  }, [fechaSeleccionada]);
 
   const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad);
   const handleOrdenChange = (id, cantidad) => updateProducto(id, 'orden', cantidad);
@@ -129,10 +158,22 @@ const InventarioPlaneacion = () => {
         </Col>
       </Row>
 
-      {/* Selector de fecha */}
+      {/* Selector de fecha y botón de sincronización */}
       <Row className="mb-4">
         <Col xs={12} md={6}>
           <DateSelector onDateSelect={handleDateSelect} />
+        </Col>
+        <Col xs={12} md={6} className="d-flex justify-content-end align-items-center">
+          <Button 
+            variant="outline-info" 
+            className="mb-2 mb-md-0"
+            onClick={() => {
+              cargarExistenciasReales();
+              mostrarMensaje('Datos actualizados correctamente', 'info');
+            }}
+          >
+            <i className="bi bi-arrow-repeat me-1"></i> Actualizar Datos
+          </Button>
         </Col>
       </Row>
 
@@ -151,7 +192,7 @@ const InventarioPlaneacion = () => {
       <Row className="mb-4">
         <Col>
           <div className="table-container">
-            <Table className="align-middle mb-0 table-kardex">
+            <Table className="align-middle mb-0 table-kardex planeacion-table">
               <thead>
                 <tr>
                   <th scope="col" style={{ width: '40%' }}>Producto</th>
@@ -166,7 +207,7 @@ const InventarioPlaneacion = () => {
                     <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
                     <td className="text-center">
                       <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-                        {producto.existencias}
+                        {producto.existencias} und
                       </span>
                     </td>
                     <td className="text-center">
@@ -176,7 +217,7 @@ const InventarioPlaneacion = () => {
                           min="0"
                           value={producto.solicitado || 0}
                           onChange={(e) => handleSolicitadoChange(producto.id, e.target.value)}
-                          className="quantity-input"
+                          className="borderless-input"
                           aria-label={`Cantidad solicitada de ${producto.nombre}`}
                         />
                       </div>
@@ -212,9 +253,8 @@ const InventarioPlaneacion = () => {
       <Row className="mb-4">
         <Col className="text-end">
           <Button 
-            variant="primary" 
-            className="grabar-btn rounded-pill-sm"
-            style={{backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem'}}
+            variant="success" 
+            className="action-button"
             onClick={handleGuardarPlaneacion}
           >
             <i className="bi bi-save me-2"></i> Guardar Planeación
@@ -228,7 +268,7 @@ const InventarioPlaneacion = () => {
           <Col>
             <h5 className="mb-3 fw-bold" style={{color: '#1e293b'}}>Historial de Planeación</h5>
             <div className="table-container">
-              <Table className="align-middle mb-0 table-kardex">
+              <Table className="align-middle mb-0 table-kardex planeacion-table">
                 <thead>
                   <tr>
                     <th scope="col">Fecha</th>
@@ -251,7 +291,7 @@ const InventarioPlaneacion = () => {
                             <span className="rounded-pill-sm bg-light-green ms-2">
                               <i className="bi bi-box-seam me-1"></i> {p.solicitado}
                             </span>
-                            <span className="rounded-pill-sm bg-light-yellow ms-2">
+                            <span className="rounded-pill-sm ms-2" style={{backgroundColor: '#3498DB', color: '#fff'}}>
                               <i className="bi bi-clipboard-check me-1"></i> {p.orden}
                             </span>
                           </div>

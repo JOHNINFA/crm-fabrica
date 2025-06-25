@@ -1,0 +1,27 @@
+/* Estilos para inputs sin borde */
+.borderless-input {
+  border: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  text-align: center;
+  font-size: 0.95rem;
+  color: #1e293b;
+  width: 70px;
+  padding: 0.375rem 0.5rem;
+}
+
+.borderless-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Quitar las flechas de los inputs numéricos */
+.borderless-input::-webkit-outer-spin-button,
+.borderless-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.borderless-input[type=number] {
+  -moz-appearance: textfield;
+}

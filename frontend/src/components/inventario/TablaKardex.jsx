@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Form, InputGroup, Row, Col } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
+import HoverToggleButton from '../common/HoverToggleButton';
 import { useProductos } from '../../context/ProductosContext';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
+import '../../styles/HoverToggleButton.css';
 
 const TablaKardex = () => {
   const [filtro, setFiltro] = useState('');
@@ -13,9 +15,7 @@ const TablaKardex = () => {
 
   // Utilidades
   const getExistenciasClass = (existencias) => {
-    if (existencias <= 0) return 'bg-light-red';
-    if (existencias <= 30) return 'bg-light-yellow';
-    return 'bg-light-green';
+    return existencias > 0 ? 'bg-light-green' : 'bg-light-red';
   };
 
   const productosFiltrados = productos.filter(producto => 
@@ -117,21 +117,17 @@ const TablaKardex = () => {
       <td className="fw-medium" style={{color: '#1e293b'}}>
         {movimiento.producto}
       </td>
-      <td>
-        <span className={`${getExistenciasClass(movimiento.existencias)} rounded-pill-sm`}>
-          {movimiento.existencias}
+      <td className="text-center" style={{paddingLeft: '0'}}>
+        <span className={`${getExistenciasClass(movimiento.existencias)} rounded-pill-sm`} style={{marginTop: '1px'}}>
+          {movimiento.existencias} und
         </span>
       </td>
-      <td>
-        <span className="rounded-pill-sm" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>
-          <i className="bi bi-person" /> {movimiento.usuario}
-        </span>
+      <td style={{color: '#1E293B'}} className="text-center">
+        <i className="bi bi-person" /> {movimiento.usuario}
       </td>
-      <td>
-        <span className={`rounded-pill-sm ${movimiento.tipo === 'Entrada' ? 'bg-light-green' : 'bg-light-red'}`}>
-          <i className={`bi ${movimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle'}`} /> 
-          {movimiento.tipo}
-        </span>
+      <td style={{color: '#1E293B'}} className="text-center">
+        <i className={`bi ${movimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle text-success' : 'bi-arrow-up-circle text-danger'}`} /> 
+        {movimiento.tipo}
       </td>
     </tr>
   );
@@ -145,20 +141,16 @@ const TablaKardex = () => {
           {fechaSeleccionada.toLocaleDateString('es-ES')} --:--
         </div>
       </td>
-      <td>
-        <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-          {producto.existencias}
+      <td className="text-center" style={{paddingLeft: '0'}}>
+        <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`} style={{padding: '2.4px 7.2px 3.6px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', display: 'inline-block', marginTop: '2px'}}>
+          {producto.existencias} und
         </span>
       </td>
-      <td>
-        <span className="rounded-pill-sm" style={{backgroundColor: '#f1f5f9', color: '#64748b'}}>
-          <i className="bi bi-dash" /> Sin usuario
-        </span>
+      <td style={{color: '#1E293B'}} className="text-center">
+        <i className="bi bi-dash" /> Sin usuario
       </td>
-      <td>
-        <span className="rounded-pill-sm bg-light-yellow">
-          <i className="bi bi-dash" /> Sin movimientos
-        </span>
+      <td style={{color: '#1E293B'}} className="text-center">
+        <i className="bi bi-dash" /> Sin movimientos
       </td>
     </tr>
   );
@@ -186,13 +178,13 @@ const TablaKardex = () => {
       </Row>
       
       <div className="table-responsive">
-        <Table size="sm" className="mb-0 table-kardex">
+        <Table size="sm" className="mb-0 table-kardex" style={{lineHeight: '1.2'}}>
           <thead>
             <tr>
-              <th>Producto</th>
-              <th>Existencias</th>
-              <th>Usuario</th>
-              <th>Movimiento</th>
+              <th style={{ width: '45%' }}>Producto</th>
+              <th className="text-center" style={{ width: '15%' }}>Existencias</th>
+              <th className="text-center" style={{ width: '20%' }}>Usuario</th>
+              <th className="text-center" style={{ width: '20%' }}>Movimiento</th>
             </tr>
           </thead>
           <tbody>
@@ -210,6 +202,9 @@ const TablaKardex = () => {
           </tbody>
         </Table>
       </div>
+      
+      {/* Botón para activar/desactivar el efecto hover */}
+      <HoverToggleButton />
     </>
   );
 };

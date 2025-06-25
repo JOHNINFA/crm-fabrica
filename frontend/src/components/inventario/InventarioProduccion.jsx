@@ -11,6 +11,7 @@ import { registroInventarioService } from '../../services/registroInventarioServ
 import { productoService } from '../../services/api';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/TablaKardex.css';
+import '../../styles/ActionButtons.css';
 
 
 
@@ -879,7 +880,7 @@ const InventarioProduccion = () => {
             
             <Button 
               variant="success" 
-              className="grabar-btn me-2"
+              className="action-button me-2"
               onClick={handleGrabarMovimiento}
             >
               <i className="bi bi-save me-2"></i> Grabar Movimiento

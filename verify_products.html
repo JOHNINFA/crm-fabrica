@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verificar Productos</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 15px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>Verificar Productos</h1>
+    <p>Este script verifica que todos los productos de la base de datos estén incluidos en el localStorage.</p>
+    <button id="verifyButton">Verificar Productos</button>
+    <button id="syncButton">Sincronizar Productos</button>
+    <div id="status" style="margin-top: 20px;"></div>
+    
+    <script>
+        const API_URL = 'http://localhost:8000/api';
+        const statusDiv = document.getElementById('status');
+        
+        // Verificar productos
+        async function verifyProducts() {
+            statusDiv.innerHTML = '<p>Verificando productos...</p>';
+            
+            try {
+                // Obtener productos de la BD
+                const response = await fetch(`${API_URL}/productos/`);
+                if (!response.ok) throw new Error(`Error al obtener productos: ${response.status}`);
+                
+                const productosFromBD = await response.json();
+                statusDiv.innerHTML += `<p>Productos obtenidos de BD: ${productosFromBD.length}</p>`;
+                
+                // Obtener productos del localStorage
+                const products = JSON.parse(localStorage.getItem('products') || '[]');
+                const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+                
+                statusDiv.innerHTML += `<p>Productos en localStorage (POS): ${products.length}</p>`;
+                statusDiv.innerHTML += `<p>Productos en localStorage (Inventario): ${productos.length}</p>`;
+                
+                // Verificar que todos los productos de la BD estén en el localStorage
+                const missingInPOS = [];
+                const missingInInventario = [];
+                
+                productosFromBD.forEach(productoBD => {
+                    const foundInPOS = products.find(p => p.id === productoBD.id);
+                    const foundInInventario = productos.find(p => p.id === productoBD.id);
+                    
+                    if (!foundInPOS) missingInPOS.push(productoBD);
+                    if (!foundInInventario) missingInInventario.push(productoBD);
+                });
+                
+                // Mostrar resultados
+                if (missingInPOS.length === 0 && missingInInventario.length === 0) {
+                    statusDiv.innerHTML += `<p class="success">✅ Todos los productos de la BD están en el localStorage</p>`;
+                } else {
+                    if (missingInPOS.length > 0) {
+                        statusDiv.innerHTML += `<p class="error">❌ Faltan ${missingInPOS.length} productos en POS:</p>`;
+                        statusDiv.innerHTML += `<pre>${JSON.stringify(missingInPOS.map(p => ({ id: p.id, nombre: p.nombre })), null, 2)}</pre>`;
+                    }
+                    
+                    if (missingInInventario.length > 0) {
+                        statusDiv.innerHTML += `<p class="error">❌ Faltan ${missingInInventario.length} productos en Inventario:</p>`;
+                        statusDiv.innerHTML += `<pre>${JSON.stringify(missingInInventario.map(p => ({ id: p.id, nombre: p.nombre })), null, 2)}</pre>`;
+                    }
+                }
+                
+                // Verificar el orden de los productos
+                const ordenProductos = {
+                    'AREPA TIPO OBLEA 500GR': 1,
+                    'AREPA MEDIANA 330GR': 2,
+                    'AREPA TIPO PINCHO 330GR': 3,
+                    'AREPA QUESO CORRIENTE 450GR': 4,
+                    'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
+                    'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
+                };
+                
+                const productosOrdenados = [...products].sort((a, b) => {
+                    const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
+                    const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
+                    return ordenA - ordenB;
+                });
+                
+                statusDiv.innerHTML += `<h3>Orden de productos en POS:</h3>`;
+                statusDiv.innerHTML += `<pre>${JSON.stringify(products.map(p => ({ id: p.id, name: p.name })), null, 2)}</pre>`;
+                
+                statusDiv.innerHTML += `<h3>Orden correcto de productos:</h3>`;
+                statusDiv.innerHTML += `<pre>${JSON.stringify(productosOrdenados.map(p => ({ id: p.id, name: p.name })), null, 2)}</pre>`;
+                
+                // Verificar si hay productos con nombres ligeramente diferentes
+                const nombresProductosBD = productosFromBD.map(p => p.nombre.toUpperCase());
+                const nombresProductosPOS = products.map(p => p.name.toUpperCase());
+                
+                const diferencias = [];
+                nombresProductosBD.forEach(nombreBD => {
+                    const similar = nombresProductosPOS.find(nombrePOS => 
+                        nombrePOS.includes(nombreBD.substring(0, 10)) || nombreBD.includes(nombrePOS.substring(0, 10))
+                    );
+                    
+                    if (similar && similar !== nombreBD) {
+                        diferencias.push({ nombreBD, nombrePOS: similar });
+                    }
+                });
+                
+                if (diferencias.length > 0) {
+                    statusDiv.innerHTML += `<h3>Posibles diferencias en nombres:</h3>`;
+                    statusDiv.innerHTML += `<pre>${JSON.stringify(diferencias, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML += `<p class="error">Error al verificar productos: ${error.message}</p>`;
+            }
+        }
+        
+        // Sincronizar productos
+        async function syncProducts() {
+            statusDiv.innerHTML = '<p>Sincronizando productos...</p>';
+            
+            try {
+                // Obtener productos de la BD
+                const response = await fetch(`${API_URL}/productos/`);
+                if (!response.ok) throw new Error(`Error al obtener productos: ${response.status}`);
+                
+                const productosFromBD = await response.json();
+                statusDiv.innerHTML += `<p>Productos obtenidos de BD: ${productosFromBD.length}</p>`;
+                
+                // Definir el orden específico de los productos
+                const ordenProductos = {
+                    'AREPA TIPO OBLEA 500GR': 1,
+                    'AREPA MEDIANA 330GR': 2,
+                    'AREPA TIPO PINCHO 330GR': 3,
+                    'AREPA QUESO CORRIENTE 450GR': 4,
+                    'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
+                    'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
+                };
+                
+                // Actualizar productos en localStorage
+                let productosParaInventario = productosFromBD.map(p => ({
+                    id: p.id,
+                    nombre: p.nombre,
+                    existencias: p.stock_total,
+                    categoria: p.categoria_nombre || 'General',
+                    cantidad: 0
+                }));
+                
+                // Ordenar productos de inventario
+                productosParaInventario.sort((a, b) => {
+                    const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
+                    const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
+                    return ordenA - ordenB;
+                });
+                
+                localStorage.setItem('productos', JSON.stringify(productosParaInventario));
+                
+                // Actualizar productos en POS
+                let productosParaPOS = productosFromBD.map(p => ({
+                    id: p.id,
+                    name: p.nombre,
+                    price: parseFloat(p.precio) || 0,
+                    stock: p.stock_total || 0,
+                    category: p.categoria_nombre || 'General',
+                    brand: p.marca || 'GENERICA',
+                    tax: p.impuesto || 'IVA(0%)',
+                    image: p.imagen || null
+                }));
+                
+                // Ordenar productos del POS
+                productosParaPOS.sort((a, b) => {
+                    const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
+                    const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
+                    return ordenA - ordenB;
+                });
+                
+                localStorage.setItem('products', JSON.stringify(productosParaPOS));
+                
+                // Notificar cambios
+                window.dispatchEvent(new Event('storage'));
+                window.dispatchEvent(new Event('productosUpdated'));
+                
+                statusDiv.innerHTML += `<p class="success">✅ Sincronización completada</p>`;
+                
+                // Verificar productos después de la sincronización
+                setTimeout(verifyProducts, 500);
+            } catch (error) {
+                statusDiv.innerHTML += `<p class="error">Error al sincronizar productos: ${error.message}</p>`;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('verifyButton').addEventListener('click', verifyProducts);
+        document.getElementById('syncButton').addEventListener('click', syncProducts);
+        
+        // Verificar productos al cargar
+        verifyProducts();
+    </script>
+</body>
+</html>

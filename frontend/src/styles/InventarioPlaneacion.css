@@ -1,5 +1,16 @@
 /* Estilos específicos para la pestaña Planeación */
 
+/* Estilos para filas y celdas de tabla en planeación */
+.table-kardex.planeacion-table td {
+  padding: 0.2rem 0.4rem;
+  vertical-align: middle;
+}
+
+.table-kardex.planeacion-table tr {
+  height: 2.2rem;
+  line-height: 1.2;
+}
+
 /* Estilos base para todos los badges personalizados */
 .badge-custom {
   display: inline-flex;

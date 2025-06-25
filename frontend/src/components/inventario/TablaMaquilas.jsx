@@ -2,6 +2,7 @@ import React from 'react';
 import { Table, Form } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
 import '../../styles/InventarioMaquilas.css';
+import '../../styles/EditButtons.css';
 import productosMaquilasData from '../../data/productosMaquilas';
 
 // Componente para la fila de producto
@@ -68,8 +69,7 @@ const FilaProducto = ({ producto, onEditarClick, handleCantidadChange, handleLot
       </td>
       <td className="text-center d-none d-md-table-cell">
         <button
-          className="btn btn-outline-primary btn-sm rounded-pill-sm"
-          style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
+          className="btn edit-button"
           onClick={() => onEditarClick(producto)}
           title={`Editar ${producto.nombre}`}
         >

@@ -1,0 +1,37 @@
+/* Estilos para el botón de toggle hover */
+.hover-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.hover-toggle-btn:hover {
+  background-color: #f8fafc;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.hover-toggle-btn i {
+  font-size: 1.2rem;
+  color: #3b82f6;
+}
+
+/* Clase para desactivar el hover */
+.hover-disabled .table-kardex tbody tr:hover {
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: default !important;
+}

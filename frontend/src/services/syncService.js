@@ -27,7 +27,9 @@ const sincronizarConBD = async () => {
       'AREPA TIPO OBLEA 500GR': 1,
       'AREPA MEDIANA 330GR': 2,
       'AREPA TIPO PINCHO 330GR': 3,
-      'AREPA QUESO CORRIENTE 450GR': 4
+      'AREPA QUESO CORRIENTE 450GR': 4,
+      'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
+      'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
     };
     
     // Actualizar productos en localStorage

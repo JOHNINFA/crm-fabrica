@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, Button } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
+import '../../styles/EditButtons.css';
 
 const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {} }) => {
   const handleChange = (id, value) => handleCantidadChange(id, value);
@@ -48,10 +49,8 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                   <div className="d-flex justify-content-center gap-2">
                     <Button
                       variant="outline-primary"
-                      size="sm"
                       onClick={() => onEditarClick(producto)}
-                      className="rounded-pill-sm"
-                      style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
+                      className="edit-button"
                       title={`Editar ${producto.nombre}`}
                     >
                       <i className="bi bi-pencil me-1"></i>
@@ -61,10 +60,9 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                     {producto.id > 39 && (
                       <Button
                         variant="outline-danger"
-                        size="sm"
                         onClick={() => handleEliminar(producto)}
                         className="rounded-pill-sm"
-                        style={{backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca'}}
+                        style={{backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fecaca', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.95rem', minWidth: '100px'}}
                         title={`Eliminar ${producto.nombre}`}
                       >
                         <i className="bi bi-trash me-1"></i>
