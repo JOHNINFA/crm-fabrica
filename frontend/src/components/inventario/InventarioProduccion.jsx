@@ -8,6 +8,7 @@ import DateSelector from '../common/DateSelector';
 import { useProductos } from '../../context/ProductosContext';
 import { loteService } from '../../services/loteService';
 import { registroInventarioService } from '../../services/registroInventarioService';
+import { productoService } from '../../services/api';
 import '../../styles/InventarioProduccion.css';
 import '../../styles/TablaKardex.css';
 
@@ -54,35 +55,169 @@ const InventarioProduccion = () => {
   const cargarProductos = async () => {
     try {
       setCargando(true);
-      const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
       
-      if (posProducts.length > 0) {
-        const productosFormateados = posProducts.map(producto => ({
-          id: producto.id,
-          nombre: producto.name?.toUpperCase() || "SIN NOMBRE",
-          existencias: producto.stock || 0,
-          cantidad: 0,
-          precio: producto.price || 0,
-          categoria: producto.category || "General",
-          imagen: producto.image || null
-        }));
+      // Intentar cargar desde 'productos' (inventario) primero
+      const inventoryProducts = JSON.parse(localStorage.getItem('productos') || '[]');
+      
+      if (inventoryProducts.length > 0) {
+        console.log('Cargando productos desde inventario:', inventoryProducts.length);
         
-        // Ordenar: AREPA TIPO OBLEA 500GR primero
-        const productosOrdenados = productosFormateados.sort((a, b) => {
-          if (a.nombre.includes('AREPA TIPO OBLEA 500GR')) return -1;
-          if (b.nombre.includes('AREPA TIPO OBLEA 500GR')) return 1;
-          return a.nombre.localeCompare(b.nombre);
+        // Ordenar en el orden específico: AREPA TIPO OBLEA 500Gr, AREPA MEDIANA 330Gr, AREPA TIPO PINCHO 330Gr
+        const productosOrdenados = [...inventoryProducts].sort((a, b) => {
+          // Definir el orden específico de los productos
+          const orden = {
+            'AREPA TIPO OBLEA 500GR': 1,
+            'AREPA MEDIANA 330GR': 2,
+            'AREPA TIPO PINCHO 330GR': 3
+          };
+          
+          // Obtener el orden de cada producto (o 999 si no está en la lista)
+          const ordenA = orden[a.nombre?.toUpperCase()] || 999;
+          const ordenB = orden[b.nombre?.toUpperCase()] || 999;
+          
+          // Ordenar por el número de orden
+          return ordenA - ordenB;
         });
         
         setProductos(productosOrdenados);
       } else {
-        setProductos([]);
+        // Fallback: cargar desde 'products' (POS)
+        const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
+        
+        if (posProducts.length > 0) {
+          console.log('Cargando productos desde POS:', posProducts.length);
+          
+          const productosFormateados = posProducts.map(producto => ({
+            id: producto.id,
+            nombre: producto.name?.toUpperCase() || "SIN NOMBRE",
+            existencias: producto.stock || 0,
+            cantidad: 0,
+            precio: producto.price || 0,
+            categoria: producto.category || "General",
+            imagen: producto.image || null
+          }));
+          
+          // Ordenar en el orden específico: AREPA TIPO OBLEA 500Gr, AREPA MEDIANA 330Gr, AREPA TIPO PINCHO 330Gr
+          const productosOrdenados = productosFormateados.sort((a, b) => {
+            // Definir el orden específico de los productos
+            const orden = {
+              'AREPA TIPO OBLEA 500GR': 1,
+              'AREPA MEDIANA 330GR': 2,
+              'AREPA TIPO PINCHO 330GR': 3
+            };
+            
+            // Obtener el orden de cada producto (o 999 si no está en la lista)
+            const ordenA = orden[a.nombre?.toUpperCase()] || 999;
+            const ordenB = orden[b.nombre?.toUpperCase()] || 999;
+            
+            // Ordenar por el número de orden
+            return ordenA - ordenB;
+          });
+          
+          setProductos(productosOrdenados);
+        } else {
+          setProductos([]);
+          console.log('No se encontraron productos en localStorage');
+          
+          // Intentar cargar directamente desde la API
+          try {
+            const response = await fetch('http://localhost:8000/api/productos/');
+            if (response.ok) {
+              const productosFromBD = await response.json();
+              console.log('Productos cargados desde API:', productosFromBD.length);
+              
+              const productosFormateados = productosFromBD.map(p => ({
+                id: p.id,
+                nombre: p.nombre,
+                existencias: p.stock_total || 0,
+                cantidad: 0,
+                precio: parseFloat(p.precio) || 0,
+                categoria: p.categoria_nombre || "General"
+              }));
+              
+              // Ordenar en el orden específico: AREPA TIPO OBLEA 500Gr, AREPA MEDIANA 330Gr, AREPA TIPO PINCHO 330Gr
+              const productosOrdenados = productosFormateados.sort((a, b) => {
+                // Definir el orden específico de los productos
+                const orden = {
+                  'AREPA TIPO OBLEA 500GR': 1,
+                  'AREPA MEDIANA 330GR': 2,
+                  'AREPA TIPO PINCHO 330GR': 3
+                };
+                
+                // Obtener el orden de cada producto (o 999 si no está en la lista)
+                const ordenA = orden[a.nombre?.toUpperCase()] || 999;
+                const ordenB = orden[b.nombre?.toUpperCase()] || 999;
+                
+                // Ordenar por el número de orden
+                return ordenA - ordenB;
+              });
+              
+              setProductos(productosOrdenados);
+            }
+          } catch (apiError) {
+            console.error('Error al cargar productos desde API:', apiError);
+          }
+        }
       }
     } catch (error) {
       console.error('Error al cargar productos:', error);
       setMensaje({ texto: 'Error al cargar productos', tipo: 'danger' });
     } finally {
       setCargando(false);
+    }
+  };
+
+  // Sincronizar productos con BD
+  const sincronizarProductos = async () => {
+    try {
+      console.log('🔄 Iniciando sincronización con BD...');
+      
+      // Cargar existencias desde BD
+      const response = await fetch('http://localhost:8000/api/productos/');
+      if (response.ok) {
+        const productosFromBD = await response.json();
+        console.log('📊 Productos cargados desde BD:', productosFromBD.length);
+        
+        // Actualizar productos en localStorage
+        const productosParaInventario = productosFromBD.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          existencias: p.stock_total,
+          categoria: p.categoria_nombre || 'General',
+          cantidad: 0
+        }));
+        localStorage.setItem('productos', JSON.stringify(productosParaInventario));
+        
+        // Actualizar productos en POS - IMPORTANTE: Usar EXACTAMENTE los valores de la BD
+        const productosParaPOS = productosFromBD.map(p => ({
+          id: p.id,
+          name: p.nombre,
+          price: parseFloat(p.precio) || 0,
+          stock: p.stock_total || 0,  // Usar el stock exacto de la BD
+          category: p.categoria_nombre || 'General',
+          brand: p.marca || 'GENERICA',
+          tax: p.impuesto || 'IVA(0%)',
+          image: p.imagen || null
+        }));
+        
+        // Guardar en localStorage
+        localStorage.setItem('products', JSON.stringify(productosParaPOS));
+        
+        console.log('📊 Stock actualizado desde BD:', 
+          productosParaPOS.map(p => ({ id: p.id, nombre: p.name, stock: p.stock }))
+        );
+      } else {
+        console.error('Error al obtener productos de la BD:', response.status);
+      }
+      
+      // Notificar cambios
+      ['storage', 'productosUpdated'].forEach(event => 
+        window.dispatchEvent(new Event(event))
+      );
+      
+      console.log('✅ Sincronización completada');
+    } catch (error) {
+      console.error('Error en sincronización:', error);
     }
   };
 
@@ -93,39 +228,7 @@ const InventarioProduccion = () => {
       localStorage.removeItem(key)
     );
     
-    // Sincronizar productos con BD
-    const sincronizarProductos = async () => {
-      try {
-        const productosActuales = JSON.parse(localStorage.getItem('products') || '[]');
-        const productosValidos = productosActuales
-          .filter(p => [17, 18].includes(p.id))
-          .map(p => ({ ...p, stock: 0 }));
-        
-        localStorage.setItem('products', JSON.stringify(productosValidos));
-        
-        // Cargar existencias desde BD
-        const response = await fetch('http://localhost:8000/api/productos/');
-        if (response.ok) {
-          const productosFromBD = await response.json();
-          const productosParaInventario = productosFromBD.map(p => ({
-            id: p.id,
-            nombre: p.nombre,
-            existencias: p.stock_total,
-            categoria: p.categoria_nombre || 'General',
-            cantidad: 0
-          }));
-          localStorage.setItem('productos', JSON.stringify(productosParaInventario));
-        }
-        
-        // Notificar cambios
-        ['storage', 'productosUpdated'].forEach(event => 
-          window.dispatchEvent(new Event(event))
-        );
-      } catch (error) {
-        console.error('Error en sincronización:', error);
-      }
-    };
-    
+    // Ejecutar sincronización inicial
     sincronizarProductos();
     cargarProductos();
     
@@ -424,49 +527,111 @@ const InventarioProduccion = () => {
     // 🔧 CORREGIDO: Actualizar stock en api_producto
     for (const producto of productosConCantidad) {
       try {
-        // Calcular stock correcto: existencias actuales + cantidad agregada
-        const existenciasActuales = parseInt(producto.existencias) || 0;
+        // Obtener el stock actual directamente de la base de datos
+        const responseGet = await fetch(`http://localhost:8000/api/productos/${producto.id}/`);
+        if (!responseGet.ok) {
+          throw new Error(`Error al obtener producto: ${responseGet.status}`);
+        }
+        
+        const productoBD = await responseGet.json();
+        const stockBD = parseInt(productoBD.stock_total) || 0;
         const cantidadAAgregar = parseInt(producto.cantidad) || 0;
-        const stockActual = existenciasActuales + cantidadAAgregar;
+        const stockActual = stockBD + cantidadAAgregar;
         
-        console.log(`📊 Actualizando stock BD - ${producto.nombre}: ${existenciasActuales} + ${cantidadAAgregar} = ${stockActual}`);
+        console.log(`📊 Actualizando stock BD - ${producto.nombre}: ${stockBD} (BD) + ${cantidadAAgregar} = ${stockActual}`);
         
-        await fetch(`http://localhost:8000/api/productos/${producto.id}/`, {
+        // Actualizar el stock en la base de datos
+        const responsePatch = await fetch(`http://localhost:8000/api/productos/${producto.id}/`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ stock_total: stockActual })
         });
+        
+        if (!responsePatch.ok) {
+          const errorText = await responsePatch.text();
+          throw new Error(`Error al actualizar stock: ${responsePatch.status} - ${errorText}`);
+        }
+        
+        // Actualizar también el stock en el movimiento de inventario
+        await productoService.updateStock(producto.id, cantidadAAgregar, usuario, `Producción: ${lotes.map(l => l.numero).join(', ')}`);
       } catch (error) {
         console.error('Error al actualizar stock:', error);
+        // Intentar actualizar usando el servicio de API como fallback
+        try {
+          await productoService.updateStock(producto.id, producto.cantidad, usuario, 'Producción (fallback)');
+        } catch (fallbackError) {
+          console.error('Error en fallback de actualización de stock:', fallbackError);
+        }
       }
     }
     
-    // Sincronizar con POS - CRÍTICO
-    try {
-      const posProducts = JSON.parse(localStorage.getItem('products') || '[]');
-      const updatedPosProducts = posProducts.map(posProduct => {
-        const inventoryProduct = nuevosProductos.find(p => p.id === posProduct.id);
-        return inventoryProduct 
-          ? { ...posProduct, stock: inventoryProduct.existencias }
-          : posProduct;
-      });
-      
-      localStorage.setItem('products', JSON.stringify(updatedPosProducts));
-      
-      // Disparar eventos para notificar cambios
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('productosUpdated'));
-      
-      console.log('✅ Sincronización POS completada:', updatedPosProducts.filter(p => p.stock > 0));
-    } catch (error) {
-      console.error('❌ Error sincronizando con POS:', error);
-    }
+    // NO sincronizar con POS aquí - Se hará en la sincronización final con datos de la BD
+    // Esto evita que se acumulen los valores incorrectamente
     
     // Finalizar
     setProductos(nuevosProductos);
     actualizarExistencias(nuevosProductos);
     agregarMovimientos(nuevosMovimientos);
     setProductosGrabados({});
+    
+    // Forzar sincronización completa con el backend
+    try {
+      // Recargar datos desde el backend
+      const response = await fetch('http://localhost:8000/api/productos/');
+      if (response.ok) {
+        const productosFromBD = await response.json();
+        console.log('📊 Datos recibidos de la BD:', productosFromBD);
+        
+        // Actualizar productos en localStorage con datos frescos del backend
+        const productosParaInventario = productosFromBD.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          existencias: p.stock_total,
+          categoria: p.categoria_nombre || 'General',
+          cantidad: 0
+        }));
+        localStorage.setItem('productos', JSON.stringify(productosParaInventario));
+        
+        // Actualizar productos en POS con datos frescos del backend
+        // IMPORTANTE: Usar EXACTAMENTE los valores de stock de la BD
+        const productosParaPOS = productosFromBD.map(p => ({
+          id: p.id,
+          name: p.nombre,
+          price: parseFloat(p.precio) || 0,
+          stock: p.stock_total || 0,  // Usar el stock exacto de la BD
+          category: p.categoria_nombre || 'General',
+          brand: p.marca || 'GENERICA',
+          tax: p.impuesto || 'IVA(0%)',
+          image: p.imagen || null
+        }));
+        
+        // Guardar en localStorage y mostrar log para verificar
+        localStorage.setItem('products', JSON.stringify(productosParaPOS));
+        console.log('📊 Productos actualizados en POS con stock de BD:', 
+          productosParaPOS.map(p => ({ id: p.id, nombre: p.name, stock: p.stock }))
+        );
+        
+        // Notificar cambios
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('productosUpdated'));
+        
+        // Verificar que los datos se hayan guardado correctamente
+        setTimeout(() => {
+          try {
+            const verificacion = JSON.parse(localStorage.getItem('products') || '[]');
+            console.log('✅ Verificación de sincronización:', 
+              verificacion.map(p => ({ id: p.id, nombre: p.name, stock: p.stock }))
+            );
+          } catch (e) {
+            console.error('Error en verificación:', e);
+          }
+        }, 500);
+        
+        console.log('✅ Sincronización completa con backend exitosa');
+      }
+    } catch (syncError) {
+      console.error('Error en sincronización final:', syncError);
+    }
     
     mostrarMensaje(`Producción registrada para ${fechaStr}`, 'success');
   };
@@ -558,8 +723,16 @@ const InventarioProduccion = () => {
               <i className="bi bi-person"></i> {usuario}
             </Button>
             
-            
-            
+            <Button 
+              variant="outline-info" 
+              className="mb-2 mb-md-0 me-md-2"
+              onClick={() => {
+                sincronizarProductos();
+                mostrarMensaje('Sincronización con base de datos completada', 'info');
+              }}
+            >
+              <i className="bi bi-arrow-repeat"></i> Sincronizar con BD
+            </Button>
             
           </div>
         </Col>

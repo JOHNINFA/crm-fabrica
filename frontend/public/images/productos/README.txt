@@ -1,10 +1,13 @@
 Esta carpeta contiene las imágenes de los productos.
 
-Para exportar las imágenes desde la aplicación a esta carpeta:
-1. Abre la aplicación en el navegador
-2. Haz clic en el botón "Imágenes" en la esquina inferior derecha
-3. Haz clic en "Exportar todas"
-4. Guarda las imágenes en esta carpeta
+Imágenes actuales:
+- producto_zoWqdVX.jpg → AREPA TIPO OBLEA 500Gr (ID: 17)
+- producto_ZPnf4uq.jpg → AREPA MEDIANA 330Gr (ID: 18)
 
-Las imágenes exportadas estarán disponibles en:
-/frontend/public/images/productos/
+Para exportar nuevas imágenes desde la aplicación:
+1. Abre la aplicación en el navegador
+2. Haz clic en el botón "Imágenes" 
+3. Haz clic en "Exportar todas"
+4. Las imágenes se guardarán automáticamente aquí
+
+Nota: Solo se mantienen las imágenes de productos activos.

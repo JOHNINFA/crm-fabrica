@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import productosIniciales from '../data/productos';
-import { syncService } from '../services/syncService';
+import { syncService, sincronizarConBD } from '../services/syncService';
 import { productoService, movimientoService } from '../services/api';
 
 const ProductosContext = createContext();

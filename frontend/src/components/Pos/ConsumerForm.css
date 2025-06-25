@@ -1,4 +1,16 @@
 /* Estilos para el formulario de consumidor - inspirado en Cuenti */
+
+/* Estilos para quitar el sombreado del input de título */
+.consumer-form-title-input:focus {
+  box-shadow: none !important;
+  border-color: #007bff !important;
+  outline: 0 !important;
+}
+
+.consumer-form-title-input:hover {
+  border-color: #007bff !important;
+  box-shadow: none !important;
+}
 .consumer-form {
   background-color: #fff;
   padding: 15px;
@@ -54,7 +66,7 @@
 
 .consumer-form-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 

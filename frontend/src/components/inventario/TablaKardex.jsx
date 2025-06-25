@@ -29,6 +29,22 @@ const TablaKardex = () => {
   // Cargar movimientos desde BD
   const cargarMovimientosFromBD = async () => {
     try {
+      // Obtener productos actuales de la BD para tener datos precisos
+      const productosResponse = await fetch('http://localhost:8000/api/productos/');
+      if (!productosResponse.ok) throw new Error('Error al obtener productos');
+      const productosBD = await productosResponse.json();
+      
+      // Crear un mapa de productos por ID para referencia rápida
+      const productosMap = {};
+      productosBD.forEach(p => {
+        productosMap[p.id] = {
+          id: p.id,
+          nombre: p.nombre,
+          existencias: p.stock_total || 0
+        };
+      });
+      
+      // Obtener registros de inventario
       const response = await fetch('http://localhost:8000/api/registro-inventario/');
       if (!response.ok) throw new Error('Error al obtener registros');
       
@@ -43,7 +59,7 @@ const TablaKardex = () => {
             new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
           existenciasPorProducto[productoId] = {
             nombre: registro.producto_nombre,
-            existencias: registro.saldo,
+            existencias: productosMap[productoId]?.existencias || registro.saldo, // Usar stock actual de BD
             ultimaFecha: registro.fecha_creacion,
             ultimoMovimiento: registro
           };
@@ -55,11 +71,12 @@ const TablaKardex = () => {
         const mov = data.ultimoMovimiento;
         return {
           id: mov.id,
+          productoId: mov.producto_id,
           fecha: new Date(mov.fecha_produccion).toLocaleDateString('es-ES'),
           hora: new Date(mov.fecha_creacion).toLocaleTimeString('es-ES'),
           producto: data.nombre,
           cantidad: mov.cantidad,
-          existencias: data.existencias,
+          existencias: data.existencias, // Usar existencias actualizadas
           tipo: mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' : 
                 mov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
           usuario: mov.usuario,
@@ -70,6 +87,8 @@ const TablaKardex = () => {
       });
       
       setMovimientosFromBD(movimientosConvertidos);
+      
+      console.log('📊 Kardex actualizado con datos de BD:', movimientosConvertidos.length, 'movimientos');
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
       setMovimientosFromBD([]);
@@ -79,6 +98,13 @@ const TablaKardex = () => {
   // Effects
   useEffect(() => {
     cargarMovimientosFromBD();
+    
+    // Configurar actualización periódica cada 30 segundos
+    const interval = setInterval(() => {
+      cargarMovimientosFromBD();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [fechaSeleccionada]);
   
   const handleDateSelect = (date) => {
@@ -187,19 +213,14 @@ const TablaKardex = () => {
             </tr>
           </thead>
           <tbody>
-            {/* Productos con movimientos */}
-            {movimientosFiltrados.map(renderMovimientoRow)}
-            
-            {/* Productos sin movimientos */}
-            {productosFiltrados
-              .filter(producto => !movimientosFiltrados.some(mov => mov.producto === producto.nombre))
-              .map(renderSinMovimientoRow)
-            }
-            
-            {productosFiltrados.length === 0 && (
+            {/* Mostrar solo los movimientos de la BD */}
+            {movimientosFiltrados.length > 0 ? (
+              movimientosFiltrados.map(renderMovimientoRow)
+            ) : (
+              // Si no hay movimientos filtrados, mostrar mensaje
               <tr>
                 <td colSpan="6" className="text-center py-4">
-                  <p className="text-muted">No se encontraron productos</p>
+                  <p className="text-muted">No se encontraron movimientos para los productos seleccionados</p>
                 </td>
               </tr>
             )}

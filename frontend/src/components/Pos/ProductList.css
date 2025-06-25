@@ -54,3 +54,25 @@
 .category-button.active span.category-name {
   color: #007bff;
 }
+
+/* Estilos para botones superiores */
+.top-button {
+  transition: all 0.2s ease;
+}
+
+.top-button:hover {
+  background-color: #f5f5f5 !important;
+  color: #6c757d !important;
+}
+
+/* Estilos para el input de búsqueda */
+.search-input:focus {
+  box-shadow: none !important;
+  border-color: #007bff !important;
+  outline: 0 !important;
+}
+
+.search-input:hover {
+  border-color: #007bff !important;
+  box-shadow: none !important;
+}

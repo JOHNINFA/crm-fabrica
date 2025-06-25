@@ -12,16 +12,15 @@ import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioMaquilas.css';
 
 const InventarioMaquilas = () => {
-  // Obtener productos y funciones del contexto
+  // Estados principales
   const { productos: productosContext, actualizarExistencias, agregarMovimientos } = useProductos();
   
-  // Estados para manejar los datos
   const [productos, setProductos] = useState([]);
   const [usuario, setUsuario] = useState('Usuario Predeterminado');
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   
-  // Estados para modales
+  // Estados de modales
   const [showModalAgregar, setShowModalAgregar] = useState(false);
   const [showModalUsuario, setShowModalUsuario] = useState(false);
   const [showModalCantidades, setShowModalCantidades] = useState(false);

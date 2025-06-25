@@ -44,14 +44,16 @@ export default function ProductCard({ product, onClick }) {
         border: "1px solid #e5e9f2", 
         borderRadius: 9, 
         cursor: "pointer", 
-        transition: "box-shadow 0.1s" 
+        transition: "box-shadow 0.1s",
+        maxWidth: "180px",
+        margin: "0 auto"
       }}
       onClick={onClick}
       title="Agregar al carrito"
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <div className="card-body d-flex flex-column align-items-center text-center">
+      <div className="card-body d-flex flex-column align-items-center text-center p-2">
         {/* Imagen o icono por defecto */}
         {imageSource ? (
           <img 
@@ -59,24 +61,24 @@ export default function ProductCard({ product, onClick }) {
             alt={product.name || 'Producto'} 
             className="mb-2" 
             style={{ 
-              maxHeight: 80, 
+              maxHeight: 60, 
               maxWidth: '100%', 
               objectFit: 'contain' 
             }} 
           />
         ) : (
-          <span style={{ fontSize: 36 }} className="material-icons mb-1">
+          <span style={{ fontSize: 28 }} className="material-icons mb-1">
             paid
           </span>
         )}
         
         {/* Precio */}
-        <div>
+        <div style={{ fontSize: '14px' }}>
           <strong>{formatPrice(product.price)}</strong>
         </div>
         
         {/* Nombre del producto */}
-        <div className="text-muted" style={{ fontSize: 15 }}>
+        <div className="text-muted" style={{ fontSize: 13 }}>
           {product.name || 'Producto sin nombre'}
         </div>
       </div>

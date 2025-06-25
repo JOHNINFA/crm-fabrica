@@ -1,445 +1,128 @@
 /**
- * syncService.js
- * 
- * Este servicio maneja la sincronización entre localStorage y el backend.
- * Funciona en segundo plano sin afectar la experiencia del usuario.
+ * Servicio de sincronización automática entre la base de datos y el localStorage
  */
 
-import { productoService, categoriaService, loteService, movimientoService } from './api';
-import { imageService } from './imageService';
+const API_URL = 'http://localhost:8000/api';
 
-// Cola de operaciones pendientes
-let syncQueue = [];
-let isSyncing = false;
+// Cola de sincronización
+const syncQueue = [];
 
-// Cargar cola de sincronización desde localStorage
-const loadSyncQueue = () => {
+// Función para sincronizar el localStorage con la base de datos
+const sincronizarConBD = async () => {
   try {
-    const savedQueue = localStorage.getItem('syncQueue');
-    if (savedQueue) {
-      syncQueue = JSON.parse(savedQueue);
-    }
-  } catch (error) {
-    console.error('Error al cargar cola de sincronización:', error);
-  }
-};
-
-// Guardar cola de sincronización en localStorage
-const saveSyncQueue = () => {
-  try {
-    localStorage.setItem('syncQueue', JSON.stringify(syncQueue));
-  } catch (error) {
-    console.error('Error al guardar cola de sincronización:', error);
-  }
-};
-
-// Inicializar el servicio
-const init = () => {
-  loadSyncQueue();
-  
-  // Intentar sincronizar cada 30 segundos
-  setInterval(() => {
-    processSyncQueue();
-  }, 30000);
-  
-  // Intentar sincronizar inmediatamente
-  processSyncQueue();
-};
-
-// Procesar cola de sincronización
-const processSyncQueue = async () => {
-  if (isSyncing || syncQueue.length === 0) return;
-  
-  isSyncing = true;
-  
-  try {
-    // Eliminar operaciones duplicadas
-    const uniqueOperations = [];
-    const operationKeys = new Set();
+    console.log('🔄 Iniciando sincronización automática con BD...');
     
-    for (const operation of syncQueue) {
-      // Crear una clave única para la operación
-      const key = `${operation.type}-${JSON.stringify(operation.data)}`;
-      
-      // Solo añadir si no existe ya
-      if (!operationKeys.has(key)) {
-        operationKeys.add(key);
-        uniqueOperations.push(operation);
-      }
-    }
-    
-    // Procesar cada operación única en la cola
-    const currentQueue = uniqueOperations;
-    syncQueue = [];
-    saveSyncQueue();
-    
-    console.log(`Procesando ${currentQueue.length} operaciones únicas`);
-    
-    for (const operation of currentQueue) {
-      try {
-        await processOperation(operation);
-      } catch (error) {
-        console.error('Error al procesar operación:', operation, error);
-        // Volver a poner en la cola si falló
-        syncQueue.push(operation);
-        saveSyncQueue();
-      }
-    }
-  } finally {
-    isSyncing = false;
-  }
-};
-
-// Procesar una operación específica
-const processOperation = async (operation) => {
-  const { type, data } = operation;
-  
-  try {
-    let result;
-    
-    switch (type) {
-      case 'PRODUCT_CREATE':
-        result = await productoService.create(data);
-        break;
-      case 'PRODUCT_UPDATE':
-        result = await productoService.update(data.id, data);
-        break;
-      case 'PRODUCT_UPDATE_STOCK':
-        result = await productoService.updateStock(data.id, data.stock, data.usuario || 'Sistema', data.nota || 'Sincronización automática');
-        break;
-      case 'CATEGORY_CREATE':
-        result = await categoriaService.create(data.nombre);
-        break;
-      case 'LOT_CREATE':
-        result = await loteService.create(data);
-        break;
-      case 'MOVEMENT_CREATE':
-        result = await movimientoService.create(data);
-        break;
-      default:
-        console.warn('Tipo de operación desconocido:', type);
-        return false;
-    }
-    
-    // Verificar si el resultado indica que la API no está disponible
-    if (result && result.error === 'API_UNAVAILABLE') {
-      console.warn(`Operación ${type} no procesada: API no disponible`);
-      throw new Error('API no disponible'); // Propagar el error para que la operación se vuelva a encolar
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`Error al procesar operación ${type}:`, error);
-    // Si el error es de conexión o 404, reencolar para intentar más tarde
-    if (error.message && (
-        error.message.includes('API no disponible') || 
-        error.message.includes('404') || 
-        error.message.includes('connection'))) {
-      throw error; // Propagar el error para que la operación se vuelva a encolar
-    }
-    // Si es otro tipo de error (como validación), no reencolar
-    return false;
-  }
-};
-
-// Añadir operación a la cola
-const queueOperation = (type, data) => {
-  // Verificar si ya existe una operación idéntica en la cola
-  const operationKey = `${type}-${JSON.stringify(data)}`;
-  const isDuplicate = syncQueue.some(op => 
-    `${op.type}-${JSON.stringify(op.data)}` === operationKey
-  );
-  
-  if (isDuplicate) {
-    console.log('Operación duplicada, no se encola:', type);
-    return;
-  }
-  
-  syncQueue.push({ type, data, timestamp: Date.now() });
-  saveSyncQueue();
-  
-  // Intentar sincronizar inmediatamente si no hay muchas operaciones pendientes
-  if (syncQueue.length < 5) {
-    processSyncQueue();
-  }
-};
-
-// Sincronizar productos desde localStorage al backend
-const syncProductsToBackend = () => {
-  try {
-    const productsStr = localStorage.getItem('products');
-    if (productsStr) {
-      const products = JSON.parse(productsStr);
-      
-      // Encolar cada producto para sincronización
-      products.forEach(product => {
-        queueOperation('PRODUCT_UPDATE', {
-          id: product.id,
-          nombre: product.name,
-          precio: product.price,
-          precio_compra: product.purchasePrice || 0,
-          stock_total: product.stock || 0,
-          categoria: product.category,
-          marca: product.brand || 'GENERICA',
-          impuesto: product.tax || 'IVA(0%)',
-          activo: true
-        });
-      });
-    }
-  } catch (error) {
-    console.error('Error al sincronizar productos con backend:', error);
-  }
-};
-
-// Sincronizar categorías desde localStorage al backend
-const syncCategoriesToBackend = () => {
-  try {
-    const categoriesStr = localStorage.getItem('categories');
-    if (categoriesStr) {
-      const categories = JSON.parse(categoriesStr);
-      
-      // Encolar cada categoría para sincronización
-      categories.forEach(category => {
-        queueOperation('CATEGORY_CREATE', { nombre: category });
-      });
-    }
-  } catch (error) {
-    console.error('Error al sincronizar categorías con backend:', error);
-  }
-};
-
-// Sincronizar movimientos desde localStorage al backend
-const syncMovementsToBackend = () => {
-  try {
-    const movimientosStr = localStorage.getItem('movimientos');
-    if (movimientosStr) {
-      const movimientos = JSON.parse(movimientosStr);
-      
-      // Filtrar movimientos que no tienen ID del backend (tienen guiones)
-      const movimientosLocales = movimientos.filter(m => 
-        m.id && m.id.toString().includes('-')
-      );
-      
-      console.log(`Sincronizando ${movimientosLocales.length} movimientos locales`);
-      
-      // Encolar cada movimiento para sincronización
-      movimientosLocales.forEach(movimiento => {
-        // Buscar el producto por nombre en localStorage
-        const productsStr = localStorage.getItem('products');
-        if (productsStr) {
-          const products = JSON.parse(productsStr);
-          const producto = products.find(p => p.name === movimiento.producto);
-          
-          if (producto) {
-            queueOperation('MOVEMENT_CREATE', {
-              producto: producto.id,
-              tipo: movimiento.tipo.toUpperCase(),
-              cantidad: movimiento.cantidad,
-              usuario: movimiento.usuario || 'Sistema',
-              nota: movimiento.lote ? `Lote: ${movimiento.lote}` : 'Movimiento desde inventario'
-            });
-          }
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error al sincronizar movimientos con backend:', error);
-  }
-};
-
-// Sincronizar todo desde localStorage al backend
-const syncAllToBackend = async () => {
-  try {
-    // Verificar si la API está disponible
-    const testResponse = await fetch('http://localhost:8000/api/productos/', { 
-      method: 'HEAD',
-      timeout: 2000
-    }).catch(() => null);
-    
-    if (!testResponse || !testResponse.ok) {
-      console.warn('API no disponible, sincronización pospuesta');
+    // Obtener productos de la BD
+    const response = await fetch(`${API_URL}/productos/`);
+    if (!response.ok) {
+      console.error('Error al obtener productos de la BD:', response.status);
       return false;
     }
     
-    // Primero sincronizar categorías y productos básicos
-    syncCategoriesToBackend();
-    syncProductsToBackend();
-    syncMovementsToBackend();
+    const productosFromBD = await response.json();
+    console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
     
-    // Luego sincronizar imágenes (esto puede tardar más tiempo)
-    try {
-      await imageService.syncAllImages();
-    } catch (error) {
-      console.error('Error al sincronizar imágenes:', error);
-    }
+    // Actualizar productos en localStorage
+    const productosParaInventario = productosFromBD.map(p => ({
+      id: p.id,
+      nombre: p.nombre,
+      existencias: p.stock_total,
+      categoria: p.categoria_nombre || 'General',
+      cantidad: 0
+    }));
+    localStorage.setItem('productos', JSON.stringify(productosParaInventario));
     
-    return true;
-  } catch (error) {
-    console.error('Error al sincronizar con el backend:', error);
-    return false;
-  }
-};
-
-// Sincronizar todo desde el backend a localStorage
-const syncFromBackend = async () => {
-  try {
-    // Obtener productos del backend
-    const backendProducts = await productoService.getAll();
+    // Actualizar productos en POS
+    const productosParaPOS = productosFromBD.map(p => ({
+      id: p.id,
+      name: p.nombre,
+      price: parseFloat(p.precio) || 0,
+      stock: p.stock_total || 0,
+      category: p.categoria_nombre || 'General',
+      brand: p.marca || 'GENERICA',
+      tax: p.impuesto || 'IVA(0%)',
+      image: p.imagen || null
+    }));
+    localStorage.setItem('products', JSON.stringify(productosParaPOS));
     
-    // Verificar si la API está disponible
-    if (backendProducts && backendProducts.error === 'API_UNAVAILABLE') {
-      console.warn('API no disponible, usando datos locales');
-      return false;
-    }
-    
-    // Si no hay productos en el backend pero sí en localStorage, no sobrescribir
-    if (!backendProducts || backendProducts.length === 0) {
-      const localProductsStr = localStorage.getItem('products');
-      if (localProductsStr && JSON.parse(localProductsStr).length > 0) {
-        console.log('No hay productos en el backend, manteniendo datos locales');
-        return true;
-      }
-    }
-    
-    // Obtener productos actuales de localStorage
-    const localProductsStr = localStorage.getItem('products');
-    const localProducts = localProductsStr ? JSON.parse(localProductsStr) : [];
-    
-    // Crear un mapa de productos locales por ID para búsqueda rápida
-    const localProductMap = {};
-    localProducts.forEach(product => {
-      localProductMap[product.id] = product;
-    });
-    
-    // Actualizar productos locales con datos del backend
-    const updatedProducts = backendProducts.map(backendProduct => {
-      const localProduct = localProductMap[backendProduct.id];
-      
-      // Si existe localmente, mantener algunos campos locales
-      if (localProduct) {
-        return {
-          ...localProduct,
-          stock: backendProduct.stock_total,
-          price: backendProduct.precio,
-          purchasePrice: backendProduct.precio_compra,
-          category: backendProduct.categoria_nombre,
-          image: backendProduct.imagen || localProduct.image
-        };
-      }
-      
-      // Si no existe localmente, crear nuevo producto
-      return {
-        id: backendProduct.id,
-        name: backendProduct.nombre,
-        price: backendProduct.precio,
-        purchasePrice: backendProduct.precio_compra,
-        stock: backendProduct.stock_total,
-        category: backendProduct.categoria_nombre,
-        brand: backendProduct.marca,
-        tax: backendProduct.impuesto,
-        image: backendProduct.imagen
-      };
-    });
-    
-    // Mantener productos locales que no existen en el backend
-    const backendProductIds = new Set(backendProducts.map(p => p.id));
-    const localOnlyProducts = localProducts.filter(p => !backendProductIds.has(p.id));
-    
-    // Combinar productos del backend y locales
-    const combinedProducts = [...updatedProducts, ...localOnlyProducts];
-    
-    // Guardar productos actualizados en localStorage
-    localStorage.setItem('products', JSON.stringify(combinedProducts));
-    
-    // Disparar evento para notificar a los componentes
+    // Notificar cambios
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('productosUpdated'));
     
-    // Sincronizar categorías
-    try {
-      const backendCategories = await categoriaService.getAll();
-      if (backendCategories && backendCategories.length > 0) {
-        const categoryNames = backendCategories.map(cat => cat.nombre);
-        
-        // Obtener categorías locales
-        const localCategoriesStr = localStorage.getItem('categories');
-        const localCategories = localCategoriesStr ? JSON.parse(localCategoriesStr) : [];
-        
-        // Combinar categorías sin duplicados
-        const combinedCategories = [...new Set([...categoryNames, ...localCategories])];
-        localStorage.setItem('categories', JSON.stringify(combinedCategories));
-      }
-    } catch (error) {
-      console.error('Error al sincronizar categorías:', error);
-      // No fallar toda la sincronización por un error en categorías
-    }
-    
-    // Sincronizar movimientos
-    try {
-      const backendMovimientos = await movimientoService.getAll();
-      if (backendMovimientos && backendMovimientos.length > 0) {
-        // Convertir movimientos del backend al formato local
-        const movimientosFormateados = backendMovimientos.map(movimiento => ({
-          id: movimiento.id,
-          fecha: new Date(movimiento.fecha).toLocaleDateString('es-ES'),
-          hora: new Date(movimiento.fecha).toLocaleTimeString('es-ES'),
-          producto: movimiento.producto_nombre,
-          productoId: movimiento.producto, // Guardar el ID del producto para sincronización
-          cantidad: movimiento.cantidad,
-          tipo: movimiento.tipo === 'ENTRADA' ? 'Entrada' : 'Salida',
-          usuario: movimiento.usuario,
-          lote: movimiento.lote_codigo || '-',
-          fechaVencimiento: '-',
-          registrado: true
-        }));
-        
-        // Obtener movimientos locales
-        const localMovimientosStr = localStorage.getItem('movimientos');
-        const localMovimientos = localMovimientosStr ? JSON.parse(localMovimientosStr) : [];
-        
-        // Crear un mapa de IDs de movimientos del backend para búsqueda rápida
-        const backendMovimientosIds = new Set(backendMovimientos.map(m => m.id));
-        
-        // Filtrar movimientos locales que no están en el backend
-        const localOnlyMovimientos = localMovimientos.filter(m => 
-          !backendMovimientosIds.has(m.id) && m.id.toString().includes('-')
-        );
-        
-        // Combinar movimientos del backend y locales
-        const combinedMovimientos = [...movimientosFormateados, ...localOnlyMovimientos];
-        
-        // Guardar movimientos actualizados en localStorage
-        localStorage.setItem('movimientos', JSON.stringify(combinedMovimientos));
-      }
-    } catch (error) {
-      console.error('Error al sincronizar movimientos:', error);
-      // No fallar toda la sincronización por un error en movimientos
-    }
-    
+    console.log('✅ Sincronización automática completada');
     return true;
   } catch (error) {
-    console.error('Error al sincronizar desde backend:', error);
+    console.error('❌ Error en sincronización automática:', error);
     return false;
   }
 };
 
-// Limpiar la cola de sincronización
-const clearSyncQueue = () => {
-  syncQueue = [];
-  saveSyncQueue();
-  localStorage.removeItem('movimientosSincronizados');
-  localStorage.removeItem('movimientos');
-  console.log('Cola de sincronización limpiada');
-};
-
+// Objeto de servicio de sincronización
 export const syncService = {
-  init,
-  queueOperation,
-  syncAllToBackend,
-  syncFromBackend,
-  processSyncQueue,
-  clearSyncQueue
+  // Sincronizar desde el backend
+  syncFromBackend: sincronizarConBD,
+  
+  // Sincronizar todo al backend
+  syncAllToBackend: async () => {
+    try {
+      // Obtener productos del localStorage
+      const products = JSON.parse(localStorage.getItem('products') || '[]');
+      
+      // Enviar cada producto al backend
+      for (const product of products) {
+        await fetch(`${API_URL}/productos/${product.id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stock_total: product.stock })
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error al sincronizar con backend:', error);
+      return false;
+    }
+  },
+  
+  // Agregar a la cola de sincronización
+  addToSyncQueue: (item) => {
+    syncQueue.push(item);
+    return syncQueue.length;
+  },
+  
+  // Procesar cola de sincronización
+  processSyncQueue: async () => {
+    if (syncQueue.length === 0) {
+      return sincronizarConBD();
+    }
+    
+    try {
+      while (syncQueue.length > 0) {
+        const item = syncQueue.shift();
+        // Procesar item...
+      }
+      
+      return sincronizarConBD();
+    } catch (error) {
+      console.error('Error al procesar cola de sincronización:', error);
+      return false;
+    }
+  }
 };
 
-// Inicializar el servicio automáticamente
-init();
+// Iniciar sincronización automática
+(function iniciarSincronizacionAutomatica() {
+  // Sincronizar al cargar el archivo
+  sincronizarConBD();
+  
+  // Sincronizar cada 5 minutos
+  setInterval(sincronizarConBD, 5 * 60 * 1000);
+  
+  // Sincronizar cuando la ventana recupera el foco
+  window.addEventListener('focus', sincronizarConBD);
+  
+  console.log('🔄 Servicio de sincronización automática iniciado');
+})();
+
+export { sincronizarConBD };
+export default sincronizarConBD;

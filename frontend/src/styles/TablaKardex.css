@@ -73,6 +73,12 @@ body {
   letter-spacing: 0.05em;
 }
 
+/* Distribución de columnas */
+.table-kardex thead th:nth-child(1) { width: 40%; } /* Producto */
+.table-kardex thead th:nth-child(2) { width: 20%; } /* Existencias */
+.table-kardex thead th:nth-child(3) { width: 20%; } /* Usuario */
+.table-kardex thead th:nth-child(4) { width: 20%; } /* Movimiento */
+
 /* Estilos para celdas de tabla */
 .table-kardex td {
   padding: 0.5rem;

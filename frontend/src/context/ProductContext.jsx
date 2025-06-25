@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import { storage } from './product/utils/storage';
 import { sync } from './product/services/syncService';
 import { useProductOperations } from './product/hooks/useProductOperations';
-import { syncService } from '../services/syncService';
+import sincronizarConBD from '../services/syncService';
 
 const ProductContext = createContext();
 export const useProducts = () => useContext(ProductContext);
@@ -22,9 +22,9 @@ export const ProductProvider = ({ children }) => {
   const syncWithBackend = async () => {
     setIsSyncing(true);
     try {
-      await syncService.syncAllToBackend();
-      await syncService.syncFromBackend();
-      return true;
+      // Usar nuestra función de sincronización
+      const result = await sincronizarConBD();
+      return result;
     } catch (error) {
       console.error('Error syncing with backend:', error);
       return false;
@@ -57,7 +57,7 @@ export const ProductProvider = ({ children }) => {
 
     initialize();
 
-    const syncInterval = setInterval(() => syncService.processSyncQueue(), 30000);
+    const syncInterval = setInterval(() => sincronizarConBD(), 60000); // Sincronizar cada 60 segundos
     
     const handleStorageChange = (e) => {
       if (e.key === 'products') {
@@ -74,7 +74,7 @@ export const ProductProvider = ({ children }) => {
       clearInterval(syncInterval);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, []);  // Eliminadas las dependencias que causaban bucles
 
   return (
     <ProductContext.Provider value={{ 

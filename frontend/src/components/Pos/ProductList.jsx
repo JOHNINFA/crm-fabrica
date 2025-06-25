@@ -28,23 +28,32 @@ export default function ProductList({ addProduct, search, setSearch }) {
 
   return (
     <>
+      {/* Botones superiores */}
+      <div className="d-flex align-items-center gap-3 mb-2" style={{ marginTop: '-15px', paddingLeft: '20px' }}>
+        <div className="dropdown">
+          <button className="btn btn-light border dropdown-toggle top-button" style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }} type="button" data-bs-toggle="dropdown">
+            Informes de Ventas
+          </button>
+        </div>
+        <button className="btn btn-light border top-button" style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }} type="button">
+          Caja
+        </button>
+      </div>
+      
       {/* Barra de búsqueda */}
-      <div className="d-flex align-items-center gap-2 mb-3">
-        <button className="btn btn-light border" title="Buscar">
+      <div className="d-flex align-items-center gap-2 mb-1" style={{ marginTop: '-5px' }}>
+        <button className="btn btn-light" style={{ borderRadius: '12px' }} title="Buscar">
           <span className="material-icons">search</span>
         </button>
-        <button className="btn btn-light border" title="Filtro avanzado">
-          <span className="material-icons">filter_alt</span>
-        </button>
-        <button className="btn btn-light border" title="Cajas">
-          <span className="material-icons">archive</span>
-        </button>
+       
+       
         <input 
-          className="form-control" 
-          style={{ maxWidth: 300 }} 
+          className="form-control search-input" 
+          style={{ maxWidth: 700, borderRadius: '3px' }} 
           placeholder="Buscar Productos" 
           value={search}
           onChange={e => setSearch(e.target.value)} 
+          autoComplete="off"
         />
       </div>
       

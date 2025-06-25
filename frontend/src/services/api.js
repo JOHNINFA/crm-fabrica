@@ -125,7 +125,24 @@ export const productoService = {
   // Actualizar un producto existente
   update: async (id, productoData) => {
     try {
+      // Validar ID
+      if (!id || isNaN(parseInt(id))) {
+        console.error('ID de producto inválido:', id);
+        return { error: true, message: `ID de producto inválido: ${id}` };
+      }
+      
       console.log('Intentando actualizar producto:', id, productoData);
+      
+      // Verificar primero si el producto existe
+      try {
+        const checkResponse = await fetch(`${API_URL}/productos/${id}/`);
+        if (!checkResponse.ok) {
+          console.error(`Producto con ID ${id} no encontrado`);
+          return { error: true, message: `Producto con ID ${id} no encontrado` };
+        }
+      } catch (checkError) {
+        console.error('Error al verificar producto:', checkError);
+      }
       
       // Verificar si hay una imagen en formato base64
       if (productoData.imagen && typeof productoData.imagen === 'string' && productoData.imagen.startsWith('data:')) {
@@ -154,8 +171,8 @@ export const productoService = {
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Error response:', errorText);
-          throw new Error(`Error al actualizar producto: ${response.status}`);
+          console.error(`Error al actualizar producto ${id}:`, response.status, errorText);
+          return { error: true, message: `Error al actualizar producto: ${response.status}` };
         }
         return await response.json();
       } else {
@@ -171,8 +188,8 @@ export const productoService = {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Error response:', errorText);
-          throw new Error(`Error al actualizar producto con ID ${id}: ${response.status}`);
+          console.error(`Error al actualizar producto ${id}:`, response.status, errorText);
+          return { error: true, message: `Error al actualizar producto con ID ${id}: ${response.status}` };
         }
         return await response.json();
       }
@@ -185,19 +202,69 @@ export const productoService = {
   // Actualizar el stock de un producto
   updateStock: async (id, cantidad, usuario, nota) => {
     try {
+      // Validar ID
+      if (!id || isNaN(parseInt(id))) {
+        console.error('ID de producto inválido:', id);
+        return { error: true, message: `ID de producto inválido: ${id}` };
+      }
+      
       console.log('Intentando actualizar stock:', id, cantidad);
-      const response = await fetch(`${API_URL}/productos/${id}/actualizar_stock/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cantidad, usuario, nota }),
-      });
+      
+      // Primero obtener el stock actual
+      let stockActual = 0;
+      let productoExiste = false;
+      
+      try {
+        const getResponse = await fetch(`${API_URL}/productos/${id}/`);
+        if (getResponse.ok) {
+          const producto = await getResponse.json();
+          stockActual = producto.stock_total || 0;
+          productoExiste = true;
+          console.log(`Stock actual en BD para producto ${id}: ${stockActual}`);
+        } else {
+          console.error(`Producto con ID ${id} no encontrado`);
+          return { error: true, message: `Producto con ID ${id} no encontrado` };
+        }
+      } catch (getError) {
+        console.warn('Error al obtener stock actual:', getError);
+        return { error: true, message: `Error al obtener producto: ${getError.message}` };
+      }
+      
+      // Si el producto no existe, no continuar
+      if (!productoExiste) {
+        return { error: true, message: `Producto con ID ${id} no encontrado` };
+      }
+      
+      // Enviar actualización de stock
+      try {
+        const response = await fetch(`${API_URL}/productos/${id}/actualizar_stock/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            cantidad, 
+            usuario, 
+            nota,
+            stock_actual: stockActual // Enviar el stock actual para referencia
+          }),
+        });
 
-      if (!response.ok) throw new Error(`Error al actualizar stock del producto con ID ${id}: ${response.status}`);
-      return await response.json();
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error al actualizar stock del producto ${id}:`, response.status, errorText);
+          return { error: true, message: `Error al actualizar stock: ${response.status}` };
+        }
+        
+        const result = await response.json();
+        console.log(`Stock actualizado exitosamente para producto ${id}. Nuevo stock: ${result.stock_actual || 'N/A'}`);
+        return result;
+      } catch (updateError) {
+        console.error('Error en actualización de stock:', updateError);
+        return { error: true, message: `Error en actualización de stock: ${updateError.message}` };
+      }
     } catch (error) {
-      console.error('Error en updateStock:', error);
+      console.error('Error general en updateStock:', error);
       return handleApiError(error);
     }
   },
@@ -313,6 +380,35 @@ export const loteService = {
       return await response.json();
     } catch (error) {
       console.error('Error en create lote:', error);
+      return handleApiError(error);
+    }
+  },
+};
+
+// Servicio para limpiar tablas específicas
+export const cleanTablesService = {
+  // Limpiar tablas específicas
+  cleanTables: async (tables = ['registro_inventario', 'lote']) => {
+    try {
+      console.log('Intentando limpiar tablas:', tables);
+      const response = await fetch(`${API_URL}/admin/clean-tables/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tables }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error al limpiar tablas: ${response.status}`);
+      }
+      
+      console.log('Tablas limpiadas correctamente');
+      return await response.json();
+    } catch (error) {
+      console.error('Error al limpiar tablas:', error);
       return handleApiError(error);
     }
   },

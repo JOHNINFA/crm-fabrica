@@ -22,7 +22,7 @@ import TabsActions from "../components/Pos/TabsActions";
 import ProductList from "../components/Pos/ProductList";
 import Cart from "../components/Pos/Cart";
 import ConsumerForm from "../components/Pos/ConsumerForm";
-import PanelToolbar from "../components/Pos/PanelToolbar";
+
 import ImageSyncButton from "../components/common/ImageSyncButton";
 
 const defaultSellers = ["jose", "maria", "luis"];
@@ -35,6 +35,7 @@ export default function PosScreen() {
   const [seller, setSeller] = useState(defaultSellers[0]);
   const [imp, setImp] = useState(0);
   const [desc, setDesc] = useState(0);
+  const [sidebarWidth, setSidebarWidth] = useState(210);
 
   // Funciones carrito
   const addProduct = (product) => {
@@ -66,10 +67,15 @@ export default function PosScreen() {
     <ProductProvider>
       <ModalProvider>
         <div className="d-flex">
-          <Sidebar />
+          <Sidebar onWidthChange={setSidebarWidth} />
           <div
             className="flex-grow-1 offset"
-            style={{ marginLeft: 210, minHeight: "100vh", background: "#f7f7fa" }}
+            style={{ 
+              marginLeft: sidebarWidth, 
+              minHeight: "100vh", 
+              background: "#f7f7fa",
+              transition: 'margin-left 0.3s ease'
+            }}
           >
             <Topbar />
             <main style={{ padding: "20px 24px 0px 24px" }}>
@@ -85,7 +91,6 @@ export default function PosScreen() {
 
                 <div className="col-lg-5">
                   <div className="card-bg mb-3 p-0" style={{ overflow: 'hidden' }}>
-                    <PanelToolbar />
                     <ConsumerForm
                       date={date}
                       seller={seller}

@@ -30,10 +30,12 @@ const CategoryManager = ({ onClose }) => {
     }
   };
 
-  const handleRemoveCategory = (category) => {
-    const success = removeCategory(category);
+  const handleRemoveCategory = async (category) => {
+    const success = await removeCategory(category);
     if (!success) {
       setError(`No se pudo eliminar la categoría "${category}". Debe existir al menos una categoría.`);
+    } else {
+      setError(''); // Limpiar error si fue exitoso
     }
   };
 

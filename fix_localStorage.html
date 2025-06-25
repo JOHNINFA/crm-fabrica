@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Corregir LocalStorage</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 15px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Corregir LocalStorage</h1>
+    <p>Este script corrige el localStorage para que refleje el stock real en la base de datos.</p>
+    <button id="fixButton">Corregir LocalStorage</button>
+    <div id="status" style="margin-top: 20px;"></div>
+    <h2>Estado Actual</h2>
+    <div id="currentState"></div>
+    
+    <script>
+        const API_URL = 'http://localhost:8000/api';
+        const statusDiv = document.getElementById('status');
+        const currentStateDiv = document.getElementById('currentState');
+        
+        // Mostrar estado actual
+        function showCurrentState() {
+            try {
+                const products = JSON.parse(localStorage.getItem('products') || '[]');
+                const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+                
+                currentStateDiv.innerHTML = `
+                    <h3>LocalStorage</h3>
+                    <h4>Products (POS) - ${products.length} items</h4>
+                    <pre>${JSON.stringify(products.map(p => ({ id: p.id, name: p.name, stock: p.stock })), null, 2)}</pre>
+                    <h4>Productos (Inventario) - ${productos.length} items</h4>
+                    <pre>${JSON.stringify(productos.map(p => ({ id: p.id, nombre: p.nombre, existencias: p.existencias })), null, 2)}</pre>
+                `;
+            } catch (error) {
+                currentStateDiv.innerHTML = `<p class="error">Error al mostrar estado: ${error.message}</p>`;
+            }
+        }
+        
+        // Corregir localStorage
+        async function fixLocalStorage() {
+            statusDiv.innerHTML = '<p>Corrigiendo localStorage...</p>';
+            
+            try {
+                // Obtener productos de la BD
+                const response = await fetch(`${API_URL}/productos/`);
+                if (!response.ok) throw new Error(`Error al obtener productos: ${response.status}`);
+                
+                const productosFromBD = await response.json();
+                statusDiv.innerHTML += `<p>Productos obtenidos de BD: ${productosFromBD.length}</p>`;
+                
+                // Actualizar productos en localStorage
+                const productosParaInventario = productosFromBD.map(p => ({
+                    id: p.id,
+                    nombre: p.nombre,
+                    existencias: p.stock_total,
+                    categoria: p.categoria_nombre || 'General',
+                    cantidad: 0
+                }));
+                localStorage.setItem('productos', JSON.stringify(productosParaInventario));
+                
+                // Actualizar productos en POS
+                const productosParaPOS = productosFromBD.map(p => ({
+                    id: p.id,
+                    name: p.nombre,
+                    price: parseFloat(p.precio) || 0,
+                    stock: p.stock_total || 0,
+                    category: p.categoria_nombre || 'General',
+                    brand: p.marca || 'GENERICA',
+                    tax: p.impuesto || 'IVA(0%)',
+                    image: p.imagen || null
+                }));
+                localStorage.setItem('products', JSON.stringify(productosParaPOS));
+                
+                // Notificar cambios
+                window.dispatchEvent(new Event('storage'));
+                window.dispatchEvent(new Event('productosUpdated'));
+                
+                statusDiv.innerHTML += `<p class="success">LocalStorage corregido exitosamente</p>`;
+                
+                // Actualizar vista
+                showCurrentState();
+            } catch (error) {
+                statusDiv.innerHTML += `<p class="error">Error al corregir localStorage: ${error.message}</p>`;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('fixButton').addEventListener('click', fixLocalStorage);
+        
+        // Inicializar
+        showCurrentState();
+        
+        // Corregir automáticamente al cargar
+        fixLocalStorage();
+    </script>
+</body>
+</html>

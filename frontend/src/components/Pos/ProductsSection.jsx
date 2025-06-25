@@ -22,22 +22,23 @@ export default function ProductsSection() {
       <div className="row">
         {filtered.map(product => (
           <div className="col-6 col-md-4 mb-3" key={product.id}>
-            <div className="card h-100 text-center">
-              <div className="card-body d-flex flex-column align-items-center justify-content-center">
-                <span className="badge bg-dark mb-2">${product.price.toFixed(2)}</span>
+            <div className="card h-100 text-center" title="Agregar al carrito">
+              <div className="card-body d-flex flex-column align-items-center justify-content-center p-2">
+                <span className="badge bg-dark mb-1" style={{ fontSize: '11px' }}>${product.price.toFixed(2)}</span>
                 {product.image ? (
                   <img 
                     src={product.image} 
                     alt={product.name} 
-                    className="mb-2" 
-                    style={{ width: 48, height: 48, objectFit: 'contain' }} 
+                    className="mb-1" 
+                    style={{ width: 36, height: 36, objectFit: 'contain' }} 
                   />
                 ) : (
-                  <span className="rounded-circle bg-light border mb-2" style={{ width: 48, height: 48, lineHeight: "48px", fontSize: 28 }}>P</span>
+                  <span className="rounded-circle bg-light border mb-1" style={{ width: 36, height: 36, lineHeight: "36px", fontSize: 20 }}>P</span>
                 )}
-                <span className="fw-bold">{product.name}</span>
+                <span className="fw-bold" style={{ fontSize: '13px' }}>{product.name}</span>
                 <button 
-                  className="btn btn-outline-primary btn-sm mt-2"
+                  className="btn btn-outline-primary mt-1"
+                  style={{ fontSize: '11px', padding: '4px 8px' }}
                   onClick={() => addToCart(product.id)}
                 >
                   Agregar

@@ -3,11 +3,11 @@ import { storage } from '../utils/storage';
 import { mappers } from '../utils/mappers';
 import { sync } from '../services/syncService';
 import { productoService, categoriaService } from '../../../services/api';
-import { syncService } from '../../../services/syncService';
+import { syncService, sincronizarConBD } from '../../../services/syncService';
 
 export const useProductOperations = (products, setProducts, categories, setCategories) => {
   
-  // Utilidades comunes
+  // Utilidad para actualizar estado y localStorage
   const updateState = (newProducts, newCategories = null) => {
     setProducts(newProducts);
     storage.save('products', newProducts);
@@ -79,7 +79,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
     }
   };
 
-  const removeCategory = (categoryToRemove) => {
+  const removeCategory = async (categoryToRemove) => {
     if (categories.length <= 1) return false;
     
     const fallbackCategory = categories.find(cat => cat !== categoryToRemove) || "Sin categoría";
@@ -87,6 +87,20 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       product.category === categoryToRemove ? { ...product, category: fallbackCategory } : product
     );
     const updatedCategories = categories.filter(cat => cat !== categoryToRemove);
+    
+    try {
+      // Intentar eliminar del backend
+      const categoriasMap = await getCategoriesMap();
+      const categoryId = categoriasMap[categoryToRemove.toLowerCase()];
+      
+      if (categoryId) {
+        await categoriaService.delete(categoryId);
+      }
+    } catch (error) {
+      console.error('Error deleting category from backend:', error);
+      // Encolar operación para sincronización posterior
+      syncService.queueOperation('CATEGORY_DELETE', { nombre: categoryToRemove });
+    }
     
     updateState(updatedProducts, updatedCategories);
     return true;
@@ -130,36 +144,205 @@ export const useProductOperations = (products, setProducts, categories, setCateg
   });
 
   const addProduct = async (productData) => {
+    // Crear un objeto de producto consistente
+    let productToSave = {
+      nombre: productData.nombre,
+      precio: productData.precioVenta || productData.precio || 0,
+      precio_compra: productData.precioCompra || 0,
+      marca: productData.marca || "GENERICA",
+      impuesto: productData.impuesto || "IVA(0%)",
+      stock_total: 0, // Los productos del POS inician sin stock
+      activo: true,
+      imagen: productData.imagen
+    };
+    
+    // Obtener el ID de la categoría
     try {
       const categoriasMap = await getCategoriesMap();
-      const categoriaId = categoriasMap[productData.categoria?.toLowerCase()] || 3;
-      const backendData = mappers.toBackend(productData, categoriaId);
+      const categoriaName = productData.categoria || "General";
+      let categoriaId = categoriasMap[categoriaName.toLowerCase()];
       
-      if (productData.id) {
-        // Actualizar existente
-        await productoService.update(productData.id, backendData);
-        const updatedProducts = products.map(product => 
-          product.id === productData.id ? { ...product, ...productData } : product
-        );
-        updateState(updatedProducts);
-        return updatedProducts.find(p => p.id === productData.id);
-      } else {
-        // Crear nuevo
-        const createdProduct = await productoService.create(backendData);
-        const newProduct = createProductObject(productData, createdProduct.id);
-        const updatedProducts = [...products, newProduct];
-        updateState(updatedProducts);
-        return newProduct;
+      // Si la categoría no existe, crearla
+      if (!categoriaId) {
+        try {
+          console.log(`Creando categoría: ${categoriaName}`);
+          const createdCat = await categoriaService.create(categoriaName);
+          if (createdCat?.id) {
+            categoriaId = createdCat.id;
+            console.log(`Categoría creada con ID: ${categoriaId}`);
+          }
+        } catch (error) {
+          console.error(`Error al crear categoría ${categoriaName}:`, error);
+          // Usar categoría General por defecto
+          categoriaId = categoriasMap['general'] || 3;
+        }
       }
+      
+      // Asignar el ID de la categoría al producto
+      productToSave.categoria = categoriaId;
     } catch (error) {
-      console.error('Error adding/updating product:', error);
-      // Fallback local
-      const newProduct = createProductObject(productData);
-      const updatedProducts = productData.id 
-        ? products.map(p => p.id === productData.id ? { ...p, ...newProduct } : p)
+      console.error('Error al obtener categorías:', error);
+      // Usar categoría General por defecto
+      productToSave.categoria = 3;
+    }
+    
+    // Intentar guardar directamente en el backend primero
+    try {
+      console.log('Intentando guardar producto en el backend:', productToSave);
+      
+      let savedProduct;
+      let backendId;
+      
+      if (productData.id && !productData.id.toString().includes('-')) {
+        // Actualizar producto existente
+        savedProduct = await productoService.update(productData.id, productToSave);
+        backendId = productData.id;
+      } else {
+        // Crear nuevo producto
+        savedProduct = await productoService.create(productToSave);
+        backendId = savedProduct?.id;
+      }
+      
+      console.log('Producto guardado en backend:', savedProduct);
+      
+      // Crear objeto para el estado local (productos del POS inician con stock 0)
+      const newProduct = {
+        id: backendId || productData.id || uuidv4(),
+        name: productData.nombre,
+        price: productData.precioVenta || productData.precio || 0,
+        category: productData.categoria || "General",
+        image: productData.imagen,
+        stock: 0, // Los productos del POS inician sin stock
+        purchasePrice: productData.precioCompra || 0,
+        brand: productData.marca || "GENERICA",
+        tax: productData.impuesto || "IVA(0%)"
+      };
+      
+      // Actualizar estado local
+      const updatedProducts = productData.id
+        ? products.map(p => p.id === productData.id ? newProduct : p)
         : [...products, newProduct];
       
       updateState(updatedProducts);
+      
+      // Sincronizar con inventario (sin existencias iniciales)
+      const inventoryProducts = storage.get('productos', []);
+      const newInventoryProduct = {
+        id: newProduct.id,
+        nombre: newProduct.name,
+        existencias: 0, // Los productos del POS inician sin existencias
+        precio: newProduct.price,
+        categoria: newProduct.category,
+        cantidad: 0  // Importante para el inventario de producción
+      };
+      
+      // Actualizar o agregar al inventario
+      const updatedInventory = inventoryProducts.some(p => p.id === newProduct.id)
+        ? inventoryProducts.map(p => p.id === newProduct.id ? newInventoryProduct : p)
+        : [...inventoryProducts, newInventoryProduct];
+      
+      storage.save('productos', updatedInventory);
+      
+      // Crear registro de inventario automáticamente
+      try {
+        // Registrar movimiento de inventario para el nuevo producto
+        syncService.queueOperation('MOVEMENT_CREATE', {
+          producto: newProduct.id,
+          tipo: 'ENTRADA',
+          cantidad: 0,  // Inicialmente sin stock
+          usuario: 'Sistema POS',
+          nota: 'Registro automático desde POS'
+        });
+        console.log('✅ Producto creado con registro automático de inventario:', newProduct.name);
+      } catch (error) {
+        console.error('Error al crear registro de inventario:', error);
+      }
+      
+      // Forzar sincronización inmediata
+      syncService.syncAllToBackend();
+      
+      // Notificar cambios
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('productosUpdated'));
+      
+      return newProduct;
+    } catch (error) {
+      console.error('Error guardando producto en backend:', error);
+      
+      // Fallback: guardar localmente y encolar para sincronización
+      const newProduct = {
+        id: productData.id || uuidv4(),
+        name: productData.nombre,
+        price: productData.precioVenta || productData.precio || 0,
+        category: productData.categoria || "General",
+        image: productData.imagen,
+        stock: 0, // Los productos del POS inician sin stock
+        purchasePrice: productData.precioCompra || 0,
+        brand: productData.marca || "GENERICA",
+        tax: productData.impuesto || "IVA(0%)"
+      };
+      
+      // Actualizar estado local
+      const updatedProducts = productData.id
+        ? products.map(p => p.id === productData.id ? newProduct : p)
+        : [...products, newProduct];
+      
+      updateState(updatedProducts);
+      
+      // Encolar para sincronización posterior
+      syncService.queueOperation('PRODUCT_CREATE', {
+        nombre: newProduct.name,
+        precio: newProduct.price,
+        precio_compra: newProduct.purchasePrice || 0,
+        categoria: 3, // ID por defecto para "General"
+        marca: newProduct.brand || "GENERICA",
+        impuesto: newProduct.tax || "IVA(0%)",
+        stock_total: 0, // Los productos del POS inician sin stock
+        activo: true,
+        ...(newProduct.image && { imagen: newProduct.image })
+      });
+      
+      // Sincronizar con inventario (sin existencias iniciales)
+      const inventoryProducts = storage.get('productos', []);
+      const newInventoryProduct = {
+        id: newProduct.id,
+        nombre: newProduct.name,
+        existencias: 0, // Los productos del POS inician sin existencias
+        precio: newProduct.price,
+        categoria: newProduct.category,
+        cantidad: 0  // Importante para el inventario de producción
+      };
+      
+      // Actualizar o agregar al inventario
+      const updatedInventory = inventoryProducts.some(p => p.id === newProduct.id)
+        ? inventoryProducts.map(p => p.id === newProduct.id ? newInventoryProduct : p)
+        : [...inventoryProducts, newInventoryProduct];
+      
+      storage.save('productos', updatedInventory);
+      
+      // Encolar registro de inventario automáticamente
+      try {
+        // Registrar movimiento de inventario para el nuevo producto
+        syncService.queueOperation('MOVEMENT_CREATE', {
+          producto: newProduct.id,
+          tipo: 'ENTRADA',
+          cantidad: 0,  // Inicialmente sin stock
+          usuario: 'Sistema POS',
+          nota: 'Registro automático desde POS (offline)'
+        });
+        console.log('✅ Producto guardado localmente con registro automático de inventario:', newProduct.name);
+      } catch (error) {
+        console.error('Error al encolar registro de inventario:', error);
+      }
+      
+      // Forzar procesamiento de la cola
+      setTimeout(() => {
+        syncService.processSyncQueue();
+        // Notificar cambios
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('productosUpdated'));
+      }, 1000);
+      
       return newProduct;
     }
   };
@@ -169,12 +352,10 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       const updatedProducts = products.filter(product => product.id !== productId);
       updateState(updatedProducts);
       
-      // Limpiar inventario
       const inventoryProducts = storage.get('productos');
       const updatedInventoryProducts = inventoryProducts.filter(product => product.id !== productId);
       storage.save('productos', updatedInventoryProducts);
       
-      // Marcar inactivo en backend
       try {
         await productoService.update(productId, { activo: false });
       } catch (error) {
