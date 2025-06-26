@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import { useProducts } from "../../context/ProductContext";
 import CategoryManager from "./CategoryManager";
@@ -8,6 +9,9 @@ export default function ProductList({ addProduct, search, setSearch }) {
   const { products, categories } = useProducts();
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showReportMenu, setShowReportMenu] = useState(false);
+  const reportMenuRef = useRef(null);
+  const navigate = useNavigate();
   
   // Filtrar productos
   const filteredProducts = products.filter(p => {
@@ -25,15 +29,42 @@ export default function ProductList({ addProduct, search, setSearch }) {
     };
     return icons[category] || "sell";
   };
+  
+  // Cerrar el menú al hacer clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (reportMenuRef.current && !reportMenuRef.current.contains(event.target)) {
+        setShowReportMenu(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <>
       {/* Botones superiores */}
       <div className="d-flex align-items-center gap-3 mb-2" style={{ marginTop: '-15px', paddingLeft: '20px' }}>
-        <div className="dropdown">
-          <button className="btn btn-light border dropdown-toggle top-button" style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }} type="button" data-bs-toggle="dropdown">
+        <div className="dropdown" ref={reportMenuRef}>
+          <button 
+            className="btn btn-light border dropdown-toggle top-button" 
+            style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }} 
+            type="button" 
+            onClick={() => setShowReportMenu(!showReportMenu)}
+          >
             Informes de Ventas
           </button>
+          {showReportMenu && (
+            <ul className="dropdown-menu show" style={{ position: 'absolute', inset: '0px auto auto 0px', margin: '0px', transform: 'translate(0px, 40px)' }}>
+              <li><button className="dropdown-item" onClick={() => { setShowReportMenu(false); navigate('/informes/general'); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas General</button></li>
+              <li><button className="dropdown-item" onClick={() => { console.log('Informe por vendedor'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas por Vendedor</button></li>
+              <li><button className="dropdown-item" onClick={() => { console.log('Informe por cliente'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas por Cliente</button></li>
+              <li><button className="dropdown-item" onClick={() => { console.log('Informe por cajero'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas por Cajero</button></li>
+            </ul>
+          )}
         </div>
         <button className="btn btn-light border top-button" style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }} type="button">
           Caja

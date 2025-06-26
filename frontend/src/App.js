@@ -8,6 +8,7 @@ import PedidosScreen from './pages/PedidosScreen';
 import InventarioScreen from './pages/InventarioScreen';
 import SelectorDia from './pages/SelectorDia';
 import MenuSheets from './components/Cargue/MenuSheets';
+import InformeVentasGeneral from './pages/InformeVentasGeneral';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/inventario" element={<InventarioScreen />} />
           <Route path="/cargue" element={<SelectorDia />} />
           <Route path="/cargue/:dia" element={<MenuSheets />} />
+          <Route path="/informes/general" element={<InformeVentasGeneral />} />
         </Routes>
       </div>
     </Router>

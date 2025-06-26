@@ -48,6 +48,7 @@ export default function Cart({
               className="qty-input"
               value={item.qty}
               onChange={(e) => changeQty(item.id, parseInt(e.target.value) - item.qty || 0)}
+              onClick={(e) => e.target.select()}
             />
             <button 
               onClick={() => changeQty(item.id, 1)}
@@ -74,6 +75,7 @@ export default function Cart({
             type="number" 
             value={value} 
             onChange={(e) => onChange(Number(e.target.value))}
+            onClick={(e) => e.target.select()}
             className="summary-input"
           />
         ) : (
