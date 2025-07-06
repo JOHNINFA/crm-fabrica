@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -71,3 +71,29 @@ class RegistroInventarioSerializer(serializers.ModelSerializer):
             'fecha_produccion', 'usuario', 'activo', 'fecha_creacion'
         ]
         read_only_fields = ('fecha_creacion',)
+
+class DetalleVentaSerializer(serializers.ModelSerializer):
+    """Serializer para detalles de venta"""
+    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+    
+    class Meta:
+        model = DetalleVenta
+        fields = [
+            'id', 'producto', 'producto_nombre', 'cantidad', 
+            'precio_unitario', 'subtotal'
+        ]
+        read_only_fields = ('subtotal',)
+
+class VentaSerializer(serializers.ModelSerializer):
+    """Serializer para ventas"""
+    detalles = DetalleVentaSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Venta
+        fields = [
+            'id', 'numero_factura', 'fecha', 'vendedor', 'cliente',
+            'metodo_pago', 'subtotal', 'impuestos', 'descuentos', 'total',
+            'dinero_entregado', 'devuelta', 'estado', 'nota', 'banco',
+            'centro_costo', 'bodega', 'detalles'
+        ]
+        read_only_fields = ('numero_factura', 'fecha', 'id')

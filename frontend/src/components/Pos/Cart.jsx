@@ -11,7 +11,10 @@ export default function Cart({
   desc = 0, 
   total = 0, 
   setImp = () => {}, 
-  setDesc = () => {} 
+  setDesc = () => {},
+  seller = 'Sistema',
+  client = 'CONSUMIDOR FINAL',
+  clearCart = () => {}
 }) {
   const [nota, setNota] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -148,6 +151,12 @@ export default function Cart({
         onClose={() => setShowPaymentModal(false)}
         cart={cart}
         total={total}
+        subtotal={subtotal}
+        impuestos={imp}
+        descuentos={desc}
+        seller={seller}
+        client={client}
+        clearCart={clearCart}
       />
     </div>
   );

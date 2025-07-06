@@ -33,9 +33,17 @@ export default function PosScreen() {
   const [cart, setCart] = useState([]);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [seller, setSeller] = useState(defaultSellers[0]);
+  const [client, setClient] = useState("CONSUMIDOR FINAL");
   const [imp, setImp] = useState(0);
   const [desc, setDesc] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(210);
+
+  // Función para limpiar carrito después de venta exitosa
+  const clearCart = () => {
+    setCart([]);
+    setImp(0);
+    setDesc(0);
+  };
 
   // Funciones carrito
   const addProduct = (product) => {
@@ -94,8 +102,10 @@ export default function PosScreen() {
                     <ConsumerForm
                       date={date}
                       seller={seller}
+                      client={client}
                       setDate={setDate}
                       setSeller={setSeller}
+                      setClient={setClient}
                       sellers={defaultSellers}
                     />
                     <Cart
@@ -108,31 +118,12 @@ export default function PosScreen() {
                       desc={desc}
                       setDesc={setDesc}
                       total={total}
+                      seller={seller}
+                      client={client}
+                      clearCart={clearCart}
                     />
-                    {/* WhatsApp */}
-                    <div style={{
-                      position: "fixed",
-                      bottom: 18,
-                      right: 18,
-                      zIndex: 12,
-                    }}>
-                      <a
-                        href="#"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                        aria-label="Whatsapp"
-                      >
-                        <img
-                          src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-                          width={48}
-                          alt="WhatsApp"
-                          style={{
-                            borderRadius: "50%",
-                            boxShadow: "0 2px 8px #aaa",
-                          }}
-                        />
-                      </a>
-                    </div>
+                 
+                 
                   </div>
                 </div>
               </div>

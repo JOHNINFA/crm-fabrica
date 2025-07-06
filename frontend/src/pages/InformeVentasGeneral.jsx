@@ -1,63 +1,126 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Form, Badge, Dropdown } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { ventaService } from '../services/api';
 
 const InformeVentasGeneral = () => {
   const navigate = useNavigate();
-  
-  // Datos de ejemplo basados en la imagen
-  const metricas = {
-    totalSinImpuestos: 7500.00,
+  const [ventas, setVentas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [metricas, setMetricas] = useState({
+    totalSinImpuestos: 0.00,
     totalImpuestos: 0.00,
-    totalFacturado: 7500.00,
-    totalNeto: 7500.00,
+    totalFacturado: 0.00,
+    totalNeto: 0.00,
     totalCartera: 0.00,
-    totalPagado: 7500.00,
-    totalGanancia: 7500.00,
-    porcentajeGanancia: 100.00
+    totalPagado: 0.00,
+    totalGanancia: 0.00,
+    porcentajeGanancia: 0.00
+  });
+
+  // Cargar ventas desde la BD
+  const cargarVentas = async () => {
+    try {
+      setLoading(true);
+      const ventasData = await ventaService.getAll();
+      
+      if (ventasData && !ventasData.error) {
+        setVentas(ventasData);
+        calcularMetricas(ventasData);
+      } else {
+        console.error('Error al cargar ventas:', ventasData);
+      }
+    } catch (error) {
+      console.error('Error al cargar ventas:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const transacciones = [
-    { id: 1, tipo: 'Ventas', medio: 'Efectivo', facturas: 3, trans: 3, fecha: '2025-06-24 12:22:17', estado: 'Pagado', pendientes: 0, vendedor: 'Ramon', cliente: 'CONSUMIDOR FINAL', facturado: 2500.00, costo: 0.00, utilidad: 2500.00, utilidadPct: 100.00, pagar: 2500.00, abonado: 2500.00, pendiente: 0.00 },
-    { id: 2, tipo: 'Ventas', medio: 'Efectivo', facturas: 2, trans: 2, fecha: '2025-06-23 21:10:33', estado: 'Pagado', pendientes: 0, vendedor: 'Ramon', cliente: 'CONSUMIDOR FINAL', facturado: 2500.00, costo: 0.00, utilidad: 2500.00, utilidadPct: 100.00, pagar: 2500.00, abonado: 2500.00, pendiente: 0.00 },
-    { id: 3, tipo: 'Ventas', medio: 'Efectivo', facturas: 1, trans: 1, fecha: '2025-06-23 21:09:27', estado: 'Pagado', pendientes: 0, vendedor: 'Ramon', cliente: 'CONSUMIDOR FINAL', facturado: 2500.00, costo: 0.00, utilidad: 2500.00, utilidadPct: 100.00, pagar: 2500.00, abonado: 2500.00, pendiente: 0.00 }
-  ];
+  // Calcular métricas basadas en las ventas
+  const calcularMetricas = (ventasData) => {
+    const totales = ventasData.reduce((acc, venta) => {
+      acc.totalFacturado += parseFloat(venta.total || 0);
+      acc.totalSinImpuestos += parseFloat(venta.subtotal || 0);
+      acc.totalImpuestos += parseFloat(venta.impuestos || 0);
+      acc.totalPagado += parseFloat(venta.dinero_entregado || 0);
+      return acc;
+    }, {
+      totalSinImpuestos: 0,
+      totalImpuestos: 0,
+      totalFacturado: 0,
+      totalPagado: 0
+    });
+
+    setMetricas({
+      ...totales,
+      totalNeto: totales.totalFacturado,
+      totalCartera: 0,
+      totalGanancia: totales.totalFacturado,
+      porcentajeGanancia: 100.00
+    });
+  };
+
+  // Cargar ventas al montar el componente
+  useEffect(() => {
+    cargarVentas();
+  }, []);
+
+  // Transformar ventas para la tabla
+  const transacciones = ventas.map((venta) => ({
+    id: venta.id,
+    tipo: 'Ventas',
+    medio: venta.metodo_pago || 'Efectivo',
+    facturas: venta.numero_factura || venta.id, // Mostrar número de factura real
+    trans: 1,
+    fecha: new Date(venta.fecha).toLocaleString('es-CO'),
+    estado: venta.estado || 'Pagado',
+    pendientes: 0,
+    vendedor: venta.vendedor || 'Sistema',
+    cliente: venta.cliente || 'CONSUMIDOR FINAL',
+    facturado: parseFloat(venta.total || 0),
+    costo: 0.00,
+    utilidad: parseFloat(venta.total || 0),
+    utilidadPct: 100.00,
+    pagar: parseFloat(venta.total || 0),
+    abonado: parseFloat(venta.dinero_entregado || 0),
+    pendiente: Math.max(0, parseFloat(venta.total || 0) - parseFloat(venta.dinero_entregado || 0))
+  }));
 
   const formatCurrency = (amount) => {
     return `$ ${amount.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Estilo común para los iconos en las cards de métricas
   const metricIconWrapperStyle = {
     width: '45px',
     height: '45px',
     backgroundColor: '#e8f4fd',
     borderRadius: '6px'
   };
-  const metricIconStyle = { fontSize: '24px', color: '#fff' };
+  const metricIconStyle = { fontSize: '24px', color: '#337ab7' };
 
   return (
     <div className="bg-light min-vh-100" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Header de navegación */}
-      <div className="py-2" style={{ fontSize: '14px', backgroundColor: '#f5f5f5' }}>
+      <div className="bg-primary text-white py-2" style={{ fontSize: '14px' }}>
         <Container fluid>
           <Row>
             <Col>
               <div className="d-flex align-items-center">
-                <Button variant="outline-primary" size="sm" className="me-2 rounded-1 px-2 py-0">
+                <Button variant="outline-light" size="sm" className="me-2 rounded-1 px-2 py-0">
                   +
                 </Button>
                 <Dropdown className="me-3">
-                  <Dropdown.Toggle variant="link" id="dropdown-venta" className="text-decoration-none p-0" style={{ fontSize: '14px', color: '#0073b7' }}>
+                  <Dropdown.Toggle variant="link" id="dropdown-venta" className="text-white text-decoration-none p-0" style={{ fontSize: '14px' }}>
                     📦 Venta
                   </Dropdown.Toggle>
                 </Dropdown>
                 <Dropdown className="me-3">
-                  <Dropdown.Toggle variant="link" id="dropdown-informes-ventas" className="text-decoration-none p-0" style={{ fontSize: '14px', color: '#0073b7' }}>
+                  <Dropdown.Toggle variant="link" id="dropdown-informes-ventas" className="text-white text-decoration-none p-0" style={{ fontSize: '14px' }}>
                     Informes de Ventas
                   </Dropdown.Toggle>
                 </Dropdown>
-                <span style={{ fontSize: '14px', color: '#0073b7' }}>Informes de CxC</span>
+                <span style={{ fontSize: '14px' }}>Informes de CxC</span>
               </div>
             </Col>
           </Row>
@@ -176,9 +239,9 @@ const InformeVentasGeneral = () => {
               </Card>
             </Col>
           ))}
-          <Col md={4} className="mb-3">
+          <Col md={6} className="mb-3">
             <Card className="text-white shadow-sm rounded-2" style={{
-              background: '#0073b7',
+              background: 'linear-gradient(135deg, #1e88e5 0%, #1565c0 100%)',
               border: 'none',
             }}>
               <Card.Body className="p-3">
@@ -188,193 +251,110 @@ const InformeVentasGeneral = () => {
                     style={{
                       width: '45px',
                       height: '45px',
-                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      backgroundColor: 'rgba(255,255,255,0.2)'
                     }}
                   >
                     <span style={{ fontSize: '24px', color: 'white' }}>📈</span>
                   </div>
-                  <div className="flex-grow-1">
-                    <div style={{ fontSize: '11px', fontWeight: '500', opacity: 0.9 }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', fontWeight: '500' }}>
                       TOTAL GANANCIA
                     </div>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'white' }}>
                       {formatCurrency(metricas.totalGanancia)}
-                    </div>
-                    <div
-                      className="mt-1"
-                      style={{
-                        fontSize: '11px',
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        padding: '2px 8px',
-                        borderRadius: '3px',
-                        display: 'inline-block',
-                        fontWeight: '500'
-                      }}
-                    >
-                      {metricas.porcentajeGanancia.toFixed(2)}% de Ganancia
                     </div>
                   </div>
                 </div>
               </Card.Body>
             </Card>
-          </Col>
-        </Row>
-
-        {/* Botones de acción y filtros */}
-        <Row className="mb-3">
-          <Col>
-            <div className="d-flex align-items-center flex-wrap mb-2" style={{ fontSize: '13px' }}>
-              <Button variant="outline-primary" size="sm" className="me-2 mb-2 mb-md-0" style={{ fontSize: '12px' }}>
-                ➕ Detalles
-              </Button>
-              <Button variant="outline-secondary" size="sm" className="me-2 mb-2 mb-md-0" style={{ fontSize: '12px' }}>
-                📄 Informe
-              </Button>
-              <Button variant="outline-secondary" size="sm" className="me-2 mb-2 mb-md-0" style={{ fontSize: '12px' }}>
-                📊 Transacciones
-              </Button>
-              <Button variant="outline-danger" size="sm" className="me-2 mb-2 mb-md-0" style={{ fontSize: '12px' }}>
-                📧 Enviar Email
-              </Button>
-              <Button variant="outline-primary" size="sm" className="me-4 mb-2 mb-md-0" style={{ fontSize: '12px' }}>
-                🔧 Herramientas
-              </Button>
-
-              <span className="me-2">Filtro Estado:</span>
-              <Form.Select size="sm" className="me-3 mb-2 mb-md-0" style={{ width: '100px' }}>
-                <option>Todos</option>
-              </Form.Select>
-              <span className="me-2">Tipo Cliente:</span>
-              <Form.Select size="sm" className="me-3 mb-2 mb-md-0" style={{ width: '100px' }}>
-                <option>Todos</option>
-              </Form.Select>
-              <span className="me-2">Canales:</span>
-              <Form.Select size="sm" className="mb-2 mb-md-0" style={{ width: '100px' }}>
-                <option>Todos</option>
-              </Form.Select>
-            </div>
           </Col>
         </Row>
 
         {/* Tabla de transacciones */}
         <Row>
           <Col>
-            <Card className="border shadow-sm">
+            <Card className="border shadow-sm rounded-2">
               <Card.Body className="p-0">
-                <div className="table-responsive">
-                  <Table hover className="mb-0" style={{ fontSize: '12px' }}>
-                    <thead className="table-light">
-                      <tr>
-                        <th className="py-2 px-2 border-bottom" style={{ width: '30px' }}>
-                          <Form.Check type="checkbox" aria-label="Seleccionar todo"/>
-                        </th>
-                        {['Acciones', 'Tipo', 'Medio', '# Fact', '#Trans', 'Fecha', 'Estado', 'Días Pendientes', 'Vendedor', 'Cliente', 'T.Facturado', 'T. Costo', 'Utilidad', 'Utilidad%', 'T.A Pagar', 'T.Abonado', 'T.Pend Pago']
-                         .map(header => <th className="py-2 px-2 border-bottom" key={header}>{header}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="table-light">
-                        <td className="py-2 px-2 border-bottom">
-                          <Form.Check type="checkbox" aria-label="Fila de búsqueda"/>
-                        </td>
-                        <td className="py-2 px-2 border-bottom text-muted" colSpan={17}>
-                          Búsqueda General
-                        </td>
-                      </tr>
-                      {transacciones.map((trans) => (
-                        <tr key={trans.id}>
-                          <td className="py-2 px-2 border-bottom">
-                            <Form.Check type="checkbox" aria-label={`Seleccionar transacción ${trans.id}`}/>
-                          </td>
-                          <td className="py-2 px-2 border-bottom">
-                            <div className="d-flex">
-                              <Button
-                                size="sm"
-                                className="me-1 p-1"
-                                style={{ width: '24px', height: '24px', fontSize: '10px' }}
-                                title="Acción S"
-                              >S</Button>
-                              <Button
-                                variant="dark"
-                                size="sm"
-                                className="me-1 p-1"
-                                style={{ width: '24px', height: '24px', fontSize: '10px' }}
-                                title="Ver"
-                              >👁</Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="p-1"
-                                style={{ width: '24px', height: '24px', fontSize: '10px' }}
-                                title="Documento"
-                              >📄</Button>
-                            </div>
-                          </td>
-                          <td className="py-2 px-2 border-bottom">{trans.tipo}</td>
-                          <td className="py-2 px-2 border-bottom">{trans.medio}</td>
-                          <td className="py-2 px-2 border-bottom">{trans.facturas}</td>
-                          <td className="py-2 px-2 border-bottom">{trans.trans}</td>
-                          <td className="py-2 px-2 border-bottom" style={{ fontSize: '11px' }}>{trans.fecha}</td>
-                          <td className="py-2 px-2 border-bottom">
-                            <Badge bg="success" style={{ fontSize: '10px' }}>{trans.estado}</Badge>
-                          </td>
-                          <td className="py-2 px-2 border-bottom">
-                            <Badge bg="success" style={{ fontSize: '10px' }}>{trans.pendientes}</Badge>
-                          </td>
-                          <td className="py-2 px-2 border-bottom">{trans.vendedor}</td>
-                          <td className="py-2 px-2 border-bottom">{trans.cliente}</td>
-                          <td className="py-2 px-2 border-bottom text-end">{formatCurrency(trans.facturado)}</td>
-                          <td className="py-2 px-2 border-bottom text-end">{formatCurrency(trans.costo)}</td>
-                          <td className="py-2 px-2 border-bottom text-end">{formatCurrency(trans.utilidad)}</td>
-                          <td className="py-2 px-2 border-bottom text-end">{trans.utilidadPct.toFixed(2)}%</td>
-                          <td className="py-2 px-2 border-bottom text-end">{formatCurrency(trans.pagar)}</td>
-                          <td className="py-2 px-2 border-bottom text-end">{formatCurrency(trans.abonado)}</td>
-                          <td className="py-2 px-2 border-bottom text-end">{formatCurrency(trans.pendiente)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-
-                {/* Footer de la tabla con estadísticas */}
-                <div
-                  className="p-2 d-flex flex-wrap align-items-center justify-content-between bg-light border-top text-muted"
-                  style={{ fontSize: '11px' }}
-                >
-                  {[
-                    `Cantidad de Documentos: ${transacciones.length}`,
-                    `Ticket Promedio: ${formatCurrency(metricas.totalFacturado / transacciones.length || 0)}`,
-                    `T.Pend Pago: ${formatCurrency(0.00)}`,
-                    `T.Pagado: ${formatCurrency(metricas.totalPagado)}`,
-                    `T.Impuestos: ${formatCurrency(metricas.totalImpuestos)}`,
-                    `T.Sin Impuestos: ${formatCurrency(metricas.totalSinImpuestos)}`,
-                    `T.Propina: ${formatCurrency(0.00)}`,
-                    `T.Neto: ${formatCurrency(metricas.totalNeto)}`,
-                    `T.Costo: ${formatCurrency(0.00)}`,
-                    `T.Utilidad: ${formatCurrency(metricas.totalGanancia)}`,
-                    `T.Utilidad-%${metricas.porcentajeGanancia.toFixed(2)}`
-                  ].map((stat, idx) => (
-                    <span className="me-3 mb-1 mb-md-0" key={idx}>{stat}</span>
-                  ))}
-                </div>
+                {loading ? (
+                  <div className="text-center p-4">
+                    <div className="spinner-border" role="status">
+                      <span className="visually-hidden">Cargando...</span>
+                    </div>
+                    <p className="mt-2">Cargando ventas...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-3 border-bottom">
+                      <h6 className="mb-0">Transacciones de Ventas</h6>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <Table hover className="mb-0" style={{ fontSize: '12px' }}>
+                        <thead className="table-light">
+                          <tr>
+                            <th>Tipo</th>
+                            <th>Medio</th>
+                            <th># Fact</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Vendedor</th>
+                            <th>Cliente</th>
+                            <th>T.Facturado</th>
+                            <th>T.A Pagar</th>
+                            <th>T.Abonado</th>
+                            <th>T.Pend Pago</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {transacciones.length > 0 ? (
+                            transacciones.map((transaccion) => (
+                              <tr key={transaccion.id}>
+                                <td>{transaccion.tipo}</td>
+                                <td>{transaccion.medio}</td>
+                                <td>{transaccion.facturas}</td>
+                                <td>{transaccion.fecha}</td>
+                                <td>
+                                  <Badge bg={transaccion.estado === 'PAGADO' ? 'success' : 'warning'}>
+                                    {transaccion.estado}
+                                  </Badge>
+                                </td>
+                                <td>{transaccion.vendedor}</td>
+                                <td>{transaccion.cliente}</td>
+                                <td>{formatCurrency(transaccion.facturado)}</td>
+                                <td>{formatCurrency(transaccion.pagar)}</td>
+                                <td>{formatCurrency(transaccion.abonado)}</td>
+                                <td>{formatCurrency(transaccion.pendiente)}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="11" className="text-center p-4">
+                                No hay ventas registradas
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
+                    </div>
+                    <div className="p-3 border-top bg-light">
+                      <Row>
+                        <Col md={6}>
+                          <small className="text-muted">
+                            <strong>Cantidad de Documentos:</strong> {transacciones.length}<br/>
+                            <strong>Ticket Promedio:</strong> {formatCurrency(transacciones.length > 0 ? metricas.totalFacturado / transacciones.length : 0)}
+                          </small>
+                        </Col>
+                        <Col md={6} className="text-end">
+                          <small className="text-muted">
+                            <strong>T.Facturado:</strong> {formatCurrency(metricas.totalFacturado)}<br/>
+                            <strong>T.Pagado:</strong> {formatCurrency(metricas.totalPagado)}
+                          </small>
+                        </Col>
+                      </Row>
+                    </div>
+                  </>
+                )}
               </Card.Body>
             </Card>
-          </Col>
-        </Row>
-
-        {/* Footer */}
-        <Row className="mt-4">
-          <Col>
-            <div
-              className="d-flex align-items-center justify-content-between text-muted"
-              style={{ fontSize: '11px' }}
-            >
-              <span>© 2017-2025 v.4.12.04 Dev Cuenti Team</span>
-              <div className="d-flex align-items-center">
-                <span className="me-2">📧</span>
-                <span>WhatsApp</span>
-              </div>
-            </div>
           </Col>
         </Row>
       </Container>

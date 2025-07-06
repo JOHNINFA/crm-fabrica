@@ -457,3 +457,63 @@ export const movimientoService = {
     }
   },
 };
+
+// Servicios para Ventas
+export const ventaService = {
+  // Obtener todas las ventas
+  getAll: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key]) queryParams.append(key, params[key]);
+      });
+      
+      const url = `${API_URL}/ventas/?${queryParams.toString()}`;
+      console.log('Intentando obtener ventas:', url);
+      const response = await fetch(url);
+      
+      if (!response.ok) throw new Error(`Error al obtener ventas: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error en getAll ventas:', error);
+      return handleApiError(error);
+    }
+  },
+
+  // Crear una nueva venta
+  create: async (ventaData) => {
+    try {
+      console.log('Intentando crear venta:', ventaData);
+      const response = await fetch(`${API_URL}/ventas/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ventaData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error al crear venta: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error en create venta:', error);
+      return handleApiError(error);
+    }
+  },
+
+  // Obtener una venta por ID
+  getById: async (id) => {
+    try {
+      console.log('Intentando obtener venta por ID:', id);
+      const response = await fetch(`${API_URL}/ventas/${id}/`);
+      if (!response.ok) throw new Error(`Error al obtener venta: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error en getById venta:', error);
+      return handleApiError(error);
+    }
+  },
+};

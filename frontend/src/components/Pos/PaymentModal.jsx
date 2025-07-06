@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { ventaService } from '../../services/api';
 import './PaymentModal.css';
 
-const PaymentModal = ({ show, onClose, cart, total }) => {
+const PaymentModal = ({ 
+  show, onClose, cart, total, subtotal = 0, impuestos = 0, descuentos = 0,
+  seller = 'Sistema', client = 'CONSUMIDOR FINAL', clearCart = () => {}
+}) => {
   const safeTotal = typeof total === 'number' ? total : 0;
   const [entregado, setEntregado] = useState(safeTotal);
   const [nota, setNota] = useState("");
@@ -10,6 +14,7 @@ const PaymentModal = ({ show, onClose, cart, total }) => {
   const [impresion, setImpresion] = useState("Ninguna");
   const [bodega, setBodega] = useState("Principal");
   const [metodoPago, setMetodoPago] = useState("Efectivo");
+  const [processing, setProcessing] = useState(false);
   
   // Actualizar dinero entregado cuando cambia el total
   useEffect(() => {
@@ -20,21 +25,62 @@ const PaymentModal = ({ show, onClose, cart, total }) => {
 
   if (!show) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Aquí iría la lógica para procesar el pago
-    console.log('Pago procesado:', { 
-      total: safeTotal,
-      entregado,
-      devuelta,
-      metodoPago,
-      banco,
-      centroCosto,
-      impresion,
-      bodega,
-      nota
-    });
-    onClose();
+    
+    if (cart.length === 0) {
+      alert('El carrito está vacío');
+      return;
+    }
+    
+    setProcessing(true);
+    
+    try {
+      // Preparar datos de la venta
+      const ventaData = {
+        vendedor: seller,
+        cliente: client,
+        metodo_pago: metodoPago.toUpperCase(),
+        subtotal: subtotal,
+        impuestos: impuestos,
+        descuentos: descuentos,
+        total: safeTotal,
+        dinero_entregado: entregado,
+        devuelta: devuelta,
+        estado: 'PAGADO',
+        nota: nota,
+        banco: banco,
+        centro_costo: centroCosto,
+        bodega: bodega,
+        detalles: cart.map(item => ({
+          producto: item.id,
+          cantidad: item.qty,
+          precio_unitario: item.price
+        }))
+      };
+      
+      console.log('Procesando venta:', ventaData);
+      
+      // Crear la venta
+      const result = await ventaService.create(ventaData);
+      
+      if (result && !result.error) {
+        console.log('✅ Venta creada exitosamente:', result);
+        alert(`¡Venta procesada exitosamente!\nFactura: ${result.numero_factura}\nTotal: $${safeTotal.toLocaleString()}`);
+        
+        // Limpiar carrito y cerrar modal
+        clearCart();
+        onClose();
+      } else {
+        console.error('❌ Error al crear venta:', result);
+        alert('Error al procesar la venta. Intente nuevamente.');
+      }
+    } catch (error) {
+      console.error('❌ Error al procesar venta:', error);
+      alert('Error al procesar la venta. Intente nuevamente.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   // Definición de las pestañas de métodos de pago con sus iconos
@@ -60,7 +106,7 @@ const PaymentModal = ({ show, onClose, cart, total }) => {
         {/* Header */}
         <div className="payment-modal-header">
           <h4>
-            Cliente: <strong>CONSUMIDOR FINAL</strong> | Fecha: <strong>{new Date().toISOString().split("T")[0]}</strong>
+            Cliente: <strong>{client}</strong> | Fecha: <strong>{new Date().toISOString().split("T")[0]}</strong> | Vendedor: <strong>{seller}</strong>
           </h4>
           <button className="close-button" onClick={onClose} title="Eliminar">
             <i className="bi bi-trash"></i>
@@ -222,8 +268,20 @@ const PaymentModal = ({ show, onClose, cart, total }) => {
           <button className="btn btn-outline-secondary" onClick={onClose}>
             <i className="bi bi-x-lg"></i> Cancelar
           </button>
-          <button className="btn btn-primary" onClick={handleSubmit}>
-            <i className="bi bi-check-lg"></i> Confirmar
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSubmit}
+            disabled={processing || cart.length === 0}
+          >
+            {processing ? (
+              <>
+                <i className="bi bi-hourglass-split"></i> Procesando...
+              </>
+            ) : (
+              <>
+                <i className="bi bi-check-lg"></i> Confirmar
+              </>
+            )}
           </button>
         </div>
       </div>

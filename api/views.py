@@ -6,10 +6,11 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
-    LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer
+    LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
+    VentaSerializer, DetalleVentaSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -166,3 +167,89 @@ class RegistroInventarioViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(fecha_produccion=fecha_produccion)
             
         return queryset.order_by('-fecha_creacion')
+
+class VentaViewSet(viewsets.ModelViewSet):
+    """API para gestionar ventas"""
+    queryset = Venta.objects.all()
+    serializer_class = VentaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Venta.objects.all().order_by('-fecha')
+        
+        # Filtros opcionales
+        fecha_inicio = self.request.query_params.get('fecha_inicio')
+        fecha_fin = self.request.query_params.get('fecha_fin')
+        vendedor = self.request.query_params.get('vendedor')
+        estado = self.request.query_params.get('estado')
+        
+        if fecha_inicio:
+            queryset = queryset.filter(fecha__gte=fecha_inicio)
+        if fecha_fin:
+            queryset = queryset.filter(fecha__lte=fecha_fin)
+        if vendedor:
+            queryset = queryset.filter(vendedor__icontains=vendedor)
+        if estado:
+            queryset = queryset.filter(estado=estado.upper())
+            
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Crear venta con sus detalles"""
+        try:
+            print("📊 Datos recibidos:", request.data)
+            venta_data = request.data.copy()
+            detalles_data = venta_data.pop('detalles', [])
+            
+            print("📊 Datos de venta:", venta_data)
+            print("📊 Datos de detalles:", detalles_data)
+            
+            # Crear la venta
+            venta_serializer = self.get_serializer(data=venta_data)
+            if not venta_serializer.is_valid():
+                print("❌ Errores en venta:", venta_serializer.errors)
+                return Response(venta_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            venta = venta_serializer.save()
+            print("✅ Venta creada:", venta.id)
+            
+            # Crear los detalles directamente
+            for detalle_data in detalles_data:
+                try:
+                    producto = Producto.objects.get(id=detalle_data['producto'])
+                    DetalleVenta.objects.create(
+                        venta=venta,
+                        producto=producto,
+                        cantidad=detalle_data['cantidad'],
+                        precio_unitario=detalle_data['precio_unitario']
+                    )
+                    print(f"✅ Detalle creado: {producto.nombre} x{detalle_data['cantidad']}")
+                except Producto.DoesNotExist:
+                    print(f"❌ Producto no encontrado: {detalle_data['producto']}")
+                    return Response(
+                        {'error': f'Producto {detalle_data["producto"]} no encontrado'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                except Exception as e:
+                    print(f"❌ Error creando detalle: {str(e)}")
+                    return Response(
+                        {'error': f'Error creando detalle: {str(e)}'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Retornar venta completa con detalles
+            venta_completa = VentaSerializer(venta)
+            return Response(venta_completa.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print("❌ Error general:", str(e))
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class DetalleVentaViewSet(viewsets.ModelViewSet):
+    """API para gestionar detalles de venta"""
+    queryset = DetalleVenta.objects.all()
+    serializer_class = DetalleVentaSerializer
+    permission_classes = [permissions.AllowAny]

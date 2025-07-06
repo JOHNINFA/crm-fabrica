@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import "./ConsumerForm.css";
 
-export default function ConsumerForm({ date, seller, setDate, setSeller, sellers }) {
-  const [clientName, setClientName] = useState("CONSUMIDOR FINAL");
+export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers }) {
   const [priceList, setPriceList] = useState("Cliente");
   const priceLists = ["Cliente"];
   return (
@@ -11,8 +10,8 @@ export default function ConsumerForm({ date, seller, setDate, setSeller, sellers
         <div className="consumer-form-title-container">
           <input 
             type="text" 
-            value={clientName} 
-            onChange={(e) => setClientName(e.target.value)}
+            value={client} 
+            onChange={(e) => setClient(e.target.value)}
             className="form-control consumer-form-title-input" 
             autoComplete="off"
             style={{ 
