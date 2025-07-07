@@ -6,11 +6,11 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
-    VentaSerializer, DetalleVentaSerializer
+    VentaSerializer, DetalleVentaSerializer, ClienteSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -253,3 +253,26 @@ class DetalleVentaViewSet(viewsets.ModelViewSet):
     queryset = DetalleVenta.objects.all()
     serializer_class = DetalleVentaSerializer
     permission_classes = [permissions.AllowAny]
+
+class ClienteViewSet(viewsets.ModelViewSet):
+    """API para gestionar clientes"""
+    queryset = Cliente.objects.all()
+    serializer_class = ClienteSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Cliente.objects.all().order_by('-fecha_creacion')
+        
+        # Filtros opcionales
+        activo = self.request.query_params.get('activo')
+        identificacion = self.request.query_params.get('identificacion')
+        nombre = self.request.query_params.get('nombre')
+        
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+        if identificacion:
+            queryset = queryset.filter(identificacion__icontains=identificacion)
+        if nombre:
+            queryset = queryset.filter(nombre_completo__icontains=nombre)
+            
+        return queryset

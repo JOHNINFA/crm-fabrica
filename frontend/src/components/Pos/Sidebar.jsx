@@ -60,7 +60,11 @@ export default function Sidebar({ onWidthChange }) {
         <div className="w-100 flex-grow-1" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
           <ul className="nav flex-column w-100 mt-3">
             {/* Inicio primero */}
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+            <li 
+              className="nav-item sidebar-item py-2" 
+              onClick={() => window.location.href = '/'}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>home</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Inicio</span>}
             </li>
@@ -96,7 +100,11 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>local_shipping</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Logística</span>}
             </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+            <li 
+              className="nav-item sidebar-item py-2" 
+              onClick={() => window.location.href = '/clientes'}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Clientes</span>}
             </li>

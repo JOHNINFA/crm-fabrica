@@ -9,6 +9,8 @@ import InventarioScreen from './pages/InventarioScreen';
 import SelectorDia from './pages/SelectorDia';
 import MenuSheets from './components/Cargue/MenuSheets';
 import InformeVentasGeneral from './pages/InformeVentasGeneral';
+import ClientesScreen from './pages/ClientesScreen';
+import ListaClientesScreen from './pages/ListaClientesScreen';
 
 function App() {
   return (
@@ -22,6 +24,10 @@ function App() {
           <Route path="/cargue" element={<SelectorDia />} />
           <Route path="/cargue/:dia" element={<MenuSheets />} />
           <Route path="/informes/general" element={<InformeVentasGeneral />} />
+          <Route path="/clientes" element={<ListaClientesScreen />} />
+          <Route path="/clientes/nuevo" element={<ClientesScreen />} />
+          <Route path="/clientes/editar/:id" element={<ClientesScreen />} />
+          <Route path="/clientes/ver/:id" element={<ClientesScreen />} />
         </Routes>
       </div>
     </Router>

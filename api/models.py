@@ -207,3 +207,69 @@ class DetalleVenta(models.Model):
     
     def __str__(self):
         return f"{self.producto.nombre} x{self.cantidad} - ${self.subtotal}"
+
+class Cliente(models.Model):
+    """Modelo para gestionar clientes"""
+    REGIMEN_CHOICES = [
+        ('SIMPLIFICADO', 'Régimen Simplificado'),
+        ('COMUN', 'Régimen Común'),
+    ]
+    
+    TIPO_PERSONA_CHOICES = [
+        ('NATURAL', 'Natural'),
+        ('JURIDICA', 'Jurídica'),
+    ]
+    
+    TIPO_IDENTIFICACION_CHOICES = [
+        ('CC', 'Cédula de ciudadanía'),
+        ('NIT', 'NIT'),
+        ('CE', 'Cédula de extranjería'),
+        ('PASAPORTE', 'Pasaporte'),
+    ]
+    
+    # Información básica
+    regimen = models.CharField(max_length=20, choices=REGIMEN_CHOICES, default='SIMPLIFICADO')
+    tipo_persona = models.CharField(max_length=20, choices=TIPO_PERSONA_CHOICES, default='NATURAL')
+    tipo_identificacion = models.CharField(max_length=20, choices=TIPO_IDENTIFICACION_CHOICES, default='CC')
+    identificacion = models.CharField(max_length=50, unique=True)
+    nombre_completo = models.CharField(max_length=255)
+    alias = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Nombres separados
+    primer_nombre = models.CharField(max_length=100, blank=True, null=True)
+    segundo_nombre = models.CharField(max_length=100, blank=True, null=True)
+    primer_apellido = models.CharField(max_length=100, blank=True, null=True)
+    segundo_apellido = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Contacto
+    telefono_1 = models.CharField(max_length=20, blank=True, null=True)
+    movil = models.CharField(max_length=20, blank=True, null=True)
+    email_1 = models.EmailField(blank=True, null=True)
+    contacto = models.CharField(max_length=255, blank=True, null=True)
+    telefono_contacto = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Datos geográficos
+    pais = models.CharField(max_length=100, default='Colombia')
+    departamento = models.CharField(max_length=100, blank=True, null=True)
+    ciudad = models.CharField(max_length=100, blank=True, null=True)
+    direccion = models.TextField(blank=True, null=True)
+    zona_barrio = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Configuración
+    tipo_contacto = models.CharField(max_length=50, default='CLIENTE')
+    sucursal = models.CharField(max_length=100, default='Todas')
+    medio_pago_defecto = models.CharField(max_length=50, blank=True, null=True)
+    nota = models.TextField(blank=True, null=True)
+    
+    # Saldos y crédito
+    permite_venta_credito = models.BooleanField(default=False)
+    cupo_endeudamiento = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    dias_vencimiento_cartera = models.IntegerField(default=30)
+    
+    # Control
+    activo = models.BooleanField(default=True)
+    fecha_registro = models.DateTimeField(default=timezone.now)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"{self.identificacion} - {self.nombre_completo}"

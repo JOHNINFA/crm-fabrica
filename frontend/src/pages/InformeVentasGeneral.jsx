@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Table, Form, Badge, Dropdown } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Table, Form, Badge, Dropdown, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { ventaService } from '../services/api';
 
@@ -7,6 +7,8 @@ const InformeVentasGeneral = () => {
   const navigate = useNavigate();
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [metricas, setMetricas] = useState({
     totalSinImpuestos: 0.00,
     totalImpuestos: 0.00,
@@ -66,6 +68,19 @@ const InformeVentasGeneral = () => {
     cargarVentas();
   }, []);
 
+  // Función para mostrar detalle de venta
+  const mostrarDetalleVenta = async (ventaId) => {
+    try {
+      const ventaCompleta = await ventaService.getById(ventaId);
+      if (ventaCompleta && !ventaCompleta.error) {
+        setVentaSeleccionada(ventaCompleta);
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error('Error al cargar detalle de venta:', error);
+    }
+  };
+
   // Transformar ventas para la tabla
   const transacciones = ventas.map((venta) => ({
     id: venta.id,
@@ -101,6 +116,14 @@ const InformeVentasGeneral = () => {
 
   return (
     <div className="bg-light min-vh-100" style={{ fontFamily: 'Arial, sans-serif' }}>
+      <style>
+        {`
+          .table-row-hover:hover {
+            background-color: #f8f9fa !important;
+            transition: background-color 0.2s ease;
+          }
+        `}
+      </style>
       {/* Header de navegación */}
       <div className="bg-primary text-white py-2" style={{ fontSize: '14px' }}>
         <Container fluid>
@@ -307,7 +330,12 @@ const InformeVentasGeneral = () => {
                         <tbody>
                           {transacciones.length > 0 ? (
                             transacciones.map((transaccion) => (
-                              <tr key={transaccion.id}>
+                              <tr 
+                                key={transaccion.id} 
+                                onClick={() => mostrarDetalleVenta(transaccion.id)}
+                                style={{ cursor: 'pointer' }}
+                                className="table-row-hover"
+                              >
                                 <td>{transaccion.tipo}</td>
                                 <td>{transaccion.medio}</td>
                                 <td>{transaccion.facturas}</td>
@@ -358,6 +386,97 @@ const InformeVentasGeneral = () => {
           </Col>
         </Row>
       </Container>
+
+      {/* Modal de detalle de venta */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Detalle de Venta - {ventaSeleccionada?.numero_factura}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {ventaSeleccionada && (
+            <>
+              {/* Información de la venta */}
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Card className="h-100">
+                    <Card.Header><strong>Información General</strong></Card.Header>
+                    <Card.Body>
+                      <p><strong>Cliente:</strong> {ventaSeleccionada.cliente}</p>
+                      <p><strong>Vendedor:</strong> {ventaSeleccionada.vendedor}</p>
+                      <p><strong>Fecha:</strong> {new Date(ventaSeleccionada.fecha).toLocaleString('es-CO')}</p>
+                      <p><strong>Método de Pago:</strong> {ventaSeleccionada.metodo_pago}</p>
+                      <p><strong>Estado:</strong> 
+                        <Badge bg={ventaSeleccionada.estado === 'PAGADO' ? 'success' : 'warning'} className="ms-2">
+                          {ventaSeleccionada.estado}
+                        </Badge>
+                      </p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card className="h-100">
+                    <Card.Header><strong>Totales</strong></Card.Header>
+                    <Card.Body>
+                      <p><strong>Subtotal:</strong> {formatCurrency(ventaSeleccionada.subtotal)}</p>
+                      <p><strong>Impuestos:</strong> {formatCurrency(ventaSeleccionada.impuestos)}</p>
+                      <p><strong>Descuentos:</strong> {formatCurrency(ventaSeleccionada.descuentos)}</p>
+                      <p><strong>Total:</strong> {formatCurrency(ventaSeleccionada.total)}</p>
+                      <p><strong>Dinero Entregado:</strong> {formatCurrency(ventaSeleccionada.dinero_entregado)}</p>
+                      <p><strong>Devuelta:</strong> {formatCurrency(ventaSeleccionada.devuelta)}</p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+
+              {/* Productos vendidos */}
+              <Card>
+                <Card.Header><strong>Productos Vendidos</strong></Card.Header>
+                <Card.Body>
+                  {ventaSeleccionada.detalles && ventaSeleccionada.detalles.length > 0 ? (
+                    <Table striped bordered hover size="sm">
+                      <thead>
+                        <tr>
+                          <th>Producto</th>
+                          <th>Cantidad</th>
+                          <th>Precio Unit.</th>
+                          <th>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ventaSeleccionada.detalles.map((detalle, index) => (
+                          <tr key={index}>
+                            <td>{detalle.producto_nombre}</td>
+                            <td>{detalle.cantidad}</td>
+                            <td>{formatCurrency(detalle.precio_unitario)}</td>
+                            <td>{formatCurrency(detalle.subtotal)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <p className="text-muted">No hay detalles disponibles</p>
+                  )}
+                </Card.Body>
+              </Card>
+
+              {/* Nota si existe */}
+              {ventaSeleccionada.nota && (
+                <Card className="mt-3">
+                  <Card.Header><strong>Nota</strong></Card.Header>
+                  <Card.Body>
+                    <p>{ventaSeleccionada.nota}</p>
+                  </Card.Body>
+                </Card>
+              )}
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
