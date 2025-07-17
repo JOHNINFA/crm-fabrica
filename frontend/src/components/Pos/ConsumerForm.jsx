@@ -1,19 +1,71 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./ConsumerForm.css";
+import { clienteService } from "../../services/clienteService";
 
 export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers }) {
   const [priceList, setPriceList] = useState("Cliente");
   const priceLists = ["Cliente"];
+  const [clienteSuggestions, setClienteSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const suggestionRef = useRef(null);
+  
+  // Cerrar sugerencias al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target)) {
+        setIsSearching(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+  
+  // Buscar clientes cuando se escribe
+  const handleClientSearch = async (term) => {
+    setSearchTerm(term);
+    setClient(term);
+    
+    if (term.length < 2) {
+      setClienteSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+    
+    try {
+      setIsSearching(true);
+      const clientes = await clienteService.getAll();
+      if (clientes && !clientes.error) {
+        const filteredClientes = clientes.filter(c => 
+          c.nombre_completo.toLowerCase().includes(term.toLowerCase()) ||
+          c.identificacion.includes(term)
+        ).slice(0, 5); // Limitar a 5 resultados
+        
+        setClienteSuggestions(filteredClientes);
+      }
+    } catch (error) {
+      console.error('Error al buscar clientes:', error);
+    }
+  };
+  
+  // Seleccionar un cliente de las sugerencias
+  const selectCliente = (cliente) => {
+    setClient(cliente.nombre_completo);
+    setClienteSuggestions([]);
+    setIsSearching(false);
+  };
   return (
     <div className="consumer-form">
       <div className="consumer-form-header">
-        <div className="consumer-form-title-container">
+        <div className="consumer-form-title-container position-relative">
           <input 
             type="text" 
             value={client} 
-            onChange={(e) => setClient(e.target.value)}
+            onChange={(e) => handleClientSearch(e.target.value)}
+            onClick={(e) => e.target.select()}
             className="form-control consumer-form-title-input" 
             autoComplete="off"
+            placeholder="Buscar cliente..."
             style={{ 
               fontSize: '12px',
               fontWeight: 'bold',
@@ -24,16 +76,45 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
               padding: '2px 8px'
             }} 
           />
+          
+          {/* Sugerencias de clientes */}
+          {isSearching && clienteSuggestions.length > 0 && (
+            <div 
+              ref={suggestionRef}
+              className="cliente-suggestions"
+            >
+              {clienteSuggestions.map((cliente) => (
+                <div 
+                  key={cliente.id} 
+                  className="cliente-suggestion-item"
+                  onClick={() => selectCliente(cliente)}
+                >
+                  <div className="cliente-name">{cliente.nombre_completo}</div>
+                  <div className="cliente-id">{cliente.identificacion}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="consumer-form-actions">
-          <button title="Editar cliente">
-            <span className="material-icons" style={{fontSize: '16px'}}>edit</span>
+          <button 
+            title="Buscar cliente" 
+            onClick={() => setIsSearching(!isSearching)}
+          >
+            <span className="material-icons" style={{fontSize: '16px'}}>search</span>
           </button>
-          <button className="btn-primary" title="Agregar cliente">
+          <button 
+            className="btn-primary" 
+            title="Agregar cliente"
+            onClick={() => window.location.href = '/clientes/nuevo'}
+          >
             <span className="material-icons" style={{fontSize: '16px'}}>person_add</span>
           </button>
-          <button title="Eliminar">
-            <span className="material-icons" style={{fontSize: '16px'}}>delete</span>
+          <button 
+            title="Limpiar"
+            onClick={() => setClient("CONSUMIDOR FINAL")}
+          >
+            <span className="material-icons" style={{fontSize: '16px'}}>clear</span>
           </button>
         </div>
       </div>

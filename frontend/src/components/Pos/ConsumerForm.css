@@ -11,6 +11,46 @@
   border-color: #007bff !important;
   box-shadow: none !important;
 }
+
+/* Estilos para las sugerencias de clientes */
+.cliente-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 370px;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: white;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.cliente-suggestion-item {
+  padding: 3px 4px;
+  cursor: pointer;
+  background-color: #337AB7;
+  border-bottom: 1px solid #3b77db;
+  display: flex;
+  flex-direction: column;
+  color: white;
+}
+
+
+.cliente-name {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.cliente-id {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cliente-suggestion-item:hover .cliente-id {
+  color: rgba(255, 255, 255, 0.95);
+}
 .consumer-form {
   background-color: #fff;
   padding: 15px;
