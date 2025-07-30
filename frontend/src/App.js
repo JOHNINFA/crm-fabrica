@@ -11,6 +11,7 @@ import MenuSheets from './components/Cargue/MenuSheets';
 import InformeVentasGeneral from './pages/InformeVentasGeneral';
 import ClientesScreen from './pages/ClientesScreen';
 import ListaClientesScreen from './pages/ListaClientesScreen';
+import ListaPreciosScreen from './pages/ListaPreciosScreen';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="/clientes/nuevo" element={<ClientesScreen />} />
           <Route path="/clientes/editar/:id" element={<ClientesScreen />} />
           <Route path="/clientes/ver/:id" element={<ClientesScreen />} />
+          <Route path="/lista-precios" element={<ListaPreciosScreen />} />
         </Routes>
       </div>
     </Router>

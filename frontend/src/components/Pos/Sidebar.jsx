@@ -10,6 +10,7 @@ export default function Sidebar({ onWidthChange }) {
   const { openProductsModal } = useModalContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
   
   const shouldShowText = isExpanded || isHovered;
   const sidebarWidth = shouldShowText ? 210 : 60;
@@ -78,6 +79,45 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Productos</span>}
             </li>
+            {/* Lista de precios con submenu */}
+            <li 
+              className="nav-item sidebar-item py-2" 
+              onClick={() => {
+                setShowPreciosSubmenu(!showPreciosSubmenu);
+                if (!showPreciosSubmenu) setIsExpanded(true);
+              }}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>attach_money</span>
+              {shouldShowText && <span style={{ fontSize: '14px' }}>Precios</span>}
+              {shouldShowText && (
+                <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
+                  {showPreciosSubmenu ? 'expand_less' : 'expand_more'}
+                </span>
+              )}
+            </li>
+            
+            {/* Submenu de Lista de precios */}
+            {showPreciosSubmenu && isExpanded && (
+              <>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => window.location.href = '/lista-precios'}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Lista de precios</span>
+                </li>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => window.location.href = '/informe-lista-precios'}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Informe de lista de precios</span>
+                </li>
+              </>
+            )}
 
             {/* Factura Rápida */}
             <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
