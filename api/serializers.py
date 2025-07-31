@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -113,3 +113,27 @@ class ClienteSerializer(serializers.ModelSerializer):
             'activo', 'fecha_registro', 'fecha_creacion'
         ]
         read_only_fields = ('fecha_creacion',)
+
+class ListaPrecioSerializer(serializers.ModelSerializer):
+    """Serializer para listas de precios"""
+    
+    class Meta:
+        model = ListaPrecio
+        fields = [
+            'id', 'nombre', 'tipo', 'empleado', 'sucursal', 
+            'activo', 'fecha_creacion'
+        ]
+        read_only_fields = ('fecha_creacion',)
+
+class PrecioProductoSerializer(serializers.ModelSerializer):
+    """Serializer para precios de productos"""
+    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+    lista_nombre = serializers.ReadOnlyField(source='lista_precio.nombre')
+    
+    class Meta:
+        model = PrecioProducto
+        fields = [
+            'id', 'producto', 'producto_nombre', 'lista_precio', 'lista_nombre',
+            'precio', 'utilidad_porcentaje', 'activo', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_actualizacion',)

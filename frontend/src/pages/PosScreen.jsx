@@ -34,6 +34,7 @@ export default function PosScreen() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [seller, setSeller] = useState(defaultSellers[0]);
   const [client, setClient] = useState("CONSUMIDOR FINAL");
+  const [priceList, setPriceList] = useState("CLIENTES");
   const [imp, setImp] = useState(0);
   const [desc, setDesc] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(210);
@@ -94,6 +95,7 @@ export default function PosScreen() {
                     addProduct={addProduct}
                     search={search}
                     setSearch={setSearch}
+                    priceList={priceList}
                   />
                 </div>
 
@@ -103,9 +105,11 @@ export default function PosScreen() {
                       date={date}
                       seller={seller}
                       client={client}
+                      priceList={priceList}
                       setDate={setDate}
                       setSeller={setSeller}
                       setClient={setClient}
+                      setPriceList={setPriceList}
                       sellers={defaultSellers}
                     />
                     <Cart

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { listaPrecioService } from '../services/listaPrecioService';
 import './ListaPreciosScreen.css';
 
 const mockEmpleados = [
@@ -9,13 +11,40 @@ const mockEmpleados = [
 ];
 
 const ListaPreciosScreen = () => {
+    const navigate = useNavigate();
+    const { id } = useParams();
     const [nombreLista, setNombreLista] = useState('');
     const [aumentarPrecio, setAumentarPrecio] = useState(false);
-    const [sucursal, setSucursal] = useState('Todos');
+    const [sucursal, setSucursal] = useState('Principal');
     const [activo, setActivo] = useState(true);
-    const [tipoPrecio, setTipoPrecio] = useState('Valor');
+    const [tipoPrecio, setTipoPrecio] = useState('CLIENTE');
     const [busqueda, setBusqueda] = useState('');
     const [empleadosSeleccionados, setEmpleadosSeleccionados] = useState(new Set());
+    const [loading, setLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+
+    useEffect(() => {
+        if (id) {
+            setIsEditing(true);
+            cargarLista();
+        }
+    }, [id]);
+
+    const cargarLista = async () => {
+        try {
+            setLoading(true);
+            const lista = await listaPrecioService.getById(id);
+            setNombreLista(lista.nombre);
+            setTipoPrecio(lista.tipo);
+            setSucursal(lista.sucursal);
+            setActivo(lista.activo);
+        } catch (error) {
+            console.error('Error cargando lista:', error);
+            alert('Error al cargar la lista de precios');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSeleccionarEmpleado = (empleadoId) => {
         const nuevosSeleccionados = new Set(empleadosSeleccionados);
@@ -31,17 +60,43 @@ const ListaPreciosScreen = () => {
         emp.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("Datos a guardar:", {
-            nombreLista,
-            aumentarPrecio,
-            sucursal,
-            activo,
-            tipoPrecio,
-            empleados: Array.from(empleadosSeleccionados)
-        });
-        alert("Datos guardados en la consola.");
+        
+        if (!nombreLista.trim()) {
+            alert('El nombre de la lista es requerido');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const empleadoSeleccionado = empleadosSeleccionados.size > 0 
+                ? mockEmpleados.find(emp => empleadosSeleccionados.has(emp.id))?.nombre 
+                : null;
+
+            const data = {
+                nombre: nombreLista.trim(),
+                tipo: tipoPrecio,
+                empleado: empleadoSeleccionado,
+                sucursal,
+                activo
+            };
+
+            if (isEditing) {
+                await listaPrecioService.update(id, data);
+                alert('Lista de precios actualizada exitosamente');
+            } else {
+                await listaPrecioService.create(data);
+                alert('Lista de precios creada exitosamente');
+            }
+            
+            navigate('/lista-precios');
+        } catch (error) {
+            console.error('Error guardando lista:', error);
+            alert('Error al guardar la lista de precios');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -49,10 +104,10 @@ const ListaPreciosScreen = () => {
             <div className="card shadow-sm">
                 <div className="card-body p-2">
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                        <h2 className="card-title h5 mb-0">Maestro de Lista de Precios</h2>
+                        <h2 className="card-title h5 mb-0">{isEditing ? 'Editar' : 'Crear'} Lista de Precios</h2>
                         <button 
-                            className="btn btn-outline-secondary"
-                            onClick={() => window.location.href = '/pos'}
+                            className="btn btn-outline-secondary btn-regresar-pos-custom"
+                            onClick={() => navigate('/pos')}
                         >
                             Regresar al POS
                         </button>
@@ -154,15 +209,18 @@ const ListaPreciosScreen = () => {
                                         value={tipoPrecio}
                                         onChange={(e) => setTipoPrecio(e.target.value)}
                                     >
-                                        <option>Valor</option>
-                                        <option>Porcentaje</option>
+                                        <option value="CLIENTE">Cliente</option>
+                                        <option value="PROVEEDOR">Proveedor</option>
+                                        <option value="EMPLEADO">Empleado</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-3">
-                            <button type="submit" className="btn btn-primary me-2">Guardar</button>
+                            <button type="submit" className="btn btn-guardar-custom me-2" disabled={loading}>
+                                {loading ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Guardar')}
+                            </button>
                             <button type="button" className="btn btn-light border">Cancelar</button>
                         </div>
                     </form>

@@ -1,0 +1,100 @@
+.informe-lista-precios-container {
+    padding: 0.5rem;
+    min-height: 100vh;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: #28a745;
+    border-radius: 50%;
+}
+
+.custom-tabs {
+    background-color: #3d8bfd;
+    border-radius: 0.3rem 0.3rem 0 0;
+    padding: 0.5rem 0.5rem 0 0.5rem;
+}
+
+.custom-tabs .nav-tabs {
+    border-bottom: none;
+}
+
+.custom-tabs .nav-link {
+    border: none !important;
+    color: white;
+    background-color: #8ab7fa;
+    margin-right: 0.25rem;
+    border-radius: 0.3rem 0.3rem 0 0;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.custom-tabs .nav-link.active {
+    background-color: white !important;
+    color: #495057;
+    font-weight: 500;
+}
+
+.ajuste-porcentaje-section {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-top: none;
+}
+
+.ajuste-porcentaje-section th {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.productos-section .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-dollar-custom {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    color: white !important;
+}
+
+.btn-dollar-custom:hover {
+    background-color: #001a3a !important;
+    border-color: #001a3a !important;
+}
+
+.btn-regresar-informe-custom {
+    color: #002149 !important;
+    border-color: #002149 !important;
+}
+
+.btn-regresar-informe-custom:hover {
+    background-color: #002149 !important;
+    color: white !important;
+}
+
+.btn-refresh-custom .material-icons {
+    color: #002149 !important;
+}
+
+.btn-print-custom {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    color: white !important;
+}
+
+.btn-print-custom:hover {
+    background-color: #001a3a !important;
+    border-color: #001a3a !important;
+}
+
+.productos-table td {
+    color: #000000 !important;
+}
+
+.productos-table .align-middle {
+    color: #000000 !important;
+}

@@ -5,7 +5,7 @@ import { useProducts } from "../../context/ProductContext";
 import CategoryManager from "./CategoryManager";
 import "./ProductList.css";
 
-export default function ProductList({ addProduct, search, setSearch }) {
+export default function ProductList({ addProduct, search, setSearch, priceList }) {
   const { products, categories } = useProducts();
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCategoryManager, setShowCategoryManager] = useState(false);
@@ -130,7 +130,7 @@ export default function ProductList({ addProduct, search, setSearch }) {
         <div className="row g-3">
           {filteredProducts.map((p) => (
             <div className="col-md-6 col-xl-4" key={p.id}>
-              <ProductCard product={p} onClick={() => addProduct(p)} />
+              <ProductCard product={p} onClick={() => addProduct(p)} priceList={priceList} />
             </div>
           ))}
           {filteredProducts.length === 0 && (

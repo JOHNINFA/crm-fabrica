@@ -12,6 +12,8 @@ import InformeVentasGeneral from './pages/InformeVentasGeneral';
 import ClientesScreen from './pages/ClientesScreen';
 import ListaClientesScreen from './pages/ListaClientesScreen';
 import ListaPreciosScreen from './pages/ListaPreciosScreen';
+import MaestroListaPreciosScreen from './pages/MaestroListaPreciosScreen';
+import InformeListaPreciosScreen from './pages/InformeListaPreciosScreen';
 
 function App() {
   return (
@@ -29,7 +31,10 @@ function App() {
           <Route path="/clientes/nuevo" element={<ClientesScreen />} />
           <Route path="/clientes/editar/:id" element={<ClientesScreen />} />
           <Route path="/clientes/ver/:id" element={<ClientesScreen />} />
-          <Route path="/lista-precios" element={<ListaPreciosScreen />} />
+          <Route path="/lista-precios" element={<MaestroListaPreciosScreen />} />
+          <Route path="/crear-lista-precios" element={<ListaPreciosScreen />} />
+          <Route path="/editar-lista-precios/:id" element={<ListaPreciosScreen />} />
+          <Route path="/informe-lista-precios" element={<InformeListaPreciosScreen />} />
         </Routes>
       </div>
     </Router>

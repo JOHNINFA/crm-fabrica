@@ -1,5 +1,6 @@
 // src/components/Pos/Sidebar.jsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useModalContext } from '../../context/ModalContext';
 import ProductsModal from './ProductsModal';
 import AddProductModal from './AddProductModal';
@@ -8,6 +9,7 @@ import { consultarTablaProducto } from '../../utils/consultaProductos';
 
 export default function Sidebar({ onWidthChange }) {
   const { openProductsModal } = useModalContext();
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
@@ -63,7 +65,7 @@ export default function Sidebar({ onWidthChange }) {
             {/* Inicio primero */}
             <li 
               className="nav-item sidebar-item py-2" 
-              onClick={() => window.location.href = '/'}
+              onClick={() => navigate('/')}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>home</span>
@@ -102,7 +104,7 @@ export default function Sidebar({ onWidthChange }) {
               <>
                 <li 
                   className="nav-item sidebar-item py-1" 
-                  onClick={() => window.location.href = '/lista-precios'}
+                  onClick={() => navigate('/lista-precios')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
@@ -110,7 +112,7 @@ export default function Sidebar({ onWidthChange }) {
                 </li>
                 <li 
                   className="nav-item sidebar-item py-1" 
-                  onClick={() => window.location.href = '/informe-lista-precios'}
+                  onClick={() => navigate('/informe-lista-precios')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
@@ -142,7 +144,7 @@ export default function Sidebar({ onWidthChange }) {
             </li>
             <li 
               className="nav-item sidebar-item py-2" 
-              onClick={() => window.location.href = '/clientes'}
+              onClick={() => navigate('/clientes')}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>

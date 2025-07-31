@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
+import { listaPrecioService, precioProductoService } from "../../services/listaPrecioService";
 
-export default function ProductCard({ product, onClick }) {
+export default function ProductCard({ product, onClick, priceList }) {
   const [imageSource, setImageSource] = useState(product.image || null);
+  const [precioEspecifico, setPrecioEspecifico] = useState(null);
+  
+  // Debug: verificar precio del producto
+  useEffect(() => {
+    if (!product.price || product.price === 0) {
+      console.log('Producto sin precio base:', product.name, 'precio:', product.price);
+    }
+  }, [product]);
   
   // Cargar imagen local si no está disponible
   useEffect(() => {
@@ -20,9 +29,40 @@ export default function ProductCard({ product, onClick }) {
     loadLocalImage();
   }, [product.id, imageSource]);
   
+  // Cargar precio específico según lista seleccionada
+  useEffect(() => {
+    if (!priceList) {
+      setPrecioEspecifico(null);
+      return;
+    }
+    
+    const cargarPrecioEspecifico = async () => {
+      try {
+        const listas = await listaPrecioService.getAll({ activo: true });
+        const lista = listas.find(l => l.nombre === priceList);
+        if (!lista) {
+          setPrecioEspecifico(null);
+          return;
+        }
+        
+        const precios = await precioProductoService.getAll({ producto: product.id, lista_precio: lista.id });
+        if (precios.length > 0) {
+          setPrecioEspecifico(precios[0].precio);
+        } else {
+          setPrecioEspecifico(null);
+        }
+      } catch (error) {
+        console.error('Error cargando precio específico:', error);
+        setPrecioEspecifico(null);
+      }
+    };
+    
+    cargarPrecioEspecifico();
+  }, [product.id, priceList]);
+  
   // Formatear precio
   const formatPrice = (price) => {
-    const validPrice = typeof price === 'number' ? price : 0;
+    const validPrice = (price !== null && price !== undefined && !isNaN(price)) ? Number(price) : 0;
     return `$${validPrice.toLocaleString('es-CO', {
       minimumFractionDigits: 0, 
       maximumFractionDigits: 0
@@ -74,7 +114,7 @@ export default function ProductCard({ product, onClick }) {
         
         {/* Precio */}
         <div style={{ fontSize: '14px' }}>
-          <strong>{formatPrice(product.price)}</strong>
+          <strong>{formatPrice(precioEspecifico !== null ? precioEspecifico : (product.price || 0))}</strong>
         </div>
         
         {/* Nombre del producto */}

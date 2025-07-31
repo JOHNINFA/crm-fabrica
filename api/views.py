@@ -6,11 +6,11 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
-    VentaSerializer, DetalleVentaSerializer, ClienteSerializer
+    VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -274,5 +274,47 @@ class ClienteViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(identificacion__icontains=identificacion)
         if nombre:
             queryset = queryset.filter(nombre_completo__icontains=nombre)
+            
+        return queryset
+class ListaPrecioViewSet(viewsets.ModelViewSet):
+    """API para gestionar listas de precios"""
+    queryset = ListaPrecio.objects.all()
+    serializer_class = ListaPrecioSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ListaPrecio.objects.all().order_by('-fecha_creacion')
+        
+        # Filtros opcionales
+        activo = self.request.query_params.get('activo')
+        tipo = self.request.query_params.get('tipo')
+        
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+        if tipo:
+            queryset = queryset.filter(tipo=tipo.upper())
+            
+        return queryset
+
+class PrecioProductoViewSet(viewsets.ModelViewSet):
+    """API para gestionar precios de productos"""
+    queryset = PrecioProducto.objects.all()
+    serializer_class = PrecioProductoSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = PrecioProducto.objects.all().order_by('producto__nombre')
+        
+        # Filtros opcionales
+        lista_precio = self.request.query_params.get('lista_precio')
+        producto = self.request.query_params.get('producto')
+        activo = self.request.query_params.get('activo')
+        
+        if lista_precio:
+            queryset = queryset.filter(lista_precio_id=lista_precio)
+        if producto:
+            queryset = queryset.filter(producto_id=producto)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
             
         return queryset

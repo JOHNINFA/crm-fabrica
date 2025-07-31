@@ -273,3 +273,36 @@ class Cliente(models.Model):
     
     def __str__(self):
         return f"{self.identificacion} - {self.nombre_completo}"
+
+class ListaPrecio(models.Model):
+    """Modelo para listas de precios"""
+    TIPO_CHOICES = [
+        ('CLIENTE', 'Cliente'),
+        ('PROVEEDOR', 'Proveedor'),
+        ('EMPLEADO', 'Empleado'),
+    ]
+    
+    nombre = models.CharField(max_length=100, unique=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='CLIENTE')
+    empleado = models.CharField(max_length=100, blank=True, null=True)
+    sucursal = models.CharField(max_length=100, default='Principal')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"{self.nombre} - {self.tipo}"
+
+class PrecioProducto(models.Model):
+    """Modelo para precios específicos por producto y lista"""
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='precios')
+    lista_precio = models.ForeignKey(ListaPrecio, on_delete=models.CASCADE, related_name='precios')
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+    utilidad_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    activo = models.BooleanField(default=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('producto', 'lista_precio')
+    
+    def __str__(self):
+        return f"{self.producto.nombre} - {self.lista_precio.nombre} - ${self.precio}"

@@ -1,10 +1,27 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./ConsumerForm.css";
 import { clienteService } from "../../services/clienteService";
+import { listaPrecioService } from "../../services/listaPrecioService";
 
-export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers }) {
-  const [priceList, setPriceList] = useState("Cliente");
-  const priceLists = ["Cliente"];
+export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers, priceList, setPriceList }) {
+  const [priceLists, setPriceLists] = useState([]);
+  
+  useEffect(() => {
+    cargarListasPrecios();
+  }, []);
+  
+  const cargarListasPrecios = async () => {
+    try {
+      const listas = await listaPrecioService.getAll({ activo: true });
+      setPriceLists(listas);
+      if (listas.length > 0 && !priceList) {
+        const clienteLista = listas.find(l => l.nombre === 'CLIENTES');
+        setPriceList(clienteLista ? 'CLIENTES' : listas[0].nombre);
+      }
+    } catch (error) {
+      console.error('Error cargando listas:', error);
+    }
+  };
   const [clienteSuggestions, setClienteSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -150,7 +167,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
               }}
             >
               {priceLists.map(pl => (
-                <option key={pl} value={pl}>{pl}</option>
+                <option key={pl.id} value={pl.nombre}>{pl.nombre}</option>
               ))}
             </select>
             <span className="material-icons position-absolute" style={{ 
