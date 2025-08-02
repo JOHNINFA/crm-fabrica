@@ -130,7 +130,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
         <div className="row g-3">
           {filteredProducts.map((p) => (
             <div className="col-md-6 col-xl-4" key={p.id}>
-              <ProductCard product={p} onClick={() => addProduct(p)} priceList={priceList} />
+              <ProductCard product={p} onClick={(product, currentPrice) => addProduct(product, currentPrice)} priceList={priceList} />
             </div>
           ))}
           {filteredProducts.length === 0 && (

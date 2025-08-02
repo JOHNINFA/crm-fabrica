@@ -47,7 +47,7 @@ export default function PosScreen() {
   };
 
   // Funciones carrito
-  const addProduct = (product) => {
+  const addProduct = (product, currentPrice = null) => {
     setCart((prev) => {
       const found = prev.find((item) => item.id === product.id);
       if (found) {
@@ -55,7 +55,9 @@ export default function PosScreen() {
           item.id === product.id ? { ...item, qty: item.qty + 1 } : item
         );
       }
-      return [...prev, { ...product, qty: 1 }];
+      // Usar el precio actual (de la lista) o el precio base del producto
+      const priceToUse = currentPrice !== null ? currentPrice : product.price;
+      return [...prev, { ...product, price: priceToUse, qty: 1 }];
     });
   };
   const removeProduct = (id) => setCart((prev) => prev.filter((item) => item.id !== id));

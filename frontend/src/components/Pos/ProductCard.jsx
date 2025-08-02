@@ -29,7 +29,7 @@ export default function ProductCard({ product, onClick, priceList }) {
     loadLocalImage();
   }, [product.id, imageSource]);
   
-  // Cargar precio específico según lista seleccionada
+  // Cargar precio específico según lista seleccionada (solo para obtener el precio al agregar al carrito)
   useEffect(() => {
     if (!priceList) {
       setPrecioEspecifico(null);
@@ -73,7 +73,7 @@ export default function ProductCard({ product, onClick, priceList }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onClick();
+      onClick(product, precioEspecifico !== null ? precioEspecifico : (product.price || 0));
     }
   };
 
@@ -88,7 +88,7 @@ export default function ProductCard({ product, onClick, priceList }) {
         maxWidth: "180px",
         margin: "0 auto"
       }}
-      onClick={onClick}
+      onClick={() => onClick(product, precioEspecifico !== null ? precioEspecifico : (product.price || 0))}
       title="Agregar al carrito"
       tabIndex={0}
       onKeyDown={handleKeyDown}
@@ -114,7 +114,7 @@ export default function ProductCard({ product, onClick, priceList }) {
         
         {/* Precio */}
         <div style={{ fontSize: '14px' }}>
-          <strong>{formatPrice(precioEspecifico !== null ? precioEspecifico : (product.price || 0))}</strong>
+          <strong>{formatPrice(product.price || 0)}</strong>
         </div>
         
         {/* Nombre del producto */}
