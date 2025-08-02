@@ -1,0 +1,156 @@
+/* Estilos generales */
+.responsable-title {
+    font-weight: bold;
+    color: #4CAF50;
+    font-size: 1.5rem;
+}
+
+/* Estilos de la tabla de productos */
+.tabla-productos {
+    font-size: 0.8rem;
+}
+
+.tabla-productos .table-header {
+    background-color: #e2efda;
+    font-weight: bold;
+    text-align: center;
+    color: #000;
+}
+
+.tabla-productos td,
+.tabla-productos th {
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+    padding: 0.3rem;
+}
+
+.table-row-green {
+    background-color: #f8f9fa;
+}
+
+.producto-nombre {
+    font-weight: 500;
+    min-width: 200px;
+}
+
+.total-cell {
+    font-weight: bold;
+    background-color: #e2efda;
+}
+
+.valor-cell {
+    font-weight: 500;
+}
+
+.neto-cell {
+    font-weight: bold;
+    background-color: #d4edda;
+}
+
+/* Inputs en la tabla */
+.tabla-productos input[type="number"] {
+    border: none;
+    background: transparent;
+    width: 60px;
+    padding: 2px 4px;
+}
+
+.tabla-productos input[type="number"]:focus {
+    background: white;
+    border: 1px solid #007bff;
+    outline: none;
+}
+
+.tabla-productos input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+/* Estilos del resumen */
+.resumen-container {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.resumen-pagos .table-header {
+    background-color: #c6e0b4;
+    font-weight: bold;
+    text-align: center;
+    color: #000;
+}
+
+.resumen-pagos tfoot td {
+    background-color: #e2efda;
+    font-weight: bold;
+}
+
+/* Estilos de los totales */
+.resumen-totales > div {
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.resumen-totales .bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.resumen-totales .bg-lightpink {
+    background-color: #fce4d6 !important;
+    border-color: #f8cbad !important;
+}
+
+.resumen-totales .bg-lightgreen {
+    background-color: #e2efda !important;
+    border-color: #c6e0b4 !important;
+}
+
+/* Botón limpiar */
+.btn-limpiar {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+    font-weight: 500;
+}
+
+.btn-limpiar:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #000;
+}
+
+/* Info de cargue */
+.info-cargue .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.8rem;
+}
+
+.info-cargue .bg-primary {
+    background-color: #007bff !important;
+}
+
+.info-cargue .bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.info-cargue .bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .tabla-productos {
+        font-size: 0.7rem;
+    }
+    
+    .tabla-productos input[type="number"] {
+        width: 50px;
+    }
+    
+    .responsable-title {
+        font-size: 1.2rem;
+    }
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import RegistroForm from "./RegistroForm";
+import { ProductProvider } from "../../context/ProductContext";
+import PlantillaOperativa from "./PlantillaOperativa";
 
 const productosPorDiaYId = {
   LUNES: {
@@ -104,45 +105,66 @@ export default function MenuSheets() {
   const registrosIniciales = productosPorDiaYId[dia]?.[idSeleccionado] || [];
 
   return (
-    <div style={{ padding: 24 }}>
-      {/* Título con el día y la hoja */}
-      <h2>{dia} – {idSeleccionado}</h2>
+    <div className="container-fluid mt-4">
+      <div className="card shadow-sm mb-4">
+        <div className="card-body p-3">
+          {/* Título con el día */}
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h2 className="card-title mb-0">Cargue de Productos - {dia}</h2>
+            <button 
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => window.history.back()}
+            >
+              Regresar
+            </button>
+          </div>
 
-      {/* Selector de IDs */}
-      <div style={{ marginBottom: 24 }}>
-        {ids.map((i) => (
-          <button
-            key={i}
-            onClick={() => setIdSeleccionado(i)}
-            className={i === idSeleccionado ? "active" : ""}
-            style={{ marginRight: 8 }}
-          >
-            {i}
-          </button>
-        ))}
+          {/* Selector de IDs */}
+          <div className="mb-3">
+            <label className="form-label fw-bold">Seleccionar Vendedor:</label>
+            <div className="btn-group" role="group">
+              {ids.map((i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setIdSeleccionado(i)}
+                  className={`btn ${
+                    i === idSeleccionado ? 'btn-primary' : 'btn-outline-primary'
+                  }`}
+                >
+                  {i}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nombre del responsable */}
+          <div className="mb-3">
+            <label className="form-label fw-bold">Nombre del Vendedor ({idSeleccionado}):</label>
+            <input
+              type="text"
+              className="form-control"
+              value={nombreResponsable}
+              onChange={e => setNombreResponsable(e.target.value)}
+              placeholder={`Ingrese el nombre del vendedor ${idSeleccionado}`}
+              style={{ maxWidth: '300px' }}
+            />
+            <small className="form-text text-muted">
+              El ID {idSeleccionado} es fijo, pero el nombre puede cambiar según el vendedor asignado.
+            </small>
+          </div>
+        </div>
       </div>
 
-      {/* Nombre del responsable */}
-      <div style={{ marginBottom: 24 }}>
-        <label>
-          Nombre responsable:
-          <input
-            type="text"
-            value={nombreResponsable}
-            onChange={e => setNombreResponsable(e.target.value)}
-            placeholder="Escribe un nombre…"
-            style={{ marginLeft: 8 }}
-          />
-        </label>
-      </div>
-
-      {/* Tabla de registros */}
-      <RegistroForm
-        registrosIniciales={registrosIniciales}
-        dia={dia}
-        id_sheet={idSeleccionado}
-        id_usuario={id_usuario}
-      />
+      {/* Plantilla Operativa */}
+      <ProductProvider>
+        <PlantillaOperativa 
+          responsable={nombreResponsable || "RESPONSABLE"}
+          dia={dia}
+          idSheet={idSeleccionado}
+          idUsuario={id_usuario}
+        />
+      </ProductProvider>
     </div>
   );
 }

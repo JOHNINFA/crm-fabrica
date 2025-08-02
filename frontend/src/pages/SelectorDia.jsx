@@ -11,17 +11,33 @@ export default function SelectorDia() {
   const navigate = useNavigate();
 
   return (
-    <div style={{ padding: 32 }}>
-      <h2>Selecciona el día para cargar productos</h2>
-      {dias.map(dia => (
-        <button
-          key={dia}
-          style={{ margin: 10 }}
-          onClick={() => navigate(`/cargue/${dia}`)}
-        >
-          {dia}
-        </button>
-      ))}
+    <div className="container mt-4">
+      <div className="card shadow-sm">
+        <div className="card-body p-4">
+          <h2 className="card-title mb-4 text-center">Selecciona el día para cargar productos</h2>
+          <div className="row g-3">
+            {dias.map(dia => (
+              <div key={dia} className="col-md-4 col-lg-2">
+                <button
+                  className="btn btn-outline-primary w-100 py-3"
+                  onClick={() => navigate(`/cargue/${dia}`)}
+                  style={{ fontWeight: '500' }}
+                >
+                  {dia}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-4">
+            <button 
+              className="btn btn-secondary"
+              onClick={() => navigate('/pos')}
+            >
+              Regresar al POS
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
