@@ -5,7 +5,7 @@ import ResumenVentas from './ResumenVentas';
 import BotonLimpiar from './BotonLimpiar';
 import './PlantillaOperativa.css';
 
-const PlantillaOperativa = ({ responsable = "LUIS MENDEZ", dia, idSheet, idUsuario }) => {
+const PlantillaOperativa = ({ responsable = "LUIS MENDEZ", dia, idSheet, idUsuario, onEditarNombre }) => {
   const { products } = useProducts();
   const [productosOperativos, setProductosOperativos] = useState([]);
   const [datosResumen, setDatosResumen] = useState({
@@ -79,24 +79,25 @@ const PlantillaOperativa = ({ responsable = "LUIS MENDEZ", dia, idSheet, idUsuar
   };
 
   return (
-    <div className="container-fluid mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="responsable-title">{responsable}</h2>
-        <div className="info-cargue">
-          <span className="badge bg-primary me-2">{dia}</span>
-          <span className="badge bg-secondary me-2">Vendedor: {idSheet}</span>
-          <span className="badge bg-info">Usuario: {idUsuario}</span>
-        </div>
+    <div className="container-fluid plantilla-operativa" style={{ minWidth: '1200px' }}>
+      <div className="d-flex justify-content-between align-items-center">
+        <h6 
+          className="responsable-title m-0" 
+          onDoubleClick={onEditarNombre}
+          style={{ cursor: 'pointer', userSelect: 'none', color: 'red' }}
+        >
+          {responsable}
+        </h6>
       </div>
       <div className="row">
-        <div className="col-lg-9">
+        <div className="col-lg-8">
           <TablaProductos 
             productos={productosOperativos} 
             onActualizarProducto={actualizarProducto}
           />
           <BotonLimpiar onLimpiar={limpiarDatos} />
         </div>
-        <div className="col-lg-3">
+        <div className="col-lg-4">
           <ResumenVentas datos={datosResumen} />
         </div>
       </div>

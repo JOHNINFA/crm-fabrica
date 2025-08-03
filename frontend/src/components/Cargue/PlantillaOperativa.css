@@ -7,7 +7,7 @@
 
 /* Estilos de la tabla de productos */
 .tabla-productos {
-    font-size: 0.8rem;
+    font-size: 0.65rem;
 }
 
 .tabla-productos .table-header {
@@ -21,10 +21,21 @@
 .tabla-productos th {
     vertical-align: middle;
     border: 1px solid #dee2e6;
-    padding: 0.3rem;
+    padding: 0.1rem 0.2rem;
+    text-align: center;
 }
 
-.table-row-green {
+.tabla-productos td span,
+.tabla-productos td div {
+    text-align: center;
+    display: block;
+    width: 100%;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #000;
+}
+
+.table-row {
     background-color: #f8f9fa;
 }
 
@@ -33,26 +44,46 @@
     min-width: 200px;
 }
 
+.tabla-productos tbody tr:nth-child(odd) td:nth-child(n+3) {
+    background-color: #e8f5e8 !important;
+}
+
+.tabla-productos tbody tr:nth-child(even) td:nth-child(n+3) {
+    background-color: white !important;
+}
+
 .total-cell {
     font-weight: bold;
     background-color: #e2efda;
+    text-align: center;
 }
 
 .valor-cell {
-    font-weight: 500;
+    font-weight: bold;
+    text-align: center;
+    color: #cc0000 !important;
 }
 
 .neto-cell {
     font-weight: bold;
     background-color: #d4edda;
+    text-align: center !important;
+    min-width: 80px;
+    width: 80px;
 }
 
 /* Inputs en la tabla */
 .tabla-productos input[type="number"] {
     border: none;
     background: transparent;
-    width: 60px;
-    padding: 2px 4px;
+    width: 50px;
+    padding: 0px 1px;
+    text-align: center;
+    display: block;
+    margin: 0 auto;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #000;
 }
 
 .tabla-productos input[type="number"]:focus {
@@ -68,9 +99,39 @@
 /* Estilos del resumen */
 .resumen-container {
     background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
+    padding: 0 0.3rem 0.3rem 0.3rem;
+    border-radius: 4px;
     border: 1px solid #dee2e6;
+    width: 100%;
+    max-width: 350px;
+    margin-right: 1rem;
+    position: relative;
+    z-index: 10;
+}
+
+/* Alineación horizontal de tablas */
+.resumen-pagos {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Alinear tabla de resumen con tabla principal */
+.row > .col-lg-4 {
+    display: flex;
+    align-items: flex-start;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.resumen-container {
+    margin-top: 0;
+    align-self: flex-start;
+}
+
+.resumen-container h5 {
+    margin-bottom: 0.5rem;
+    padding-top: 0;
+    margin-top: 0;
 }
 
 .resumen-pagos .table-header {
@@ -85,13 +146,59 @@
     font-weight: bold;
 }
 
+/* Filas más angostas estilo tabla */
+.resumen-pagos td,
+.resumen-pagos th {
+    padding: 0.15rem 0.3rem;
+    height: 25px;
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+    font-size: 0.75rem;
+}
+
+.resumen-pagos .form-control {
+    height: 24px;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.875rem;
+    border: none;
+    background: transparent;
+    width: 100%;
+}
+
+.resumen-pagos .form-control:focus {
+    background: #f8f9fa;
+    border: 1px solid #007bff;
+    outline: none;
+    box-shadow: none;
+}
+
 /* Estilos de los totales */
+.resumen-totales {
+    width: 100%;
+    font-size: 13.6px;
+}
+
 .resumen-totales > div {
     border-radius: 4px;
     border: 1px solid #dee2e6;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+    font-size: 13.6px;
+}
+
+.resumen-totales > div:first-child .fw-bold {
+    padding-left: 8px;
+}
+
+.resumen-totales strong,
+.resumen-totales .fw-bold {
+    font-size: 13.6px;
+}
+
+.resumen-totales .text-end {
+    font-size: 13.6px;
 }
 
 .resumen-totales .bg-light {
@@ -138,6 +245,23 @@
 
 .info-cargue .bg-info {
     background-color: #17a2b8 !important;
+}
+
+.tabla-productos {
+    white-space: nowrap;
+}
+
+/* Asegurar que el contenido tenga ancho suficiente para scroll horizontal */
+.plantilla-operativa .row {
+    min-width: 1800px;
+}
+
+.plantilla-operativa .col-lg-8 {
+    padding-left: 0.5rem;
+}
+
+.plantilla-operativa .col-lg-4 {
+    flex-shrink: 1;
 }
 
 /* Responsive */

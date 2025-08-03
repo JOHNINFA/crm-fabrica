@@ -15,17 +15,21 @@ export default function SelectorDia() {
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <h2 className="card-title mb-4 text-center">Selecciona el día para cargar productos</h2>
-          <div className="row g-3">
+          <div className="d-flex flex-wrap justify-content-center gap-3">
             {dias.map(dia => (
-              <div key={dia} className="col-md-4 col-lg-2">
-                <button
-                  className="btn btn-outline-primary w-100 py-3"
-                  onClick={() => navigate(`/cargue/${dia}`)}
-                  style={{ fontWeight: '500' }}
-                >
-                  {dia}
-                </button>
-              </div>
+              <button
+                key={dia}
+                className="btn btn-outline-primary py-3"
+                onClick={() => navigate(`/cargue/${dia}`)}
+                style={{ 
+                  fontWeight: '500',
+                  minWidth: '120px',
+                  flex: '1 1 auto',
+                  maxWidth: '150px'
+                }}
+              >
+                {dia}
+              </button>
             ))}
           </div>
           <div className="text-center mt-4">

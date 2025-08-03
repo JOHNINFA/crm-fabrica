@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ProductProvider } from "../../context/ProductContext";
 import PlantillaOperativa from "./PlantillaOperativa";
+import Produccion from "./Produccion";
 
 const productosPorDiaYId = {
   LUNES: {
@@ -85,7 +86,7 @@ const productosPorDiaYId = {
   }
 };
 
-const ids = ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6"];
+const ids = ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6", "PRODUCCION"];
 
 export default function MenuSheets() {
   // Capturamos el parámetro :dia de la URL
@@ -93,78 +94,169 @@ export default function MenuSheets() {
 
   // Estado solo para el ID de hoja
   const [idSeleccionado, setIdSeleccionado] = useState("ID1");
-  const [nombreResponsable, setNombreResponsable] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [tempNombre, setTempNombre] = useState("");
+  
+  // Estado independiente para cada ID
+  const [datosIds, setDatosIds] = useState({
+    ID1: { nombreResponsable: "", datosTabla: {} },
+    ID2: { nombreResponsable: "", datosTabla: {} },
+    ID3: { nombreResponsable: "", datosTabla: {} },
+    ID4: { nombreResponsable: "", datosTabla: {} },
+    ID5: { nombreResponsable: "", datosTabla: {} },
+    ID6: { nombreResponsable: "", datosTabla: {} },
+    PRODUCCION: { nombreResponsable: "", datosTabla: {} }
+  });
+
   const id_usuario = 1; // mock de autenticación
 
-  // Al cambiar dia en la URL, reiniciamos el responsable
+  // Al cambiar dia en la URL, reiniciamos todos los datos
   useEffect(() => {
-    setNombreResponsable("");
+    setDatosIds({
+      ID1: { nombreResponsable: "", datosTabla: {} },
+      ID2: { nombreResponsable: "", datosTabla: {} },
+      ID3: { nombreResponsable: "", datosTabla: {} },
+      ID4: { nombreResponsable: "", datosTabla: {} },
+      ID5: { nombreResponsable: "", datosTabla: {} },
+      ID6: { nombreResponsable: "", datosTabla: {} },
+      PRODUCCION: { nombreResponsable: "", datosTabla: {} }
+    });
   }, [dia]);
+
+  const abrirModal = () => {
+    setTempNombre(datosIds[idSeleccionado].nombreResponsable);
+    setShowModal(true);
+  };
+
+  const guardarNombre = () => {
+    setDatosIds(prev => ({
+      ...prev,
+      [idSeleccionado]: {
+        ...prev[idSeleccionado],
+        nombreResponsable: tempNombre
+      }
+    }));
+    setShowModal(false);
+  };
+
+  const cerrarModal = () => {
+    setShowModal(false);
+    setTempNombre("");
+  };
+
+
 
   // Plantilla inicial según día e ID
   const registrosIniciales = productosPorDiaYId[dia]?.[idSeleccionado] || [];
 
   return (
-    <div className="container-fluid mt-4">
-      <div className="card shadow-sm mb-4">
-        <div className="card-body p-3">
-          {/* Título con el día */}
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h2 className="card-title mb-0">Cargue de Productos - {dia}</h2>
-            <button 
-              className="btn btn-outline-secondary btn-sm"
-              onClick={() => window.history.back()}
-            >
-              Regresar
-            </button>
-          </div>
+    <div className="container-fluid" style={{ paddingBottom: '60px' }}>
+      {/* Header compacto */}
+      <div className="d-flex justify-content-between align-items-center py-2 ">
+        <div className="d-flex align-items-center gap-3">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            style={{
+              fontSize: '0.9rem',
+              padding: '0.4rem 0.8rem',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              pointerEvents: 'none'
+            }}
+          >
+            {dia}
+          </button>
 
-          {/* Selector de IDs */}
-          <div className="mb-3">
-            <label className="form-label fw-bold">Seleccionar Vendedor:</label>
-            <div className="btn-group" role="group">
+        </div>
+        <button 
+          className="btn btn-outline-secondary btn-sm"
+          onClick={() => window.history.back()}
+        >
+          Regresar
+        </button>
+      </div>
+
+      {/* Plantilla Operativa o Producción */}
+      <div className="mt-3">
+        {idSeleccionado === "PRODUCCION" ? (
+          <Produccion />
+        ) : (
+          <ProductProvider>
+            <PlantillaOperativa 
+              responsable={datosIds[idSeleccionado].nombreResponsable || "RESPONSABLE"}
+              dia={dia}
+              idSheet={idSeleccionado}
+              idUsuario={id_usuario}
+              onEditarNombre={abrirModal}
+              key={idSeleccionado}
+            />
+          </ProductProvider>
+        )}
+      </div>
+
+
+      {/* Barra fija inferior con IDs */}
+      <div className="fixed-bottom bg-white border-top shadow-sm">
+        <div className="container-fluid">
+          <div className="d-flex align-items-center py-2">
+            <span className="text-muted small me-3">Vendedores:</span>
+            <div className="d-flex">
               {ids.map((i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setIdSeleccionado(i)}
-                  className={`btn ${
-                    i === idSeleccionado ? 'btn-primary' : 'btn-outline-primary'
+                  className={`btn btn-sm me-1 ${
+                    i === idSeleccionado 
+                      ? 'btn-primary' 
+                      : 'btn-outline-secondary'
                   }`}
+                  style={{
+                    minWidth: '50px',
+                    fontSize: '0.8rem',
+                    padding: '0.25rem 0.5rem'
+                  }}
                 >
                   {i}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Nombre del responsable */}
-          <div className="mb-3">
-            <label className="form-label fw-bold">Nombre del Vendedor ({idSeleccionado}):</label>
-            <input
-              type="text"
-              className="form-control"
-              value={nombreResponsable}
-              onChange={e => setNombreResponsable(e.target.value)}
-              placeholder={`Ingrese el nombre del vendedor ${idSeleccionado}`}
-              style={{ maxWidth: '300px' }}
-            />
-            <small className="form-text text-muted">
-              El ID {idSeleccionado} es fijo, pero el nombre puede cambiar según el vendedor asignado.
-            </small>
-          </div>
         </div>
       </div>
 
-      {/* Plantilla Operativa */}
-      <ProductProvider>
-        <PlantillaOperativa 
-          responsable={nombreResponsable || "RESPONSABLE"}
-          dia={dia}
-          idSheet={idSeleccionado}
-          idUsuario={id_usuario}
-        />
-      </ProductProvider>
+      {/* Modal para editar nombre */}
+      {showModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h6 className="modal-title">Editar Nombre</h6>
+                <button type="button" className="btn-close" onClick={cerrarModal}></button>
+              </div>
+              <div className="modal-body">
+                <input
+                  type="text"
+                  className="form-control"
+                  value={tempNombre}
+                  onChange={(e) => setTempNombre(e.target.value)}
+                  placeholder="Ingrese el nombre"
+                  autoFocus
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={cerrarModal}>
+                  Cancelar
+                </button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={guardarNombre}>
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

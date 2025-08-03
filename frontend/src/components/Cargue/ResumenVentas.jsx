@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table } from 'react-bootstrap';
+import { Table, Form } from 'react-bootstrap';
 
 const ResumenVentas = ({ datos }) => {
   const formatCurrency = (amount) => {
@@ -8,40 +8,44 @@ const ResumenVentas = ({ datos }) => {
 
   return (
     <div className="resumen-container">
-      <h5 className="mb-3">Resumen de Ventas</h5>
       
       {/* Tabla de Pagos */}
       <Table bordered className="resumen-pagos mb-3">
         <thead className="table-header">
           <tr>
-            <th>FORMA DE PAGO</th>
-            <th>VALOR</th>
+            <th>CONCEPTO</th>
+            <th>DESCUENTOS</th>
+            <th>NEQUI</th>
+            <th>DAVIPLATA</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>EFECTIVO</td>
-            <td className="text-end">{formatCurrency(datos.totalEfectivo)}</td>
-          </tr>
-          <tr>
-            <td>TARJETA</td>
-            <td className="text-end">$0</td>
-          </tr>
-          <tr>
-            <td>TRANSFERENCIA</td>
-            <td className="text-end">$0</td>
-          </tr>
+          {[...Array(10)].map((_, i) => (
+            <tr key={i}>
+              <td><Form.Control type="text" /></td>
+              <td><Form.Control type="text" /></td>
+              <td><Form.Control type="text" /></td>
+              <td><Form.Control type="text" /></td>
+            </tr>
+          ))}
         </tbody>
         <tfoot>
           <tr>
-            <td><strong>TOTAL</strong></td>
-            <td className="text-end"><strong>{formatCurrency(datos.totalEfectivo)}</strong></td>
+            <td className="fw-bold">TOTAL</td>
+            <td className="text-end">$0</td>
+            <td className="text-end">$0</td>
+            <td className="text-end">$0</td>
           </tr>
         </tfoot>
       </Table>
 
       {/* Resumen de Totales */}
-      <div className="resumen-totales">
+      <div className="resumen-totales mt-4">
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <span className="fw-bold">BASE CAJA</span>
+          <Form.Control type="text" style={{ width: '100px' }} />
+        </div>
+        
         <div className="bg-light p-2 mb-2">
           <strong>TOTAL DESPACHO:</strong>
           <div className="text-end">{formatCurrency(datos.totalDespacho)}</div>

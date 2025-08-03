@@ -11,7 +11,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
   };
 
   return (
-    <Table bordered hover responsive className="tabla-productos">
+    <Table bordered hover className="tabla-productos">
       <thead className="table-header">
         <tr>
           <th>V</th>
@@ -29,7 +29,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
       </thead>
       <tbody>
         {productos.map((p) => (
-          <tr key={p.id} className="table-row-green">
+          <tr key={p.id} className="table-row">
             <td>
               <input 
                 type="checkbox" 
