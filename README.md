@@ -5,6 +5,7 @@ Un sistema completo para gestionar una fábrica de arepas que incluye:
 - **POS (Punto de Venta)** - Para vender productos
 - **Inventario** - Para controlar existencias y producción
 - **Kardex** - Para ver movimientos de productos
+- **Cargue** - Sistema operativo para control diario de vendedores y producción
 - **Sincronización** - Entre frontend y backend
 
 ## 🏗️ Arquitectura del Sistema
@@ -19,7 +20,8 @@ Un sistema completo para gestionar una fábrica de arepas que incluye:
     │   POS   │             │   API   │             │ Tablas  │
     │Inventario│             │REST API │             │Productos│
     │ Kardex  │             │Endpoints│             │ Lotes   │
-    └─────────┘             └─────────┘             │Categorías│
+    │ Cargue  │             │         │             │Categorías│
+    └─────────┘             └─────────┘             │ Cargue  │
                                                     └─────────┘
 ```
 
@@ -148,10 +150,20 @@ crm-fabrica/
 │   │   │   │   ├── Cart.jsx           # Carrito de compras
 │   │   │   │   └── ProductCard.jsx    # Tarjeta de producto
 │   │   │   │
-│   │   │   └── 📂 inventario/         # 📦 Control de Inventario
-│   │   │       ├── InventarioProduccion.jsx  # Registro de producción
-│   │   │       ├── TablaKardex.jsx           # Historial de movimientos
-│   │   │       └── TablaInventario.jsx       # Tabla de existencias
+│   │   │   ├── 📂 inventario/         # 📦 Control de Inventario
+│   │   │   │   ├── InventarioProduccion.jsx  # Registro de producción
+│   │   │   │   ├── TablaKardex.jsx           # Historial de movimientos
+│   │   │   │   └── TablaInventario.jsx       # Tabla de existencias
+│   │   │   │
+│   │   │   └── 📂 Cargue/             # 🏭 Sistema Operativo de Cargue
+│   │   │       ├── MenuSheets.jsx            # Navegación por días e IDs
+│   │   │       ├── PlantillaOperativa.jsx    # Plantilla principal de vendedores
+│   │   │       ├── TablaProductos.jsx        # Tabla de productos operativa
+│   │   │       ├── ResumenVentas.jsx         # Resumen de pagos y totales
+│   │   │       ├── Produccion.jsx            # Módulo de producción
+│   │   │       ├── SelectorDia.jsx           # Selector de días de la semana
+│   │   │       ├── PlantillaOperativa.css    # Estilos de tablas operativas
+│   │   │       └── Produccion.css            # Estilos de producción
 │   │   │
 │   │   ├── 📂 context/      # 🌐 Estados Globales
 │   │   │   ├── ProductContext.jsx     # Estado de productos
@@ -168,6 +180,7 @@ crm-fabrica/
 │   │   └── 📂 pages/        # 📄 Páginas principales
 │   │       ├── PosScreen.jsx       # Pantalla POS
 │   │       ├── InventarioScreen.jsx # Pantalla Inventario
+│   │       ├── SelectorDia.jsx     # Pantalla de selección de días
 │   │       └── MainMenu.jsx        # Menú principal
 │   │
 │   └── 📂 public/           # Archivos estáticos
@@ -192,6 +205,11 @@ Usuario ingresa producción → Se registra en BD → Se actualiza stock → Se 
 ### 3. 📊 Flujo del Kardex
 ```
 Cualquier movimiento → Se registra automáticamente → Se muestra en historial
+```
+
+### 4. 🏭 Flujo del Cargue (Sistema Operativo)
+```
+Selección de día → Elección de vendedor (ID1-ID6) → Registro operativo → Control de producción
 ```
 
 ## 🔧 Tecnologías Utilizadas
