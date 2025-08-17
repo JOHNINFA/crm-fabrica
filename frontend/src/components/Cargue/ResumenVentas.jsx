@@ -1,43 +1,94 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, Form } from 'react-bootstrap';
 
 const ResumenVentas = ({ datos }) => {
+  const [filas, setFilas] = useState(Array(10).fill().map(() => ({
+    concepto: '',
+    descuentos: 0,
+    nequi: 0,
+    daviplata: 0
+  })));
+
   const formatCurrency = (amount) => {
     return `$${amount.toLocaleString()}`;
+  };
+
+  const handleInputChange = (index, campo, value) => {
+    const newFilas = [...filas];
+    if (campo === 'concepto') {
+      newFilas[index][campo] = value;
+    } else {
+      const numValue = value.replace(/[^0-9]/g, '');
+      newFilas[index][campo] = numValue ? parseInt(numValue) : 0;
+    }
+    setFilas(newFilas);
+  };
+
+  const calcularTotal = (campo) => {
+    return filas.reduce((total, fila) => total + (fila[campo] || 0), 0);
   };
 
   return (
     <div className="resumen-container">
       
       {/* Tabla de Pagos */}
-      <Table bordered className="resumen-pagos mb-3">
+      <div style={{ paddingRight: '15px' }}>
+        <Table bordered className="resumen-pagos mb-3" style={{ minWidth: '500px', marginRight: '20px' }}>
         <thead className="table-header">
           <tr>
-            <th>CONCEPTO</th>
-            <th>DESCUENTOS</th>
-            <th>NEQUI</th>
-            <th>DAVIPLATA</th>
+            <th style={{ width: '150px' }}>CONCEPTO</th>
+            <th style={{ width: '120px', textAlign: 'center' }}>DESCUENTOS</th>
+            <th style={{ width: '120px', textAlign: 'center' }}>NEQUI</th>
+            <th style={{ width: '120px', textAlign: 'center' }}>DAVIPLATA</th>
           </tr>
         </thead>
         <tbody>
-          {[...Array(10)].map((_, i) => (
+          {filas.map((fila, i) => (
             <tr key={i}>
-              <td><Form.Control type="text" /></td>
-              <td><Form.Control type="text" /></td>
-              <td><Form.Control type="text" /></td>
-              <td><Form.Control type="text" /></td>
+              <td>
+                <Form.Control 
+                  type="text" 
+                  value={fila.concepto}
+                  onChange={(e) => handleInputChange(i, 'concepto', e.target.value)}
+                />
+              </td>
+              <td>
+                <Form.Control 
+                  type="text" 
+                  className="text-center"
+                  value={fila.descuentos ? formatCurrency(fila.descuentos) : ''}
+                  onChange={(e) => handleInputChange(i, 'descuentos', e.target.value)}
+                />
+              </td>
+              <td>
+                <Form.Control 
+                  type="text" 
+                  className="text-center"
+                  value={fila.nequi ? formatCurrency(fila.nequi) : ''}
+                  onChange={(e) => handleInputChange(i, 'nequi', e.target.value)}
+                />
+              </td>
+              <td>
+                <Form.Control 
+                  type="text" 
+                  className="text-center"
+                  value={fila.daviplata ? formatCurrency(fila.daviplata) : ''}
+                  onChange={(e) => handleInputChange(i, 'daviplata', e.target.value)}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
             <td className="fw-bold">TOTAL</td>
-            <td className="text-end">$0</td>
-            <td className="text-end">$0</td>
-            <td className="text-end">$0</td>
+            <td className="text-center fw-bold">{formatCurrency(calcularTotal('descuentos'))}</td>
+            <td className="text-center fw-bold">{formatCurrency(calcularTotal('nequi'))}</td>
+            <td className="text-center fw-bold">{formatCurrency(calcularTotal('daviplata'))}</td>
           </tr>
         </tfoot>
-      </Table>
+        </Table>
+      </div>
 
       {/* Resumen de Totales */}
       <div className="resumen-totales mt-4">

@@ -162,7 +162,9 @@ export default function MenuSheets() {
               padding: '0.4rem 0.8rem',
               fontWeight: 'bold',
               borderRadius: '8px',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              backgroundColor: '#06386d',
+              borderColor: '#06386d'
             }}
           >
             {dia}
@@ -215,7 +217,11 @@ export default function MenuSheets() {
                   style={{
                     minWidth: '50px',
                     fontSize: '0.8rem',
-                    padding: '0.25rem 0.5rem'
+                    padding: '0.25rem 0.5rem',
+                    ...(i === idSeleccionado && {
+                      backgroundColor: '#06386d',
+                      borderColor: '#06386d'
+                    })
                   }}
                 >
                   {i}
@@ -249,7 +255,15 @@ export default function MenuSheets() {
                 <button type="button" className="btn btn-secondary btn-sm" onClick={cerrarModal}>
                   Cancelar
                 </button>
-                <button type="button" className="btn btn-primary btn-sm" onClick={guardarNombre}>
+                <button 
+                  type="button" 
+                  className="btn btn-primary btn-sm" 
+                  onClick={guardarNombre}
+                  style={{
+                    backgroundColor: '#06386d',
+                    borderColor: '#06386d'
+                  }}
+                >
                   Guardar
                 </button>
               </div>

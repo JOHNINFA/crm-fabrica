@@ -1,3 +1,82 @@
+/* Cambiar color azul Bootstrap primary a #06386d */
+.plantilla-operativa .btn-primary {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.plantilla-operativa .btn-primary:hover {
+    background-color: #052c65 !important;
+    border-color: #052c65 !important;
+}
+
+.plantilla-operativa .btn-primary:focus,
+.plantilla-operativa .btn-primary.focus {
+    box-shadow: 0 0 0 0.2rem rgba(6, 56, 109, 0.5) !important;
+}
+
+/* Checkboxes con fondo azul personalizado */
+.plantilla-operativa .form-check-input:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.plantilla-operativa .form-check-input:focus {
+    border-color: #06386d !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Checkboxes en tablas */
+.tabla-productos input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.tabla-productos input[type="checkbox"]:focus {
+    border-color: #06386d !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Checkboxes globales en el módulo Cargue */
+input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+}
+
+input[type="checkbox"]:focus {
+    border-color: #06386d !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Forzar estilos específicos para checkboxes en tablas */
+.container-fluid input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+/* Estilos más específicos para sobrescribir Bootstrap */
+.table input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.form-check-input:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+/* Botones outline primary */
+.plantilla-operativa .btn-outline-primary {
+    color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.plantilla-operativa .btn-outline-primary:hover {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+    color: white !important;
+}
+
 /* Estilos generales */
 .responsable-title {
     font-weight: bold;

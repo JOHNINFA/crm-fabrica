@@ -7,7 +7,12 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
   };
 
   const handleCheckboxChange = (id, campo, checked) => {
+    console.log(`Checkbox ${campo} para producto ${id}: ${checked}`);
     onActualizarProducto(id, campo, checked);
+  };
+
+  const handleFocus = (e) => {
+    e.target.select();
   };
 
   return (
@@ -33,15 +38,21 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
             <td>
               <input 
                 type="checkbox" 
-                checked={p.vendedor || false}
+                checked={!!p.vendedor}
                 onChange={(e) => handleCheckboxChange(p.id, 'vendedor', e.target.checked)}
+                style={{
+                  accentColor: '#06386d'
+                }}
               />
             </td>
             <td>
               <input 
                 type="checkbox" 
-                checked={p.despachador || false}
+                checked={!!p.despachador}
                 onChange={(e) => handleCheckboxChange(p.id, 'despachador', e.target.checked)}
+                style={{
+                  accentColor: '#06386d'
+                }}
               />
             </td>
             <td className="producto-nombre">{p.producto}</td>
@@ -50,6 +61,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 type="number" 
                 value={p.cantidad || 0}
                 onChange={(e) => handleInputChange(p.id, 'cantidad', e.target.value)}
+                onFocus={handleFocus}
                 className="form-control form-control-sm text-center"
                 min="0"
               />
@@ -59,6 +71,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 type="number" 
                 value={p.dctos || 0}
                 onChange={(e) => handleInputChange(p.id, 'dctos', e.target.value)}
+                onFocus={handleFocus}
                 className="form-control form-control-sm text-center"
                 min="0"
               />
@@ -68,6 +81,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 type="number" 
                 value={p.adicional || 0}
                 onChange={(e) => handleInputChange(p.id, 'adicional', e.target.value)}
+                onFocus={handleFocus}
                 className="form-control form-control-sm text-center"
                 min="0"
               />
@@ -77,6 +91,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 type="number" 
                 value={p.devoluciones || 0}
                 onChange={(e) => handleInputChange(p.id, 'devoluciones', e.target.value)}
+                onFocus={handleFocus}
                 className="form-control form-control-sm text-center"
                 min="0"
               />
@@ -86,6 +101,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 type="number" 
                 value={p.vencidas || 0}
                 onChange={(e) => handleInputChange(p.id, 'vencidas', e.target.value)}
+                onFocus={handleFocus}
                 className="form-control form-control-sm text-center"
                 min="0"
               />

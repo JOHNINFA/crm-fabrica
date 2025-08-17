@@ -1,43 +1,46 @@
-// src/components/SelectorDia.jsx
+// src/pages/SelectorDia.jsx
 import React from "react";
-
-
 import { useNavigate } from "react-router-dom";
-
+import './SelectorDia.css';
 
 const dias = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
 
 export default function SelectorDia() {
   const navigate = useNavigate();
 
+  const handleDayClick = (dia) => {
+    console.log(`Día seleccionado: ${dia}`);
+    navigate(`/cargue/${dia}`);
+  };
+
   return (
-    <div className="container mt-4">
-      <div className="card shadow-sm">
-        <div className="card-body p-4">
-          <h2 className="card-title mb-4 text-center">Selecciona el día para cargar productos</h2>
-          <div className="d-flex flex-wrap justify-content-center gap-3">
-            {dias.map(dia => (
-              <button
-                key={dia}
-                className="btn btn-outline-primary py-3"
-                onClick={() => navigate(`/cargue/${dia}`)}
-                style={{ 
-                  fontWeight: '500',
-                  minWidth: '120px',
-                  flex: '1 1 auto',
-                  maxWidth: '150px'
-                }}
-              >
-                {dia}
-              </button>
+    <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
+      <div className="card shadow-lg p-4 p-md-5 selector-dia-container">
+        <div className="card-body">
+          <h1 className="fw-bold text-center text-dark">
+            Selecciona el día para cargar productos
+          </h1>
+          
+          <div className="row g-5 mb-4">
+            {dias.map((dia) => (
+              <div className="col-6 col-sm-4 col-md-2" key={dia}>
+                <button 
+                  className="btn btn-primary w-100 py-3 fw-semibold shadow-sm"
+                  onClick={() => handleDayClick(dia)}
+                >
+                  {dia}
+                </button>
+              </div>
             ))}
           </div>
-          <div className="text-center mt-4">
+
+          <div className="text-center">
             <button 
-              className="btn btn-secondary"
-              onClick={() => navigate('/pos')}
+              className="btn btn-secondary py-3 px-4 d-inline-flex align-items-center shadow-sm"
+              onClick={() => navigate('/')}
             >
-              Regresar al POS
+              <i className="bi bi-arrow-left me-2"></i>
+              Regresar
             </button>
           </div>
         </div>

@@ -40,10 +40,19 @@ const PlantillaOperativa = ({ responsable = "LUIS MENDEZ", dia, idSheet, idUsuar
     setProductosOperativos(prev => 
       prev.map(p => {
         if (p.id === id) {
-          const updated = { ...p, [campo]: parseInt(valor) || 0 };
-          // Calcular total automáticamente
-          updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
-          updated.neto = updated.total * updated.valor;
+          // Manejar checkboxes (booleanos) y números por separado
+          const valorProcesado = (campo === 'vendedor' || campo === 'despachador') 
+            ? valor 
+            : parseInt(valor) || 0;
+          
+          const updated = { ...p, [campo]: valorProcesado };
+          
+          // Calcular total automáticamente solo para campos numéricos
+          if (campo !== 'vendedor' && campo !== 'despachador') {
+            updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
+            updated.neto = updated.total * updated.valor;
+          }
+          
           return updated;
         }
         return p;
