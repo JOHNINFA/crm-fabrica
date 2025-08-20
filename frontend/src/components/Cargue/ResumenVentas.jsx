@@ -9,6 +9,8 @@ const ResumenVentas = ({ datos }) => {
     daviplata: 0
   })));
 
+  const [baseCaja, setBaseCaja] = useState(0);
+
   const formatCurrency = (amount) => {
     return `$${amount.toLocaleString()}`;
   };
@@ -26,6 +28,12 @@ const ResumenVentas = ({ datos }) => {
 
   const calcularTotal = (campo) => {
     return filas.reduce((total, fila) => total + (fila[campo] || 0), 0);
+  };
+
+  const handleBaseCajaChange = (e) => {
+    const value = e.target.value;
+    const numValue = value.replace(/[^0-9]/g, '');
+    setBaseCaja(numValue ? parseInt(numValue) : 0);
   };
 
   return (
@@ -94,7 +102,13 @@ const ResumenVentas = ({ datos }) => {
       <div className="resumen-totales mt-4">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <span className="fw-bold">BASE CAJA</span>
-          <Form.Control type="text" style={{ width: '100px' }} />
+          <Form.Control 
+            type="text" 
+            style={{ width: '120px' }}
+            className="text-center"
+            value={baseCaja ? formatCurrency(baseCaja) : ''}
+            onChange={handleBaseCajaChange}
+          />
         </div>
         
         <div className="bg-light p-2 mb-2">
@@ -109,7 +123,7 @@ const ResumenVentas = ({ datos }) => {
         
         <div className="bg-light p-2 mb-2">
           <strong>TOTAL DCTOS:</strong>
-          <div className="text-end">{formatCurrency(datos.totalDctos)}</div>
+          <div className="text-end">{formatCurrency(calcularTotal('descuentos'))}</div>
         </div>
         
         <div className="bg-lightgreen p-2 mb-2">
