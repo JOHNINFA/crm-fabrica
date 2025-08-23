@@ -98,6 +98,44 @@ CREATE TABLE api_lote (
     fecha_produccion DATE,
     usuario VARCHAR(100)
 );
+
+-- Tabla de Vendedores
+CREATE TABLE api_vendedor (
+    id INTEGER PRIMARY KEY,
+    nombre VARCHAR(100),
+    id_vendedor VARCHAR(3) UNIQUE, -- ID1, ID2, etc.
+    ruta VARCHAR(255),
+    activo BOOLEAN,
+    fecha_creacion TIMESTAMP
+);
+
+-- Tabla de Cargues Operativos
+CREATE TABLE api_cargueoperativo (
+    id INTEGER PRIMARY KEY,
+    dia VARCHAR(10), -- LUNES, MARTES, etc.
+    vendedor_id INTEGER REFERENCES api_vendedor(id),
+    fecha DATE,
+    usuario VARCHAR(100),
+    activo BOOLEAN,
+    fecha_creacion TIMESTAMP
+);
+
+-- Tabla de Detalles de Cargue
+CREATE TABLE api_detallecargue (
+    id INTEGER PRIMARY KEY,
+    cargue_id INTEGER REFERENCES api_cargueoperativo(id),
+    producto_id INTEGER REFERENCES api_producto(id),
+    vendedor_check BOOLEAN,
+    despachador_check BOOLEAN,
+    cantidad INTEGER,
+    dctos INTEGER,
+    adicional INTEGER,
+    devoluciones INTEGER,
+    vencidas INTEGER,
+    total INTEGER, -- calculado
+    valor DECIMAL(10,2),
+    neto DECIMAL(12,2) -- calculado
+);
 ```
 
 ### PASO 4: Crear los Servicios de API
@@ -270,7 +308,18 @@ npm start
 - ✅ Navegación por días de la semana (LUNES-SÁBADO)
 - ✅ Sistema de 6 vendedores independientes (ID1-ID6)
 - ✅ Módulo de producción con 12 productos específicos
-- ✅ Tablas operativas con colores intercalados (#e2efda y blanco)
+- ✅ Tablas operativas con colores diferenciados
+- ✅ Campos: Cantidad, Dctos, Adicional, Devoluciones, Vencidas
+- ✅ Cálculos automáticos de Total y Neto
+- ✅ Checkboxes para Vendedor y Despachador
+- ✅ Resumen de ventas con tabla de pagos (Descuentos, Nequi, Daviplata)
+- ✅ Totales calculados automáticamente (Despacho, Pedidos, Dctos, Venta, Efectivo)
+- ✅ Base Caja configurable
+- ✅ Guardado automático en PostgreSQL y localStorage
+- ✅ Persistencia de datos al recargar página
+- ✅ Sincronización entre vendedores y producción
+- ✅ Botón de guardado manual con confirmación
+- ✅ Sistema híbrido: PostgreSQL como principal, localStorage como respaldo intercalados (#e2efda y blanco)
 - ✅ Edición de nombres de responsables con modal
 - ✅ Estados independientes para cada vendedor
 - ✅ Números de valor en rojo oscuro (#cc0000) con texto en negrita
@@ -308,6 +357,85 @@ npm start
 - ✅ Datos en tiempo real entre POS e Inventario
 - ✅ Respaldo en localStorage
 - ✅ Sincronización automática con backend
+
+## 🔗 Endpoints de API
+
+### Productos
+- `GET /api/productos/` - Listar productos
+- `POST /api/productos/` - Crear producto
+- `GET /api/productos/{id}/` - Obtener producto
+- `PUT /api/productos/{id}/` - Actualizar producto
+- `DELETE /api/productos/{id}/` - Eliminar producto
+
+### Vendedores
+- `GET /api/vendedores/` - Listar vendedores
+- `POST /api/vendedores/` - Crear vendedor
+- `GET /api/vendedores/{id}/` - Obtener vendedor
+- `PUT /api/vendedores/{id}/` - Actualizar vendedor
+
+### Cargues Operativos
+- `GET /api/cargues/` - Listar cargues
+- `POST /api/cargues/` - Crear cargue
+- `GET /api/cargues/{id}/` - Obtener cargue
+- `PUT /api/cargues/{id}/` - Actualizar cargue
+- `GET /api/cargues/?dia=LUNES&vendedor=1` - Filtrar por día y vendedor
+
+### Detalles de Cargue
+- `GET /api/detalle-cargues/` - Listar detalles
+- `POST /api/detalle-cargues/` - Crear detalle
+- `GET /api/detalle-cargues/{id}/` - Obtener detalle
+- `PATCH /api/detalle-cargues/{id}/` - Actualizar detalle
+- `GET /api/detalle-cargues/?cargue={id}` - Filtrar por cargue
+
+## 🛠️ Servicios Implementados
+
+### simpleStorage.js
+- **Propósito**: Servicio híbrido que funciona como localStorage pero guarda en PostgreSQL
+- **Funciones**:
+  - `setItem(key, data)` - Guarda en PostgreSQL y localStorage
+  - `getItem(key)` - Carga desde PostgreSQL, fallback a localStorage
+- **Ventajas**: Máxima confiabilidad con respaldo automático
+
+### cargueService.js
+- **Propósito**: CRUD completo para cargues operativos
+- **Funciones**:
+  - `getAll()`, `create()`, `update()`, `delete()`
+  - `getByDiaVendedor()` - Filtros específicos
+  - `guardarCargue()` - Guardado completo con productos
+
+### syncService.js
+- **Propósito**: Sincronización automática cada 5 minutos
+- **Funciones**:
+  - Actualiza productos desde BD
+  - Mantiene orden específico de productos
+  - Notifica cambios a componentes
+
+## 🎯 Estado Actual del Proyecto
+
+### ✅ Módulos Completados
+1. **POS (Punto de Venta)** - 100% funcional
+2. **Inventario** - 100% funcional
+3. **Kardex** - 100% funcional
+4. **Cargue Operativo** - 100% funcional
+5. **Sincronización** - 100% funcional
+
+### 🔧 Características Técnicas
+- **Base de datos**: PostgreSQL con respaldo localStorage
+- **API**: Django REST Framework
+- **Frontend**: React.js con Context API
+- **Persistencia**: Guardado automático cada 2 segundos
+- **Sincronización**: Automática cada 5 minutos
+- **Logs**: Sistema limpio sin logs en consola
+
+### 📊 Métricas del Sistema
+- **6 Vendedores** independientes (ID1-ID6)
+- **7 Días** de operación (LUNES-DOMINGO)
+- **12 Productos** específicos de arepas
+- **5 Campos** operativos por producto
+- **3 Tablas** principales en PostgreSQL
+- **4 Servicios** de comunicación con API
+
+¡El sistema CRM-FÁBRICA está **100% funcional** y listo para producción! 🚀
 
 ## 🎯 Conceptos Clave para Entender
 
