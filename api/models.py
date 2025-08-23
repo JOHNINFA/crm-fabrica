@@ -306,3 +306,103 @@ class PrecioProducto(models.Model):
     
     def __str__(self):
         return f"{self.producto.nombre} - {self.lista_precio.nombre} - ${self.precio}"
+
+class Vendedor(models.Model):
+    """Modelo para gestionar vendedores del sistema"""
+    ID_CHOICES = [
+        ('ID1', 'ID1'),
+        ('ID2', 'ID2'),
+        ('ID3', 'ID3'),
+        ('ID4', 'ID4'),
+        ('ID5', 'ID5'),
+        ('ID6', 'ID6'),
+    ]
+    
+    nombre = models.CharField(max_length=100)
+    id_vendedor = models.CharField(max_length=3, choices=ID_CHOICES, unique=True)
+    ruta = models.CharField(max_length=255)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"{self.nombre} - {self.id_vendedor} - {self.ruta}"
+
+class CargueOperativo(models.Model):
+    """Modelo para registros operativos de cargue"""
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'),
+        ('MARTES', 'Martes'),
+        ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'),
+        ('VIERNES', 'Viernes'),
+        ('SABADO', 'Sábado'),
+        ('DOMINGO', 'Domingo'),
+    ]
+    
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='cargues')
+    fecha = models.DateField(default=timezone.now)
+    usuario = models.CharField(max_length=100, default='Sistema')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        unique_together = ('dia', 'vendedor', 'fecha')
+    
+    def __str__(self):
+        return f"{self.dia} - {self.vendedor.nombre} ({self.vendedor.id_vendedor}) - {self.fecha}"
+
+class DetalleCargue(models.Model):
+    """Modelo para detalles de productos en cada cargue"""
+    cargue = models.ForeignKey(CargueOperativo, on_delete=models.CASCADE, related_name='detalles')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    
+    # Checkboxes
+    vendedor_check = models.BooleanField(default=False)
+    despachador_check = models.BooleanField(default=False)
+    
+    # Cantidades
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    
+    # Calculados
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    def save(self, *args, **kwargs):
+        # Calcular total
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.cargue} - {self.producto.nombre} - Total: {self.total}"
+
+class ResumenPagos(models.Model):
+    """Modelo para tabla de pagos del cargue"""
+    cargue = models.ForeignKey(CargueOperativo, on_delete=models.CASCADE, related_name='pagos')
+    concepto = models.CharField(max_length=255, blank=True, null=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    def __str__(self):
+        return f"{self.cargue} - {self.concepto}"
+
+class ResumenTotales(models.Model):
+    """Modelo para resumen de totales del cargue"""
+    cargue = models.OneToOneField(CargueOperativo, on_delete=models.CASCADE, related_name='resumen')
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    def __str__(self):
+        return f"Resumen {self.cargue} - Despacho: ${self.total_despacho}"

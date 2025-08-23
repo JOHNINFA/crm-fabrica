@@ -150,6 +150,14 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Clientes</span>}
             </li>
+            <li 
+              className="nav-item sidebar-item py-2" 
+              onClick={() => navigate('/vendedores')}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>badge</span>
+              {shouldShowText && <span style={{ fontSize: '14px' }}>Vendedores</span>}
+            </li>
             <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person_search</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Proveedores</span>}

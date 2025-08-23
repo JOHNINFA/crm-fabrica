@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ProductProvider } from "../../context/ProductContext";
+import { VendedoresProvider } from "../../context/VendedoresContext";
 import PlantillaOperativa from "./PlantillaOperativa";
 import Produccion from "./Produccion";
 
@@ -96,6 +97,35 @@ export default function MenuSheets() {
   const [idSeleccionado, setIdSeleccionado] = useState("ID1");
   const [showModal, setShowModal] = useState(false);
   const [tempNombre, setTempNombre] = useState("");
+  // Función para calcular la fecha según el día de la semana
+  const calcularFechaPorDia = (diaSeleccionado) => {
+    const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    const hoy = new Date();
+    const diaActual = hoy.getDay(); // 0=Domingo, 1=Lunes, etc.
+    const indiceDiaSeleccionado = diasSemana.indexOf(diaSeleccionado);
+    
+    // Calcular diferencia de días
+    let diferenciaDias = indiceDiaSeleccionado - diaActual;
+    
+    // Si el día seleccionado ya pasó esta semana, ir a la próxima semana
+    if (diferenciaDias < 0) {
+      diferenciaDias += 7;
+    }
+    
+    const fechaCalculada = new Date(hoy);
+    fechaCalculada.setDate(hoy.getDate() + diferenciaDias);
+    
+    return fechaCalculada.toISOString().split('T')[0];
+  };
+
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(
+    calcularFechaPorDia(dia)
+  );
+
+  // Actualizar fecha cuando cambie el día
+  useEffect(() => {
+    setFechaSeleccionada(calcularFechaPorDia(dia));
+  }, [dia]);
   
   // Estado independiente para cada ID
   const [datosIds, setDatosIds] = useState({
@@ -150,7 +180,8 @@ export default function MenuSheets() {
   const registrosIniciales = productosPorDiaYId[dia]?.[idSeleccionado] || [];
 
   return (
-    <div className="container-fluid" style={{ paddingBottom: '60px' }}>
+    <VendedoresProvider>
+      <div className="container-fluid" style={{ paddingBottom: '60px' }}>
       {/* Header compacto */}
       <div className="d-flex justify-content-between align-items-center py-2 ">
         <div className="d-flex align-items-center gap-3">
@@ -169,7 +200,17 @@ export default function MenuSheets() {
           >
             {dia}
           </button>
-
+          
+          <input
+            type="date"
+            className="form-control form-control-sm"
+            value={fechaSeleccionada}
+            onChange={(e) => setFechaSeleccionada(e.target.value)}
+            style={{
+              width: '150px',
+              fontSize: '0.85rem'
+            }}
+          />
         </div>
         <button 
           className="btn btn-outline-secondary btn-sm"
@@ -182,7 +223,9 @@ export default function MenuSheets() {
       {/* Plantilla Operativa o Producción */}
       <div className="mt-3">
         {idSeleccionado === "PRODUCCION" ? (
-          <Produccion />
+          <ProductProvider>
+            <Produccion />
+          </ProductProvider>
         ) : (
           <ProductProvider>
             <PlantillaOperativa 
@@ -271,6 +314,7 @@ export default function MenuSheets() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </VendedoresProvider>
   );
 }

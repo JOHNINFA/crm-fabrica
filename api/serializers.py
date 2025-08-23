@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -137,3 +137,62 @@ class PrecioProductoSerializer(serializers.ModelSerializer):
             'precio', 'utilidad_porcentaje', 'activo', 'fecha_actualizacion'
         ]
         read_only_fields = ('fecha_actualizacion',)
+
+class VendedorSerializer(serializers.ModelSerializer):
+    """Serializer para vendedores"""
+    
+    class Meta:
+        model = Vendedor
+        fields = [
+            'id', 'nombre', 'id_vendedor', 'ruta', 'activo', 'fecha_creacion'
+        ]
+        read_only_fields = ('fecha_creacion',)
+
+class DetalleCargueSerializer(serializers.ModelSerializer):
+    """Serializer para detalles de cargue"""
+    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+    
+    class Meta:
+        model = DetalleCargue
+        fields = [
+            'id', 'cargue', 'producto', 'producto_nombre', 'vendedor_check', 'despachador_check',
+            'cantidad', 'dctos', 'adicional', 'devoluciones', 'vencidas',
+            'total', 'valor', 'neto'
+        ]
+        read_only_fields = ('total', 'neto')
+
+class ResumenPagosSerializer(serializers.ModelSerializer):
+    """Serializer para resumen de pagos"""
+    
+    class Meta:
+        model = ResumenPagos
+        fields = [
+            'id', 'concepto', 'descuentos', 'nequi', 'daviplata'
+        ]
+
+class ResumenTotalesSerializer(serializers.ModelSerializer):
+    """Serializer para resumen de totales"""
+    
+    class Meta:
+        model = ResumenTotales
+        fields = [
+            'id', 'base_caja', 'total_despacho', 'total_pedidos', 
+            'total_dctos', 'venta', 'total_efectivo'
+        ]
+
+class CargueOperativoSerializer(serializers.ModelSerializer):
+    """Serializer para cargue operativo"""
+    vendedor_nombre = serializers.ReadOnlyField(source='vendedor.nombre')
+    vendedor_id = serializers.ReadOnlyField(source='vendedor.id_vendedor')
+    detalles = DetalleCargueSerializer(many=True, read_only=True)
+    pagos = ResumenPagosSerializer(many=True, read_only=True)
+    resumen = ResumenTotalesSerializer(read_only=True)
+    
+    class Meta:
+        model = CargueOperativo
+        fields = [
+            'id', 'dia', 'vendedor', 'vendedor_nombre', 'vendedor_id',
+            'fecha', 'usuario', 'activo', 'fecha_creacion',
+            'detalles', 'pagos', 'resumen'
+        ]
+        read_only_fields = ('fecha_creacion',)

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Table } from 'react-bootstrap';
 
 const TablaProductos = ({ productos, onActualizarProducto }) => {
+  const [editingValor, setEditingValor] = useState(null);
+
   const handleInputChange = (id, campo, valor) => {
     onActualizarProducto(id, campo, valor);
   };
@@ -13,6 +15,20 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
 
   const handleFocus = (e) => {
     e.target.select();
+  };
+
+  const handleDoubleClickValor = (id) => {
+    setEditingValor(id);
+  };
+
+  const handleBlurValor = () => {
+    setEditingValor(null);
+  };
+
+  const handleKeyDownValor = (e) => {
+    if (e.key === 'Enter') {
+      setEditingValor(null);
+    }
   };
 
   return (
@@ -107,8 +123,32 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
               />
             </td>
             <td className="text-center total-cell">{p.total || 0}</td>
-            <td className="text-end valor-cell">
-              {p.valor ? `$${p.valor.toLocaleString()}` : ''}
+            <td className="text-end valor-cell" onDoubleClick={() => handleDoubleClickValor(p.id)}>
+              {editingValor === p.id ? (
+                <input 
+                  type="text" 
+                  value={p.valor ? `$${p.valor.toLocaleString()}` : ''}
+                  onChange={(e) => {
+                    const numValue = e.target.value.replace(/[^0-9]/g, '');
+                    handleInputChange(p.id, 'valor', numValue ? parseInt(numValue) : 0);
+                  }}
+                  onBlur={handleBlurValor}
+                  onKeyDown={handleKeyDownValor}
+                  autoFocus
+                  className="text-end"
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    outline: 'none',
+                    width: '100%',
+                    textAlign: 'right',
+                    color: '#cc0000',
+                    fontWeight: 'bold'
+                  }}
+                />
+              ) : (
+                p.valor ? `$${p.valor.toLocaleString()}` : ''
+              )}
             </td>
             <td className="text-end neto-cell">
               {p.neto ? `$${p.neto.toLocaleString()}` : '$0'}

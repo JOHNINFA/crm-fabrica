@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Form } from 'react-bootstrap';
 
-const ResumenVentas = ({ datos }) => {
+const ResumenVentas = ({ datos, productos = [] }) => {
   const [filas, setFilas] = useState(Array(10).fill().map(() => ({
     concepto: '',
     descuentos: 0,
@@ -34,6 +34,10 @@ const ResumenVentas = ({ datos }) => {
     const value = e.target.value;
     const numValue = value.replace(/[^0-9]/g, '');
     setBaseCaja(numValue ? parseInt(numValue) : 0);
+  };
+
+  const calcularTotalDespacho = () => {
+    return productos.reduce((total, producto) => total + (producto.neto || 0), 0);
   };
 
   return (
@@ -113,7 +117,7 @@ const ResumenVentas = ({ datos }) => {
         
         <div className="bg-light p-2 mb-2">
           <strong>TOTAL DESPACHO:</strong>
-          <div className="text-end">{formatCurrency(datos.totalDespacho)}</div>
+          <div className="text-end">{formatCurrency(calcularTotalDespacho())}</div>
         </div>
         
         <div className="bg-lightpink p-2 mb-2">

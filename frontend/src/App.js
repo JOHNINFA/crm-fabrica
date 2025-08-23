@@ -14,6 +14,7 @@ import ListaClientesScreen from './pages/ListaClientesScreen';
 import ListaPreciosScreen from './pages/ListaPreciosScreen';
 import MaestroListaPreciosScreen from './pages/MaestroListaPreciosScreen';
 import InformeListaPreciosScreen from './pages/InformeListaPreciosScreen';
+import VendedoresScreen from './pages/VendedoresScreen';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
           <Route path="/crear-lista-precios" element={<ListaPreciosScreen />} />
           <Route path="/editar-lista-precios/:id" element={<ListaPreciosScreen />} />
           <Route path="/informe-lista-precios" element={<InformeListaPreciosScreen />} />
+          <Route path="/vendedores" element={<VendedoresScreen />} />
         </Routes>
       </div>
     </Router>

@@ -10,17 +10,17 @@ const syncQueue = [];
 // Función para sincronizar el localStorage con la base de datos
 const sincronizarConBD = async () => {
   try {
-    console.log('🔄 Iniciando sincronización automática con BD...');
+
     
     // Obtener productos de la BD
     const response = await fetch(`${API_URL}/productos/`);
     if (!response.ok) {
-      console.error('Error al obtener productos de la BD:', response.status);
+
       return false;
     }
     
     const productosFromBD = await response.json();
-    console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
+
     
     // Definir el orden específico de los productos
     const ordenProductos = {
@@ -75,10 +75,10 @@ const sincronizarConBD = async () => {
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('productosUpdated'));
     
-    console.log('✅ Sincronización automática completada');
+
     return true;
   } catch (error) {
-    console.error('❌ Error en sincronización automática:', error);
+
     return false;
   }
 };
@@ -105,7 +105,7 @@ export const syncService = {
       
       return true;
     } catch (error) {
-      console.error('Error al sincronizar con backend:', error);
+
       return false;
     }
   },
@@ -130,7 +130,7 @@ export const syncService = {
       
       return sincronizarConBD();
     } catch (error) {
-      console.error('Error al procesar cola de sincronización:', error);
+
       return false;
     }
   }
@@ -147,7 +147,7 @@ export const syncService = {
   // Sincronizar cuando la ventana recupera el foco
   window.addEventListener('focus', sincronizarConBD);
   
-  console.log('🔄 Servicio de sincronización automática iniciado');
+
 })();
 
 export { sincronizarConBD };

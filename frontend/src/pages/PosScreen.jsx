@@ -13,7 +13,7 @@
  * - Persistencia de datos en localStorage
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ModalProvider } from "../context/ModalContext";
 import { ProductProvider } from "../context/ProductContext";
 import Sidebar from "../components/Pos/Sidebar"
@@ -25,14 +25,20 @@ import ConsumerForm from "../components/Pos/ConsumerForm";
 
 import ImageSyncButton from "../components/common/ImageSyncButton";
 
-const defaultSellers = ["jose", "maria", "luis"];
-
 export default function PosScreen() {
   const [selectedTab, setSelectedTab] = useState("Remisión");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [seller, setSeller] = useState(defaultSellers[0]);
+  const [sellers, setSellers] = useState(["jose", "maria", "luis"]);
+  const [seller, setSeller] = useState("jose");
+
+  // Configurar vendedores simples
+  useEffect(() => {
+    const allSellers = ["jose", "Wilson"];
+    setSellers(allSellers);
+    setSeller("jose");
+  }, []);
   const [client, setClient] = useState("CONSUMIDOR FINAL");
   const [priceList, setPriceList] = useState("CLIENTES");
   const [imp, setImp] = useState(0);
@@ -112,7 +118,7 @@ export default function PosScreen() {
                       setSeller={setSeller}
                       setClient={setClient}
                       setPriceList={setPriceList}
-                      sellers={defaultSellers}
+                      sellers={sellers}
                     />
                     <Cart
                       cart={cart}

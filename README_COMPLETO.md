@@ -137,10 +137,11 @@ crm-fabrica/
 │   └── wsgi.py             # Servidor web
 │
 ├── 📂 api/                  # API REST (Backend)
-│   ├── models.py           # 🗃️ Modelos de datos (Producto, Categoria, Lote)
-│   ├── views.py            # 🔧 Lógica de negocio (CRUD operations)
-│   ├── serializers.py      # 🔄 Conversión JSON ↔ Python
-│   └── urls.py             # 🛣️ Rutas de la API
+│   ├── models.py           # 🗃️ Modelos: Producto, Categoria, Lote, Vendedor, CargueOperativo
+│   ├── views.py            # 🔧 ViewSets con CRUD completo para todos los modelos
+│   ├── serializers.py      # 🔄 Serializers para todos los modelos
+│   ├── urls.py             # 🛣️ URLs para todos los endpoints
+│   └── admin.py            # 🔧 Panel de administración Django
 │
 ├── 📂 frontend/             # Interfaz de Usuario (React)
 │   ├── 📂 src/
@@ -167,6 +168,7 @@ crm-fabrica/
 │   │   │
 │   │   ├── 📂 context/      # 🌐 Estados Globales
 │   │   │   ├── ProductContext.jsx     # Estado de productos
+│   │   │   ├── VendedoresContext.jsx  # Estado de vendedores
 │   │   │   └── 📂 product/            # Módulos del contexto
 │   │   │       ├── 📂 hooks/          # Lógica de operaciones
 │   │   │       ├── 📂 services/       # Sincronización
@@ -175,12 +177,15 @@ crm-fabrica/
 │   │   ├── 📂 services/     # 🔗 Comunicación con API
 │   │   │   ├── api.js              # Servicios REST
 │   │   │   ├── syncService.js      # Sincronización
-│   │   │   └── loteService.js      # Gestión de lotes
+│   │   │   ├── loteService.js      # Gestión de lotes
+│   │   │   ├── vendedorService.js  # CRUD de vendedores
+│   │   │   └── cargueService.js    # Operaciones de cargue
 │   │   │
 │   │   └── 📂 pages/        # 📄 Páginas principales
 │   │       ├── PosScreen.jsx       # Pantalla POS
 │   │       ├── InventarioScreen.jsx # Pantalla Inventario
 │   │       ├── SelectorDia.jsx     # Pantalla de selección de días
+│   │       ├── VendedoresScreen.jsx # CRUD de vendedores
 │   │       └── MainMenu.jsx        # Menú principal
 │   │
 │   └── 📂 public/           # Archivos estáticos
@@ -261,7 +266,7 @@ npm start
 - ✅ Filtros por fecha y producto
 - ✅ Saldos actualizados automáticamente
 
-### 🏭 Cargue (Sistema Operativo) - ✅ COMPLETADO HOY
+### 🏭 Cargue (Sistema Operativo) - ✅ COMPLETADO
 - ✅ Navegación por días de la semana (LUNES-SÁBADO)
 - ✅ Sistema de 6 vendedores independientes (ID1-ID6)
 - ✅ Módulo de producción con 12 productos específicos
@@ -273,6 +278,10 @@ npm start
 - ✅ Tabla de producción con columnas: PRODUCTOS, TOTAL PRODUCTOS, PEDIDOS, TOTAL, SUGERIDO
 - ✅ Tabla de porciones (X2, X3, X4, X5) con totales
 - ✅ Cálculos automáticos y sincronización de datos
+- ✅ **ResumenVentas**: Tabla de pagos con CONCEPTO, DESCUENTOS, NEQUI, DAVIPLATA
+- ✅ **Formato de moneda automático**: $10.000 en todos los campos monetarios
+- ✅ **Sistema dual de vendedores**: Responsables en Cargue + opciones en POS
+- ✅ **Backend completo**: Modelos Django, APIs REST, y servicios implementados
 
 #### 🎨 **MEJORAS DE DISEÑO IMPLEMENTADAS HOY:**
 - ✅ **SelectorDia.jsx**: Botones de días con color azul personalizado `#06386d`
@@ -364,10 +373,61 @@ npm start
 - **MenuSheets.jsx**: Estilos inline para forzar colores personalizados
 - **PlantillaOperativa.css**: Selectores CSS específicos para checkboxes
 
-### 📋 **Próximos pasos:**
-- **Backend**: Crear modelos para el sistema de Cargue
-- **Base de datos**: Estructura para almacenar registros operativos
-- **API**: Endpoints para guardar y recuperar datos de cargue
-- **Sincronización**: Conectar frontend de Cargue con backend
+## 🎯 **SISTEMA DE VENDEDORES Y BACKEND COMPLETO - ✅ IMPLEMENTADO**
+
+### 🗃️ **Modelos Django Implementados:**
+```python
+# Modelo Vendedor
+class Vendedor(models.Model):
+    nombre = models.CharField(max_length=100)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+# Modelo CargueOperativo
+class CargueOperativo(models.Model):
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE)
+    dia_semana = models.CharField(max_length=10)
+    fecha = models.DateField()
+    responsable = models.CharField(max_length=100)
+
+# Modelos relacionados: DetalleCargue, ResumenPagos, ResumenTotales
+```
+
+### 🔗 **APIs REST Implementadas:**
+- ✅ `/api/vendedores/` - CRUD completo de vendedores
+- ✅ `/api/cargues-operativos/` - Gestión de cargues
+- ✅ `/api/detalle-cargue/` - Detalles de productos por cargue
+- ✅ `/api/resumen-pagos/` - Tabla de pagos (CONCEPTO, DESCUENTOS, NEQUI, DAVIPLATA)
+- ✅ `/api/resumen-totales/` - Totales calculados automáticamente
+
+### 🌐 **Contextos y Servicios:**
+- ✅ **VendedoresContext.jsx**: Estado global de vendedores
+- ✅ **vendedorService.js**: Operaciones CRUD para vendedores
+- ✅ **cargueService.js**: Servicios para cargues operativos
+- ✅ **VendedoresScreen.jsx**: Interfaz completa para gestión de vendedores
+
+### 💰 **Tabla de Pagos ResumenVentas:**
+- ✅ **Columnas**: CONCEPTO, DESCUENTOS, NEQUI, DAVIPLATA
+- ✅ **Formato automático**: $10.000 en todos los campos monetarios
+- ✅ **Cálculos en tiempo real**: Totales automáticos por columna
+- ✅ **BASE CAJA**: Campo editable con formato de moneda
+- ✅ **Resumen de totales**: DESPACHO, PEDIDOS, DCTOS, VENTA, EFECTIVO
+
+### 🔄 **Funcionalidad Dual de Vendedores:**
+1. **En Sistema de Cargue**: Aparecen como responsables automáticos según ID
+2. **En POS**: Disponibles como opciones en dropdown de vendedores
+3. **Sincronización**: Cambios en VendedoresScreen se reflejan en ambos sistemas
+
+### 🏭 **Panel de Administración Django:**
+- ✅ Todos los modelos registrados en Django Admin
+- ✅ Interfaz web para gestión desde backend
+- ✅ Filtros y búsquedas configuradas
+
+### 📊 **Migraciones Aplicadas:**
+```bash
+# Migraciones creadas y aplicadas exitosamente
+python manage.py makemigrations
+python manage.py migrate
+```
 
 ¡Este README te da una visión completa de cómo funciona y cómo recrear el sistema! 🚀

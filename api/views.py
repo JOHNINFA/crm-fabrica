@@ -6,11 +6,12 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
-    VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer
+    VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
+    VendedorSerializer, CargueOperativoSerializer, DetalleCargueSerializer, ResumenPagosSerializer, ResumenTotalesSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -318,3 +319,64 @@ class PrecioProductoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
         return queryset
+
+class VendedorViewSet(viewsets.ModelViewSet):
+    """API para gestionar vendedores"""
+    queryset = Vendedor.objects.all()
+    serializer_class = VendedorSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Vendedor.objects.all().order_by('id_vendedor')
+        
+        # Filtros opcionales
+        activo = self.request.query_params.get('activo')
+        id_vendedor = self.request.query_params.get('id_vendedor')
+        
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+        if id_vendedor:
+            queryset = queryset.filter(id_vendedor=id_vendedor)
+            
+        return queryset
+
+class CargueOperativoViewSet(viewsets.ModelViewSet):
+    """API para gestionar cargues operativos"""
+    queryset = CargueOperativo.objects.all()
+    serializer_class = CargueOperativoSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = CargueOperativo.objects.all().order_by('-fecha')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        vendedor = self.request.query_params.get('vendedor')
+        fecha = self.request.query_params.get('fecha')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if vendedor:
+            queryset = queryset.filter(vendedor_id=vendedor)
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+            
+        return queryset
+
+class DetalleCargueViewSet(viewsets.ModelViewSet):
+    """API para gestionar detalles de cargue"""
+    queryset = DetalleCargue.objects.all()
+    serializer_class = DetalleCargueSerializer
+    permission_classes = [permissions.AllowAny]
+
+class ResumenPagosViewSet(viewsets.ModelViewSet):
+    """API para gestionar resumen de pagos"""
+    queryset = ResumenPagos.objects.all()
+    serializer_class = ResumenPagosSerializer
+    permission_classes = [permissions.AllowAny]
+
+class ResumenTotalesViewSet(viewsets.ModelViewSet):
+    """API para gestionar resumen de totales"""
+    queryset = ResumenTotales.objects.all()
+    serializer_class = ResumenTotalesSerializer
+    permission_classes = [permissions.AllowAny]

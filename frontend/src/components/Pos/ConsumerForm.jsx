@@ -194,9 +194,12 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
               padding: '2px 8px'
             }}
           >
-            {sellers.map(v => (
-              <option key={v} value={v}>{v}</option>
-            ))}
+            <optgroup label="CAJERO">
+              <option value="jose">jose</option>
+            </optgroup>
+            <optgroup label="VENDEDORES">
+              <option value="Wilson">Wilson</option>
+            </optgroup>
           </select>
         </div>
       </div>

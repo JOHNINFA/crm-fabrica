@@ -2,21 +2,20 @@ import React from 'react';
 import { Button } from 'react-bootstrap';
 
 const BotonLimpiar = ({ onLimpiar }) => {
-  const handleLimpiar = () => {
-    if (window.confirm('¿Está seguro de limpiar todos los datos? Esta acción no se puede deshacer.')) {
-      onLimpiar();
-    }
+  const handleGuardar = () => {
+    // El guardado ya es automático, solo mostrar confirmación
+    alert('Datos guardados correctamente');
   };
 
   return (
-    <div className="d-flex justify-content-end mt-3">
+    <div className="d-flex justify-content-start mt-3">
       <Button 
-        variant="warning" 
-        onClick={handleLimpiar}
-        className="btn-limpiar"
+        variant="success" 
+        onClick={handleGuardar}
+        className="btn-guardar"
       >
-        <span className="material-icons me-2" style={{fontSize: '16px'}}>clear_all</span>
-        Limpiar Datos
+        <span className="material-icons me-2" style={{fontSize: '16px'}}>save</span>
+        Guardar
       </Button>
     </div>
   );
