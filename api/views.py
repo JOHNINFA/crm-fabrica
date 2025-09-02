@@ -87,28 +87,39 @@ class ProductoViewSet(viewsets.ModelViewSet):
             usuario = request.data.get('usuario', 'Sistema')
             nota = request.data.get('nota', '')
             
-            # Actualizar stock
+            import datetime
+            timestamp = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]
+            print(f"\n=== 🔥 ACTUALIZANDO STOCK [{timestamp}] ===\n")
+            print(f"Producto: {producto.nombre} (ID: {producto.id})")
+            print(f"Stock ANTES: {producto.stock_total}")
+            print(f"Cantidad recibida: {cantidad}")
+            print(f"Usuario: {usuario}")
+            print(f"Nota: {nota}")
+            print(f"Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
+            print(f"Request User-Agent: {request.META.get('HTTP_USER_AGENT', 'Unknown')[:50]}...")
+            
+            # Actualizar stock DIRECTAMENTE (sin crear MovimientoInventario)
+            stock_anterior = producto.stock_total
             producto.stock_total += cantidad
             producto.save()
             
-            # Registrar movimiento
-            movimiento = MovimientoInventario.objects.create(
-                producto=producto,
-                tipo='ENTRADA' if cantidad > 0 else 'SALIDA',
-                cantidad=abs(cantidad),
-                usuario=usuario,
-                nota=nota
-            )
+            print(f"Stock DESPUÉS: {producto.stock_total}")
+            print(f"Diferencia aplicada: {producto.stock_total - stock_anterior}")
+            print(f"=== ✅ ACTUALIZACIÓN COMPLETADA [{timestamp}] ===\n")
+            print(f"CONTADOR DE LLAMADAS PARA {producto.nombre}: {getattr(producto, '_call_count', 0) + 1}")
+            producto._call_count = getattr(producto, '_call_count', 0) + 1
             
             return Response({
                 'success': True,
                 'stock_actual': producto.stock_total,
-                'movimiento_id': movimiento.id
+                'nota': 'Stock actualizado sin MovimientoInventario para evitar doble descuento'
             })
             
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            print(f"❌ Error de valor: {e}")
             return Response({'error': 'La cantidad debe ser un número entero'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print(f"❌ Error general: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LoteViewSet(viewsets.ModelViewSet):
@@ -222,7 +233,7 @@ class VentaViewSet(viewsets.ModelViewSet):
                         venta=venta,
                         producto=producto,
                         cantidad=detalle_data['cantidad'],
-                        precio_unitario=detalle_data['precio_unitario']
+                        precio_unitario=float(detalle_data['precio_unitario'])
                     )
                     print(f"✅ Detalle creado: {producto.nombre} x{detalle_data['cantidad']}")
                 except Producto.DoesNotExist:
@@ -380,3 +391,5 @@ class ResumenTotalesViewSet(viewsets.ModelViewSet):
     queryset = ResumenTotales.objects.all()
     serializer_class = ResumenTotalesSerializer
     permission_classes = [permissions.AllowAny]
+
+    

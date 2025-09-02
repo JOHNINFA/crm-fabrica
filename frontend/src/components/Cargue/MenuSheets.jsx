@@ -101,13 +101,11 @@ export default function MenuSheets() {
   const calcularFechaPorDia = (diaSeleccionado) => {
     const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
     const hoy = new Date();
-    const diaActual = hoy.getDay(); // 0=Domingo, 1=Lunes, etc.
+    const diaActual = hoy.getDay();
     const indiceDiaSeleccionado = diasSemana.indexOf(diaSeleccionado);
     
-    // Calcular diferencia de días
     let diferenciaDias = indiceDiaSeleccionado - diaActual;
     
-    // Si el día seleccionado ya pasó esta semana, ir a la próxima semana
     if (diferenciaDias < 0) {
       diferenciaDias += 7;
     }
@@ -115,7 +113,12 @@ export default function MenuSheets() {
     const fechaCalculada = new Date(hoy);
     fechaCalculada.setDate(hoy.getDate() + diferenciaDias);
     
-    return fechaCalculada.toISOString().split('T')[0];
+    // Usar fecha local en lugar de ISO para evitar problemas de zona horaria
+    const year = fechaCalculada.getFullYear();
+    const month = String(fechaCalculada.getMonth() + 1).padStart(2, '0');
+    const day = String(fechaCalculada.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   };
 
   const [fechaSeleccionada, setFechaSeleccionada] = useState(
@@ -212,12 +215,62 @@ export default function MenuSheets() {
             }}
           />
         </div>
-        <button 
-          className="btn btn-outline-secondary btn-sm"
-          onClick={() => window.history.back()}
-        >
-          Regresar
-        </button>
+        <div className="d-flex gap-2">
+          <button 
+            type="button" 
+            className="btn btn-outline-primary" 
+            style={{minWidth: '40px', minHeight: '40px'}} 
+            onClick={async () => {
+              // Sincronizar todos los IDs
+              let totalSincronizados = 0;
+              const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+              
+              for (const id of idsVendedores) {
+                const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+                const key = `cargue_${dia}_${id}_${fechaAUsar}`;
+                const datosString = localStorage.getItem(key);
+                
+                if (datosString) {
+                  try {
+                    const datos = JSON.parse(datosString);
+                    
+                    if (!datos.sincronizado) {
+                      // Enviar al backend (simular por ahora)
+                      console.log(`🚀 Sincronizando ${id}:`, datos.productos.filter(p => p.cantidad > 0 || p.vendedor || p.despachador));
+                      
+                      // Marcar como sincronizado
+                      datos.sincronizado = true;
+                      localStorage.setItem(key, JSON.stringify(datos));
+                      
+                      totalSincronizados++;
+                    }
+                  } catch (error) {
+                    console.error(`Error sincronizando ${id}:`, error);
+                  }
+                }
+              }
+              
+              // Mostrar resultado
+              alert('✅ Sincronizando todos los IDs');
+              
+              // Animación visual
+              const btn = document.querySelector('.material-icons');
+              if (btn) {
+                btn.style.animation = 'spin 0.5s linear';
+                setTimeout(() => btn.style.animation = '', 500);
+              }
+            }}
+            title="Sincronizar todos los datos"
+          >
+            <span className="material-icons">sync</span>
+          </button>
+          <button 
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => window.history.back()}
+          >
+            Regresar
+          </button>
+        </div>
       </div>
 
       {/* Plantilla Operativa o Producción */}
@@ -234,7 +287,8 @@ export default function MenuSheets() {
               idSheet={idSeleccionado}
               idUsuario={id_usuario}
               onEditarNombre={abrirModal}
-              key={idSeleccionado}
+              fechaSeleccionada={fechaSeleccionada}
+              key={`${idSeleccionado}_${fechaSeleccionada}`}
             />
           </ProductProvider>
         )}

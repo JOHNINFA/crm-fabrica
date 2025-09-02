@@ -9,6 +9,12 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
   };
 
   const handleCheckboxChange = (id, campo, checked) => {
+    // Solo permitir marcar si el producto tiene total > 0
+    const producto = productos.find(p => p.id === id);
+    if (checked && producto && producto.total <= 0) {
+      return; // No hacer nada si intenta marcar sin cantidad
+    }
+    
     console.log(`Checkbox ${campo} para producto ${id}: ${checked}`);
     onActualizarProducto(id, campo, checked);
   };
@@ -49,8 +55,8 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
         </tr>
       </thead>
       <tbody>
-        {productos.map((p) => (
-          <tr key={p.id} className="table-row">
+        {productos.map((p, index) => (
+          <tr key={`${p.id}-${p.producto}`} className="table-row">
             <td>
               <input 
                 type="checkbox" 
@@ -151,7 +157,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
               )}
             </td>
             <td className="text-end neto-cell">
-              {p.neto ? `$${p.neto.toLocaleString()}` : '$0'}
+              {p.neto ? `$${Math.round(p.neto).toLocaleString()}` : '$0'}
             </td>
           </tr>
         ))}

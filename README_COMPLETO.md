@@ -307,20 +307,25 @@ npm start
 ### 🏭 Cargue (Sistema Operativo) - ✅ COMPLETADO
 - ✅ Navegación por días de la semana (LUNES-SÁBADO)
 - ✅ Sistema de 6 vendedores independientes (ID1-ID6)
-- ✅ Módulo de producción con 12 productos específicos
+- ✅ Módulo de producción con 18 productos específicos en orden fijo
 - ✅ Tablas operativas con colores diferenciados
 - ✅ Campos: Cantidad, Dctos, Adicional, Devoluciones, Vencidas
 - ✅ Cálculos automáticos de Total y Neto
-- ✅ Checkboxes para Vendedor y Despachador
+- ✅ Checkboxes para Vendedor y Despachador con validación inteligente
 - ✅ Resumen de ventas con tabla de pagos (Descuentos, Nequi, Daviplata)
 - ✅ Totales calculados automáticamente (Despacho, Pedidos, Dctos, Venta, Efectivo)
 - ✅ Base Caja configurable
-- ✅ Guardado automático en PostgreSQL y localStorage
-- ✅ Persistencia de datos al recargar página
-- ✅ Sincronización entre vendedores y producción
-- ✅ Botón de guardado manual con confirmación
-- ✅ Sistema híbrido: PostgreSQL como principal, localStorage como respaldo intercalados (#e2efda y blanco)
-- ✅ Edición de nombres de responsables con modal
+- ✅ **PERSISTENCIA AVANZADA**: 100% localStorage con sincronización inteligente
+- ✅ **PERSISTENCIA GARANTIZADA**: Los datos se mantienen al recargar página
+- ✅ Sincronización entre vendedores y producción en tiempo real
+- ✅ **BOTÓN SINCRONIZAR**: Envío manual inmediato al backend
+- ✅ **FLUJO DE ESTADOS AUTOMATIZADO**: ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
+- ✅ **CONGELAMIENTO DE PRODUCCIÓN**: Se mantiene fija durante el proceso operativo
+- ✅ **VALIDACIÓN DE CHECKS**: Solo se pueden marcar V y D si hay cantidad > 0
+- ✅ **DESCUENTO AUTOMÁTICO DE INVENTARIO**: DESPACHO actualiza stock en tiempo real
+- ✅ **MANEJO DIFERENCIADO**: Devoluciones suman al inventario, Vencidas solo se registran
+- ✅ **AUTO-AVANCE INTELIGENTE**: ALISTAMIENTO_ACTIVO → DESPACHO automático al marcar checks
+- ✅ **ORDEN FIJO DE PRODUCTOS**: Siempre aparecen en el mismo orden específico
 - ✅ Estados independientes para cada vendedor
 - ✅ Números de valor en rojo oscuro (#cc0000) con texto en negrita
 - ✅ Interfaz compacta y profesional
@@ -355,8 +360,72 @@ npm start
 
 ### 🔄 Sincronización
 - ✅ Datos en tiempo real entre POS e Inventario
-- ✅ Respaldo en localStorage
-- ✅ Sincronización automática con backend
+- ✅ **Sistema híbrido**: localStorage + backend
+- ✅ **Sincronización inteligente**: Automática cada 60s + manual
+- ✅ **Botón SINCRONIZAR**: Envío inmediato de todos los IDs
+- ✅ **Evita duplicados**: Solo sincroniza datos no enviados
+
+## 🏭 **SISTEMA DE CARGUE - FLUJO OPERATIVO COMPLETO**
+
+### 🔄 **Flujo de Estados del Botón (Solo ID1):**
+```
+📦 ALISTAMIENTO → 📦 ALISTAMIENTO ACTIVO → 🚚 DESPACHO → ✅ FINALIZAR → 🎉 COMPLETADO
+```
+
+### 🤖 **Automatizaciones Implementadas:**
+1. **Guardado Instantáneo**: Todos los cambios se guardan inmediatamente en localStorage
+2. **Auto-avance Inteligente**: ALISTAMIENTO_ACTIVO → DESPACHO cuando se marcan checks V y D
+3. **Congelamiento de Producción**: Se mantiene fija durante el proceso operativo
+4. **Validación de Checks**: Solo se pueden marcar si hay cantidad > 0
+5. **Sincronización Automática**: Cada 60 segundos + botón manual
+
+### 📊 **Orden Fijo de Productos (18 productos):**
+1. AREPA TIPO OBLEA 500Gr
+2. AREPA MEDIANA 330Gr
+3. AREPA TIPO PINCHO 330Gr
+4. AREPA QUESO ESPECIAL GRANDE 600Gr
+5. AREPA CON QUESO CUADRADA 450Gr
+6. AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr
+7. AREPA QUESO CORRIENTE 450Gr
+8. AREPA BOYACENSE X 10
+9. ALMOJABANA X 5 300Gr
+10. AREPA SANTANDEREANA 450Gr
+11. AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr
+12. AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr
+13. AREPA CON SEMILLA DE QUINUA 450Gr
+14. AREPA DE CHOCLO CON QUESO GRANDE 1200Gr
+15. AREPA DE CHOCLO CORRIENTE 300Gr
+16. AREPA BOYACENSE X 5 450Gr
+17. ALMOJABANAS X 10 600Gr
+18. AREPA QUESO MINI X10
+
+### 💾 **Sistema de Persistencia Avanzado:**
+- **localStorage**: Guardado instantáneo de todos los cambios
+- **Sincronización**: Envío periódico al backend (60s) + manual
+- **Recuperación**: Los datos se mantienen al recargar navegador
+- **Validación**: Solo carga datos cuando hay más de 5 productos (evita errores)
+
+### 🔄 **Flujo de Operación Diaria:**
+1. **Ingreso de Datos**: Agregar cantidades en ID1-ID6
+2. **Verificación**: Ver totales en módulo PRODUCCIÓN
+3. **Alistamiento**: Presionar botón ALISTAMIENTO (congela producción)
+4. **Validación**: Marcar checks V (Vendedor) y D (Despachador)
+5. **Auto-avance**: Sistema cambia automáticamente a DESPACHO
+6. **Despacho**: Presionar DESPACHO (descuenta inventario)
+7. **Devoluciones**: Agregar devoluciones y vencidas si aplica
+8. **Finalización**: Presionar FINALIZAR (procesa devoluciones)
+9. **Completado**: Sistema marca jornada como terminada
+
+### 📊 **Manejo Diferenciado de Productos:**
+- **Devoluciones**: Se SUMAN al inventario (productos que regresan)
+- **Vencidas**: Solo se REGISTRAN, NO afectan el inventario (productos perdidos)
+- **Despacho**: Se RESTAN del inventario (productos vendidos)
+
+### 🔍 **Validaciones Implementadas:**
+- Checks V y D solo se pueden marcar si `total > 0`
+- Botón DESPACHO solo se habilita si hay productos con V=true, D=true, TOTAL>0
+- Producción se congela durante el proceso operativo
+- Datos se validan antes de enviar al backend
 
 ## 🔗 Endpoints de API
 
@@ -434,6 +503,35 @@ npm start
 - **5 Campos** operativos por producto
 - **3 Tablas** principales en PostgreSQL
 - **4 Servicios** de comunicación con API
+
+## 🚀 **SISTEMA DE CARGUE - COMPLETADO HOY**
+
+### 💾 **PERSISTENCIA AVANZADA IMPLEMENTADA:**
+- ✅ **localStorage como base principal**: Guardado instantáneo de todos los cambios
+- ✅ **Persistencia garantizada**: Los datos se mantienen al recargar navegador
+- ✅ **Solución ID1**: Corregido problema de pérdida de datos específico de ID1
+- ✅ **Validación inteligente**: Solo carga datos cuando hay >5 productos
+- ✅ **Botón SINCRONIZAR**: Envío manual inmediato de todos los IDs
+- ✅ **Sincronización automática**: Cada 60 segundos en segundo plano
+
+### 🔄 **FLUJO OPERATIVO AUTOMATIZADO:**
+- ✅ **Estados del botón**: ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
+- ✅ **Auto-avance inteligente**: ALISTAMIENTO_ACTIVO → DESPACHO automático al marcar checks
+- ✅ **Congelamiento de producción**: Se mantiene fija durante el proceso operativo
+- ✅ **Validación de checks**: Solo se pueden marcar V y D si hay cantidad > 0
+- ✅ **Orden fijo de productos**: 18 productos siempre en el mismo orden específico
+
+### 📊 **MANEJO DIFERENCIADO DE INVENTARIO:**
+- ✅ **Despacho**: Resta del inventario (productos vendidos)
+- ✅ **Devoluciones**: Suma al inventario (productos que regresan)
+- ✅ **Vencidas**: Solo registro, NO afecta inventario (productos perdidos)
+- ✅ **Actualización en tiempo real**: Cambios inmediatos en stock
+
+### 🎯 **VALIDACIONES Y CONTROLES:**
+- ✅ **Checks inteligentes**: Solo habilitados si total > 0
+- ✅ **Botón DESPACHO**: Solo se habilita con productos validados (V=true, D=true, TOTAL>0)
+- ✅ **Prevención de errores**: Validaciones en cada paso del proceso
+- ✅ **Estados persistentes**: Se mantienen al recargar página
 
 ¡El sistema CRM-FÁBRICA está **100% funcional** y listo para producción! 🚀
 

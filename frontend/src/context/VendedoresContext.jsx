@@ -23,21 +23,42 @@ export const VendedoresProvider = ({ children }) => {
 
   // Actualizar datos de un vendedor específico
   const actualizarDatosVendedor = (idVendedor, productos) => {
-    setDatosVendedores(prev => ({
-      ...prev,
-      [idVendedor]: productos
-    }));
+    console.log(`\n🔄 ACTUALIZANDO ${idVendedor}:`);
+    console.log('Productos recibidos:', productos.filter(p => p.total > 0).map(p => `${p.producto}: ${p.total}`));
+    
+    setDatosVendedores(prev => {
+      const nuevo = {
+        ...prev,
+        [idVendedor]: productos
+      };
+      console.log('Estado actualizado:', Object.keys(nuevo).map(id => `${id}: ${nuevo[id].length} productos`));
+      return nuevo;
+    });
   };
 
   // Calcular total de productos para Producción
   const calcularTotalProductos = (nombreProducto) => {
     let total = 0;
-    Object.values(datosVendedores).forEach(vendedor => {
+    let debug = `\n=== ${nombreProducto} ===\n`;
+    
+    Object.entries(datosVendedores).forEach(([idVendedor, vendedor]) => {
       const producto = vendedor.find(p => p.producto === nombreProducto);
-      if (producto) {
+      if (producto && producto.total > 0) {
+        debug += `${idVendedor}: ${producto.total}\n`;
         total += producto.total || 0;
       }
     });
+    
+    debug += `TOTAL: ${total}\n=================`;
+    
+    // Mostrar en la página si hay datos
+    if (total > 0) {
+      const debugElement = document.getElementById('debug-produccion');
+      if (debugElement) {
+        debugElement.innerHTML = debug.replace(/\n/g, '<br>');
+      }
+    }
+    
     return total;
   };
 

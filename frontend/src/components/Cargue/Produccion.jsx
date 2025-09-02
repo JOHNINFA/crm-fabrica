@@ -43,16 +43,123 @@ const Produccion = () => {
     }
   };
 
-  // Cargar datos al inicializar
+  // Cargar datos de todos los IDs al inicializar PRODUCCION
   useEffect(() => {
-    if (products.length > 0 && !datosProduccionCargados) {
-      cargarDatosProduccion();
+    const cargarTodosLosIDs = async () => {
+      if (products.length === 0) return;
+      
+      try {
+        const { simpleStorage } = await import('../../services/simpleStorage');
+        const fechaActual = new Date().toISOString().split('T')[0];
+        const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+        const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+        
+        // Detectar el día actual o usar el último con datos
+        let diaConDatos = null;
+        
+        for (const dia of diasSemana) {
+          for (const id of idsVendedores) {
+            const key = `cargue_${dia}_${id}_${fechaActual}`;
+            const datos = await simpleStorage.getItem(key);
+            if (datos && datos.productos && datos.productos.length > 0) {
+              diaConDatos = dia;
+              break;
+            }
+          }
+          if (diaConDatos) break;
+        }
+        
+        if (diaConDatos) {
+          console.log(`📅 Cargando datos de ${diaConDatos}`);
+          
+          // Cargar datos de todos los IDs para ese día
+          for (const id of idsVendedores) {
+            const key = `cargue_${diaConDatos}_${id}_${fechaActual}`;
+            const datos = await simpleStorage.getItem(key);
+            
+            if (datos && datos.productos) {
+              const productosFormateados = datos.productos.map(p => ({
+                id: p.id,
+                producto: p.producto,
+                total: p.total || 0
+              }));
+              
+              // Simular actualización del contexto
+              const { actualizarDatosVendedor } = await import('../../context/VendedoresContext');
+              // Usar el contexto directamente
+              window.dispatchEvent(new CustomEvent('actualizarVendedor', {
+                detail: { id, productos: productosFormateados }
+              }));
+            }
+          }
+        }
+        
+        await cargarDatosProduccion();
+      } catch (error) {
+        console.error('Error cargando datos de IDs:', error);
+      }
+    };
+    
+    if (!datosProduccionCargados) {
+      cargarTodosLosIDs();
     }
   }, [products, datosProduccionCargados]);
 
+  // Calcular total directamente desde localStorage
+  const calcularTotalDirecto = (nombreProducto) => {
+    const fechaActual = new Date().toISOString().split('T')[0];
+    const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    
+    // Verificar si hay datos congelados para algún día
+    for (const dia of diasSemana) {
+      const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
+      
+      if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR') {
+        // Usar datos congelados
+        const datosCongelados = localStorage.getItem(`produccion_congelada_${dia}_${fechaActual}`);
+        if (datosCongelados) {
+          try {
+            const totalesCongelados = JSON.parse(datosCongelados);
+            console.log(`❄️ PRODUCCION usando datos congelados para ${nombreProducto}: ${totalesCongelados[nombreProducto] || 0}`);
+            return totalesCongelados[nombreProducto] || 0;
+          } catch (error) {
+            // Si hay error, continuar con cálculo normal
+          }
+        }
+      }
+    }
+    
+    // Cálculo normal si no hay datos congelados
+    let total = 0;
+    const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+    
+    for (const dia of diasSemana) {
+      for (const id of idsVendedores) {
+        const key = `cargue_${dia}_${id}_${fechaActual}`;
+        const datosString = localStorage.getItem(key);
+        
+        if (datosString) {
+          try {
+            const datos = JSON.parse(datosString);
+            if (datos && datos.productos) {
+              const producto = datos.productos.find(p => p.producto === nombreProducto);
+              if (producto && producto.total > 0) {
+                total += producto.total;
+              }
+            }
+          } catch (error) {
+            // Ignorar errores de parsing
+          }
+        }
+      }
+    }
+    
+    return total;
+  };
+
   // Función para calcular total (TOTAL PRODUCTOS + PEDIDOS)
   const calcularTotal = (nombreProducto) => {
-    const totalProductos = calcularTotalProductos(nombreProducto) || 0;
+    const totalProductos = calcularTotalDirecto(nombreProducto);
     const pedidosProducto = pedidos[nombreProducto] || 0;
     return totalProductos + pedidosProducto;
   };
@@ -138,7 +245,7 @@ const Produccion = () => {
                   <td>
                     <input 
                       type="number" 
-                      value={calcularTotalProductos(producto.name)} 
+                      value={calcularTotalDirecto(producto.name)} 
                       readOnly 
                       style={{ backgroundColor: '#f8f9fa', textAlign: 'center' }}
                     />

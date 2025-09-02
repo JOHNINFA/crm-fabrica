@@ -12,7 +12,8 @@ const ResumenVentas = ({ datos, productos = [] }) => {
   const [baseCaja, setBaseCaja] = useState(0);
 
   const formatCurrency = (amount) => {
-    return `$${amount.toLocaleString()}`;
+    const num = Number(amount) || 0;
+    return `$${Math.round(num).toLocaleString()}`;
   };
 
   const handleInputChange = (index, campo, value) => {
@@ -37,7 +38,10 @@ const ResumenVentas = ({ datos, productos = [] }) => {
   };
 
   const calcularTotalDespacho = () => {
-    return productos.reduce((total, producto) => total + (producto.neto || 0), 0);
+    return productos.reduce((total, producto) => {
+      const neto = Number(producto.neto) || 0;
+      return total + Math.round(neto);
+    }, 0);
   };
 
   return (

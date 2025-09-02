@@ -107,6 +107,26 @@ export const cargueService = {
     }
   },
 
+  // Obtener cargue por día, vendedor y fecha específica
+  getByDiaVendedorFecha: async (dia, vendedorId, fecha) => {
+    try {
+      // Mapear vendedor_id a database ID
+      const vendedorMap = {
+        'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6
+      };
+      const vendedorNumerico = vendedorMap[vendedorId] || 1;
+      
+      const params = { 
+        dia: dia.toUpperCase(), 
+        vendedor: vendedorNumerico,
+        fecha: fecha // YYYY-MM-DD
+      };
+      return await cargueService.getAll(params);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
   // Guardar cargue completo con productos
   guardarCargue: async (datosCompletos) => {
     try {
