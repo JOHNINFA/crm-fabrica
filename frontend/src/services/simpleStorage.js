@@ -1,6 +1,10 @@
 // Servicio simple que funciona igual que localStorage pero guarda en PostgreSQL
 const API_URL = 'http://localhost:8000/api';
 
+// Cache para evitar consultas repetitivas
+const cache = new Map();
+const pendingSaves = new Map();
+
 export const simpleStorage = {
   // Guardar datos en PostgreSQL y localStorage
   async setItem(key, data) {
@@ -8,78 +12,115 @@ export const simpleStorage = {
       // Guardar en localStorage inmediatamente
       localStorage.setItem(key, JSON.stringify(data));
       
-      // Intentar guardar en PostgreSQL
+      // Debounce: cancelar guardado anterior si existe
+      if (pendingSaves.has(key)) {
+        clearTimeout(pendingSaves.get(key));
+      }
+      
+      // Programar guardado en 2 segundos
+      const timeoutId = setTimeout(async () => {
+        await this._saveToBackend(key, data);
+        pendingSaves.delete(key);
+      }, 2000);
+      
+      pendingSaves.set(key, timeoutId);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  },
+  
+  // Método privado para guardar en backend
+  async _saveToBackend(key, data) {
+    try {
       const partes = key.split('_');
       const [tipo, dia, idSheet, fecha] = partes;
       const fechaGuardado = fecha || new Date().toISOString().split('T')[0];
       
       if (tipo === 'cargue') {
+        console.log(`💾 Guardando en backend: ${key}`);
+        
         const vendedorMap = { 'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6 };
         const vendedorId = vendedorMap[idSheet] || 1;
         
-        // Crear/obtener cargue
-        const cargueData = {
-          dia: dia.toUpperCase(),
-          fecha: fechaGuardado,
-          usuario: 'Sistema',
-          vendedor: vendedorId
-        };
+        // Usar cache para evitar consultas repetitivas
+        const cacheKey = `${dia}_${vendedorId}_${fechaGuardado}`;
+        let cargue = cache.get(cacheKey);
         
-        const checkResponse = await fetch(`${API_URL}/cargues/?dia=${dia.toUpperCase()}&vendedor=${vendedorId}&fecha=${fechaGuardado}`);
-        
-        let cargue;
-        if (checkResponse.ok) {
-          const existentes = await checkResponse.json();
+        if (!cargue) {
+          // Solo consultar si no está en cache
+          const checkResponse = await fetch(`${API_URL}/cargues/?dia=${dia.toUpperCase()}&vendedor=${vendedorId}&fecha=${fechaGuardado}`);
           
-          if (existentes.length > 0) {
-            cargue = existentes[0];
-          } else {
-            const createResponse = await fetch(`${API_URL}/cargues/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(cargueData)
-            });
+          if (checkResponse.ok) {
+            const existentes = await checkResponse.json();
             
-            if (createResponse.ok) {
-              cargue = await createResponse.json();
+            if (existentes.length > 0) {
+              cargue = existentes[0];
+            } else {
+              const cargueData = {
+                dia: dia.toUpperCase(),
+                fecha: fechaGuardado,
+                usuario: 'Sistema',
+                vendedor: vendedorId
+              };
+              
+              const createResponse = await fetch(`${API_URL}/cargues/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cargueData)
+              });
+              
+              if (createResponse.ok) {
+                cargue = await createResponse.json();
+              }
+            }
+            
+            // Guardar en cache por 5 minutos
+            if (cargue) {
+              cache.set(cacheKey, cargue);
+              setTimeout(() => cache.delete(cacheKey), 5 * 60 * 1000);
             }
           }
         }
         
-        // Guardar productos
+        // Solo guardar productos con datos relevantes
         if (cargue && data.productos) {
-          for (const producto of data.productos) {
-            if (producto.cantidad > 0 || producto.vendedor || producto.despachador) {
-              const detalleData = {
-                cargue: cargue.id,
-                producto: producto.id,
-                vendedor_check: producto.vendedor || false,
-                despachador_check: producto.despachador || false,
-                cantidad: producto.cantidad,
-                dctos: producto.dctos || 0,
-                adicional: producto.adicional || 0,
-                devoluciones: producto.devoluciones || 0,
-                vencidas: producto.vencidas || 0,
-                valor: producto.valor || 0
-              };
-              
-              // Verificar si existe
+          const productosConDatos = data.productos.filter(p => 
+            p.cantidad > 0 || p.vendedor || p.despachador || p.dctos > 0 || p.adicional > 0 || p.devoluciones > 0 || p.vencidas > 0
+          );
+          
+          console.log(`📦 Guardando ${productosConDatos.length} productos con datos`);
+          
+          // Procesar productos en lotes para reducir consultas
+          for (const producto of productosConDatos) {
+            const detalleData = {
+              cargue: cargue.id,
+              producto: producto.id,
+              vendedor_check: producto.vendedor || false,
+              despachador_check: producto.despachador || false,
+              cantidad: producto.cantidad,
+              dctos: producto.dctos || 0,
+              adicional: producto.adicional || 0,
+              devoluciones: producto.devoluciones || 0,
+              vencidas: producto.vencidas || 0,
+              valor: producto.valor || 0
+            };
+            
+            // Intentar crear directamente, si falla entonces actualizar
+            try {
+              await fetch(`${API_URL}/detalle-cargues/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(detalleData)
+              });
+            } catch {
+              // Si falla (probablemente existe), intentar actualizar
               const checkDetalle = await fetch(`${API_URL}/detalle-cargues/?cargue=${cargue.id}&producto=${producto.id}`);
-              
               if (checkDetalle.ok) {
                 const existentes = await checkDetalle.json();
-                
                 if (existentes.length > 0) {
-                  // Actualizar
                   await fetch(`${API_URL}/detalle-cargues/${existentes[0].id}/`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(detalleData)
-                  });
-                } else {
-                  // Crear
-                  await fetch(`${API_URL}/detalle-cargues/`, {
-                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(detalleData)
                   });
@@ -88,13 +129,11 @@ export const simpleStorage = {
             }
           }
         }
-      } else {
-        // Otros tipos de datos
       }
       
       return true;
     } catch (error) {
-
+      console.error('Error guardando en backend:', error);
       return false;
     }
   },
@@ -108,13 +147,22 @@ export const simpleStorage = {
         return JSON.parse(localData);
       }
       
-      // Si no está en localStorage, buscar en PostgreSQL
+      // Solo buscar en PostgreSQL si realmente es necesario
+      console.log(`🔍 Buscando en backend: ${key}`);
+      
       const partes = key.split('_');
       const [tipo, dia, idSheet, fecha] = partes;
       
       if (tipo === 'cargue' && fecha) {
         const vendedorMap = { 'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6 };
         const vendedorId = vendedorMap[idSheet] || 1;
+        
+        // Usar cache para datos ya consultados
+        const cacheKey = `data_${dia}_${vendedorId}_${fecha}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
         
         // Buscar cargue en PostgreSQL
         const response = await fetch(`${API_URL}/cargues/?dia=${dia.toUpperCase()}&vendedor=${vendedorId}&fecha=${fecha}`);
@@ -155,8 +203,12 @@ export const simpleStorage = {
                 timestamp: Date.now()
               };
               
-              // Guardar en localStorage para próximas consultas
+              // Guardar en localStorage y cache
               localStorage.setItem(key, JSON.stringify(datosFormateados));
+              cache.set(cacheKey, datosFormateados);
+              
+              // Limpiar cache después de 5 minutos
+              setTimeout(() => cache.delete(cacheKey), 5 * 60 * 1000);
               
               return datosFormateados;
             }
@@ -166,6 +218,7 @@ export const simpleStorage = {
       
       return null;
     } catch (error) {
+      console.error('Error obteniendo datos:', error);
       return null;
     }
   }

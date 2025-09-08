@@ -78,9 +78,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     
     verificarYAvanzar();
     
-    // Verificar cada 5 segundos
-    const interval = setInterval(verificarYAvanzar, 5000);
-    return () => clearInterval(interval);
+    // DESHABILITADO: Verificación automática para evitar spam al backend
+    // const interval = setInterval(verificarYAvanzar, 5000);
+    // return () => clearInterval(interval);
   }, [dia, fechaSeleccionada, idSheet, estado]);
 
   // Solo mostrar botón en ID1
