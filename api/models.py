@@ -406,3 +406,29 @@ class ResumenTotales(models.Model):
     
     def __str__(self):
         return f"Resumen {self.cargue} - Despacho: ${self.total_despacho}"
+
+class LoteVencido(models.Model):
+    """Modelo para registrar lotes vencidos con motivos"""
+    MOTIVO_CHOICES = [
+        ('HONGO', 'Hongo'),
+        ('FVTO', 'FVTO'),
+        ('SELLADO', 'Sellado'),
+    ]
+    
+    # Relación con DetalleCargue
+    detalle_cargue = models.ForeignKey(DetalleCargue, on_delete=models.CASCADE, related_name='lotes_vencidos')
+    
+    # Información del lote
+    lote = models.CharField(max_length=100)
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES)
+    
+    # Metadatos
+    fecha_registro = models.DateTimeField(default=timezone.now)
+    usuario = models.CharField(max_length=100, default='Sistema')
+    
+    def __str__(self):
+        return f"Lote {self.lote} - {self.motivo} - {self.detalle_cargue.producto.nombre}"
+    
+    class Meta:
+        verbose_name = "Lote Vencido"
+        verbose_name_plural = "Lotes Vencidos"

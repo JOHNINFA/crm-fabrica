@@ -111,6 +111,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
               adicional: productoGuardado.adicional || 0,
               devoluciones: productoGuardado.devoluciones || 0,
               vencidas: productoGuardado.vencidas || 0,
+              lotesVencidos: productoGuardado.lotesVencidos || [],
               total: productoGuardado.total || 0,
               valor: productoGuardado.valor || Math.round(product.price * 0.65),
               neto: productoGuardado.neto || 0,
@@ -129,6 +130,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             adicional: 0,
             devoluciones: 0,
             vencidas: 0,
+            lotesVencidos: [],
             total: 0,
             valor: Math.round(product.price * 0.65),
             neto: 0,
@@ -184,6 +186,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         adicional: 0,
         devoluciones: 0,
         vencidas: 0,
+        lotesVencidos: [],
         total: 0,
         valor: Math.round(product.price * 0.65),
         neto: 0,
@@ -214,25 +217,28 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     setProductosOperativos(prev => 
       prev.map(p => {
         if (p.id === id) {
-          // Manejar checkboxes (booleanos) y números por separado
-          const valorProcesado = (campo === 'vendedor' || campo === 'despachador') 
-            ? valor 
-            : parseInt(valor) || 0;
+          // Manejar diferentes tipos de campos
+          let valorProcesado;
+          
+          if (campo === 'vendedor' || campo === 'despachador') {
+            // Campos booleanos
+            valorProcesado = valor;
+          } else if (campo === 'lotesVencidos') {
+            // Array de lotes vencidos
+            valorProcesado = valor;
+          } else {
+            // Campos numéricos
+            valorProcesado = parseInt(valor) || 0;
+          }
           
           const updated = { ...p, [campo]: valorProcesado };
-          const totalAnterior = p.total || 0;
           
-          // Calcular total automáticamente solo para campos numéricos
-          if (campo !== 'vendedor' && campo !== 'despachador') {
+          // Calcular total automáticamente solo para campos numéricos (no para texto o checkboxes)
+          if (campo !== 'vendedor' && campo !== 'despachador' && campo !== 'lotesVencidos') {
             updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
             updated.neto = Math.round(updated.total * updated.valor);
             
-
-            
-            // NO actualizar inventario en tiempo real - solo el botón DESPACHO afecta inventario
             console.log(`📊 ${updated.producto}: cantidad=${updated.cantidad}, total=${updated.total} - Sin afectar inventario`);
-            
-            console.log(`📊 ${updated.producto}: cantidad=${updated.cantidad}, total=${updated.total}`);
           }
           
           return updated;

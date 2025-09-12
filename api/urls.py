@@ -4,7 +4,7 @@ from .views import (
     RegistroViewSet, ProductoViewSet, CategoriaViewSet,
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
     VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
-    VendedorViewSet, CargueOperativoViewSet, DetalleCargueViewSet, ResumenPagosViewSet, ResumenTotalesViewSet
+    VendedorViewSet, CargueOperativoViewSet, DetalleCargueViewSet, ResumenPagosViewSet, ResumenTotalesViewSet, LoteVencidoViewSet
 )
 
 router = DefaultRouter()
@@ -22,6 +22,7 @@ router.register(r'precio-productos', PrecioProductoViewSet, basename='precio-pro
 router.register(r'vendedores', VendedorViewSet, basename='vendedor')
 router.register(r'cargues', CargueOperativoViewSet, basename='cargue')
 router.register(r'detalle-cargues', DetalleCargueViewSet, basename='detalle-cargue')
+router.register(r'lotes-vencidos', LoteVencidoViewSet, basename='lote-vencido')
 router.register(r'resumen-pagos', ResumenPagosViewSet, basename='resumen-pagos')
 router.register(r'resumen-totales', ResumenTotalesViewSet, basename='resumen-totales')
 

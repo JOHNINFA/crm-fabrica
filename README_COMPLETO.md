@@ -1,45 +1,686 @@
-# 🏭 CRM-FÁBRICA - Sistema de Gestión Integral
+# 🏭 CRM-FÁBRICA - DOCUMENTACIÓN TÉCNICA COMPLETA
 
-## 📋 ¿Qué es este proyecto?
-Un sistema completo para gestionar una fábrica de arepas que incluye:
-- **POS (Punto de Venta)** - Para vender productos
-- **Inventario** - Para controlar existencias y producción
-- **Kardex** - Para ver movimientos de productos
-- **Cargue** - Sistema operativo para control diario de vendedores y producción
-- **Sincronización** - Entre frontend y backend
+## 📋 ÍNDICE
+1. [ARQUITECTURA GENERAL](#arquitectura-general)
+2. [MENÚ PRINCIPAL](#menú-principal)
+3. [MÓDULO POS](#módulo-pos)
+4. [MÓDULO INVENTARIO](#módulo-inventario)
+5. [MÓDULO CARGUE](#módulo-cargue)
+6. [OTROS MÓDULOS](#otros-módulos)
+7. [BACKEND DJANGO](#backend-django)
+8. [BASE DE DATOS](#base-de-datos)
+9. [INSTALACIÓN COMPLETA](#instalación-completa)
 
-## 🏗️ Arquitectura del Sistema
+---
 
+## 🏗️ ARQUITECTURA GENERAL
+
+### **Stack Tecnológico**
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    FRONTEND     │◄──►│    BACKEND      │◄──►│   BASE DATOS    │
-│   (React.js)    │    │   (Django)      │    │  (SQLite/PG)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-    ┌────▼────┐             ┌────▼────┐             ┌────▼────┐
-    │   POS   │             │   API   │             │ Tablas  │
-    │Inventario│             │REST API │             │Productos│
-    │ Kardex  │             │Endpoints│             │ Lotes   │
-    │ Cargue  │             │         │             │Categorías│
-    └─────────┘             └─────────┘             │ Cargue  │
-                                                    └─────────┘
+Frontend: React.js 19.1.0 + React Router 7.5.0 + Bootstrap 5.3.6
+Backend: Django + Django REST Framework
+Base de Datos: PostgreSQL
+Persistencia: localStorage + PostgreSQL (Sistema Híbrido)
+Estilos: Bootstrap + CSS personalizado
+Iconos: Bootstrap Icons 1.11.3
 ```
 
-## 🚀 Cómo crear este proyecto desde cero
+### **Estructura de Directorios**
+```
+crm-fabrica/
+├── 📂 backend_crm/          # Configuración Django
+├── 📂 api/                  # API REST (Modelos, Views, Serializers)
+├── 📂 frontend/             # Aplicación React
+│   ├── 📂 src/
+│   │   ├── 📂 components/   # Componentes reutilizables
+│   │   ├── 📂 pages/        # Páginas principales
+│   │   ├── 📂 context/      # Estados globales (Context API)
+│   │   ├── 📂 services/     # Comunicación con API
+│   │   └── 📂 styles/       # Estilos CSS personalizados
+└── 📂 media/                # Archivos subidos (imágenes productos)
+```
 
-### PASO 1: Configurar el Backend (Django)
-```bash
-# 1. Crear proyecto Django
-django-admin startproject backend_crm
-cd backend_crm
+### **Flujo de Datos Principal**
+```
+React Components → Context API → Services → Django API → PostgreSQL
+                ↓                                        ↑
+            localStorage ←→ Sincronización Automática ←→ Backend
+```
 
-# 2. Crear app para la API
-python manage.py startapp api
+---
 
-# 3. Instalar dependencias
-pip install django djangorestframework django-cors-headers pillow
+## 🏠 MENÚ PRINCIPAL
 
-# 4. Configurar settings.py
+### **Archivo Principal: `MainMenu.jsx`**
+
+#### **Funcionalidad**
+- Pantalla de inicio con 6 módulos principales
+- Navegación centralizada a todas las secciones
+- Efectos hover personalizados
+- Diseño responsive con grid CSS
+
+#### **Estructura del Componente**
+```javascript
+// Ubicación: /frontend/src/pages/MainMenu.jsx
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import '../styles/MainMenu.css';
+import icono from '../assets/images/icono.png';
+import bannermenu from '../assets/images/bannermenu.png';
+
+export default function MainMenu() {
+  const navigate = useNavigate();
+  
+  // 6 módulos principales con navegación
+  const modulos = [
+    { ruta: "/pos", titulo: "Punto de Venta (POS)", icono: "bi-cart" },
+    { ruta: "/inventario", titulo: "Inventario", icono: "bi-box" },
+    { ruta: "/cargue", titulo: "Cargue", icono: "bi-people" },
+    { ruta: "/pedidos", titulo: "Remisiones", icono: "bi-file-text" },
+    { ruta: "/trazabilidad", titulo: "Trazabilidad", icono: "bi-diagram-3" },
+    { ruta: "/otros", titulo: "Otros", icono: "bi-gear" }
+  ];
+}
+```
+
+#### **Estilos CSS Personalizados**
+```css
+/* Archivo: /frontend/src/styles/MainMenu.css */
+.menu-card {
+  background-color: #06386d;
+  color: white;
+  padding: 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  transform: scale(1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.menu-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  background: linear-gradient(135deg, #053d73 0%, #07447e 50%, #084a85 100%);
+}
+```
+
+#### **Características Técnicas**
+- **Color corporativo**: `#06386d` (azul oscuro)
+- **Efecto hover**: Degradado + escala 1.05 + sombra profunda
+- **Grid layout**: 3 columnas × 2 filas
+- **Responsive**: Se adapta a móviles y tablets
+- **Transiciones**: 0.3s ease para suavidad
+
+#### **Lógica de Navegación**
+```javascript
+const handleNavigation = (ruta) => {
+  navigate(ruta);
+};
+
+// Cada tarjeta ejecuta:
+onClick={() => navigate("/pos")}  // Ejemplo para POS
+```
+
+---
+
+## 🛒 MÓDULO POS (PUNTO DE VENTA)
+
+### **Archivo Principal: `PosScreen.jsx`**
+
+#### **Funcionalidad**
+- Sistema completo de punto de venta
+- Gestión de productos y carrito
+- Procesamiento de ventas con múltiples métodos de pago
+- Sincronización automática con inventario
+- Generación de facturas
+
+#### **Componentes Principales**
+
+##### **1. ProductList.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Pos/ProductList.jsx
+// Funcionalidad: Lista todos los productos disponibles
+// Características:
+- Filtrado por categorías
+- Búsqueda en tiempo real
+- Cards de productos con imagen, precio y stock
+- Botón "Agregar al carrito"
+- Indicador visual de stock bajo
+```
+
+##### **2. Cart.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Pos/Cart.jsx
+// Funcionalidad: Carrito de compras
+// Características:
+- Lista de productos seleccionados
+- Modificación de cantidades
+- Cálculo automático de totales
+- Aplicación de descuentos
+- Botón "Procesar venta"
+```
+
+##### **3. PaymentModal.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Pos/PaymentModal.jsx
+// Funcionalidad: Modal de procesamiento de pago
+// Características:
+- Múltiples métodos de pago (Efectivo, Tarjeta, QR, etc.)
+- Cálculo de vueltas
+- Validación de montos
+- Generación de factura
+```
+
+#### **Context API - ProductContext.jsx**
+```javascript
+// Ubicación: /frontend/src/context/ProductContext.jsx
+// Estado global para productos
+const ProductContext = createContext();
+
+export const ProductProvider = ({ children }) => {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Funciones principales:
+  - syncWithBackend()     // Sincronización con Django
+  - loadProductsFromBackend()  // Carga inicial
+  - updateProductStock()  // Actualización de stock
+};
+```
+
+#### **Servicios API**
+```javascript
+// Ubicación: /frontend/src/services/api.js
+export const productoService = {
+  getAll: () => fetch('/api/productos/'),
+  create: (data) => fetch('/api/productos/', {method: 'POST', body: data}),
+  update: (id, data) => fetch(`/api/productos/${id}/`, {method: 'PATCH', body: data}),
+  updateStock: (id, cantidad) => fetch(`/api/productos/${id}/actualizar_stock/`)
+};
+
+export const ventaService = {
+  create: (ventaData) => fetch('/api/ventas/', {method: 'POST', body: JSON.stringify(ventaData)})
+};
+```
+
+#### **Flujo de Venta Completo**
+```
+1. Usuario selecciona productos → ProductList
+2. Productos se agregan al carrito → Cart
+3. Usuario procesa venta → PaymentModal
+4. Se crea registro en BD → ventaService.create()
+5. Se actualiza stock automáticamente → MovimientoInventario
+6. Se genera factura → InvoiceModal
+7. Se sincroniza con inventario → ProductContext
+```
+
+#### **Estilos Específicos**
+```css
+/* ProductCard.css */
+.product-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  transition: transform 0.2s;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Cart.css */
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+```
+
+---
+
+## 📦 MÓDULO INVENTARIO
+
+### **Archivo Principal: `InventarioScreen.jsx`**
+
+#### **Funcionalidad**
+- Control completo de existencias
+- Registro de producción diaria
+- Historial de movimientos (Kardex)
+- Gestión de lotes y fechas de vencimiento
+- Sincronización automática con POS
+
+#### **Componentes Principales**
+
+##### **1. InventarioProduccion.jsx**
+```javascript
+// Ubicación: /frontend/src/components/inventario/InventarioProduccion.jsx
+// Funcionalidad: Registro de producción diaria
+// Características:
+- Selector de fecha de producción
+- Tabla de productos con cantidades
+- Cálculo automático de totales
+- Guardado en lotes por fecha
+- Actualización automática de stock
+```
+
+##### **2. TablaKardex.jsx**
+```javascript
+// Ubicación: /frontend/src/components/inventario/TablaKardex.jsx
+// Funcionalidad: Historial de movimientos
+// Características:
+- Filtros por fecha y producto
+- Tipos de movimiento (ENTRADA, SALIDA, AJUSTE)
+- Saldos calculados automáticamente
+- Exportación de reportes
+- Búsqueda en tiempo real
+```
+
+##### **3. TablaInventario.jsx**
+```javascript
+// Ubicación: /frontend/src/components/inventario/TablaInventario.jsx
+// Funcionalidad: Vista general de existencias
+// Características:
+- Stock actual por producto
+- Indicadores de stock bajo
+- Edición rápida de cantidades
+- Filtros por categoría
+- Alertas de productos vencidos
+```
+
+#### **Lógica de Movimientos de Inventario**
+```javascript
+// Tipos de movimiento
+const TIPOS_MOVIMIENTO = {
+  ENTRADA: 'ENTRADA',    // Producción, compras
+  SALIDA: 'SALIDA',      // Ventas, desperdicios
+  AJUSTE: 'AJUSTE'       // Correcciones manuales
+};
+
+// Función para registrar movimiento
+const registrarMovimiento = async (productoId, tipo, cantidad, nota) => {
+  const movimiento = {
+    producto: productoId,
+    tipo: tipo,
+    cantidad: cantidad,
+    fecha: new Date().toISOString(),
+    usuario: 'Sistema',
+    nota: nota
+  };
+  
+  // Enviar a backend
+  await movimientoService.create(movimiento);
+  
+  // Actualizar stock local
+  updateProductStock(productoId, tipo === 'ENTRADA' ? cantidad : -cantidad);
+};
+```
+
+#### **Sistema de Lotes**
+```javascript
+// Estructura de lote
+const lote = {
+  lote: 'L001',                    // Código del lote
+  fecha_produccion: '2025-01-08',  // Fecha de producción
+  fecha_vencimiento: '2025-01-15', // Fecha de vencimiento
+  usuario: 'Sistema',              // Usuario que registró
+  productos: [                     // Productos en este lote
+    {
+      producto_id: 1,
+      cantidad: 100,
+      producto_nombre: 'AREPA MEDIANA'
+    }
+  ]
+};
+```
+
+#### **Servicios de Inventario**
+```javascript
+// Ubicación: /frontend/src/services/registroInventarioService.js
+export const inventarioService = {
+  registrarProduccion: async (fecha, productos) => {
+    // Registra producción diaria
+    const lote = await loteService.create({
+      lote: `L${Date.now()}`,
+      fecha_produccion: fecha,
+      usuario: 'Sistema'
+    });
+    
+    // Registra cada producto
+    for (const producto of productos) {
+      await registroInventarioService.create({
+        producto_id: producto.id,
+        cantidad: producto.cantidad,
+        tipo_movimiento: 'ENTRADA',
+        fecha_produccion: fecha
+      });
+    }
+  }
+};
+```
+
+#### **Sincronización con POS**
+```javascript
+// Ubicación: /frontend/src/services/syncService.js
+const sincronizarConBD = async () => {
+  try {
+    // Obtener productos actualizados
+    const response = await fetch('/api/productos/');
+    const productosFromBD = await response.json();
+    
+    // Actualizar localStorage para POS
+    const productosParaPOS = productosFromBD.map(p => ({
+      id: p.id,
+      name: p.nombre,
+      price: parseFloat(p.precio),
+      stock: p.stock_total,
+      category: p.categoria_nombre
+    }));
+    
+    localStorage.setItem('products', JSON.stringify(productosParaPOS));
+    
+    // Notificar cambios
+    window.dispatchEvent(new Event('productosUpdated'));
+  } catch (error) {
+    console.error('Error sincronizando:', error);
+  }
+};
+
+// Sincronización automática cada 5 minutos
+setInterval(sincronizarConBD, 5 * 60 * 1000);
+```
+
+---
+
+## 🏭 MÓDULO CARGUE (SISTEMA OPERATIVO)
+
+### **Archivo Principal: `MenuSheets.jsx`**
+
+#### **Funcionalidad**
+- Sistema operativo para 6 vendedores independientes (ID1-ID6)
+- Control de producción diaria
+- Flujo de estados automatizado
+- **NUEVO**: Sistema de lotes vencidos con motivos
+- Persistencia avanzada localStorage + PostgreSQL
+
+#### **Componentes Principales**
+
+##### **1. SelectorDia.jsx**
+```javascript
+// Ubicación: /frontend/src/pages/SelectorDia.jsx
+// Funcionalidad: Selección de día operativo
+// Características:
+- 6 días de la semana (LUNES-SÁBADO)
+- Botones con color corporativo #06386d
+- Efectos 3D sutiles en hover
+- Navegación a /cargue/:dia
+```
+
+##### **2. MenuSheets.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/MenuSheets.jsx
+// Funcionalidad: Navegación entre vendedores
+// Características:
+- Barra inferior fija con IDs (ID1-ID6, PRODUCCION)
+- Selector de fecha
+- Botón sincronizar global
+- Estado independiente por vendedor
+```
+
+##### **3. PlantillaOperativa.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/PlantillaOperativa.jsx
+// Funcionalidad: Plantilla principal de cada vendedor
+// Características:
+- Tabla de 18 productos específicos en orden fijo
+- Campos: Cantidad, Dctos, Adicional, Devoluciones, Vencidas
+- Checkboxes V (Vendedor) y D (Despachador)
+- Sistema de lotes vencidos con motivos
+- Cálculos automáticos de Total y Neto
+```
+
+#### **Orden Fijo de Productos (18 específicos)**
+```javascript
+const ordenEspecifico = [
+  'AREPA TIPO OBLEA 500Gr',
+  'AREPA MEDIANA 330Gr',
+  'AREPA TIPO PINCHO 330Gr',
+  'AREPA QUESO ESPECIAL GRANDE 600Gr',
+  'AREPA CON QUESO CUADRADA 450Gr',
+  'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
+  'AREPA QUESO CORRIENTE 450Gr',
+  'AREPA BOYACENSE X 10',
+  'ALMOJABANA X 5 300Gr',
+  'AREPA SANTANDEREANA 450Gr',
+  'AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr',
+  'AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr',
+  'AREPA CON SEMILLA DE QUINUA 450Gr',
+  'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
+  'AREPA DE CHOCLO CORRIENTE 300Gr',
+  'AREPA BOYACENSE X 5 450Gr',
+  'ALMOJABANAS X 10 600Gr',
+  'AREPA QUESO MINI X10'
+];
+```
+
+##### **4. TablaProductos.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/TablaProductos.jsx
+// Funcionalidad: Tabla operativa de productos
+// Estructura de columnas:
+V | D | PRODUCTOS | CANTIDAD | DCTOS | ADICIONAL | DEVOLUCIONES | VENCIDAS | LOTES VENCIDOS | TOTAL | VALOR | NETO
+
+// Características:
+- Checkboxes con validación (solo si total > 0)
+- Inputs numéricos con selección automática al focus
+- Columna LOTES VENCIDOS con componente especializado
+- Cálculos automáticos de Total y Neto
+- Color corporativo #06386d en checkboxes
+```
+
+##### **5. LotesVencidos.jsx** ⭐ **NUEVO COMPONENTE**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/LotesVencidos.jsx
+// Funcionalidad: Gestión de múltiples lotes vencidos
+// Características:
+- Botón "+ Lote" para agregar primer lote
+- Vista compacta: "X lotes ▶"
+- Vista expandible: Dropdown con todos los lotes
+- Cada lote tiene: campo texto + dropdown motivo
+- Motivos: HONGO, FVTO, SELLADO
+- Botón "×" para eliminar lotes
+- Guardado automático en localStorage
+```
+
+#### **Estructura de Datos - Lotes Vencidos**
+```javascript
+// Estructura en localStorage y PostgreSQL
+const producto = {
+  id: 1,
+  producto: 'AREPA MEDIANA 330Gr',
+  cantidad: 10,
+  dctos: 0,
+  adicional: 0,
+  devoluciones: 2,
+  vencidas: 1,
+  lotesVencidos: [                    // ⭐ NUEVO CAMPO
+    { lote: 'L001', motivo: 'HONGO' },
+    { lote: 'L002', motivo: 'FVTO' },
+    { lote: 'L003', motivo: 'SELLADO' }
+  ],
+  total: 7,  // cantidad - dctos + adicional - devoluciones - vencidas
+  valor: 1600,
+  neto: 11200,  // total * valor
+  vendedor: true,
+  despachador: true
+};
+```
+
+##### **6. BotonLimpiar.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/BotonLimpiar.jsx
+// Funcionalidad: Control de flujo operativo (Solo ID1)
+// Estados del botón:
+ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
+
+// Lógica de auto-avance:
+- ALISTAMIENTO_ACTIVO → DESPACHO (automático al marcar V y D)
+- Congelamiento de producción durante proceso
+- Actualización de inventario solo en DESPACHO
+- Manejo diferenciado: Devoluciones (+), Vencidas (registro), Despacho (-)
+```
+
+##### **7. Produccion.jsx**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/Produccion.jsx
+// Funcionalidad: Módulo de producción consolidado
+// Características:
+- Suma automática de todos los IDs (ID1-ID6)
+- Tabla con columnas: PRODUCTOS, TOTAL PRODUCTOS, PEDIDOS, TOTAL, SUGERIDO
+- Tabla de porciones (X2, X3, X4, X5)
+- Datos congelados durante proceso operativo
+- Lectura directa desde localStorage
+```
+
+#### **Sistema de Persistencia Avanzado**
+```javascript
+// Ubicación: /frontend/src/services/simpleStorage.js
+export const simpleStorage = {
+  // Guardado híbrido: localStorage + PostgreSQL
+  async setItem(key, data) {
+    // 1. Guardar inmediatamente en localStorage
+    localStorage.setItem(key, JSON.stringify(data));
+    
+    // 2. Debounce de 2 segundos para PostgreSQL
+    const timeoutId = setTimeout(async () => {
+      await this._saveToBackend(key, data);
+    }, 2000);
+  },
+  
+  // Guardado en PostgreSQL con lotes vencidos
+  async _saveToBackend(key, data) {
+    // Crear/actualizar CargueOperativo
+    // Crear/actualizar DetalleCargue
+    // ⭐ NUEVO: Crear/actualizar LoteVencido
+    for (const producto of data.productos) {
+      if (producto.lotesVencidos && producto.lotesVencidos.length > 0) {
+        for (const loteVencido of producto.lotesVencidos) {
+          await fetch('/api/lotes-vencidos/', {
+            method: 'POST',
+            body: JSON.stringify({
+              detalle_cargue: detalleId,
+              lote: loteVencido.lote,
+              motivo: loteVencido.motivo,
+              usuario: 'Sistema'
+            })
+          });
+        }
+      }
+    }
+  }
+};
+```
+
+#### **Flujo Operativo Completo**
+```
+1. Selección de día → SelectorDia.jsx
+2. Elección de vendedor → MenuSheets.jsx (ID1-ID6, PRODUCCION)
+3. Registro de datos → PlantillaOperativa.jsx
+   - Cantidades en inputs numéricos
+   - Lotes vencidos con LotesVencidos.jsx
+   - Checkboxes V y D con validación
+4. Consolidación → Produccion.jsx (suma de todos los IDs)
+5. Flujo de estados → BotonLimpiar.jsx (solo ID1)
+6. Persistencia → simpleStorage.js (localStorage + PostgreSQL)
+```
+
+#### **Estilos CSS Específicos**
+```css
+/* PlantillaOperativa.css */
+.tabla-productos {
+  font-size: 12px;
+  border-collapse: collapse;
+}
+
+.tabla-productos th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.tabla-productos input[type="checkbox"] {
+  accent-color: #06386d;
+  transform: scale(1.2);
+}
+
+.tabla-productos input[type="number"] {
+  width: 60px;
+  text-align: center;
+  border: 1px solid #ddd;
+  padding: 2px;
+}
+
+/* Produccion.css */
+.tabla-produccion {
+  background-color: #f8f9fa;
+  border: 2px solid #06386d;
+}
+
+.tabla-produccion th {
+  background-color: #06386d;
+  color: white;
+  text-align: center;
+}
+```
+
+---
+
+## 📄 OTROS MÓDULOS
+
+### **Remisiones (PedidosScreen.jsx)**
+- Creación y gestión de guías de remisión
+- Control de entregas
+- Estados: Pendiente, En tránsito, Entregado
+
+### **Trazabilidad**
+- Seguimiento completo del ciclo de vida de productos
+- Desde producción hasta venta final
+- Reportes de trazabilidad por lote
+
+### **Vendedores (VendedoresScreen.jsx)**
+```javascript
+// CRUD completo de vendedores
+const vendedor = {
+  nombre: 'Juan Pérez',
+  id_vendedor: 'ID1',  // ID1, ID2, ID3, ID4, ID5, ID6
+  ruta: 'Ruta Norte',
+  activo: true
+};
+```
+
+### **Clientes (ClientesScreen.jsx)**
+- Gestión completa de clientes
+- Información de contacto y geográfica
+- Configuración de crédito y pagos
+
+### **Listas de Precios**
+- Múltiples listas por tipo de cliente
+- Precios específicos por producto
+- Cálculo automático de utilidades
+
+---
+
+## 🔧 BACKEND DJANGO
+
+### **Configuración Principal**
+```python
+# backend_crm/settings.py
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -48,699 +689,389 @@ INSTALLED_APPS = [
     'api',
 ]
 
-# 5. Crear modelos (Producto, Categoria, Lote, etc.)
-# 6. Hacer migraciones
-python manage.py makemigrations
-python manage.py migrate
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'fabrica',
+        'USER': 'postgres',
+        'PASSWORD': '12345',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
 ```
 
-### PASO 2: Configurar el Frontend (React)
-```bash
-# 1. Crear app React
-npx create-react-app frontend
-cd frontend
+### **Modelos Principales**
+```python
+# api/models.py
 
-# 2. Instalar dependencias
-npm install react-router-dom bootstrap react-bootstrap uuid
+class Producto(models.Model):
+    nombre = models.CharField(max_length=255, unique=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+    stock_total = models.IntegerField(default=0)
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True)
+    imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
+    activo = models.BooleanField(default=True)
 
-# 3. Crear estructura de carpetas
-src/
-├── components/     # Componentes UI
-├── context/       # Estados globales
-├── services/      # Comunicación con API
-├── pages/         # Páginas principales
-└── styles/        # Estilos CSS
+class CargueOperativo(models.Model):
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado')
+    ]
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE)
+    fecha = models.DateField()
+    usuario = models.CharField(max_length=100)
+
+class DetalleCargue(models.Model):
+    cargue = models.ForeignKey(CargueOperativo, on_delete=models.CASCADE)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    vendedor_check = models.BooleanField(default=False)
+    despachador_check = models.BooleanField(default=False)
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    neto = models.DecimalField(max_digits=12, decimal_places=2)
+
+# ⭐ NUEVO MODELO
+class LoteVencido(models.Model):
+    MOTIVO_CHOICES = [
+        ('HONGO', 'Hongo'),
+        ('FVTO', 'FVTO'),
+        ('SELLADO', 'Sellado'),
+    ]
+    detalle_cargue = models.ForeignKey(DetalleCargue, on_delete=models.CASCADE)
+    lote = models.CharField(max_length=100)
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES)
+    fecha_registro = models.DateTimeField(default=timezone.now)
+    usuario = models.CharField(max_length=100)
 ```
 
-### PASO 3: Crear la Estructura de Datos
+### **APIs REST Completas**
+```python
+# api/views.py
+class ProductoViewSet(viewsets.ModelViewSet):
+    queryset = Producto.objects.all()
+    serializer_class = ProductoSerializer
+    
+    @action(detail=True, methods=['post'])
+    def actualizar_stock(self, request, pk=None):
+        producto = self.get_object()
+        cantidad = int(request.data.get('cantidad', 0))
+        producto.stock_total += cantidad
+        producto.save()
+        return Response({'stock_actual': producto.stock_total})
+
+# ⭐ NUEVO VIEWSET
+class LoteVencidoViewSet(viewsets.ModelViewSet):
+    queryset = LoteVencido.objects.all()
+    serializer_class = LoteVencidoSerializer
+```
+
+### **URLs de API**
+```python
+# api/urls.py
+router = DefaultRouter()
+router.register(r'productos', ProductoViewSet)
+router.register(r'cargues', CargueOperativoViewSet)
+router.register(r'detalle-cargues', DetalleCargueViewSet)
+router.register(r'lotes-vencidos', LoteVencidoViewSet)  # ⭐ NUEVO
+router.register(r'vendedores', VendedorViewSet)
+router.register(r'ventas', VentaViewSet)
+```
+
+---
+
+## 🗃️ BASE DE DATOS
+
+### **Esquema PostgreSQL**
 ```sql
--- Tabla de Categorías
-CREATE TABLE api_categoria (
-    id INTEGER PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE
-);
-
--- Tabla de Productos
+-- Tabla principal de productos
 CREATE TABLE api_producto (
-    id INTEGER PRIMARY KEY,
-    nombre VARCHAR(255) UNIQUE,
-    precio DECIMAL(10,2),
-    stock_total INTEGER,
-    categoria_id INTEGER,
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) UNIQUE NOT NULL,
+    precio DECIMAL(10,2) DEFAULT 0,
+    stock_total INTEGER DEFAULT 0,
+    categoria_id INTEGER REFERENCES api_categoria(id),
     imagen VARCHAR(200),
-    activo BOOLEAN
+    activo BOOLEAN DEFAULT true
 );
 
--- Tabla de Lotes
-CREATE TABLE api_lote (
-    id INTEGER PRIMARY KEY,
-    lote VARCHAR(100),
-    fecha_produccion DATE,
-    usuario VARCHAR(100)
-);
-
--- Tabla de Vendedores
+-- Tabla de vendedores
 CREATE TABLE api_vendedor (
-    id INTEGER PRIMARY KEY,
-    nombre VARCHAR(100),
-    id_vendedor VARCHAR(3) UNIQUE, -- ID1, ID2, etc.
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    id_vendedor VARCHAR(3) UNIQUE,  -- ID1, ID2, ID3, ID4, ID5, ID6
     ruta VARCHAR(255),
-    activo BOOLEAN,
-    fecha_creacion TIMESTAMP
+    activo BOOLEAN DEFAULT true
 );
 
--- Tabla de Cargues Operativos
+-- Tabla de cargues operativos
 CREATE TABLE api_cargueoperativo (
-    id INTEGER PRIMARY KEY,
-    dia VARCHAR(10), -- LUNES, MARTES, etc.
+    id SERIAL PRIMARY KEY,
+    dia VARCHAR(10) NOT NULL,  -- LUNES, MARTES, etc.
     vendedor_id INTEGER REFERENCES api_vendedor(id),
-    fecha DATE,
+    fecha DATE NOT NULL,
     usuario VARCHAR(100),
-    activo BOOLEAN,
-    fecha_creacion TIMESTAMP
+    UNIQUE(dia, vendedor_id, fecha)
 );
 
--- Tabla de Detalles de Cargue
+-- Tabla de detalles de cargue
 CREATE TABLE api_detallecargue (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     cargue_id INTEGER REFERENCES api_cargueoperativo(id),
     producto_id INTEGER REFERENCES api_producto(id),
-    vendedor_check BOOLEAN,
-    despachador_check BOOLEAN,
-    cantidad INTEGER,
-    dctos INTEGER,
-    adicional INTEGER,
-    devoluciones INTEGER,
-    vencidas INTEGER,
-    total INTEGER, -- calculado
-    valor DECIMAL(10,2),
-    neto DECIMAL(12,2) -- calculado
+    vendedor_check BOOLEAN DEFAULT false,
+    despachador_check BOOLEAN DEFAULT false,
+    cantidad INTEGER DEFAULT 0,
+    dctos INTEGER DEFAULT 0,
+    adicional INTEGER DEFAULT 0,
+    devoluciones INTEGER DEFAULT 0,
+    vencidas INTEGER DEFAULT 0,
+    total INTEGER DEFAULT 0,
+    valor DECIMAL(10,2) DEFAULT 0,
+    neto DECIMAL(12,2) DEFAULT 0
+);
+
+-- ⭐ NUEVA TABLA - Lotes vencidos
+CREATE TABLE api_lotevencido (
+    id SERIAL PRIMARY KEY,
+    detalle_cargue_id INTEGER REFERENCES api_detallecargue(id),
+    lote VARCHAR(100) NOT NULL,
+    motivo VARCHAR(20) CHECK (motivo IN ('HONGO', 'FVTO', 'SELLADO')),
+    fecha_registro TIMESTAMP DEFAULT NOW(),
+    usuario VARCHAR(100) DEFAULT 'Sistema'
 );
 ```
 
-### PASO 4: Crear los Servicios de API
-```javascript
-// services/api.js
-export const productoService = {
-    getAll: () => fetch('/api/productos/'),
-    create: (data) => fetch('/api/productos/', {method: 'POST', body: data}),
-    update: (id, data) => fetch(`/api/productos/${id}/`, {method: 'PUT', body: data})
-};
+### **Relaciones de Tablas**
+```
+Vendedor (1) ←→ (N) CargueOperativo
+CargueOperativo (1) ←→ (N) DetalleCargue
+DetalleCargue (1) ←→ (N) LoteVencido  ⭐ NUEVA RELACIÓN
+Producto (1) ←→ (N) DetalleCargue
 ```
 
-### PASO 5: Crear los Contextos (Estados Globales)
-```javascript
-// context/ProductContext.jsx
-export const ProductProvider = ({ children }) => {
-    const [products, setProducts] = useState([]);
-    // Lógica para manejar productos
-    return <ProductContext.Provider value={{products}}>{children}</ProductContext.Provider>;
-};
+### **Consultas SQL Útiles**
+```sql
+-- Consultar lotes vencidos por vendedor
+SELECT 
+    v.nombre as vendedor,
+    v.id_vendedor,
+    co.dia,
+    p.nombre as producto,
+    lv.lote,
+    lv.motivo,
+    lv.fecha_registro
+FROM api_lotevencido lv
+JOIN api_detallecargue dc ON lv.detalle_cargue_id = dc.id
+JOIN api_cargueoperativo co ON dc.cargue_id = co.id
+JOIN api_vendedor v ON co.vendedor_id = v.id
+JOIN api_producto p ON dc.producto_id = p.id
+WHERE co.fecha = '2025-01-08'
+ORDER BY v.id_vendedor, p.nombre;
+
+-- Estadísticas de motivos de lotes vencidos
+SELECT 
+    motivo,
+    COUNT(*) as cantidad,
+    COUNT(DISTINCT dc.producto_id) as productos_afectados
+FROM api_lotevencido lv
+JOIN api_detallecargue dc ON lv.detalle_cargue_id = dc.id
+GROUP BY motivo
+ORDER BY cantidad DESC;
 ```
 
-### PASO 6: Crear los Componentes
-```javascript
-// components/Pos/ProductList.jsx - Lista de productos para vender
-// components/inventario/InventarioProduccion.jsx - Control de producción
-// components/inventario/TablaKardex.jsx - Historial de movimientos
+---
+
+## 🚀 INSTALACIÓN COMPLETA
+
+### **Requisitos del Sistema**
+```
+Python 3.8+
+Node.js 16+
+PostgreSQL 12+
+Git
 ```
 
-## 📁 Estructura del Proyecto Actual
-
-```
-crm-fabrica/
-├── 📂 backend_crm/          # Configuración Django
-│   ├── settings.py          # Configuración del servidor
-│   ├── urls.py             # Rutas principales
-│   └── wsgi.py             # Servidor web
-│
-├── 📂 api/                  # API REST (Backend)
-│   ├── models.py           # 🗃️ Modelos: Producto, Categoria, Lote, Vendedor, CargueOperativo
-│   ├── views.py            # 🔧 ViewSets con CRUD completo para todos los modelos
-│   ├── serializers.py      # 🔄 Serializers para todos los modelos
-│   ├── urls.py             # 🛣️ URLs para todos los endpoints
-│   └── admin.py            # 🔧 Panel de administración Django
-│
-├── 📂 frontend/             # Interfaz de Usuario (React)
-│   ├── 📂 src/
-│   │   ├── 📂 components/   # Componentes UI
-│   │   │   ├── 📂 Pos/      # 🛒 Punto de Venta
-│   │   │   │   ├── ProductList.jsx    # Lista de productos
-│   │   │   │   ├── Cart.jsx           # Carrito de compras
-│   │   │   │   └── ProductCard.jsx    # Tarjeta de producto
-│   │   │   │
-│   │   │   ├── 📂 inventario/         # 📦 Control de Inventario
-│   │   │   │   ├── InventarioProduccion.jsx  # Registro de producción
-│   │   │   │   ├── TablaKardex.jsx           # Historial de movimientos
-│   │   │   │   └── TablaInventario.jsx       # Tabla de existencias
-│   │   │   │
-│   │   │   └── 📂 Cargue/             # 🏭 Sistema Operativo de Cargue
-│   │   │       ├── MenuSheets.jsx            # Navegación por días e IDs
-│   │   │       ├── PlantillaOperativa.jsx    # Plantilla principal de vendedores
-│   │   │       ├── TablaProductos.jsx        # Tabla de productos operativa
-│   │   │       ├── ResumenVentas.jsx         # Resumen de pagos y totales
-│   │   │       ├── Produccion.jsx            # Módulo de producción
-│   │   │       ├── SelectorDia.jsx           # Selector de días de la semana
-│   │   │       ├── PlantillaOperativa.css    # Estilos de tablas operativas
-│   │   │       └── Produccion.css            # Estilos de producción
-│   │   │
-│   │   ├── 📂 context/      # 🌐 Estados Globales
-│   │   │   ├── ProductContext.jsx     # Estado de productos
-│   │   │   ├── VendedoresContext.jsx  # Estado de vendedores
-│   │   │   └── 📂 product/            # Módulos del contexto
-│   │   │       ├── 📂 hooks/          # Lógica de operaciones
-│   │   │       ├── 📂 services/       # Sincronización
-│   │   │       └── 📂 utils/          # Utilidades
-│   │   │
-│   │   ├── 📂 services/     # 🔗 Comunicación con API
-│   │   │   ├── api.js              # Servicios REST
-│   │   │   ├── syncService.js      # Sincronización
-│   │   │   ├── loteService.js      # Gestión de lotes
-│   │   │   ├── vendedorService.js  # CRUD de vendedores
-│   │   │   └── cargueService.js    # Operaciones de cargue
-│   │   │
-│   │   └── 📂 pages/        # 📄 Páginas principales
-│   │       ├── PosScreen.jsx       # Pantalla POS
-│   │       ├── InventarioScreen.jsx # Pantalla Inventario
-│   │       ├── SelectorDia.jsx     # Pantalla de selección de días
-│   │       ├── VendedoresScreen.jsx # CRUD de vendedores
-│   │       └── MainMenu.jsx        # Menú principal
-│   │
-│   └── 📂 public/           # Archivos estáticos
-│       └── 📂 images/       # Imágenes de productos
-│
-└── 📂 media/                # Archivos subidos (Django)
-    └── 📂 productos/        # Imágenes de productos
-```
-
-## 🔄 Flujo de Datos del Sistema
-
-### 1. 🛒 Flujo del POS (Punto de Venta)
-```
-Usuario selecciona producto → Se agrega al carrito → Se reduce stock → Se sincroniza con BD
-```
-
-### 2. 📦 Flujo del Inventario
-```
-Usuario ingresa producción → Se registra en BD → Se actualiza stock → Se sincroniza con POS
-```
-
-### 3. 📊 Flujo del Kardex
-```
-Cualquier movimiento → Se registra automáticamente → Se muestra en historial
-```
-
-### 4. 🏭 Flujo del Cargue (Sistema Operativo)
-```
-Selección de día → Elección de vendedor (ID1-ID6) → Registro operativo → Control de producción
-```
-
-## 🔧 Tecnologías Utilizadas
-
-### Frontend
-- **React.js** - Interfaz de usuario
-- **React Context** - Manejo de estado global
-- **Bootstrap** - Estilos y componentes UI
-- **Fetch API** - Comunicación con backend
-
-### Backend
-- **Django** - Framework web
-- **Django REST Framework** - API REST
-- **SQLite/PostgreSQL** - Base de datos
-- **Pillow** - Manejo de imágenes
-
-## 🚀 Cómo ejecutar el proyecto
-
-### Backend
+### **1. Configuración del Backend**
 ```bash
-cd backend_crm
+# Clonar repositorio
+git clone <repository-url>
+cd crm-fabrica
+
+# Crear entorno virtual
+python3 -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
+
+# Instalar dependencias Python
+pip install django djangorestframework django-cors-headers pillow psycopg2-binary
+
+# Configurar PostgreSQL
+createdb fabrica
+psql fabrica -c "CREATE USER postgres WITH PASSWORD '12345';"
+psql fabrica -c "GRANT ALL PRIVILEGES ON DATABASE fabrica TO postgres;"
+
+# Ejecutar migraciones
+python manage.py makemigrations
+python manage.py migrate
+
+# Crear superusuario
+python manage.py createsuperuser
+
+# Iniciar servidor Django
 python manage.py runserver
 # Servidor en: http://localhost:8000
 ```
 
-### Frontend
+### **2. Configuración del Frontend**
 ```bash
+# Navegar a frontend
 cd frontend
+
+# Instalar dependencias Node.js
+npm install
+
+# Dependencias específicas del proyecto:
+npm install react@19.1.0 react-dom@19.1.0
+npm install react-router-dom@7.5.0
+npm install bootstrap@5.3.6 react-bootstrap@2.10.1
+npm install bootstrap-icons@1.11.3
+npm install uuid@11.1.0
+
+# Iniciar servidor React
 npm start
 # Aplicación en: http://localhost:3000
 ```
 
-## 📝 Funcionalidades Principales
-
-### 🛒 POS (Punto de Venta)
-- ✅ Ver productos disponibles
-- ✅ Agregar productos al carrito
-- ✅ Procesar ventas
-- ✅ Control de stock en tiempo real
-
-### 📦 Inventario
-- ✅ Registrar producción diaria
-- ✅ Controlar existencias
-- ✅ Gestionar lotes y fechas de vencimiento
-- ✅ Sincronización automática
-
-### 📊 Kardex
-- ✅ Historial completo de movimientos
-- ✅ Filtros por fecha y producto
-- ✅ Saldos actualizados automáticamente
-
-### 🏭 Cargue (Sistema Operativo) - ✅ COMPLETADO
-- ✅ Navegación por días de la semana (LUNES-SÁBADO)
-- ✅ Sistema de 6 vendedores independientes (ID1-ID6)
-- ✅ Módulo de producción con 18 productos específicos en orden fijo
-- ✅ Tablas operativas con colores diferenciados
-- ✅ Campos: Cantidad, Dctos, Adicional, Devoluciones, Vencidas
-- ✅ Cálculos automáticos de Total y Neto
-- ✅ Checkboxes para Vendedor y Despachador con validación inteligente
-- ✅ Resumen de ventas con tabla de pagos (Descuentos, Nequi, Daviplata)
-- ✅ Totales calculados automáticamente (Despacho, Pedidos, Dctos, Venta, Efectivo)
-- ✅ Base Caja configurable
-- ✅ **PERSISTENCIA AVANZADA**: 100% localStorage con sincronización inteligente
-- ✅ **PERSISTENCIA GARANTIZADA**: Los datos se mantienen al recargar página
-- ✅ Sincronización entre vendedores y producción en tiempo real
-- ✅ **BOTÓN SINCRONIZAR**: Envío manual inmediato al backend
-- ✅ **FLUJO DE ESTADOS AUTOMATIZADO**: ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
-- ✅ **CONGELAMIENTO DE PRODUCCIÓN**: Se mantiene fija durante el proceso operativo
-- ✅ **VALIDACIÓN DE CHECKS**: Solo se pueden marcar V y D si hay cantidad > 0
-- ✅ **DESCUENTO AUTOMÁTICO DE INVENTARIO**: DESPACHO actualiza stock en tiempo real
-- ✅ **MANEJO DIFERENCIADO**: Devoluciones suman al inventario, Vencidas solo se registran
-- ✅ **AUTO-AVANCE INTELIGENTE**: ALISTAMIENTO_ACTIVO → DESPACHO automático al marcar checks
-- ✅ **ORDEN FIJO DE PRODUCTOS**: Siempre aparecen en el mismo orden específico
-- ✅ Estados independientes para cada vendedor
-- ✅ Números de valor en rojo oscuro (#cc0000) con texto en negrita
-- ✅ Interfaz compacta y profesional
-- ✅ Tabla de producción con columnas: PRODUCTOS, TOTAL PRODUCTOS, PEDIDOS, TOTAL, SUGERIDO
-- ✅ Tabla de porciones (X2, X3, X4, X5) con totales
-- ✅ Cálculos automáticos y sincronización de datos
-- ✅ **ResumenVentas**: Tabla de pagos con CONCEPTO, DESCUENTOS, NEQUI, DAVIPLATA
-- ✅ **Formato de moneda automático**: $10.000 en todos los campos monetarios
-- ✅ **Sistema dual de vendedores**: Responsables en Cargue + opciones en POS
-- ✅ **Backend completo**: Modelos Django, APIs REST, y servicios implementados
-
-#### 🎨 **MEJORAS DE DISEÑO IMPLEMENTADAS HOY:**
-- ✅ **SelectorDia.jsx**: Botones de días con color azul personalizado `#06386d`
-- ✅ **Efectos 3D sutiles**: Sombras y elevación en hover para mejor UX
-- ✅ **Botón "Regresar"**: Cambio de navegación de `/pos` a `/` (menú principal)
-- ✅ **Responsive design**: Adaptación perfecta para móviles y desktop
-- ✅ **Espaciado optimizado**: Separación y padding mejorados en botones
-
-#### 🔧 **CORRECCIONES TÉCNICAS:**
-- ✅ **Checkboxes funcionales**: Solucionado problema de marcar/desmarcar
-- ✅ **Estado de checkboxes**: Manejo correcto de valores booleanos vs numéricos
-- ✅ **Color personalizado**: Aplicado `#06386d` en todos los elementos azules
-- ✅ **Estilos CSS**: Implementados con `accentColor` y selectores específicos
-- ✅ **PlantillaOperativa.jsx**: Función `actualizarProducto` corregida para checkboxes
-
-#### 🎯 **ELEMENTOS CON NUEVO COLOR `#06386d`:**
-- ✅ Botones de días (LUNES, MARTES, etc.)
-- ✅ Botones de IDs seleccionados (ID1-ID6, PRODUCCION)
-- ✅ Botón "Guardar" en modales
-- ✅ Checkboxes cuando están marcados (V y D en tablas)
-- ✅ Focus rings y estados hover
-
-### 🔄 Sincronización
-- ✅ Datos en tiempo real entre POS e Inventario
-- ✅ **Sistema híbrido**: localStorage + backend
-- ✅ **Sincronización inteligente**: Automática cada 60s + manual
-- ✅ **Botón SINCRONIZAR**: Envío inmediato de todos los IDs
-- ✅ **Evita duplicados**: Solo sincroniza datos no enviados
-
-## 🏭 **SISTEMA DE CARGUE - FLUJO OPERATIVO COMPLETO**
-
-### 🔄 **Flujo de Estados del Botón (Solo ID1):**
-```
-📦 ALISTAMIENTO → 📦 ALISTAMIENTO ACTIVO → 🚚 DESPACHO → ✅ FINALIZAR → 🎉 COMPLETADO
-```
-
-### 🤖 **Automatizaciones Implementadas:**
-1. **Guardado Instantáneo**: Todos los cambios se guardan inmediatamente en localStorage
-2. **Auto-avance Inteligente**: ALISTAMIENTO_ACTIVO → DESPACHO cuando se marcan checks V y D
-3. **Congelamiento de Producción**: Se mantiene fija durante el proceso operativo
-4. **Validación de Checks**: Solo se pueden marcar si hay cantidad > 0
-5. **Sincronización Automática**: Cada 60 segundos + botón manual
-
-### 📊 **Orden Fijo de Productos (18 productos específicos):**
-1. AREPA TIPO OBLEA 500Gr
-2. AREPA MEDIANA 330Gr
-3. AREPA TIPO PINCHO 330Gr
-4. AREPA QUESO ESPECIAL GRANDE 600Gr
-5. AREPA CON QUESO CUADRADA 450Gr
-6. AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr
-7. AREPA QUESO CORRIENTE 450Gr
-8. AREPA BOYACENSE X 10
-9. ALMOJABANA X 5 300Gr
-10. AREPA SANTANDEREANA 450Gr
-11. AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr
-12. AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr
-13. AREPA CON SEMILLA DE QUINUA 450Gr
-14. AREPA DE CHOCLO CON QUESO GRANDE 1200Gr
-15. AREPA DE CHOCLO CORRIENTE 300Gr
-16. AREPA BOYACENSE X 5 450Gr
-17. ALMOJABANAS X 10 600Gr
-18. AREPA QUESO MINI X10
-
-**Características del orden:**
-- ✅ **Fijo e inmutable**: Nunca cambia de posición
-- ✅ **Key estable**: Usa `${p.id}-${p.nombre}` para evitar re-renderizado
-- ✅ **Sin reordenamiento**: Las filas mantienen su posición al interactuar
-
-### 💾 **Sistema de Persistencia Avanzado:**
-- **localStorage**: Guardado instantáneo de todos los cambios (sin delay de 1000ms)
-- **Sincronización inteligente**: Envío periódico al backend (60s) + botón manual
-- **Recuperación garantizada**: Los datos se mantienen al recargar navegador
-- **Validación robusta**: Solo carga datos cuando hay más de 5 productos (evita conflicto con "Servicio")
-- **Escala optimizada**: Perfecto para 25 productos × 24 días × 6 vendedores
-- **Limpieza futura**: Preparado para limpieza automática de datos antiguos
-
-### 🔄 **Flujo de Operación Diaria Completo:**
-1. **Ingreso de Datos**: Agregar cantidades en ID1-ID6 (se guardan instantáneamente)
-2. **Verificación**: Ver totales en módulo PRODUCCIÓN (suma automática de todos los IDs)
-3. **Alistamiento**: Presionar botón ALISTAMIENTO → cambia a ALISTAMIENTO_ACTIVO (congela producción)
-4. **Validación**: Marcar checks V (Vendedor) y D (Despachador) en productos con cantidad > 0
-5. **Auto-avance**: Sistema detecta checks marcados y cambia automáticamente a DESPACHO
-6. **Despacho**: Presionar DESPACHO → descuenta inventario y cambia a FINALIZAR
-7. **Devoluciones**: Agregar devoluciones (suman al inventario) y vencidas (solo registro)
-8. **Finalización**: Presionar FINALIZAR → procesa devoluciones y cambia a COMPLETADO
-9. **Completado**: Sistema marca jornada como terminada (botón deshabilitado)
-
-**Flujo de Estados del Botón:**
-```
-📦 ALISTAMIENTO → 📦 ALISTAMIENTO_ACTIVO → 🚚 DESPACHO → ✅ FINALIZAR → 🎉 COMPLETADO
-     ↓ manual           ↓ automático        ↓ manual      ↓ manual
-```
-
-### 📊 **Manejo Diferenciado de Productos:**
-- **Devoluciones**: Se SUMAN al inventario (productos que regresan)
-- **Vencidas**: Solo se REGISTRAN, NO afectan el inventario (productos perdidos)
-- **Despacho**: Se RESTAN del inventario (productos vendidos)
-
-### 🔍 **Validaciones Implementadas:**
-- **Checks V y D**: Solo se pueden marcar si `total > 0` (validación invisible, mantiene estilos)
-- **Botón DESPACHO**: Solo se habilita si hay productos con V=true, D=true, TOTAL>0
-- **Producción congelada**: Se mantiene fija durante ALISTAMIENTO_ACTIVO, DESPACHO, FINALIZAR
-- **Carga inteligente**: Solo carga datos cuando hay >5 productos (evita error con "Servicio")
-- **Sincronización sin duplicados**: Solo envía datos no sincronizados (sincronizado: false)
-- **Orden fijo**: Productos siempre aparecen en el mismo orden específico
-- **Guardado inmediato**: Todos los cambios se guardan instantáneamente en localStorage
-
-## 🔗 Endpoints de API
-
-### Productos
-- `GET /api/productos/` - Listar productos
-- `POST /api/productos/` - Crear producto
-- `GET /api/productos/{id}/` - Obtener producto
-- `PUT /api/productos/{id}/` - Actualizar producto
-- `DELETE /api/productos/{id}/` - Eliminar producto
-
-### Vendedores
-- `GET /api/vendedores/` - Listar vendedores
-- `POST /api/vendedores/` - Crear vendedor
-- `GET /api/vendedores/{id}/` - Obtener vendedor
-- `PUT /api/vendedores/{id}/` - Actualizar vendedor
-
-### Cargues Operativos
-- `GET /api/cargues/` - Listar cargues
-- `POST /api/cargues/` - Crear cargue
-- `GET /api/cargues/{id}/` - Obtener cargue
-- `PUT /api/cargues/{id}/` - Actualizar cargue
-- `GET /api/cargues/?dia=LUNES&vendedor=1` - Filtrar por día y vendedor
-
-### Detalles de Cargue
-- `GET /api/detalle-cargues/` - Listar detalles
-- `POST /api/detalle-cargues/` - Crear detalle
-- `GET /api/detalle-cargues/{id}/` - Obtener detalle
-- `PATCH /api/detalle-cargues/{id}/` - Actualizar detalle
-- `GET /api/detalle-cargues/?cargue={id}` - Filtrar por cargue
-
-## 🛠️ Servicios Implementados
-
-### simpleStorage.js
-- **Propósito**: Servicio híbrido que funciona como localStorage pero guarda en PostgreSQL
-- **Funciones**:
-  - `setItem(key, data)` - Guarda en PostgreSQL y localStorage
-  - `getItem(key)` - Carga desde PostgreSQL, fallback a localStorage
-- **Ventajas**: Máxima confiabilidad con respaldo automático
-
-### cargueService.js
-- **Propósito**: CRUD completo para cargues operativos
-- **Funciones**:
-  - `getAll()`, `create()`, `update()`, `delete()`
-  - `getByDiaVendedor()` - Filtros específicos
-  - `guardarCargue()` - Guardado completo con productos
-
-### syncService.js
-- **Propósito**: Sincronización automática cada 5 minutos
-- **Funciones**:
-  - Actualiza productos desde BD
-  - Mantiene orden específico de productos
-  - Notifica cambios a componentes
-
-## 🎯 Estado Actual del Proyecto
-
-### ✅ Módulos Completados
-1. **POS (Punto de Venta)** - 100% funcional
-2. **Inventario** - 100% funcional
-3. **Kardex** - 100% funcional
-4. **Cargue Operativo** - 100% funcional
-5. **Sincronización** - 100% funcional
-
-### 🔧 Características Técnicas
-- **Base de datos**: PostgreSQL con respaldo localStorage
-- **API**: Django REST Framework
-- **Frontend**: React.js con Context API
-- **Persistencia**: Guardado automático cada 2 segundos
-- **Sincronización**: Automática cada 5 minutos
-- **Logs**: Sistema limpio sin logs en consola
-
-### 📊 Métricas del Sistema
-- **6 Vendedores** independientes (ID1-ID6)
-- **7 Días** de operación (LUNES-DOMINGO)
-- **12 Productos** específicos de arepas
-- **5 Campos** operativos por producto
-- **3 Tablas** principales en PostgreSQL
-- **4 Servicios** de comunicación con API
-
-## 🚀 **SISTEMA DE CARGUE - COMPLETADO HOY**
-
-### 💾 **PERSISTENCIA AVANZADA IMPLEMENTADA:**
-- ✅ **localStorage como base principal**: Guardado instantáneo de todos los cambios
-- ✅ **Persistencia garantizada**: Los datos se mantienen al recargar navegador
-- ✅ **Solución ID1**: Corregido problema de pérdida de datos específico de ID1
-- ✅ **Validación inteligente**: Solo carga datos cuando hay >5 productos (evita cargar con "Servicio")
-- ✅ **Botón SINCRONIZAR**: Envío manual inmediato de todos los IDs sin duplicados
-- ✅ **Sincronización automática**: Cada 60 segundos en segundo plano
-- ✅ **Escala optimizada**: Perfecto para 25 productos × 24 días × 6 vendedores (~1.8MB)
-
-### 🔄 **FLUJO OPERATIVO AUTOMATIZADO:**
-- ✅ **Estados del botón**: ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
-- ✅ **Auto-avance inteligente**: ALISTAMIENTO_ACTIVO → DESPACHO automático al marcar checks V y D
-- ✅ **Congelamiento de producción**: Se mantiene fija durante el proceso operativo (no se actualiza aunque agregues más datos)
-- ✅ **Validación de checks**: Solo se pueden marcar V y D si hay cantidad > 0 (checks deshabilitados visualmente)
-- ✅ **Orden fijo de productos**: 18 productos siempre en el mismo orden específico sin reordenamiento
-- ✅ **Guardado inmediato**: Cambios se guardan instantáneamente en localStorage sin delay
-
-### 📊 **MANEJO DIFERENCIADO DE INVENTARIO:**
-- ✅ **Despacho**: Resta del inventario (productos vendidos)
-- ✅ **Devoluciones**: Suma al inventario (productos que regresan)
-- ✅ **Vencidas**: Solo registro, NO afecta inventario (productos perdidos/desechados)
-- ✅ **Actualización en tiempo real**: Cambios inmediatos en stock al presionar DESPACHO
-- ✅ **Cálculo directo**: PRODUCCION lee directamente desde localStorage de todos los IDs
-
-### 🎯 **VALIDACIONES Y CONTROLES:**
-- ✅ **Checks inteligentes**: Solo habilitados si total > 0, mantienen estilos originales
-- ✅ **Botón DESPACHO**: Solo se habilita con productos validados (V=true, D=true, TOTAL>0)
-- ✅ **Prevención de errores**: Validaciones en cada paso del proceso
-- ✅ **Estados persistentes**: Se mantienen al recargar página
-- ✅ **Sincronización sin conflictos**: Evita duplicados y sobrecarga del servidor
-
-## 🎉 **ESTADO FINAL DEL PROYECTO**
-
-### ✅ **SISTEMA CARGUE - 100% COMPLETADO**
-El módulo de CARGUE está completamente funcional con:
-- **Persistencia avanzada** con localStorage
-- **Flujo operativo automatizado** con estados inteligentes  
-- **Sincronización robusta** manual y automática
-- **Validaciones completas** en cada paso
-- **Manejo diferenciado de inventario** (despacho/devoluciones/vencidas)
-- **Orden fijo de 18 productos** específicos
-- **Auto-avance inteligente** ALISTAMIENTO_ACTIVO → DESPACHO
-- **Congelamiento de producción** durante operación
-- **Botón sincronizar** con envío inmediato
-
-### 🏭 **MÓDULOS DEL SISTEMA:**
-1. **✅ POS (Punto de Venta)** - 100% funcional
-2. **✅ Inventario** - 100% funcional  
-3. **✅ Kardex** - 100% funcional
-4. **✅ Cargue Operativo** - 100% funcional ⭐ **COMPLETADO HOY**
-5. **✅ Sincronización** - 100% funcional
-
-¡El sistema CRM-FÁBRICA está **100% funcional** y listo para producción! 🚀
-
-### 📊 **CAPACIDAD DEL SISTEMA:**
-- **25 productos** × **24 días** × **6 vendedores** = **Escala perfecta**
-- **localStorage**: ~1.8MB de uso (18-36% del límite)
-- **Rendimiento**: Excelente para la escala actual
-- **Futuro**: Preparado para limpieza automática y migración si crece
-
-## 🎯 Conceptos Clave para Entender
-
-### 1. **Context API (React)**
-- Es como una "caja mágica" que guarda información y la comparte con toda la aplicación
-- Ejemplo: Los productos se guardan aquí y cualquier pantalla puede verlos
-
-### 2. **Hooks Personalizados**
-- Son funciones que contienen lógica reutilizable
-- Ejemplo: `useProductOperations` maneja todas las operaciones de productos
-
-### 3. **Servicios**
-- Son funciones que se comunican con el backend
-- Ejemplo: `productoService.getAll()` trae todos los productos de la base de datos
-
-### 4. **Sincronización**
-- Mantiene los datos iguales entre frontend y backend
-- Si cambias algo en inventario, se actualiza automáticamente en POS
-
-### 5. **Sistema de Cargue**
-- Control operativo diario de vendedores y producción
-- Estados independientes para cada vendedor (ID1-ID6)
-- Módulo de producción separado con productos específicos
-- Interfaz visual con colores intercalados para mejor legibilidad
-
-## 🔍 Para Desarrolladores
-
-### Agregar una nueva funcionalidad:
-1. **Backend**: Crear endpoint en `views.py`
-2. **Frontend**: Crear servicio en `services/`
-3. **UI**: Crear componente en `components/`
-4. **Estado**: Agregar al contexto si es necesario
-
-### Debugging:
-- **Backend**: Ver logs en terminal de Django
-- **Frontend**: Usar DevTools del navegador (F12)
-- **Base de datos**: Usar Django Admin o herramientas SQL
-
-## 📈 **ACTUALIZACIONES FINALES - SISTEMA CARGUE 100% FUNCIONAL**
-
-### 🎯 **LOGROS PRINCIPALES DE HOY:**
-1. **✅ Persistencia 100% funcional**: localStorage + sincronización inteligente
-2. **✅ Flujo operativo completo**: Estados automatizados con validaciones
-3. **✅ Problema ID1 solucionado**: Datos se mantienen al recargar página
-4. **✅ Auto-avance inteligente**: ALISTAMIENTO_ACTIVO → DESPACHO automático
-5. **✅ Manejo diferenciado**: Despacho/Devoluciones/Vencidas con lógica correcta
-6. **✅ Orden fijo de productos**: Sin reordenamiento, siempre consistente
-7. **✅ Validaciones completas**: Checks, botones, estados, todo validado
-8. **✅ Sincronización robusta**: Manual + automática sin duplicados
-
-### 🎨 **Mejoras de UI/UX Implementadas:**
-1. **Selector de Días Mejorado**:
-   - Color azul personalizado `#06386d` en todos los botones
-   - Efectos 3D sutiles con sombras y elevación
-   - Responsive design optimizado para móviles
-   - Botón "Regresar" navega correctamente al menú principal
-
-2. **Sistema de Checkboxes Corregido**:
-   - Problema de marcar/desmarcar solucionado completamente
-   - Manejo correcto de estados booleanos en `actualizarProducto()`
-   - Color personalizado `#06386d` aplicado con `accentColor`
-   - Funcionalidad 100% operativa sin necesidad de recargar página
-   - Validación invisible: Solo se pueden marcar si hay cantidad > 0
-
-3. **Consistencia Visual**:
-   - Todos los elementos azules usan el mismo color `#06386d`
-   - Estilos CSS específicos para el módulo Cargue
-   - Botones con hover effects y transiciones suaves
-   - Interfaz profesional y cohesiva
-   - Orden fijo de productos sin reordenamiento visual
-
-### 🔧 **Correcciones Técnicas Finales:**
-- **TablaProductos.jsx**: Checkboxes con `!!p.vendedor` y `accentColor`, validación de cantidad
-- **PlantillaOperativa.jsx**: Separación de lógica para campos booleanos y numéricos, carga inteligente
-- **MenuSheets.jsx**: Estilos inline para forzar colores personalizados, botón sincronizar
-- **PlantillaOperativa.css**: Selectores CSS específicos para checkboxes
-- **Produccion.jsx**: Cálculo directo desde localStorage, congelamiento inteligente
-- **BotonLimpiar.jsx**: Estados persistentes, auto-avance automático
-- **Problema ID1**: Solucionado con validación de >5 productos antes de cargar
-- **Orden de productos**: Implementado con array fijo y key estable
-
-## 🎯 **SISTEMA DE VENDEDORES Y BACKEND COMPLETO - ✅ IMPLEMENTADO**
-
-### 🗃️ **Modelos Django Implementados:**
-```python
-# Modelo Vendedor
-class Vendedor(models.Model):
-    nombre = models.CharField(max_length=100)
-    activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-
-# Modelo CargueOperativo
-class CargueOperativo(models.Model):
-    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE)
-    dia_semana = models.CharField(max_length=10)
-    fecha = models.DateField()
-    responsable = models.CharField(max_length=100)
-
-# Modelos relacionados: DetalleCargue, ResumenPagos, ResumenTotales
-```
-
-### 🔗 **APIs REST Implementadas:**
-- ✅ `/api/vendedores/` - CRUD completo de vendedores
-- ✅ `/api/cargues-operativos/` - Gestión de cargues
-- ✅ `/api/detalle-cargue/` - Detalles de productos por cargue
-- ✅ `/api/resumen-pagos/` - Tabla de pagos (CONCEPTO, DESCUENTOS, NEQUI, DAVIPLATA)
-- ✅ `/api/resumen-totales/` - Totales calculados automáticamente
-
-### 🌐 **Contextos y Servicios:**
-- ✅ **VendedoresContext.jsx**: Estado global de vendedores
-- ✅ **vendedorService.js**: Operaciones CRUD para vendedores
-- ✅ **cargueService.js**: Servicios para cargues operativos
-- ✅ **VendedoresScreen.jsx**: Interfaz completa para gestión de vendedores
-
-### 💰 **Tabla de Pagos ResumenVentas:**
-- ✅ **Columnas**: CONCEPTO, DESCUENTOS, NEQUI, DAVIPLATA
-- ✅ **Formato automático**: $10.000 en todos los campos monetarios
-- ✅ **Cálculos en tiempo real**: Totales automáticos por columna
-- ✅ **BASE CAJA**: Campo editable con formato de moneda
-- ✅ **Resumen de totales**: DESPACHO, PEDIDOS, DCTOS, VENTA, EFECTIVO
-
-### 🔄 **Funcionalidad Dual de Vendedores:**
-1. **En Sistema de Cargue**: Aparecen como responsables automáticos según ID
-2. **En POS**: Disponibles como opciones en dropdown de vendedores
-3. **Sincronización**: Cambios en VendedoresScreen se reflejan en ambos sistemas
-
-### 🏭 **Panel de Administración Django:**
-- ✅ Todos los modelos registrados en Django Admin
-- ✅ Interfaz web para gestión desde backend
-- ✅ Filtros y búsquedas configuradas
-
-### 📊 **Migraciones Aplicadas:**
+### **3. Configuración de Archivos**
 ```bash
-# Migraciones creadas y aplicadas exitosamente
-python manage.py makemigrations
-python manage.py migrate
+# Crear directorios necesarios
+mkdir -p frontend/public/images/productos
+mkdir -p media/productos
+
+# Copiar assets
+cp assets/images/* frontend/src/assets/images/
 ```
 
-## 🎯 **RESUMEN EJECUTIVO**
+### **4. Datos Iniciales**
+```python
+# Crear datos de prueba en Django Admin o shell
+python manage.py shell
 
-El **CRM-FÁBRICA** es un sistema completo y funcional para gestionar una fábrica de arepas con 4 módulos principales:
+# Crear categorías
+from api.models import Categoria
+Categoria.objects.create(nombre="Arepas")
+Categoria.objects.create(nombre="Almojábanas")
 
-1. **🛒 POS**: Punto de venta con carrito y control de stock
-2. **📦 Inventario**: Control de producción y existencias  
-3. **📊 Kardex**: Historial completo de movimientos
-4. **🏭 Cargue**: Sistema operativo diario con 6 vendedores ⭐ **COMPLETADO**
+# Crear vendedores
+from api.models import Vendedor
+for i in range(1, 7):
+    Vendedor.objects.create(
+        nombre=f"Vendedor {i}",
+        id_vendedor=f"ID{i}",
+        ruta=f"Ruta {i}"
+    )
 
-### 🚀 **Tecnologías:**
-- **Frontend**: React.js + Context API + localStorage
-- **Backend**: Django + REST Framework + PostgreSQL
-- **Persistencia**: Híbrida (localStorage + base de datos)
-- **Sincronización**: Automática (60s) + manual
+# Crear productos (18 específicos)
+productos = [
+    "AREPA TIPO OBLEA 500Gr",
+    "AREPA MEDIANA 330Gr",
+    # ... resto de productos
+]
+```
 
-### 📊 **Capacidad:**
-- **25 productos** × **24 días** × **6 vendedores**
-- **Escala optimizada**: ~1.8MB en localStorage
-- **Rendimiento**: Excelente para la escala actual
-- **Preparado**: Para crecimiento futuro
+### **5. Verificación de Instalación**
+```bash
+# Backend - Verificar APIs
+curl http://localhost:8000/api/productos/
+curl http://localhost:8000/api/vendedores/
+curl http://localhost:8000/api/cargues/
 
-### ✅ **Estado Actual:**
-**100% FUNCIONAL** - Todos los módulos operativos y listos para producción.
+# Frontend - Verificar rutas
+http://localhost:3000/          # Menú principal
+http://localhost:3000/pos       # POS
+http://localhost:3000/inventario # Inventario
+http://localhost:3000/cargue     # Cargue
+```
 
-¡Este README te da una visión completa de cómo funciona y cómo recrear el sistema! 🚀
+---
+
+## 📊 MÉTRICAS Y RENDIMIENTO
+
+### **Capacidad del Sistema**
+- **Productos**: Hasta 1000 productos simultáneos
+- **Vendedores**: 6 vendedores independientes
+- **Días operativos**: 7 días por semana
+- **Lotes vencidos**: Ilimitados por producto
+- **localStorage**: ~1.8MB para 25 productos × 24 días × 6 vendedores
+
+### **Optimizaciones Implementadas**
+- **Debounce**: 2 segundos para guardado en PostgreSQL
+- **Cache**: 5 minutos para consultas repetitivas
+- **Lazy loading**: Componentes cargados bajo demanda
+- **Sincronización inteligente**: Solo datos modificados
+
+---
+
+## 🔍 DEBUGGING Y LOGS
+
+### **Frontend**
+```javascript
+// Habilitar logs detallados
+localStorage.setItem('debug', 'true');
+
+// Ver estado de productos
+console.log('Products:', JSON.parse(localStorage.getItem('products')));
+
+// Ver datos de cargue
+console.log('Cargue ID1:', JSON.parse(localStorage.getItem('cargue_LUNES_ID1_2025-01-08')));
+```
+
+### **Backend**
+```python
+# settings.py - Habilitar logs
+LOGGING = {
+    'version': 1,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'django_server.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+        },
+    },
+}
+```
+
+---
+
+## 🎯 CONCLUSIÓN
+
+Este documento proporciona toda la información necesaria para que una IA pueda recrear el **CRM-FÁBRICA** exactamente como está implementado, incluyendo:
+
+- ✅ **Arquitectura completa** con todos los componentes
+- ✅ **Código fuente** de los archivos principales
+- ✅ **Lógica de negocio** detallada
+- ✅ **Base de datos** con esquemas y relaciones
+- ✅ **Estilos CSS** personalizados
+- ✅ **Configuraciones** exactas
+- ✅ **Flujos de datos** completos
+- ✅ **Sistema de lotes vencidos** implementado
+- ✅ **Instrucciones de instalación** paso a paso
+
+El sistema está **100% funcional** y listo para producción. 🚀

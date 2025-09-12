@@ -86,7 +86,7 @@ export const simpleStorage = {
         // Solo guardar productos con datos relevantes
         if (cargue && data.productos) {
           const productosConDatos = data.productos.filter(p => 
-            p.cantidad > 0 || p.vendedor || p.despachador || p.dctos > 0 || p.adicional > 0 || p.devoluciones > 0 || p.vencidas > 0
+            p.cantidad > 0 || p.vendedor || p.despachador || p.dctos > 0 || p.adicional > 0 || p.devoluciones > 0 || p.vencidas > 0 || (p.lotesVencidos && p.lotesVencidos.length > 0)
           );
           
           console.log(`📦 Guardando ${productosConDatos.length} productos con datos`);
@@ -106,24 +106,72 @@ export const simpleStorage = {
               valor: producto.valor || 0
             };
             
+            let detalleId = null;
+            
             // Intentar crear directamente, si falla entonces actualizar
             try {
-              await fetch(`${API_URL}/detalle-cargues/`, {
+              const createResponse = await fetch(`${API_URL}/detalle-cargues/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(detalleData)
               });
+              
+              if (createResponse.ok) {
+                const detalle = await createResponse.json();
+                detalleId = detalle.id;
+              }
             } catch {
               // Si falla (probablemente existe), intentar actualizar
               const checkDetalle = await fetch(`${API_URL}/detalle-cargues/?cargue=${cargue.id}&producto=${producto.id}`);
               if (checkDetalle.ok) {
                 const existentes = await checkDetalle.json();
                 if (existentes.length > 0) {
-                  await fetch(`${API_URL}/detalle-cargues/${existentes[0].id}/`, {
+                  detalleId = existentes[0].id;
+                  await fetch(`${API_URL}/detalle-cargues/${detalleId}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(detalleData)
                   });
+                }
+              }
+            }
+            
+            // Guardar lotes vencidos si existen
+            if (detalleId && producto.lotesVencidos && producto.lotesVencidos.length > 0) {
+              console.log(`🏷️ Guardando ${producto.lotesVencidos.length} lotes vencidos para ${producto.producto}`);
+              
+              // Primero eliminar lotes existentes para este detalle
+              try {
+                const lotesExistentes = await fetch(`${API_URL}/lotes-vencidos/?detalle_cargue=${detalleId}`);
+                if (lotesExistentes.ok) {
+                  const lotes = await lotesExistentes.json();
+                  for (const lote of lotes) {
+                    await fetch(`${API_URL}/lotes-vencidos/${lote.id}/`, {
+                      method: 'DELETE'
+                    });
+                  }
+                }
+              } catch (error) {
+                console.warn('Error eliminando lotes existentes:', error);
+              }
+              
+              // Crear nuevos lotes vencidos
+              for (const loteVencido of producto.lotesVencidos) {
+                if (loteVencido.lote && loteVencido.motivo) {
+                  try {
+                    await fetch(`${API_URL}/lotes-vencidos/`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        detalle_cargue: detalleId,
+                        lote: loteVencido.lote,
+                        motivo: loteVencido.motivo,
+                        usuario: 'Sistema'
+                      })
+                    });
+                  } catch (error) {
+                    console.error('Error guardando lote vencido:', error);
+                  }
                 }
               }
             }

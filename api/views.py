@@ -6,12 +6,12 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    VendedorSerializer, CargueOperativoSerializer, DetalleCargueSerializer, ResumenPagosSerializer, ResumenTotalesSerializer
+    VendedorSerializer, CargueOperativoSerializer, DetalleCargueSerializer, ResumenPagosSerializer, ResumenTotalesSerializer, LoteVencidoSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -391,5 +391,25 @@ class ResumenTotalesViewSet(viewsets.ModelViewSet):
     queryset = ResumenTotales.objects.all()
     serializer_class = ResumenTotalesSerializer
     permission_classes = [permissions.AllowAny]
+
+class LoteVencidoViewSet(viewsets.ModelViewSet):
+    """API para gestionar lotes vencidos"""
+    queryset = LoteVencido.objects.all()
+    serializer_class = LoteVencidoSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = LoteVencido.objects.all().order_by('-fecha_registro')
+        
+        # Filtros opcionales
+        detalle_cargue = self.request.query_params.get('detalle_cargue')
+        motivo = self.request.query_params.get('motivo')
+        
+        if detalle_cargue:
+            queryset = queryset.filter(detalle_cargue_id=detalle_cargue)
+        if motivo:
+            queryset = queryset.filter(motivo=motivo.upper())
+            
+        return queryset
 
     

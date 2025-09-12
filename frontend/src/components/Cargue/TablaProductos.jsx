@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Table } from 'react-bootstrap';
+import LotesVencidos from './LotesVencidos';
 
 const TablaProductos = ({ productos, onActualizarProducto }) => {
   const [editingValor, setEditingValor] = useState(null);
@@ -49,6 +50,7 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
           <th>ADICIONAL</th>
           <th>DEVOLUCIONES</th>
           <th>VENCIDAS</th>
+          <th colSpan="2" style={{ width: '120px', minWidth: '120px' }}>LOTES VENCIDOS</th>
           <th>TOTAL</th>
           <th>VALOR</th>
           <th>NETO</th>
@@ -126,6 +128,12 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 onFocus={handleFocus}
                 className="form-control form-control-sm text-center"
                 min="0"
+              />
+            </td>
+            <td colSpan="2" style={{ position: 'relative', width: '120px', padding: '4px' }}>
+              <LotesVencidos 
+                lotes={p.lotesVencidos || []}
+                onLotesChange={(lotes) => handleInputChange(p.id, 'lotesVencidos', lotes)}
               />
             </td>
             <td className="text-center total-cell">{p.total || 0}</td>

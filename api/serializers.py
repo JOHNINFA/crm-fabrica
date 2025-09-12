@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -148,16 +148,28 @@ class VendedorSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('fecha_creacion',)
 
+class LoteVencidoSerializer(serializers.ModelSerializer):
+    """Serializer para lotes vencidos"""
+    
+    class Meta:
+        model = LoteVencido
+        fields = [
+            'id', 'detalle_cargue', 'lote', 'motivo', 
+            'fecha_registro', 'usuario'
+        ]
+        read_only_fields = ('fecha_registro',)
+
 class DetalleCargueSerializer(serializers.ModelSerializer):
     """Serializer para detalles de cargue"""
     producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+    lotes_vencidos = LoteVencidoSerializer(many=True, read_only=True)
     
     class Meta:
         model = DetalleCargue
         fields = [
             'id', 'cargue', 'producto', 'producto_nombre', 'vendedor_check', 'despachador_check',
             'cantidad', 'dctos', 'adicional', 'devoluciones', 'vencidas',
-            'total', 'valor', 'neto'
+            'total', 'valor', 'neto', 'lotes_vencidos'
         ]
         read_only_fields = ('total', 'neto')
 
