@@ -106,60 +106,99 @@ const Produccion = () => {
   }, [products, datosProduccionCargados]);
 
   // Calcular total directamente desde localStorage
-  const calcularTotalDirecto = (nombreProducto) => {
-    const fechaActual = new Date().toISOString().split('T')[0];
-    const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-    
-    // Verificar si hay datos congelados para algún día
-    for (const dia of diasSemana) {
-      const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
+  const calcularTotalDirecto = (nombreProducto, fecha = null) => {
+    // Detectar fecha más reciente con datos
+    let fechaActual = fecha;
+    if (!fechaActual) {
+      const todasLasClaves = Object.keys(localStorage).filter(key => key.startsWith('cargue_'));
+      const fechasEncontradas = new Set();
       
-      if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR') {
-        // Usar datos congelados
-        const datosCongelados = localStorage.getItem(`produccion_congelada_${dia}_${fechaActual}`);
-        if (datosCongelados) {
-          try {
-            const totalesCongelados = JSON.parse(datosCongelados);
-            console.log(`❄️ PRODUCCION usando datos congelados para ${nombreProducto}: ${totalesCongelados[nombreProducto] || 0}`);
-            return totalesCongelados[nombreProducto] || 0;
-          } catch (error) {
-            // Si hay error, continuar con cálculo normal
-          }
+      todasLasClaves.forEach(key => {
+        const partes = key.split('_');
+        if (partes.length >= 4) {
+          fechasEncontradas.add(partes[3]);
+        }
+      });
+      
+      const fechasOrdenadas = Array.from(fechasEncontradas).sort().reverse();
+      fechaActual = fechasOrdenadas[0] || new Date().toISOString().split('T')[0];
+    }
+    
+    // Detectar día con datos para esa fecha
+    const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    let diaActivo = null;
+    
+    for (const dia of diasSemana) {
+      const key = `cargue_${dia}_ID1_${fechaActual}`;
+      if (localStorage.getItem(key)) {
+        diaActivo = dia;
+        break;
+      }
+    }
+    
+    if (!diaActivo) {
+      return 0;
+    }
+    
+    // VERIFICAR SI HAY DATOS CONGELADOS (ALISTAMIENTO_ACTIVO)
+    const estadoBoton = localStorage.getItem(`estado_boton_${diaActivo}_${fechaActual}`);
+    if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR') {
+      const datosCongelados = localStorage.getItem(`produccion_congelada_${diaActivo}_${fechaActual}`);
+      if (datosCongelados) {
+        try {
+          const totalesCongelados = JSON.parse(datosCongelados);
+          const totalCongelado = totalesCongelados[nombreProducto] || 0;
+          return totalCongelado;
+        } catch (error) {
+          // Error en datos congelados, continuar con cálculo normal
         }
       }
     }
     
-    // Cálculo normal si no hay datos congelados
     let total = 0;
     const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
     
-    for (const dia of diasSemana) {
-      for (const id of idsVendedores) {
-        const key = `cargue_${dia}_${id}_${fechaActual}`;
-        const datosString = localStorage.getItem(key);
-        
-        if (datosString) {
-          try {
-            const datos = JSON.parse(datosString);
-            if (datos && datos.productos) {
-              const producto = datos.productos.find(p => p.producto === nombreProducto);
-              if (producto && producto.total > 0) {
-                total += producto.total;
-              }
+    for (const id of idsVendedores) {
+      const key = `cargue_${diaActivo}_${id}_${fechaActual}`;
+      const datosString = localStorage.getItem(key);
+      
+      if (datosString) {
+        try {
+          const datos = JSON.parse(datosString);
+          if (datos && datos.productos) {
+            const producto = datos.productos.find(p => p.producto === nombreProducto);
+            if (producto && producto.total > 0) {
+              total += producto.total;
             }
-          } catch (error) {
-            // Ignorar errores de parsing
           }
+        } catch (error) {
+          // Ignorar errores de parsing
         }
       }
+    }
+    
+    // Si el botón está activo y no había datos congelados, congelar ahora
+    if (estadoBoton === 'ALISTAMIENTO_ACTIVO' && total > 0) {
+      let datosCongelados = {};
+      try {
+        const datosExistentes = localStorage.getItem(`produccion_congelada_${diaActivo}_${fechaActual}`);
+        if (datosExistentes) {
+          datosCongelados = JSON.parse(datosExistentes);
+        }
+      } catch (error) {
+        datosCongelados = {};
+      }
+      
+      datosCongelados[nombreProducto] = total;
+      localStorage.setItem(`produccion_congelada_${diaActivo}_${fechaActual}`, JSON.stringify(datosCongelados));
     }
     
     return total;
   };
 
   // Función para calcular total (TOTAL PRODUCTOS + PEDIDOS)
-  const calcularTotal = (nombreProducto) => {
-    const totalProductos = calcularTotalDirecto(nombreProducto);
+  const calcularTotal = (nombreProducto, fecha = null) => {
+    const totalProductos = calcularTotalDirecto(nombreProducto, fecha);
     const pedidosProducto = pedidos[nombreProducto] || 0;
     return totalProductos + pedidosProducto;
   };

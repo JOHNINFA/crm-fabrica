@@ -13,6 +13,7 @@ export default function Sidebar({ onWidthChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
+  const [showInformesSubmenu, setShowInformesSubmenu] = useState(false);
   
   const shouldShowText = isExpanded || isHovered;
   const sidebarWidth = shouldShowText ? 210 : 60;
@@ -138,9 +139,79 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>balance</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Inventarios</span>}
             </li>
+            <li 
+              className="nav-item sidebar-item py-2" 
+              onClick={() => {
+                setShowInformesSubmenu(!showInformesSubmenu);
+                if (!showInformesSubmenu) setIsExpanded(true);
+              }}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>assessment</span>
+              {shouldShowText && <span style={{ fontSize: '14px' }}>Informes</span>}
+              {shouldShowText && (
+                <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
+                  {showInformesSubmenu ? 'expand_less' : 'expand_more'}
+                </span>
+              )}
+            </li>
+            
+            {/* Submenu de Informes */}
+            {showInformesSubmenu && isExpanded && (
+              <>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => console.log('Venta x rutas')}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Venta x rutas</span>
+                </li>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => console.log('Venta TAT vs remisiones por ruta')}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Venta TAT vs remisiones por ruta</span>
+                </li>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => console.log('Cantidad de unidades vendidas')}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Cantidad de unidades vendidas</span>
+                </li>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => console.log('Cantidad total de devoluciones')}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Cantidad total de devoluciones</span>
+                </li>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => console.log('Ganancia x utilidades total')}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Ganancia x utilidades total</span>
+                </li>
+                <li 
+                  className="nav-item sidebar-item py-1" 
+                  onClick={() => console.log('Historial de clientes ventas y devoluciones')}
+                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                >
+                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                  <span>Historial de clientes ventas y devoluciones</span>
+                </li>
+              </>
+            )}
             <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>local_shipping</span>
-              {shouldShowText && <span style={{ fontSize: '14px' }}>Logística</span>}
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
+              {shouldShowText && <span style={{ fontSize: '14px' }}>Pedidos</span>}
             </li>
             <li 
               className="nav-item sidebar-item py-2" 

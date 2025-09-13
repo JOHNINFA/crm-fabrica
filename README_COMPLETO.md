@@ -577,16 +577,109 @@ ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
 - Manejo diferenciado: Devoluciones (+), Vencidas (registro), Despacho (-)
 ```
 
-##### **8. Produccion.jsx**
+##### **8. Produccion.jsx** ⭐ **SISTEMA CORREGIDO**
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/Produccion.jsx
 // Funcionalidad: Módulo de producción consolidado
 // Características:
-- Suma automática de todos los IDs (ID1-ID6)
+- ✅ Suma automática de todos los IDs (ID1-ID6) CORREGIDA
+- ✅ Detección automática de fecha más reciente con datos
+- ✅ Detección automática del día correspondiente
+- ✅ Sistema de congelamiento durante ALISTAMIENTO_ACTIVO
 - Tabla con columnas: PRODUCTOS, TOTAL PRODUCTOS, PEDIDOS, TOTAL, SUGERIDO
 - Tabla de porciones (X2, X3, X4, X5)
-- Datos congelados durante proceso operativo
-- Lectura directa desde localStorage
+- Lectura directa desde localStorage con cálculos en tiempo real
+
+// ⭐ FUNCIÓN PRINCIPAL CORREGIDA: calcularTotalDirecto()
+const calcularTotalDirecto = (nombreProducto, fecha = null) => {
+  // 1. Detectar fecha más reciente con datos automáticamente
+  let fechaActual = fecha;
+  if (!fechaActual) {
+    const todasLasClaves = Object.keys(localStorage).filter(key => key.startsWith('cargue_'));
+    const fechasEncontradas = new Set();
+    todasLasClaves.forEach(key => {
+      const partes = key.split('_');
+      if (partes.length >= 4) {
+        fechasEncontradas.add(partes[3]);
+      }
+    });
+    const fechasOrdenadas = Array.from(fechasEncontradas).sort().reverse();
+    fechaActual = fechasOrdenadas[0] || new Date().toISOString().split('T')[0];
+  }
+  
+  // 2. Detectar día con datos para esa fecha
+  const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+  let diaActivo = null;
+  for (const dia of diasSemana) {
+    const key = `cargue_${dia}_ID1_${fechaActual}`;
+    if (localStorage.getItem(key)) {
+      diaActivo = dia;
+      break;
+    }
+  }
+  
+  // 3. VERIFICAR DATOS CONGELADOS (ALISTAMIENTO_ACTIVO)
+  const estadoBoton = localStorage.getItem(`estado_boton_${diaActivo}_${fechaActual}`);
+  if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR') {
+    const datosCongelados = localStorage.getItem(`produccion_congelada_${diaActivo}_${fechaActual}`);
+    if (datosCongelados) {
+      try {
+        const totalesCongelados = JSON.parse(datosCongelados);
+        return totalesCongelados[nombreProducto] || 0;
+      } catch (error) {
+        // Error en datos congelados, continuar con cálculo normal
+      }
+    }
+  }
+  
+  // 4. CÁLCULO NORMAL: Sumar todos los IDs
+  let total = 0;
+  const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+  
+  for (const id of idsVendedores) {
+    const key = `cargue_${diaActivo}_${id}_${fechaActual}`;
+    const datosString = localStorage.getItem(key);
+    
+    if (datosString) {
+      try {
+        const datos = JSON.parse(datosString);
+        if (datos && datos.productos) {
+          const producto = datos.productos.find(p => p.producto === nombreProducto);
+          if (producto && producto.total > 0) {
+            total += producto.total;
+          }
+        }
+      } catch (error) {
+        // Ignorar errores de parsing
+      }
+    }
+  }
+  
+  // 5. CONGELAR DATOS si el botón está activo
+  if (estadoBoton === 'ALISTAMIENTO_ACTIVO' && total > 0) {
+    let datosCongelados = {};
+    try {
+      const datosExistentes = localStorage.getItem(`produccion_congelada_${diaActivo}_${fechaActual}`);
+      if (datosExistentes) {
+        datosCongelados = JSON.parse(datosExistentes);
+      }
+    } catch (error) {
+      datosCongelados = {};
+    }
+    
+    datosCongelados[nombreProducto] = total;
+    localStorage.setItem(`produccion_congelada_${diaActivo}_${fechaActual}`, JSON.stringify(datosCongelados));
+  }
+  
+  return total;
+};
+
+// ⭐ PROBLEMA SOLUCIONADO:
+// - Antes: Solo sumaba datos de una fecha fija o detectaba mal la fecha
+// - Ahora: Detecta automáticamente la fecha más reciente con datos
+// - Suma correctamente todos los IDs (ID1+ID2+ID3+ID4+ID5+ID6)
+// - Respeta el sistema de congelamiento durante ALISTAMIENTO_ACTIVO
+// - Funciona con cualquier día y fecha dinámicamente
 ```
 
 #### **Sistema de Persistencia Avanzado**
@@ -663,11 +756,23 @@ export const cumplimientoService = {
    - Lotes vencidos con LotesVencidos.jsx
    - ⭐ NUEVO: Control de cumplimiento con ControlCumplimiento.jsx
    - Checkboxes V y D con validación por estado del botón
-4. Consolidación → Produccion.jsx (suma de todos los IDs)
+4. ⭐ CONSOLIDACIÓN CORREGIDA → Produccion.jsx
+   - ✅ Suma automática de todos los IDs (ID1+ID2+ID3+ID4+ID5+ID6)
+   - ✅ Detección automática de fecha más reciente
+   - ✅ Sistema de congelamiento durante ALISTAMIENTO_ACTIVO
+   - ✅ Funciona dinámicamente con cualquier día/fecha
 5. Flujo de estados → BotonLimpiar.jsx (solo ID1)
    - ⭐ NUEVO: Control de casillas D según estado del botón
 6. Persistencia → simpleStorage.js (localStorage + PostgreSQL)
    - ⭐ NUEVO: Datos de cumplimiento se guardan en ambos sistemas
+
+⭐ CORRECCIÓN IMPLEMENTADA:
+Problema: PRODUCCION mostraba 0 en "TOTAL PRODUCTOS" aunque había datos en los IDs
+Solución: Función calcularTotalDirecto() corregida para:
+- Detectar automáticamente la fecha más reciente con datos
+- Sumar correctamente todos los IDs para esa fecha
+- Respetar el sistema de congelamiento
+- Funcionar dinámicamente con cualquier combinación día/fecha
 ```
 
 #### **Estilos CSS Específicos**
