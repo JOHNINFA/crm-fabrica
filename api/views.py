@@ -6,12 +6,12 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido, ControlCumplimiento
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    VendedorSerializer, CargueOperativoSerializer, DetalleCargueSerializer, ResumenPagosSerializer, ResumenTotalesSerializer, LoteVencidoSerializer
+    VendedorSerializer, CargueOperativoSerializer, DetalleCargueSerializer, ResumenPagosSerializer, ResumenTotalesSerializer, LoteVencidoSerializer, ControlCumplimientoSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -409,6 +409,29 @@ class LoteVencidoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(detalle_cargue_id=detalle_cargue)
         if motivo:
             queryset = queryset.filter(motivo=motivo.upper())
+            
+        return queryset
+
+class ControlCumplimientoViewSet(viewsets.ModelViewSet):
+    """API para gestionar control de cumplimiento"""
+    queryset = ControlCumplimiento.objects.all()
+    serializer_class = ControlCumplimientoSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ControlCumplimiento.objects.all().order_by('-fecha')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        id_sheet = self.request.query_params.get('id_sheet')
+        fecha = self.request.query_params.get('fecha')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if id_sheet:
+            queryset = queryset.filter(id_sheet=id_sheet)
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
             
         return queryset
 

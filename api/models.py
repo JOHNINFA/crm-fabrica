@@ -432,3 +432,58 @@ class LoteVencido(models.Model):
     class Meta:
         verbose_name = "Lote Vencido"
         verbose_name_plural = "Lotes Vencidos"
+
+class ControlCumplimiento(models.Model):
+    """Modelo para control de cumplimiento de vendedores"""
+    CUMPLIMIENTO_CHOICES = [
+        ('C', 'Cumple'),
+        ('NC', 'No Cumple'),
+    ]
+    
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'),
+        ('MARTES', 'Martes'),
+        ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'),
+        ('VIERNES', 'Viernes'),
+        ('SABADO', 'Sábado'),
+        ('DOMINGO', 'Domingo'),
+    ]
+    
+    ID_CHOICES = [
+        ('ID1', 'ID1'),
+        ('ID2', 'ID2'),
+        ('ID3', 'ID3'),
+        ('ID4', 'ID4'),
+        ('ID5', 'ID5'),
+        ('ID6', 'ID6'),
+    ]
+    
+    # Identificación del registro
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    id_sheet = models.CharField(max_length=3, choices=ID_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # Items de cumplimiento
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('dia', 'id_sheet', 'fecha')
+        verbose_name = "Control de Cumplimiento"
+        verbose_name_plural = "Controles de Cumplimiento"
+    
+    def __str__(self):
+        return f"{self.dia} - {self.id_sheet} - {self.fecha}"

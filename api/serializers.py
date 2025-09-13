@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido, ControlCumplimiento
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -208,3 +208,16 @@ class CargueOperativoSerializer(serializers.ModelSerializer):
             'detalles', 'pagos', 'resumen'
         ]
         read_only_fields = ('fecha_creacion',)
+
+class ControlCumplimientoSerializer(serializers.ModelSerializer):
+    """Serializer para control de cumplimiento"""
+    
+    class Meta:
+        model = ControlCumplimiento
+        fields = [
+            'id', 'dia', 'id_sheet', 'fecha', 'licencia_transporte', 'soat',
+            'uniforme', 'no_locion', 'no_accesorios', 'capacitacion_carnet',
+            'higiene', 'estibas', 'desinfeccion', 'usuario', 'fecha_creacion',
+            'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')

@@ -4,7 +4,7 @@ from .views import (
     RegistroViewSet, ProductoViewSet, CategoriaViewSet,
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
     VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
-    VendedorViewSet, CargueOperativoViewSet, DetalleCargueViewSet, ResumenPagosViewSet, ResumenTotalesViewSet, LoteVencidoViewSet
+    VendedorViewSet, CargueOperativoViewSet, DetalleCargueViewSet, ResumenPagosViewSet, ResumenTotalesViewSet, LoteVencidoViewSet, ControlCumplimientoViewSet
 )
 
 router = DefaultRouter()
@@ -25,5 +25,6 @@ router.register(r'detalle-cargues', DetalleCargueViewSet, basename='detalle-carg
 router.register(r'lotes-vencidos', LoteVencidoViewSet, basename='lote-vencido')
 router.register(r'resumen-pagos', ResumenPagosViewSet, basename='resumen-pagos')
 router.register(r'resumen-totales', ResumenTotalesViewSet, basename='resumen-totales')
+router.register(r'control-cumplimiento', ControlCumplimientoViewSet, basename='control-cumplimiento')
 
 urlpatterns = router.urls

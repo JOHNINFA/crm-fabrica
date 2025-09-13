@@ -406,6 +406,8 @@ setInterval(sincronizarConBD, 5 * 60 * 1000);
 - Control de producción diaria
 - Flujo de estados automatizado
 - **NUEVO**: Sistema de lotes vencidos con motivos
+- **NUEVO**: Control de Cumplimiento con persistencia PostgreSQL
+- **NUEVO**: Control de casillas por estado del botón
 - Persistencia avanzada localStorage + PostgreSQL
 
 #### **Componentes Principales**
@@ -483,7 +485,7 @@ V | D | PRODUCTOS | CANTIDAD | DCTOS | ADICIONAL | DEVOLUCIONES | VENCIDAS | LOT
 - Color corporativo #06386d en checkboxes
 ```
 
-##### **5. LotesVencidos.jsx** ⭐ **NUEVO COMPONENTE**
+##### **5. LotesVencidos.jsx** ⭐ **COMPONENTE EXISTENTE**
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/LotesVencidos.jsx
 // Funcionalidad: Gestión de múltiples lotes vencidos
@@ -495,6 +497,41 @@ V | D | PRODUCTOS | CANTIDAD | DCTOS | ADICIONAL | DEVOLUCIONES | VENCIDAS | LOT
 - Motivos: HONGO, FVTO, SELLADO
 - Botón "×" para eliminar lotes
 - Guardado automático en localStorage
+```
+
+##### **6. ControlCumplimiento.jsx** ⭐ **NUEVO COMPONENTE**
+```javascript
+// Ubicación: /frontend/src/components/Cargue/ControlCumplimiento.jsx
+// Funcionalidad: Control de cumplimiento de vendedores
+// Características:
+- Tabla con 9 ítems de cumplimiento organizados por categorías
+- Sección MANIPULADOR: Licencia transporte, SOAT, Uniforme, No loción, No accesorios, Capacitación/Carnet
+- Sección FURGÓN: Higiene, Estibas, Desinfección
+- Dropdowns con opciones C (Cumple) / NC (No Cumple)
+- Leyenda amarilla: "CUMPLE : C    NO CUMPLE : NC"
+- Persistencia híbrida: localStorage + PostgreSQL
+- Guardado automático al seleccionar opciones
+- Carga automática de datos existentes
+```
+
+#### **Estructura de Datos - Control de Cumplimiento**
+```javascript
+// Estructura en localStorage
+const cumplimiento = {
+  licencia_transporte: 'C',
+  soat: 'NC', 
+  uniforme: 'C',
+  no_locion: null,
+  no_accesorios: 'C',
+  capacitacion_carnet: 'NC',
+  higiene: 'C',
+  estibas: 'C',
+  desinfeccion: null
+};
+
+// Key en localStorage
+const key = `cumplimiento_${dia}_${idSheet}_${fecha}`;
+// Ejemplo: "cumplimiento_LUNES_ID1_2025-01-08"
 ```
 
 #### **Estructura de Datos - Lotes Vencidos**
@@ -521,12 +558,17 @@ const producto = {
 };
 ```
 
-##### **6. BotonLimpiar.jsx**
+##### **7. BotonLimpiar.jsx**
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/BotonLimpiar.jsx
 // Funcionalidad: Control de flujo operativo (Solo ID1)
 // Estados del botón:
 ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
+
+// ⭐ NUEVO: Control de casillas por estado
+- ALISTAMIENTO: Casilla D (Despachador) deshabilitada y gris
+- ALISTAMIENTO_ACTIVO: Casilla D habilitada y funcional
+- Auto-verificación cada 500ms del estado del botón
 
 // Lógica de auto-avance:
 - ALISTAMIENTO_ACTIVO → DESPACHO (automático al marcar V y D)
@@ -535,7 +577,7 @@ ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
 - Manejo diferenciado: Devoluciones (+), Vencidas (registro), Despacho (-)
 ```
 
-##### **7. Produccion.jsx**
+##### **8. Produccion.jsx**
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/Produccion.jsx
 // Funcionalidad: Módulo de producción consolidado
@@ -566,7 +608,8 @@ export const simpleStorage = {
   async _saveToBackend(key, data) {
     // Crear/actualizar CargueOperativo
     // Crear/actualizar DetalleCargue
-    // ⭐ NUEVO: Crear/actualizar LoteVencido
+    // Crear/actualizar LoteVencido
+    // ⭐ NUEVO: Crear/actualizar ControlCumplimiento
     for (const producto of data.productos) {
       if (producto.lotesVencidos && producto.lotesVencidos.length > 0) {
         for (const loteVencido of producto.lotesVencidos) {
@@ -584,6 +627,31 @@ export const simpleStorage = {
     }
   }
 };
+
+// ⭐ NUEVO: Servicio específico para Control de Cumplimiento
+export const cumplimientoService = {
+  // Guardado inmediato en localStorage
+  guardarLocal: (dia, idSheet, fecha, cumplimiento) => {
+    const key = `cumplimiento_${dia}_${idSheet}_${fecha}`;
+    localStorage.setItem(key, JSON.stringify(cumplimiento));
+  },
+  
+  // Guardado en PostgreSQL (solo después del DESPACHO)
+  async guardarPostgreSQL(dia, idSheet, fecha, cumplimiento) {
+    const response = await fetch('/api/control-cumplimiento/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dia: dia.toUpperCase(),
+        id_sheet: idSheet,
+        fecha: fecha,
+        usuario: 'Sistema',
+        ...cumplimiento
+      })
+    });
+    return response.json();
+  }
+};
 ```
 
 #### **Flujo Operativo Completo**
@@ -593,10 +661,13 @@ export const simpleStorage = {
 3. Registro de datos → PlantillaOperativa.jsx
    - Cantidades en inputs numéricos
    - Lotes vencidos con LotesVencidos.jsx
-   - Checkboxes V y D con validación
+   - ⭐ NUEVO: Control de cumplimiento con ControlCumplimiento.jsx
+   - Checkboxes V y D con validación por estado del botón
 4. Consolidación → Produccion.jsx (suma de todos los IDs)
 5. Flujo de estados → BotonLimpiar.jsx (solo ID1)
+   - ⭐ NUEVO: Control de casillas D según estado del botón
 6. Persistencia → simpleStorage.js (localStorage + PostgreSQL)
+   - ⭐ NUEVO: Datos de cumplimiento se guardan en ambos sistemas
 ```
 
 #### **Estilos CSS Específicos**
@@ -741,7 +812,6 @@ class DetalleCargue(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     neto = models.DecimalField(max_digits=12, decimal_places=2)
 
-# ⭐ NUEVO MODELO
 class LoteVencido(models.Model):
     MOTIVO_CHOICES = [
         ('HONGO', 'Hongo'),
@@ -753,6 +823,51 @@ class LoteVencido(models.Model):
     motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES)
     fecha_registro = models.DateTimeField(default=timezone.now)
     usuario = models.CharField(max_length=100)
+
+# ⭐ NUEVO MODELO - Control de Cumplimiento
+class ControlCumplimiento(models.Model):
+    CUMPLIMIENTO_CHOICES = [
+        ('C', 'Cumple'),
+        ('NC', 'No Cumple'),
+    ]
+    
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado')
+    ]
+    
+    ID_CHOICES = [
+        ('ID1', 'ID1'), ('ID2', 'ID2'), ('ID3', 'ID3'),
+        ('ID4', 'ID4'), ('ID5', 'ID5'), ('ID6', 'ID6')
+    ]
+    
+    # Identificación del registro
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    id_sheet = models.CharField(max_length=3, choices=ID_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # Items de cumplimiento - MANIPULADOR
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # Items de cumplimiento - FURGÓN
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('dia', 'id_sheet', 'fecha')
+        verbose_name = "Control de Cumplimiento"
+        verbose_name_plural = "Controles de Cumplimiento"
 ```
 
 ### **APIs REST Completas**
@@ -770,10 +885,31 @@ class ProductoViewSet(viewsets.ModelViewSet):
         producto.save()
         return Response({'stock_actual': producto.stock_total})
 
-# ⭐ NUEVO VIEWSET
 class LoteVencidoViewSet(viewsets.ModelViewSet):
     queryset = LoteVencido.objects.all()
     serializer_class = LoteVencidoSerializer
+
+# ⭐ NUEVO VIEWSET - Control de Cumplimiento
+class ControlCumplimientoViewSet(viewsets.ModelViewSet):
+    queryset = ControlCumplimiento.objects.all()
+    serializer_class = ControlCumplimientoSerializer
+    
+    def get_queryset(self):
+        queryset = ControlCumplimiento.objects.all().order_by('-fecha')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        id_sheet = self.request.query_params.get('id_sheet')
+        fecha = self.request.query_params.get('fecha')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if id_sheet:
+            queryset = queryset.filter(id_sheet=id_sheet)
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+            
+        return queryset
 ```
 
 ### **URLs de API**
@@ -783,7 +919,8 @@ router = DefaultRouter()
 router.register(r'productos', ProductoViewSet)
 router.register(r'cargues', CargueOperativoViewSet)
 router.register(r'detalle-cargues', DetalleCargueViewSet)
-router.register(r'lotes-vencidos', LoteVencidoViewSet)  # ⭐ NUEVO
+router.register(r'lotes-vencidos', LoteVencidoViewSet)
+router.register(r'control-cumplimiento', ControlCumplimientoViewSet)  # ⭐ NUEVO
 router.register(r'vendedores', VendedorViewSet)
 router.register(r'ventas', VentaViewSet)
 ```
@@ -841,7 +978,7 @@ CREATE TABLE api_detallecargue (
     neto DECIMAL(12,2) DEFAULT 0
 );
 
--- ⭐ NUEVA TABLA - Lotes vencidos
+-- Tabla de lotes vencidos
 CREATE TABLE api_lotevencido (
     id SERIAL PRIMARY KEY,
     detalle_cargue_id INTEGER REFERENCES api_detallecargue(id),
@@ -850,13 +987,42 @@ CREATE TABLE api_lotevencido (
     fecha_registro TIMESTAMP DEFAULT NOW(),
     usuario VARCHAR(100) DEFAULT 'Sistema'
 );
+
+-- ⭐ NUEVA TABLA - Control de Cumplimiento
+CREATE TABLE api_controlcumplimiento (
+    id SERIAL PRIMARY KEY,
+    dia VARCHAR(10) CHECK (dia IN ('LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO')),
+    id_sheet VARCHAR(3) CHECK (id_sheet IN ('ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6')),
+    fecha DATE DEFAULT CURRENT_DATE,
+    
+    -- Items MANIPULADOR
+    licencia_transporte VARCHAR(2) CHECK (licencia_transporte IN ('C', 'NC')),
+    soat VARCHAR(2) CHECK (soat IN ('C', 'NC')),
+    uniforme VARCHAR(2) CHECK (uniforme IN ('C', 'NC')),
+    no_locion VARCHAR(2) CHECK (no_locion IN ('C', 'NC')),
+    no_accesorios VARCHAR(2) CHECK (no_accesorios IN ('C', 'NC')),
+    capacitacion_carnet VARCHAR(2) CHECK (capacitacion_carnet IN ('C', 'NC')),
+    
+    -- Items FURGÓN
+    higiene VARCHAR(2) CHECK (higiene IN ('C', 'NC')),
+    estibas VARCHAR(2) CHECK (estibas IN ('C', 'NC')),
+    desinfeccion VARCHAR(2) CHECK (desinfeccion IN ('C', 'NC')),
+    
+    -- Metadatos
+    usuario VARCHAR(100) DEFAULT 'Sistema',
+    fecha_creacion TIMESTAMP DEFAULT NOW(),
+    fecha_actualizacion TIMESTAMP DEFAULT NOW(),
+    
+    UNIQUE(dia, id_sheet, fecha)
+);
 ```
 
 ### **Relaciones de Tablas**
 ```
 Vendedor (1) ←→ (N) CargueOperativo
 CargueOperativo (1) ←→ (N) DetalleCargue
-DetalleCargue (1) ←→ (N) LoteVencido  ⭐ NUEVA RELACIÓN
+DetalleCargue (1) ←→ (N) LoteVencido
+ControlCumplimiento (Independiente)  ⭐ NUEVA TABLA
 Producto (1) ←→ (N) DetalleCargue
 ```
 
@@ -878,6 +1044,41 @@ JOIN api_vendedor v ON co.vendedor_id = v.id
 JOIN api_producto p ON dc.producto_id = p.id
 WHERE co.fecha = '2025-01-08'
 ORDER BY v.id_vendedor, p.nombre;
+
+-- ⭐ NUEVA CONSULTA - Control de cumplimiento por día
+SELECT 
+    dia,
+    id_sheet,
+    fecha,
+    licencia_transporte,
+    soat,
+    uniforme,
+    higiene,
+    estibas,
+    desinfeccion,
+    fecha_creacion
+FROM api_controlcumplimiento
+WHERE fecha = '2025-01-08'
+ORDER BY dia, id_sheet;
+
+-- Estadísticas de cumplimiento por ítem
+SELECT 
+    'Licencia Transporte' as item,
+    COUNT(CASE WHEN licencia_transporte = 'C' THEN 1 END) as cumple,
+    COUNT(CASE WHEN licencia_transporte = 'NC' THEN 1 END) as no_cumple
+FROM api_controlcumplimiento
+UNION ALL
+SELECT 
+    'SOAT' as item,
+    COUNT(CASE WHEN soat = 'C' THEN 1 END) as cumple,
+    COUNT(CASE WHEN soat = 'NC' THEN 1 END) as no_cumple
+FROM api_controlcumplimiento
+UNION ALL
+SELECT 
+    'Higiene' as item,
+    COUNT(CASE WHEN higiene = 'C' THEN 1 END) as cumple,
+    COUNT(CASE WHEN higiene = 'NC' THEN 1 END) as no_cumple
+FROM api_controlcumplimiento;
 
 -- Estadísticas de motivos de lotes vencidos
 SELECT 

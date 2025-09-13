@@ -1,8 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table } from 'react-bootstrap';
 import LotesVencidos from './LotesVencidos';
 
-const TablaProductos = ({ productos, onActualizarProducto }) => {
+const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionada }) => {
+  const [estadoBoton, setEstadoBoton] = useState('ALISTAMIENTO');
+  
+  // Actualizar estado del botón en tiempo real
+  useEffect(() => {
+    const actualizarEstado = () => {
+      const estado = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
+      setEstadoBoton(estado);
+    };
+    
+    actualizarEstado();
+    const interval = setInterval(actualizarEstado, 500); // Verificar cada 500ms
+    return () => clearInterval(interval);
+  }, [dia, fechaSeleccionada]);
   const [editingValor, setEditingValor] = useState(null);
 
   const handleInputChange = (id, campo, valor) => {
@@ -14,6 +27,11 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
     const producto = productos.find(p => p.id === id);
     if (checked && producto && producto.total <= 0) {
       return; // No hacer nada si intenta marcar sin cantidad
+    }
+    
+    // Controlar casilla D según estado del botón
+    if (campo === 'despachador' && estadoBoton === 'ALISTAMIENTO') {
+      return; // No permitir marcar D en estado ALISTAMIENTO
     }
     
     console.log(`Checkbox ${campo} para producto ${id}: ${checked}`);
@@ -74,8 +92,11 @@ const TablaProductos = ({ productos, onActualizarProducto }) => {
                 type="checkbox" 
                 checked={!!p.despachador}
                 onChange={(e) => handleCheckboxChange(p.id, 'despachador', e.target.checked)}
+                disabled={estadoBoton === 'ALISTAMIENTO'}
                 style={{
-                  accentColor: '#06386d'
+                  accentColor: '#06386d',
+                  opacity: estadoBoton === 'ALISTAMIENTO' ? 0.4 : 1,
+                  cursor: estadoBoton === 'ALISTAMIENTO' ? 'not-allowed' : 'pointer'
                 }}
               />
             </td>

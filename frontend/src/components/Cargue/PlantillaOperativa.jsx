@@ -5,6 +5,7 @@ import { simpleStorage } from '../../services/simpleStorage';
 import TablaProductos from './TablaProductos';
 import ResumenVentas from './ResumenVentas';
 import BotonLimpiar from './BotonLimpiar';
+import ControlCumplimiento from './ControlCumplimiento';
 import './PlantillaOperativa.css';
 
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
@@ -317,6 +318,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
           <TablaProductos 
             productos={productosOperativos} 
             onActualizarProducto={actualizarProducto}
+            dia={dia}
+            fechaSeleccionada={fechaSeleccionada}
           />
           <BotonLimpiar 
             productos={productosOperativos}
@@ -324,6 +327,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             idSheet={idSheet}
             fechaSeleccionada={fechaSeleccionada}
             onLimpiar={limpiarDatos}
+          />
+          <ControlCumplimiento 
+            dia={dia}
+            idSheet={idSheet}
+            fechaSeleccionada={fechaSeleccionada}
           />
         </div>
         <div className="col-lg-4">

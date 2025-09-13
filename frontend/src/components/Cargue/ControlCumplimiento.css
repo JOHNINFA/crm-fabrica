@@ -1,0 +1,140 @@
+.control-cumplimiento {
+  margin: 15px 0;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  width: 335px;
+}
+
+.cumplimiento-title {
+  color: #06386d;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.cumplimiento-tabla {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cumplimiento-header {
+  display: flex;
+  background: #e9ecef;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+.cumplimiento-header-manipulador {
+  flex: 1;
+  padding: 6px 8px;
+  font-weight: bold;
+  font-size: 12px;
+  text-align: center;
+  color: #06386d;
+}
+
+.cumplimiento-leyenda {
+  margin-top: 5px;
+}
+
+.cumplimiento-leyenda-texto {
+  padding: 6px 8px;
+  background: #fff3cd;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 10px;
+  text-align: center;
+  color: #856404;
+}
+
+.cumplimiento-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.cumplimiento-item {
+  font-size: 13px;
+  color: #495057;
+  flex: 1;
+}
+
+.cumplimiento-selector {
+  width: 30px;
+}
+
+.cumplimiento-dropdown {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.cumplimiento-dropdown:focus {
+  outline: none;
+  border-color: #06386d;
+  box-shadow: 0 0 0 2px rgba(6, 56, 109, 0.2);
+}
+
+.cumplimiento-dropdown option {
+  text-align: center;
+}
+
+/* Quitar colores - solo mostrar la letra seleccionada */
+.cumplimiento-dropdown.cumple {
+  background-color: white;
+  color: #000;
+  font-weight: bold;
+}
+
+.cumplimiento-dropdown.no-cumple {
+  background-color: white;
+  color: #000;
+  font-weight: bold;
+}
+
+.cumplimiento-loading {
+  text-align: center;
+  margin-top: 10px;
+  padding: 5px;
+}
+
+.cumplimiento-dropdown:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cumplimiento-resultado {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: bold;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+}
+
+.cumplimiento-resultado:hover {
+  background: #f8f9fa;
+}
