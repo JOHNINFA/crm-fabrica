@@ -41,13 +41,13 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       // Usar fecha actual si no se proporciona fechaSeleccionada
       const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
       const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
-      
+
       console.log(`🔍 CARGANDO ${idSheet} - Key: ${key}`);
-      
+
       // Primero intentar desde localStorage directamente
       const datosLocalString = localStorage.getItem(key);
       let datos = null;
-      
+
       if (datosLocalString) {
         try {
           datos = JSON.parse(datosLocalString);
@@ -58,14 +58,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       } else {
         console.log(`⚠️ ${idSheet} - No hay datos en localStorage para ${key}`);
       }
-      
+
       if (datos && datos.productos) {
         console.log(`🔍 ${idSheet} - Estructura de datos:`, datos.productos.slice(0, 2)); // Mostrar primeros 2 productos
-        
+
         console.log(`🔍 ${idSheet} - Productos del contexto:`, products.length);
         console.log(`🔍 ${idSheet} - Primer producto contexto:`, products[0]?.name);
         console.log(`🔍 ${idSheet} - Primer producto guardado:`, datos.productos[0]?.producto);
-        
+
         // Orden específico de productos
         const ordenEspecifico = [
           'AREPA TIPO OBLEA 500Gr',
@@ -87,21 +87,21 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
           'ALMOJABANAS X 10 600Gr',
           'AREPA QUESO MINI X10'
         ];
-        
+
         const productosOrdenados = [...products].sort((a, b) => {
           const indexA = ordenEspecifico.indexOf(a.name);
           const indexB = ordenEspecifico.indexOf(b.name);
-          
+
           if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
           if (indexA === -1) return 1;
           if (indexB === -1) return -1;
-          
+
           return indexA - indexB;
         });
-        
+
         const productosConDatos = productosOrdenados.map(product => {
           const productoGuardado = datos.productos.find(p => p.producto === product.name);
-          
+
           if (productoGuardado) {
             console.log(`✅ ${idSheet} - Cargando producto: ${product.name} - Cantidad: ${productoGuardado.cantidad}`);
             return {
@@ -122,7 +122,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
           } else {
             console.log(`❌ ${idSheet} - NO encontrado: ${product.name}`);
           }
-          
+
           return {
             id: product.id,
             producto: product.name,
@@ -139,13 +139,13 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             despachador: false
           };
         });
-        
+
         console.log(`✅ ${idSheet} - Datos cargados correctamente desde localStorage`);
         console.log(`🔄 ${idSheet} - Estableciendo productos:`, productosConDatos.filter(p => p.cantidad > 0).map(p => `${p.producto}: ${p.cantidad}`));
         setProductosOperativos(productosConDatos);
         return;
       }
-      
+
       // Si no hay datos, usar formato inicial con orden específico
       const ordenEspecifico = [
         'AREPA TIPO OBLEA 500Gr',
@@ -167,18 +167,18 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         'ALMOJABANAS X 10 600Gr',
         'AREPA QUESO MINI X10'
       ];
-      
+
       const productosOrdenados = [...products].sort((a, b) => {
         const indexA = ordenEspecifico.indexOf(a.name);
         const indexB = ordenEspecifico.indexOf(b.name);
-        
+
         if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
         if (indexA === -1) return 1;
         if (indexB === -1) return -1;
-        
+
         return indexA - indexB;
       });
-      
+
       const productosFormateados = productosOrdenados.map(product => ({
         id: product.id,
         producto: product.name,
@@ -194,7 +194,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         vendedor: false,
         despachador: false
       }));
-      
+
       console.log(`🆕 ${idSheet} - Usando datos iniciales (${productosFormateados.length} productos)`);
       console.log(`⚠️ ${idSheet} - RESETEO A DATOS INICIALES - Esto no debería pasar si hay datos guardados`);
       setProductosOperativos(productosFormateados);
@@ -215,12 +215,15 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
   // Función deshabilitada - solo el botón DESPACHO afecta inventario
 
   const actualizarProducto = async (id, campo, valor) => {
-    setProductosOperativos(prev => 
+    // Verificar estado del botón para actualización en tiempo real
+    const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
+
+    setProductosOperativos(prev =>
       prev.map(p => {
         if (p.id === id) {
           // Manejar diferentes tipos de campos
           let valorProcesado;
-          
+
           if (campo === 'vendedor' || campo === 'despachador') {
             // Campos booleanos
             valorProcesado = valor;
@@ -231,22 +234,89 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             // Campos numéricos
             valorProcesado = parseInt(valor) || 0;
           }
-          
+
           const updated = { ...p, [campo]: valorProcesado };
-          
+          const valorAnterior = p[campo] || 0;
+
           // Calcular total automáticamente solo para campos numéricos (no para texto o checkboxes)
           if (campo !== 'vendedor' && campo !== 'despachador' && campo !== 'lotesVencidos') {
             updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
             updated.neto = Math.round(updated.total * updated.valor);
-            
-            console.log(`📊 ${updated.producto}: cantidad=${updated.cantidad}, total=${updated.total} - Sin afectar inventario`);
+
+            // 🚀 NUEVO: Actualizar inventario en tiempo real si está en DESPACHO
+            if (estadoBoton === 'DESPACHO' && (campo === 'adicional' || campo === 'dctos')) {
+              const diferencia = valorProcesado - valorAnterior;
+
+              if (diferencia !== 0) {
+                console.log(`🔥 DESPACHO ACTIVO - Actualizando inventario en tiempo real:`);
+                console.log(`   - Producto: ${updated.producto}`);
+                console.log(`   - Campo: ${campo}`);
+                console.log(`   - Valor anterior: ${valorAnterior}`);
+                console.log(`   - Valor nuevo: ${valorProcesado}`);
+                console.log(`   - Diferencia: ${diferencia}`);
+
+                // Actualizar inventario inmediatamente
+                actualizarInventarioTiempoReal(id, diferencia, campo);
+              }
+            }
+
+            console.log(`📊 ${updated.producto}: cantidad=${updated.cantidad}, total=${updated.total} ${estadoBoton === 'DESPACHO' ? '- DESPACHO ACTIVO' : '- Sin afectar inventario'}`);
           }
-          
+
           return updated;
         }
         return p;
       })
     );
+  };
+
+  // 🚀 NUEVA FUNCIÓN: Actualizar inventario en tiempo real durante DESPACHO
+  const actualizarInventarioTiempoReal = async (productoId, diferencia, campo) => {
+    try {
+      console.log(`🔥 ACTUALIZANDO INVENTARIO EN TIEMPO REAL:`);
+      console.log(`   - Producto ID: ${productoId}`);
+      console.log(`   - Diferencia: ${diferencia}`);
+      console.log(`   - Campo: ${campo}`);
+
+      // Para ADICIONAL: más mercancía sale (restar del inventario)
+      // Para DCTOS: menos mercancía sale (sumar al inventario)
+      let cantidadFinal;
+      if (campo === 'adicional') {
+        cantidadFinal = -diferencia; // Adicional resta del inventario
+      } else if (campo === 'dctos') {
+        cantidadFinal = diferencia;  // Descuento suma al inventario
+      }
+
+      console.log(`   - Cantidad final a enviar: ${cantidadFinal}`);
+
+      const response = await fetch(`http://localhost:8000/api/productos/${productoId}/actualizar_stock/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cantidad: cantidadFinal,
+          usuario: `Sistema Despacho - ${idSheet}`,
+          nota: `Ajuste en tiempo real - ${campo}: ${diferencia} - ${dia} - ${new Date().toISOString()}`
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Error actualizando inventario: ${errorText}`);
+        throw new Error(`Error al actualizar inventario: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ INVENTARIO ACTUALIZADO EN TIEMPO REAL:`);
+      console.log(`   - Stock actualizado: ${result.stock_actual}`);
+      console.log(`   - Campo: ${campo}, Diferencia: ${diferencia}`);
+
+    } catch (error) {
+      console.error('❌ Error actualizando inventario en tiempo real:', error);
+      // Mostrar alerta al usuario
+      alert(`❌ Error actualizando inventario: ${error.message}`);
+    }
   };
 
 
@@ -263,25 +333,25 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       venta: totalNeto,
       totalEfectivo: totalNeto,
     });
-    
+
     // Actualizar contexto siempre, excepto cuando esté en modo ALISTAMIENTO activo
     const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
     const estadoDespacho = localStorage.getItem(`estado_despacho_${dia}_${fechaSeleccionada}`);
-    
+
     // SIEMPRE actualizar datos locales - el congelamiento solo afecta PRODUCCION
     actualizarDatosVendedor(idSheet, productosOperativos);
     console.log(`✅ Datos actualizados para ${idSheet}:`, productosOperativos.filter(p => p.total > 0).map(p => `${p.producto}: ${p.total}`));
-    
+
     // IMPORTANTE: SIEMPRE guardar en localStorage (independiente del estado de PRODUCCION)
     console.log(`💾 Guardando en localStorage ${idSheet}:`, productosOperativos.filter(p => p.total > 0).length, 'productos con datos');
-    
+
     // Guardar inmediatamente en localStorage
     if (productosOperativos.length > 0) {
       const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
       const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
       // Guardar todos los productos (sin filtrar)
       const productosFiltrados = productosOperativos;
-      
+
       const datos = {
         dia,
         idSheet,
@@ -290,7 +360,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         timestamp: Date.now(),
         sincronizado: false // Marcar como no sincronizado
       };
-      
+
       localStorage.setItem(key, JSON.stringify(datos));
       console.log(`💾 Guardado en localStorage: ${idSheet} - Productos con datos:`, productosFiltrados.filter(p => p.cantidad > 0).length);
     }
@@ -305,8 +375,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
   return (
     <div className="container-fluid plantilla-operativa" style={{ minWidth: '1200px' }}>
       <div className="d-flex justify-content-between align-items-center">
-        <h6 
-          className="responsable-title m-0" 
+        <h6
+          className="responsable-title m-0"
           onDoubleClick={onEditarNombre}
           style={{ cursor: 'pointer', userSelect: 'none', color: 'red' }}
         >
@@ -315,20 +385,20 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       </div>
       <div className="row">
         <div className="col-lg-8">
-          <TablaProductos 
-            productos={productosOperativos} 
+          <TablaProductos
+            productos={productosOperativos}
             onActualizarProducto={actualizarProducto}
             dia={dia}
             fechaSeleccionada={fechaSeleccionada}
           />
-          <BotonLimpiar 
+          <BotonLimpiar
             productos={productosOperativos}
             dia={dia}
             idSheet={idSheet}
             fechaSeleccionada={fechaSeleccionada}
             onLimpiar={limpiarDatos}
           />
-          <ControlCumplimiento 
+          <ControlCumplimiento
             dia={dia}
             idSheet={idSheet}
             fechaSeleccionada={fechaSeleccionada}

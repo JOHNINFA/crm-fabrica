@@ -3,9 +3,9 @@ import { Table, Button } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
 import '../../styles/EditButtons.css';
 
-const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {} }) => {
+const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {}, yaSeGrabo = false }) => {
   const handleChange = (id, value) => handleCantidadChange(id, value);
-  
+
   const handleEliminar = async (producto) => {
     if (window.confirm(`¿Estás seguro de eliminar el producto "${producto.nombre}"?`)) {
       const utils = await import('../../utils/inventarioUtils');
@@ -27,7 +27,7 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
           {productos?.length > 0 ? (
             productos.map((producto) => (
               <tr key={producto.id} className="product-row">
-                <td className="fw-medium" style={{color: '#1e293b'}}>
+                <td className="fw-medium" style={{ color: '#1e293b' }}>
                   {producto.nombre}
                 </td>
                 <td className="text-center">
@@ -38,9 +38,9 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                       value={producto.cantidad || 0}
                       onChange={(e) => handleChange(producto.id, e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className={`quantity-input ${productosGrabados[producto.id] ? 'grabado' : ''}`}
-                      disabled={productosGrabados[producto.id]}
-                      style={productosGrabados[producto.id] ? { color: '#aaa', backgroundColor: '#f9f9f9' } : {}}
+                      className={`quantity-input ${productosGrabados[producto.id] ? 'grabado' : ''} ${yaSeGrabo ? 'input-grabado' : ''}`}
+                      disabled={productosGrabados[producto.id] || yaSeGrabo}
+                      placeholder={yaSeGrabo ? "Grabado" : "0"}
                       aria-label={`Cantidad de ${producto.nombre}`}
                     />
                   </div>
@@ -56,13 +56,13 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                       <i className="bi bi-pencil me-1"></i>
                       Editar
                     </Button>
-                    
+
                     {producto.id > 39 && (
                       <Button
                         variant="outline-danger"
                         onClick={() => handleEliminar(producto)}
                         className="rounded-pill-sm"
-                        style={{backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fecaca', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.95rem', minWidth: '100px'}}
+                        style={{ backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fecaca', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.95rem', minWidth: '100px' }}
                         title={`Eliminar ${producto.nombre}`}
                       >
                         <i className="bi bi-trash me-1"></i>

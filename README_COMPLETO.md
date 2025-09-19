@@ -1,6 +1,7 @@
 # 🏭 CRM-FÁBRICA - DOCUMENTACIÓN TÉCNICA COMPLETA
 
 ## 📋 ÍNDICE
+
 1. [ARQUITECTURA GENERAL](#arquitectura-general)
 2. [MENÚ PRINCIPAL](#menú-principal)
 3. [MÓDULO POS](#módulo-pos)
@@ -16,6 +17,7 @@
 ## 🏗️ ARQUITECTURA GENERAL
 
 ### **Stack Tecnológico**
+
 ```
 Frontend: React.js 19.1.0 + React Router 7.5.0 + Bootstrap 5.3.6
 Backend: Django + Django REST Framework
@@ -26,6 +28,7 @@ Iconos: Bootstrap Icons 1.11.3
 ```
 
 ### **Estructura de Directorios**
+
 ```
 crm-fabrica/
 ├── 📂 backend_crm/          # Configuración Django
@@ -41,6 +44,7 @@ crm-fabrica/
 ```
 
 ### **Flujo de Datos Principal**
+
 ```
 React Components → Context API → Services → Django API → PostgreSQL
                 ↓                                        ↑
@@ -54,23 +58,25 @@ React Components → Context API → Services → Django API → PostgreSQL
 ### **Archivo Principal: `MainMenu.jsx`**
 
 #### **Funcionalidad**
+
 - Pantalla de inicio con 6 módulos principales
 - Navegación centralizada a todas las secciones
 - Efectos hover personalizados
 - Diseño responsive con grid CSS
 
 #### **Estructura del Componente**
+
 ```javascript
 // Ubicación: /frontend/src/pages/MainMenu.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import '../styles/MainMenu.css';
-import icono from '../assets/images/icono.png';
-import bannermenu from '../assets/images/bannermenu.png';
+import "../styles/MainMenu.css";
+import icono from "../assets/images/icono.png";
+import bannermenu from "../assets/images/bannermenu.png";
 
 export default function MainMenu() {
   const navigate = useNavigate();
-  
+
   // 6 módulos principales con navegación
   const modulos = [
     { ruta: "/pos", titulo: "Punto de Venta (POS)", icono: "bi-cart" },
@@ -78,12 +84,13 @@ export default function MainMenu() {
     { ruta: "/cargue", titulo: "Cargue", icono: "bi-people" },
     { ruta: "/pedidos", titulo: "Remisiones", icono: "bi-file-text" },
     { ruta: "/trazabilidad", titulo: "Trazabilidad", icono: "bi-diagram-3" },
-    { ruta: "/otros", titulo: "Otros", icono: "bi-gear" }
+    { ruta: "/otros", titulo: "Otros", icono: "bi-gear" },
   ];
 }
 ```
 
 #### **Estilos CSS Personalizados**
+
 ```css
 /* Archivo: /frontend/src/styles/MainMenu.css */
 .menu-card {
@@ -108,6 +115,7 @@ export default function MainMenu() {
 ```
 
 #### **Características Técnicas**
+
 - **Color corporativo**: `#06386d` (azul oscuro)
 - **Efecto hover**: Degradado + escala 1.05 + sombra profunda
 - **Grid layout**: 3 columnas × 2 filas
@@ -115,6 +123,7 @@ export default function MainMenu() {
 - **Transiciones**: 0.3s ease para suavidad
 
 #### **Lógica de Navegación**
+
 ```javascript
 const handleNavigation = (ruta) => {
   navigate(ruta);
@@ -131,6 +140,7 @@ onClick={() => navigate("/pos")}  // Ejemplo para POS
 ### **Archivo Principal: `PosScreen.jsx`**
 
 #### **Funcionalidad**
+
 - Sistema completo de punto de venta
 - Gestión de productos y carrito
 - Procesamiento de ventas con múltiples métodos de pago
@@ -140,6 +150,7 @@ onClick={() => navigate("/pos")}  // Ejemplo para POS
 #### **Componentes Principales**
 
 ##### **1. ProductList.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Pos/ProductList.jsx
 // Funcionalidad: Lista todos los productos disponibles
@@ -152,6 +163,7 @@ onClick={() => navigate("/pos")}  // Ejemplo para POS
 ```
 
 ##### **2. Cart.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Pos/Cart.jsx
 // Funcionalidad: Carrito de compras
@@ -164,6 +176,7 @@ onClick={() => navigate("/pos")}  // Ejemplo para POS
 ```
 
 ##### **3. PaymentModal.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Pos/PaymentModal.jsx
 // Funcionalidad: Modal de procesamiento de pago
@@ -175,6 +188,7 @@ onClick={() => navigate("/pos")}  // Ejemplo para POS
 ```
 
 #### **Context API - ProductContext.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/context/ProductContext.jsx
 // Estado global para productos
@@ -184,30 +198,35 @@ export const ProductProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
-  
+
   // Funciones principales:
-  - syncWithBackend()     // Sincronización con Django
-  - loadProductsFromBackend()  // Carga inicial
-  - updateProductStock()  // Actualización de stock
+  -syncWithBackend() - // Sincronización con Django
+    loadProductsFromBackend() - // Carga inicial
+    updateProductStock(); // Actualización de stock
 };
 ```
 
 #### **Servicios API**
+
 ```javascript
 // Ubicación: /frontend/src/services/api.js
 export const productoService = {
-  getAll: () => fetch('/api/productos/'),
-  create: (data) => fetch('/api/productos/', {method: 'POST', body: data}),
-  update: (id, data) => fetch(`/api/productos/${id}/`, {method: 'PATCH', body: data}),
-  updateStock: (id, cantidad) => fetch(`/api/productos/${id}/actualizar_stock/`)
+  getAll: () => fetch("/api/productos/"),
+  create: (data) => fetch("/api/productos/", { method: "POST", body: data }),
+  update: (id, data) =>
+    fetch(`/api/productos/${id}/`, { method: "PATCH", body: data }),
+  updateStock: (id, cantidad) =>
+    fetch(`/api/productos/${id}/actualizar_stock/`),
 };
 
 export const ventaService = {
-  create: (ventaData) => fetch('/api/ventas/', {method: 'POST', body: JSON.stringify(ventaData)})
+  create: (ventaData) =>
+    fetch("/api/ventas/", { method: "POST", body: JSON.stringify(ventaData) }),
 };
 ```
 
 #### **Flujo de Venta Completo**
+
 ```
 1. Usuario selecciona productos → ProductList
 2. Productos se agregan al carrito → Cart
@@ -219,6 +238,7 @@ export const ventaService = {
 ```
 
 #### **Estilos Específicos**
+
 ```css
 /* ProductCard.css */
 .product-card {
@@ -229,7 +249,7 @@ export const ventaService = {
 
 .product-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Cart.css */
@@ -249,6 +269,7 @@ export const ventaService = {
 ### **Archivo Principal: `InventarioScreen.jsx`**
 
 #### **Funcionalidad**
+
 - Control completo de existencias
 - Registro de producción diaria
 - Historial de movimientos (Kardex)
@@ -258,8 +279,9 @@ export const ventaService = {
 #### **Componentes Principales**
 
 ##### **1. InventarioProduccion.jsx**
+
 ```javascript
-// Ubicación: /frontend/src/components/inventario/InventarioProduccion.jsx
+// Ubicación: /frontend/src/pages/InventarioProduccion.jsx
 // Funcionalidad: Registro de producción diaria
 // Características:
 - Selector de fecha de producción
@@ -267,21 +289,312 @@ export const ventaService = {
 - Cálculo automático de totales
 - Guardado en lotes por fecha
 - Actualización automática de stock
+- Gestión de lotes y fechas de expiración
+- Control de cantidades de productos
+- Sincronización con backend
+
+// Componentes integrados:
+// - FormularioRegistroProduccion.jsx
+// - TablaConfirmacionProduccion.jsx
+// - ListaLotes.jsx
+// - FiltrosInventario.jsx
 ```
 
-##### **2. TablaKardex.jsx**
+##### **2. TablaConfirmacionProduccion.jsx** ⭐ **COMPONENTE DETALLADO**
+
+```javascript
+// Ubicación: /frontend/src/components/Inventario/TablaConfirmacionProduccion.jsx
+// Funcionalidad: Confirmación visual después de registrar producción
+// Características:
+- Card principal con sombra y bordes redondeados
+- Header con icono de verificación verde centrado
+- Grid de información del lote (3 columnas): Lote, Vencimiento, Registrado
+- Tabla personalizada con CSS Grid (no Bootstrap Table)
+- Diseño responsive y compacto
+- Iconos de estado: ✓ (sin ediciones) y ⚠️ (editado con detalles)
+- Badges personalizados para cantidades
+- Compartido entre Producción y Maquila
+
+// Estructura de datos:
+const datosGuardados = {
+  lote: "L001",
+  fechaVencimiento: "2025-01-15",
+  fechaCreacion: "2025-01-08T14:30:00.000Z",
+  usuario: "Usuario Predeterminado",
+  productos: [
+    { 
+      nombre: "AREPA MEDIANA 330GR", 
+      cantidad: 100,
+      editado: false
+    },
+    { 
+      nombre: "AREPA TIPO PINCHO 330GR", 
+      cantidad: 50,
+      editado: true,
+      cantidadOriginal: 45,
+      fechaEdicion: "08/01/2025, 15:30:00",
+      motivoEdicion: "Corrección de inventario"
+    }
+  ]
+};
+
+// Renderizado condicional:
+{datosGuardados && datosGuardados.productos && datosGuardados.productos.length > 0 && (
+  <TablaConfirmacionProduccion datosGuardados={datosGuardados} />
+)}
+```
+
+#### **Estilos CSS Personalizados - TablaConfirmacionProduccion.css** ⭐ **ACTUALIZADO 2025-01-19**
+
+```css
+/* ===== TABLA PERSONALIZADA CON CSS GRID ===== */
+.tabla-confirmacion-wrapper {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ===== HEADER DE LA TABLA ===== */
+.tabla-header {
+  display: grid;
+  grid-template-columns: 60% 20% 20%;  /* Productos | Estado | Cantidad */
+  background-color: #f1f5f9;           /* Fondo gris claro */
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tabla-header > div {
+  padding: 0.25rem 0.35rem;            /* Padding compacto */
+  font-weight: 600;
+  color: #334155;                      /* Gris oscuro */
+  border-right: 1px solid #dee2e6;
+  text-transform: uppercase;
+  font-size: 0.7rem;                   /* Texto pequeño */
+  letter-spacing: 0.05em;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* ===== FILAS DE PRODUCTOS ===== */
+.tabla-row {
+  display: grid;
+  grid-template-columns: 60% 20% 20%;
+  border-bottom: 1px solid #dee2e6;
+  background-color: white;
+}
+
+.tabla-row:hover {
+  background-color: #f8f9fa;           /* Hover sutil */
+}
+
+.tabla-row > div {
+  padding: 6px 10px;                   /* Padding reducido */
+  background-color: white;
+  border-right: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  min-height: 30px;                    /* Altura mínima compacta */
+}
+
+/* ===== COLUMNA DE PRODUCTOS ===== */
+.col-productos {
+  color: #1e293b;                      /* Color oscuro profesional */
+  font-weight: 500;                    /* Peso medio */
+  font-size: 0.8rem;                   /* Tamaño optimizado */
+  justify-content: flex-start;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;               /* Espaciado sutil */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ===== COLUMNA DE ESTADO ===== */
+.col-estado {
+  justify-content: center;
+}
+
+/* ===== COLUMNA DE CANTIDAD ===== */
+.col-cantidad {
+  justify-content: center;
+  background-color: white !important;
+}
+
+/* ===== BADGES PERSONALIZADOS ===== */
+.badge-custom {
+  display: inline-block !important;
+  width: auto !important;
+  background-color: #00A65A;           /* Verde corporativo */
+  color: #ffffff !important;
+  padding: 2px 8px;                    /* Padding compacto */
+  border-radius: 999px;                /* Forma de píldora */
+  font-weight: 700 !important;         /* Peso bold */
+  font-size: 0.7rem;                   /* Tamaño pequeño */
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* ===== ICONOS DE ESTADO ===== */
+.icono-editado {
+  font-size: 1rem;                     /* Tamaño reducido */
+  color: #f59e0b;                      /* Amarillo de advertencia */
+  cursor: pointer;
+}
+
+.icono-ok {
+  background-color: #00A65A;           /* Verde corporativo */
+  color: white;
+  border-radius: 50%;
+  width: 20px;                         /* Tamaño compacto */
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;                     /* Icono pequeño */
+}
+
+/* ===== CARD PRINCIPAL ===== */
+.confirmacion-card {
+  border: none !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.card-body-compacto {
+  padding-left: 0.25rem !important;
+  padding-right: 0.25rem !important;
+}
+```
+
+#### **Características Técnicas de los Estilos**
+
+**🎨 Paleta de Colores:**
+- **Verde corporativo**: `#00A65A` (badges y iconos OK)
+- **Texto principal**: `#1e293b` (nombres de productos)
+- **Texto secundario**: `#334155` (headers)
+- **Fondo header**: `#f1f5f9` (gris muy claro)
+- **Bordes**: `#dee2e6` y `#e2e8f0` (grises suaves)
+- **Advertencia**: `#f59e0b` (icono editado)
+
+**📐 Dimensiones Optimizadas:**
+- **Altura de fila**: 30px mínimo (compacto)
+- **Padding celdas**: 6px 10px (reducido)
+- **Padding header**: 0.25rem 0.35rem (muy compacto)
+- **Iconos**: 20px × 20px (tamaño pequeño)
+- **Badges**: padding 2px 8px (compactos)
+
+**🔤 Tipografía:**
+- **Productos**: 0.8rem, font-weight 500, color #1e293b
+- **Headers**: 0.7rem, font-weight 600, uppercase
+- **Badges**: 0.7rem, font-weight 700
+- **Fuente**: Sistema (Apple/Segoe UI/Roboto)
+- **Espaciado**: 0.3px letter-spacing en productos
+
+**📱 Diseño Responsive:**
+- **Grid**: 60% productos, 20% estado, 20% cantidad
+- **Ancho**: 100% del contenedor disponible
+- **Overflow**: hidden con bordes redondeados
+- **Hover**: Fondo gris claro (#f8f9fa)
+
+**⚡ Funcionalidades Interactivas:**
+- **Icono editado**: Click muestra detalles de la edición
+- **Hover en filas**: Cambio de color de fondo
+- **Badges**: Estilo píldora con colores corporativos
+- **Iconos de estado**: Visual diferenciado (✓ verde, ⚠️ amarillo)
+
+##### **3. TablaKardex.jsx** ⭐ **ACTUALIZADO CON ORDENAMIENTO**
+
 ```javascript
 // Ubicación: /frontend/src/components/inventario/TablaKardex.jsx
-// Funcionalidad: Historial de movimientos
+// Funcionalidad: Historial de movimientos con ordenamiento específico
 // Características:
-- Filtros por fecha y producto
+- ✅ NUEVO: Ordenamiento específico de productos (18 productos principales)
+- Filtros por fecha y producto (mantiene el orden)
 - Tipos de movimiento (ENTRADA, SALIDA, AJUSTE)
 - Saldos calculados automáticamente
 - Exportación de reportes
 - Búsqueda en tiempo real
+- Actualización automática cada 30 segundos
+- Integración con PostgreSQL
+
+// ⭐ ORDEN ESPECÍFICO DE PRODUCTOS IMPLEMENTADO:
+const ordenEspecificoKardex = [
+  "AREPA TIPO OBLEA 500Gr",           // 1
+  "AREPA MEDIANA 330Gr",              // 2  
+  "AREPA TIPO PINCHO 330Gr",          // 3
+  "AREPA QUESO CORRIENTE 450Gr",      // 4
+  "AREPA QUESO ESPECIAL GRANDE 600Gr", // 5
+  "AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr", // 6
+  "AREPA BOYACENSE X 10",             // 7
+  "AREPA DE CHOCLO CORRIENTE 300Gr",  // 8
+  "AREPA DE CHOCLO CON QUESO GRANDE 1200Gr", // 9
+  "ALMOJABANA X 5 300Gr",             // 10
+  "AREPA CON QUESO CUADRADA 450Gr",   // 11
+  "AREPA QUESO MINI X10",             // 12
+  "AREPA SANTANDEREANA 450Gr",        // 13
+  "AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr", // 14
+  "AREPA CON SEMILLA DE QUINUA 450Gr", // 15
+  "AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr", // 16
+  "ALMOJABANAS X 10 600Gr",           // 17
+  "AREPA BOYACENSE X 5 450Gr"         // 18
+];
+
+// Función de ordenamiento inteligente:
+const ordenarProductos = (productos) => {
+  return productos.sort((a, b) => {
+    const nombreA = a.producto || a.nombre;
+    const nombreB = b.producto || b.nombre;
+    
+    // Buscar índice en orden específico (coincidencias parciales)
+    const indiceA = ordenEspecificoKardex.findIndex(orden => 
+      nombreA.toUpperCase().includes(orden.toUpperCase()) || 
+      orden.toUpperCase().includes(nombreA.toUpperCase())
+    );
+    const indiceB = ordenEspecificoKardex.findIndex(orden => 
+      nombreB.toUpperCase().includes(orden.toUpperCase()) || 
+      orden.toUpperCase().includes(nombreB.toUpperCase())
+    );
+    
+    // Lógica de ordenamiento:
+    // 1. Si ambos están en orden específico → usar ese orden
+    // 2. Si solo uno está → ese va primero  
+    // 3. Si ninguno está → orden alfabético
+    
+    if (indiceA !== -1 && indiceB !== -1) return indiceA - indiceB;
+    if (indiceA !== -1) return -1;
+    if (indiceB !== -1) return 1;
+    return nombreA.localeCompare(nombreB);
+  });
+};
+
+// Aplicación del ordenamiento:
+const movimientosFiltrados = ordenarProductos(
+  movimientosFromBD.filter(movimiento => 
+    movimiento.producto.toLowerCase().includes(filtro.toLowerCase())
+  )
+);
 ```
 
-##### **3. TablaInventario.jsx**
+#### **🎯 Características del Ordenamiento Implementado - 19 Enero 2025**
+
+**✅ Ordenamiento Inteligente:**
+- **18 productos principales** en orden específico definido
+- **Coincidencias parciales** para manejar variaciones en nombres
+- **Fallback alfabético** para productos no listados
+- **Preservación del orden** durante filtrado y búsqueda
+
+**✅ Funcionalidades Técnicas:**
+- **Búsqueda flexible**: Busca coincidencias parciales en nombres
+- **Case-insensitive**: No distingue mayúsculas/minúsculas  
+- **Filtrado preservado**: El orden se mantiene al filtrar
+- **Compatibilidad**: Funciona con `movimiento.producto` y `producto.nombre`
+
+**✅ Beneficios Operativos:**
+- **Consistencia visual**: Mismo orden en toda la aplicación
+- **Facilidad de uso**: Productos siempre en posición esperada
+- **Eficiencia**: Búsqueda rápida de productos específicos
+- **Mantenibilidad**: Orden centralizado y fácil de modificar
+
+##### **4. TablaInventario.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/inventario/TablaInventario.jsx
 // Funcionalidad: Vista general de existencias
@@ -294,12 +607,13 @@ export const ventaService = {
 ```
 
 #### **Lógica de Movimientos de Inventario**
+
 ```javascript
 // Tipos de movimiento
 const TIPOS_MOVIMIENTO = {
-  ENTRADA: 'ENTRADA',    // Producción, compras
-  SALIDA: 'SALIDA',      // Ventas, desperdicios
-  AJUSTE: 'AJUSTE'       // Correcciones manuales
+  ENTRADA: "ENTRADA", // Producción, compras
+  SALIDA: "SALIDA", // Ventas, desperdicios
+  AJUSTE: "AJUSTE", // Correcciones manuales
 };
 
 // Función para registrar movimiento
@@ -309,37 +623,40 @@ const registrarMovimiento = async (productoId, tipo, cantidad, nota) => {
     tipo: tipo,
     cantidad: cantidad,
     fecha: new Date().toISOString(),
-    usuario: 'Sistema',
-    nota: nota
+    usuario: "Sistema",
+    nota: nota,
   };
-  
+
   // Enviar a backend
   await movimientoService.create(movimiento);
-  
+
   // Actualizar stock local
-  updateProductStock(productoId, tipo === 'ENTRADA' ? cantidad : -cantidad);
+  updateProductStock(productoId, tipo === "ENTRADA" ? cantidad : -cantidad);
 };
 ```
 
 #### **Sistema de Lotes**
+
 ```javascript
 // Estructura de lote
 const lote = {
-  lote: 'L001',                    // Código del lote
-  fecha_produccion: '2025-01-08',  // Fecha de producción
-  fecha_vencimiento: '2025-01-15', // Fecha de vencimiento
-  usuario: 'Sistema',              // Usuario que registró
-  productos: [                     // Productos en este lote
+  lote: "L001", // Código del lote
+  fecha_produccion: "2025-01-08", // Fecha de producción
+  fecha_vencimiento: "2025-01-15", // Fecha de vencimiento
+  usuario: "Sistema", // Usuario que registró
+  productos: [
+    // Productos en este lote
     {
       producto_id: 1,
       cantidad: 100,
-      producto_nombre: 'AREPA MEDIANA'
-    }
-  ]
+      producto_nombre: "AREPA MEDIANA",
+    },
+  ],
 };
 ```
 
 #### **Servicios de Inventario**
+
 ```javascript
 // Ubicación: /frontend/src/services/registroInventarioService.js
 export const inventarioService = {
@@ -348,46 +665,298 @@ export const inventarioService = {
     const lote = await loteService.create({
       lote: `L${Date.now()}`,
       fecha_produccion: fecha,
-      usuario: 'Sistema'
+      usuario: "Sistema",
     });
-    
+
     // Registra cada producto
     for (const producto of productos) {
       await registroInventarioService.create({
         producto_id: producto.id,
         cantidad: producto.cantidad,
-        tipo_movimiento: 'ENTRADA',
-        fecha_produccion: fecha
+        tipo_movimiento: "ENTRADA",
+        fecha_produccion: fecha,
       });
     }
-  }
+  },
 };
 ```
 
+#### **Flujo de Datos - Confirmación de Producción**
+
+```javascript
+// Flujo completo de confirmación:
+1. Usuario completa formulario de producción → FormularioRegistroProduccion
+2. Se envían datos al backend → inventarioService.registrarProduccion()
+3. Backend responde con datos confirmados → datosGuardados
+4. Se muestra TablaConfirmacionProduccion con datos recibidos
+5. Usuario cierra la tabla → setDatosGuardados(null)
+
+// Renderizado condicional en InventarioProduccion.jsx:
+{datosGuardados && (
+    <TablaConfirmacionProduccion
+        datos={datosGuardados}
+        onClose={() => setDatosGuardados(null)}
+    />
+)}
+```
+
+#### **Context API - InventarioContext.jsx**
+
+```javascript
+// Ubicación: /frontend/src/context/InventarioContext.jsx
+const InventarioContext = createContext();
+
+export function InventarioProvider({ children }) {
+  const [lotes, setLotes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  
+  // Funciones principales:
+  // - registrarProduccion()
+  // - cargarLotes()
+  // - actualizarStock()
+}
+```
+
+#### **API Endpoints Específicos**
+
+```javascript
+// Registro de producción
+POST /api/inventario/produccion/
+
+// Obtener lotes disponibles
+GET /api/inventario/lotes/
+
+// Actualizar stock de productos
+PATCH /api/productos/{id}/actualizar_stock/
+```
+
+#### **Estilos CSS Específicos del Módulo**
+
+```css
+/* ===== TablaConfirmacionProduccion.css - ACTUALIZADO 2025-01-19 ===== */
+/* Tabla personalizada con CSS Grid (reemplaza Bootstrap Table) */
+.tabla-confirmacion-wrapper {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+  width: 100%;
+}
+
+.tabla-header {
+  display: grid;
+  grid-template-columns: 60% 20% 20%;
+  background-color: #f1f5f9;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tabla-row > div {
+  padding: 6px 10px;                   /* Compacto */
+  min-height: 30px;                    /* Altura reducida */
+}
+
+.col-productos {
+  color: #1e293b;                      /* Texto oscuro profesional */
+  font-weight: 500;
+  font-size: 0.8rem;                   /* Tamaño optimizado */
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badge-custom {
+  background-color: #00A65A;           /* Verde corporativo */
+  color: #ffffff;
+  padding: 2px 8px;                    /* Compacto */
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.7rem;                   /* Pequeño */
+}
+
+.icono-ok {
+  background-color: #00A65A;
+  width: 20px;                         /* Tamaño reducido */
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+}
+
+/* ===== TablaKardex.css ===== */
+.table-kardex {
+  font-size: 0.9rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.table-kardex thead th {
+  background-color: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.3rem 0.4rem;
+}
+
+.table-kardex tbody tr:hover {
+  background-color: #e2e8f0;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* ===== InventarioProduccion.css ===== */
+.input-grabado {
+  background-color: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  color: #6c757d !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.075) !important;
+}
+
+.quantity-input {
+  width: 70px;
+  text-align: center;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+}
+
+.card {
+  border: none;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+```
+
+#### **Paleta de Colores del Módulo**
+
+```css
+/* Colores específicos del inventario - ACTUALIZADO 2025-01-19 */
+--verde-corporativo: #00A65A;    /* Badges, iconos OK */
+--texto-principal: #1e293b;      /* Nombres de productos */
+--texto-header: #334155;         /* Headers de tabla */
+--fondo-header: #f1f5f9;         /* Fondo de headers */
+--fondo-claro: #f8f9fa;          /* Hover y tarjetas */
+--borde-suave: #dee2e6;          /* Bordes principales */
+--borde-header: #e2e8f0;         /* Bordes de header */
+--advertencia: #f59e0b;          /* Icono editado */
+--texto-secundario: #6c757d;     /* Texto deshabilitado */
+```
+
+#### **🎨 Mejoras de Estilos Implementadas - 19 Enero 2025**
+
+**✅ Optimizaciones de TablaConfirmacionProduccion:**
+
+1. **Tipografía Mejorada:**
+   - Color principal: `#1e293b` (más profesional que el gris anterior)
+   - Tamaño optimizado: `0.8rem` (balance entre legibilidad y compacidad)
+   - Font-weight: `500` (peso medio, no muy bold)
+   - Letter-spacing: `0.3px` (espaciado sutil para mejor lectura)
+
+2. **Dimensiones Compactas:**
+   - Altura de filas: `30px` (reducido de 35px)
+   - Padding celdas: `6px 10px` (reducido de 8px 12px)
+   - Padding headers: `0.25rem 0.35rem` (más compacto)
+   - Badges: `2px 8px` (reducido de 3px 12px)
+
+3. **Iconos Optimizados:**
+   - Icono OK: `20px × 20px` (reducido de 24px)
+   - Font-size icono: `12px` (reducido de 14px)
+   - Icono editado: `1rem` (reducido de 1.2rem)
+
+4. **Consistencia Visual:**
+   - Misma tipografía que tabla de maquila
+   - Colores corporativos unificados
+   - Espaciado consistente en todo el módulo
+
+5. **Mejoras de UX:**
+   - Hover más sutil en filas
+   - Badges más compactos pero legibles
+   - Mejor contraste de colores
+   - Diseño más limpio y profesional
+
+**🔧 Cambios Técnicos Aplicados:**
+- Reemplazo de Bootstrap Table por CSS Grid personalizado
+- Eliminación de estilos redundantes
+- Optimización de selectores CSS
+- Mejora en la especificidad de estilos
+- Consistencia entre componentes de Producción y Maquila
+
+#### **📊 Mejoras en TablaKardex - 19 Enero 2025**
+
+**✅ Ordenamiento Específico de Productos:**
+
+1. **Implementación del Orden Fijo:**
+   - Lista de 18 productos principales en orden específico
+   - Función `ordenarProductos()` con lógica inteligente
+   - Coincidencias parciales para flexibilidad en nombres
+
+2. **Algoritmo de Ordenamiento:**
+   ```javascript
+   // Prioridad 1: Productos en orden específico (índice 0-17)
+   // Prioridad 2: Productos no listados (orden alfabético)
+   // Mantiene orden durante filtrado y búsqueda
+   ```
+
+3. **Beneficios Implementados:**
+   - **Consistencia**: Mismo orden en toda la aplicación
+   - **Usabilidad**: Productos siempre en posición esperada  
+   - **Flexibilidad**: Maneja variaciones en nombres de productos
+   - **Mantenibilidad**: Orden centralizado en array configurable
+
+4. **Integración Completa:**
+   - Funciona con filtros de búsqueda
+   - Compatible con datos de PostgreSQL
+   - Preserva orden en actualizaciones automáticas
+   - Aplicado tanto a `movimientosFiltrados` como `productosFiltrados`
+
+**🎯 Orden de Productos Implementado:**
+```
+1. AREPA TIPO OBLEA 500Gr
+2. AREPA MEDIANA 330Gr  
+3. AREPA TIPO PINCHO 330Gr
+4. AREPA QUESO CORRIENTE 450Gr
+5. AREPA QUESO ESPECIAL GRANDE 600Gr
+6. AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr
+7. AREPA BOYACENSE X 10
+8. AREPA DE CHOCLO CORRIENTE 300Gr
+9. AREPA DE CHOCLO CON QUESO GRANDE 1200Gr
+10. ALMOJABANA X 5 300Gr
+11. AREPA CON QUESO CUADRADA 450Gr
+12. AREPA QUESO MINI X10
+13. AREPA SANTANDEREANA 450Gr
+14. AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr
+15. AREPA CON SEMILLA DE QUINUA 450Gr
+16. AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr
+17. ALMOJABANAS X 10 600Gr
+18. AREPA BOYACENSE X 5 450Gr
+```
+
 #### **Sincronización con POS**
+
 ```javascript
 // Ubicación: /frontend/src/services/syncService.js
 const sincronizarConBD = async () => {
   try {
     // Obtener productos actualizados
-    const response = await fetch('/api/productos/');
+    const response = await fetch("/api/productos/");
     const productosFromBD = await response.json();
-    
+
     // Actualizar localStorage para POS
-    const productosParaPOS = productosFromBD.map(p => ({
+    const productosParaPOS = productosFromBD.map((p) => ({
       id: p.id,
       name: p.nombre,
       price: parseFloat(p.precio),
       stock: p.stock_total,
-      category: p.categoria_nombre
+      category: p.categoria_nombre,
     }));
-    
-    localStorage.setItem('products', JSON.stringify(productosParaPOS));
-    
+
+    localStorage.setItem("products", JSON.stringify(productosParaPOS));
+
     // Notificar cambios
-    window.dispatchEvent(new Event('productosUpdated'));
+    window.dispatchEvent(new Event("productosUpdated"));
   } catch (error) {
-    console.error('Error sincronizando:', error);
+    console.error("Error sincronizando:", error);
   }
 };
 
@@ -402,6 +971,7 @@ setInterval(sincronizarConBD, 5 * 60 * 1000);
 ### **Archivo Principal: `MenuSheets.jsx`**
 
 #### **Funcionalidad**
+
 - Sistema operativo para 6 vendedores independientes (ID1-ID6)
 - Control de producción diaria
 - Flujo de estados automatizado
@@ -413,6 +983,7 @@ setInterval(sincronizarConBD, 5 * 60 * 1000);
 #### **Componentes Principales**
 
 ##### **1. SelectorDia.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/pages/SelectorDia.jsx
 // Funcionalidad: Selección de día operativo
@@ -424,6 +995,7 @@ setInterval(sincronizarConBD, 5 * 60 * 1000);
 ```
 
 ##### **2. MenuSheets.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/MenuSheets.jsx
 // Funcionalidad: Navegación entre vendedores
@@ -435,6 +1007,7 @@ setInterval(sincronizarConBD, 5 * 60 * 1000);
 ```
 
 ##### **3. PlantillaOperativa.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/PlantillaOperativa.jsx
 // Funcionalidad: Plantilla principal de cada vendedor
@@ -447,30 +1020,32 @@ setInterval(sincronizarConBD, 5 * 60 * 1000);
 ```
 
 #### **Orden Fijo de Productos (18 específicos)**
+
 ```javascript
 const ordenEspecifico = [
-  'AREPA TIPO OBLEA 500Gr',
-  'AREPA MEDIANA 330Gr',
-  'AREPA TIPO PINCHO 330Gr',
-  'AREPA QUESO ESPECIAL GRANDE 600Gr',
-  'AREPA CON QUESO CUADRADA 450Gr',
-  'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
-  'AREPA QUESO CORRIENTE 450Gr',
-  'AREPA BOYACENSE X 10',
-  'ALMOJABANA X 5 300Gr',
-  'AREPA SANTANDEREANA 450Gr',
-  'AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr',
-  'AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr',
-  'AREPA CON SEMILLA DE QUINUA 450Gr',
-  'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
-  'AREPA DE CHOCLO CORRIENTE 300Gr',
-  'AREPA BOYACENSE X 5 450Gr',
-  'ALMOJABANAS X 10 600Gr',
-  'AREPA QUESO MINI X10'
+  "AREPA TIPO OBLEA 500Gr",
+  "AREPA MEDIANA 330Gr",
+  "AREPA TIPO PINCHO 330Gr",
+  "AREPA QUESO ESPECIAL GRANDE 600Gr",
+  "AREPA CON QUESO CUADRADA 450Gr",
+  "AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr",
+  "AREPA QUESO CORRIENTE 450Gr",
+  "AREPA BOYACENSE X 10",
+  "ALMOJABANA X 5 300Gr",
+  "AREPA SANTANDEREANA 450Gr",
+  "AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr",
+  "AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr",
+  "AREPA CON SEMILLA DE QUINUA 450Gr",
+  "AREPA DE CHOCLO CON QUESO GRANDE 1200Gr",
+  "AREPA DE CHOCLO CORRIENTE 300Gr",
+  "AREPA BOYACENSE X 5 450Gr",
+  "ALMOJABANAS X 10 600Gr",
+  "AREPA QUESO MINI X10",
 ];
 ```
 
 ##### **4. TablaProductos.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/TablaProductos.jsx
 // Funcionalidad: Tabla operativa de productos
@@ -486,6 +1061,7 @@ V | D | PRODUCTOS | CANTIDAD | DCTOS | ADICIONAL | DEVOLUCIONES | VENCIDAS | LOT
 ```
 
 ##### **5. LotesVencidos.jsx** ⭐ **COMPONENTE EXISTENTE**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/LotesVencidos.jsx
 // Funcionalidad: Gestión de múltiples lotes vencidos
@@ -500,6 +1076,7 @@ V | D | PRODUCTOS | CANTIDAD | DCTOS | ADICIONAL | DEVOLUCIONES | VENCIDAS | LOT
 ```
 
 ##### **6. ControlCumplimiento.jsx** ⭐ **NUEVO COMPONENTE**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/ControlCumplimiento.jsx
 // Funcionalidad: Control de cumplimiento de vendedores
@@ -515,18 +1092,19 @@ V | D | PRODUCTOS | CANTIDAD | DCTOS | ADICIONAL | DEVOLUCIONES | VENCIDAS | LOT
 ```
 
 #### **Estructura de Datos - Control de Cumplimiento**
+
 ```javascript
 // Estructura en localStorage
 const cumplimiento = {
-  licencia_transporte: 'C',
-  soat: 'NC', 
-  uniforme: 'C',
+  licencia_transporte: "C",
+  soat: "NC",
+  uniforme: "C",
   no_locion: null,
-  no_accesorios: 'C',
-  capacitacion_carnet: 'NC',
-  higiene: 'C',
-  estibas: 'C',
-  desinfeccion: null
+  no_accesorios: "C",
+  capacitacion_carnet: "NC",
+  higiene: "C",
+  estibas: "C",
+  desinfeccion: null,
 };
 
 // Key en localStorage
@@ -535,30 +1113,33 @@ const key = `cumplimiento_${dia}_${idSheet}_${fecha}`;
 ```
 
 #### **Estructura de Datos - Lotes Vencidos**
+
 ```javascript
 // Estructura en localStorage y PostgreSQL
 const producto = {
   id: 1,
-  producto: 'AREPA MEDIANA 330Gr',
+  producto: "AREPA MEDIANA 330Gr",
   cantidad: 10,
   dctos: 0,
   adicional: 0,
   devoluciones: 2,
   vencidas: 1,
-  lotesVencidos: [                    // ⭐ NUEVO CAMPO
-    { lote: 'L001', motivo: 'HONGO' },
-    { lote: 'L002', motivo: 'FVTO' },
-    { lote: 'L003', motivo: 'SELLADO' }
+  lotesVencidos: [
+    // ⭐ NUEVO CAMPO
+    { lote: "L001", motivo: "HONGO" },
+    { lote: "L002", motivo: "FVTO" },
+    { lote: "L003", motivo: "SELLADO" },
   ],
-  total: 7,  // cantidad - dctos + adicional - devoluciones - vencidas
+  total: 7, // cantidad - dctos + adicional - devoluciones - vencidas
   valor: 1600,
-  neto: 11200,  // total * valor
+  neto: 11200, // total * valor
   vendedor: true,
-  despachador: true
+  despachador: true,
 };
 ```
 
 ##### **7. BotonLimpiar.jsx**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/BotonLimpiar.jsx
 // Funcionalidad: Control de flujo operativo (Solo ID1)
@@ -578,6 +1159,7 @@ ALISTAMIENTO → ALISTAMIENTO_ACTIVO → DESPACHO → FINALIZAR → COMPLETADO
 ```
 
 ##### **8. Produccion.jsx** ⭐ **SISTEMA CORREGIDO**
+
 ```javascript
 // Ubicación: /frontend/src/components/Cargue/Produccion.jsx
 // Funcionalidad: Módulo de producción consolidado
@@ -606,7 +1188,7 @@ const calcularTotalDirecto = (nombreProducto, fecha = null) => {
     const fechasOrdenadas = Array.from(fechasEncontradas).sort().reverse();
     fechaActual = fechasOrdenadas[0] || new Date().toISOString().split('T')[0];
   }
-  
+
   // 2. Detectar día con datos para esa fecha
   const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
   let diaActivo = null;
@@ -617,7 +1199,7 @@ const calcularTotalDirecto = (nombreProducto, fecha = null) => {
       break;
     }
   }
-  
+
   // 3. VERIFICAR DATOS CONGELADOS (ALISTAMIENTO_ACTIVO)
   const estadoBoton = localStorage.getItem(`estado_boton_${diaActivo}_${fechaActual}`);
   if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR') {
@@ -631,15 +1213,15 @@ const calcularTotalDirecto = (nombreProducto, fecha = null) => {
       }
     }
   }
-  
+
   // 4. CÁLCULO NORMAL: Sumar todos los IDs
   let total = 0;
   const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
-  
+
   for (const id of idsVendedores) {
     const key = `cargue_${diaActivo}_${id}_${fechaActual}`;
     const datosString = localStorage.getItem(key);
-    
+
     if (datosString) {
       try {
         const datos = JSON.parse(datosString);
@@ -654,7 +1236,7 @@ const calcularTotalDirecto = (nombreProducto, fecha = null) => {
       }
     }
   }
-  
+
   // 5. CONGELAR DATOS si el botón está activo
   if (estadoBoton === 'ALISTAMIENTO_ACTIVO' && total > 0) {
     let datosCongelados = {};
@@ -666,11 +1248,11 @@ const calcularTotalDirecto = (nombreProducto, fecha = null) => {
     } catch (error) {
       datosCongelados = {};
     }
-    
+
     datosCongelados[nombreProducto] = total;
     localStorage.setItem(`produccion_congelada_${diaActivo}_${fechaActual}`, JSON.stringify(datosCongelados));
   }
-  
+
   return total;
 };
 
@@ -683,6 +1265,7 @@ const calcularTotalDirecto = (nombreProducto, fecha = null) => {
 ```
 
 #### **Sistema de Persistencia Avanzado**
+
 ```javascript
 // Ubicación: /frontend/src/services/simpleStorage.js
 export const simpleStorage = {
@@ -690,13 +1273,13 @@ export const simpleStorage = {
   async setItem(key, data) {
     // 1. Guardar inmediatamente en localStorage
     localStorage.setItem(key, JSON.stringify(data));
-    
+
     // 2. Debounce de 2 segundos para PostgreSQL
     const timeoutId = setTimeout(async () => {
       await this._saveToBackend(key, data);
     }, 2000);
   },
-  
+
   // Guardado en PostgreSQL con lotes vencidos
   async _saveToBackend(key, data) {
     // Crear/actualizar CargueOperativo
@@ -706,19 +1289,19 @@ export const simpleStorage = {
     for (const producto of data.productos) {
       if (producto.lotesVencidos && producto.lotesVencidos.length > 0) {
         for (const loteVencido of producto.lotesVencidos) {
-          await fetch('/api/lotes-vencidos/', {
-            method: 'POST',
+          await fetch("/api/lotes-vencidos/", {
+            method: "POST",
             body: JSON.stringify({
               detalle_cargue: detalleId,
               lote: loteVencido.lote,
               motivo: loteVencido.motivo,
-              usuario: 'Sistema'
-            })
+              usuario: "Sistema",
+            }),
           });
         }
       }
     }
-  }
+  },
 };
 
 // ⭐ NUEVO: Servicio específico para Control de Cumplimiento
@@ -728,26 +1311,27 @@ export const cumplimientoService = {
     const key = `cumplimiento_${dia}_${idSheet}_${fecha}`;
     localStorage.setItem(key, JSON.stringify(cumplimiento));
   },
-  
+
   // Guardado en PostgreSQL (solo después del DESPACHO)
   async guardarPostgreSQL(dia, idSheet, fecha, cumplimiento) {
-    const response = await fetch('/api/control-cumplimiento/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetch("/api/control-cumplimiento/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         dia: dia.toUpperCase(),
         id_sheet: idSheet,
         fecha: fecha,
-        usuario: 'Sistema',
-        ...cumplimiento
-      })
+        usuario: "Sistema",
+        ...cumplimiento,
+      }),
     });
     return response.json();
-  }
+  },
 };
 ```
 
 #### **Flujo Operativo Completo**
+
 ```
 1. Selección de día → SelectorDia.jsx
 2. Elección de vendedor → MenuSheets.jsx (ID1-ID6, PRODUCCION)
@@ -776,6 +1360,7 @@ Solución: Función calcularTotalDirecto() corregida para:
 ```
 
 #### **Estilos CSS Específicos**
+
 ```css
 /* PlantillaOperativa.css */
 .tabla-productos {
@@ -820,32 +1405,37 @@ Solución: Función calcularTotalDirecto() corregida para:
 ## 📄 OTROS MÓDULOS
 
 ### **Remisiones (PedidosScreen.jsx)**
+
 - Creación y gestión de guías de remisión
 - Control de entregas
 - Estados: Pendiente, En tránsito, Entregado
 
 ### **Trazabilidad**
+
 - Seguimiento completo del ciclo de vida de productos
 - Desde producción hasta venta final
 - Reportes de trazabilidad por lote
 
 ### **Vendedores (VendedoresScreen.jsx)**
+
 ```javascript
 // CRUD completo de vendedores
 const vendedor = {
-  nombre: 'Juan Pérez',
-  id_vendedor: 'ID1',  // ID1, ID2, ID3, ID4, ID5, ID6
-  ruta: 'Ruta Norte',
-  activo: true
+  nombre: "Juan Pérez",
+  id_vendedor: "ID1", // ID1, ID2, ID3, ID4, ID5, ID6
+  ruta: "Ruta Norte",
+  activo: true,
 };
 ```
 
 ### **Clientes (ClientesScreen.jsx)**
+
 - Gestión completa de clientes
 - Información de contacto y geográfica
 - Configuración de crédito y pagos
 
 ### **Listas de Precios**
+
 - Múltiples listas por tipo de cliente
 - Precios específicos por producto
 - Cálculo automático de utilidades
@@ -855,6 +1445,7 @@ const vendedor = {
 ## 🔧 BACKEND DJANGO
 
 ### **Configuración Principal**
+
 ```python
 # backend_crm/settings.py
 INSTALLED_APPS = [
@@ -882,6 +1473,7 @@ CORS_ALLOWED_ORIGINS = [
 ```
 
 ### **Modelos Principales**
+
 ```python
 # api/models.py
 
@@ -935,22 +1527,22 @@ class ControlCumplimiento(models.Model):
         ('C', 'Cumple'),
         ('NC', 'No Cumple'),
     ]
-    
+
     DIAS_CHOICES = [
         ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
         ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado')
     ]
-    
+
     ID_CHOICES = [
         ('ID1', 'ID1'), ('ID2', 'ID2'), ('ID3', 'ID3'),
         ('ID4', 'ID4'), ('ID5', 'ID5'), ('ID6', 'ID6')
     ]
-    
+
     # Identificación del registro
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
     id_sheet = models.CharField(max_length=3, choices=ID_CHOICES)
     fecha = models.DateField(default=timezone.now)
-    
+
     # Items de cumplimiento - MANIPULADOR
     licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
@@ -958,17 +1550,17 @@ class ControlCumplimiento(models.Model):
     no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
-    
+
     # Items de cumplimiento - FURGÓN
     higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
-    
+
     # Metadatos
     usuario = models.CharField(max_length=100, default='Sistema')
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         unique_together = ('dia', 'id_sheet', 'fecha')
         verbose_name = "Control de Cumplimiento"
@@ -976,12 +1568,13 @@ class ControlCumplimiento(models.Model):
 ```
 
 ### **APIs REST Completas**
+
 ```python
 # api/views.py
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
-    
+
     @action(detail=True, methods=['post'])
     def actualizar_stock(self, request, pk=None):
         producto = self.get_object()
@@ -998,26 +1591,27 @@ class LoteVencidoViewSet(viewsets.ModelViewSet):
 class ControlCumplimientoViewSet(viewsets.ModelViewSet):
     queryset = ControlCumplimiento.objects.all()
     serializer_class = ControlCumplimientoSerializer
-    
+
     def get_queryset(self):
         queryset = ControlCumplimiento.objects.all().order_by('-fecha')
-        
+
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         id_sheet = self.request.query_params.get('id_sheet')
         fecha = self.request.query_params.get('fecha')
-        
+
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if id_sheet:
             queryset = queryset.filter(id_sheet=id_sheet)
         if fecha:
             queryset = queryset.filter(fecha=fecha)
-            
+
         return queryset
 ```
 
 ### **URLs de API**
+
 ```python
 # api/urls.py
 router = DefaultRouter()
@@ -1035,6 +1629,7 @@ router.register(r'ventas', VentaViewSet)
 ## 🗃️ BASE DE DATOS
 
 ### **Esquema PostgreSQL**
+
 ```sql
 -- Tabla principal de productos
 CREATE TABLE api_producto (
@@ -1099,7 +1694,7 @@ CREATE TABLE api_controlcumplimiento (
     dia VARCHAR(10) CHECK (dia IN ('LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO')),
     id_sheet VARCHAR(3) CHECK (id_sheet IN ('ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6')),
     fecha DATE DEFAULT CURRENT_DATE,
-    
+
     -- Items MANIPULADOR
     licencia_transporte VARCHAR(2) CHECK (licencia_transporte IN ('C', 'NC')),
     soat VARCHAR(2) CHECK (soat IN ('C', 'NC')),
@@ -1107,22 +1702,23 @@ CREATE TABLE api_controlcumplimiento (
     no_locion VARCHAR(2) CHECK (no_locion IN ('C', 'NC')),
     no_accesorios VARCHAR(2) CHECK (no_accesorios IN ('C', 'NC')),
     capacitacion_carnet VARCHAR(2) CHECK (capacitacion_carnet IN ('C', 'NC')),
-    
+
     -- Items FURGÓN
     higiene VARCHAR(2) CHECK (higiene IN ('C', 'NC')),
     estibas VARCHAR(2) CHECK (estibas IN ('C', 'NC')),
     desinfeccion VARCHAR(2) CHECK (desinfeccion IN ('C', 'NC')),
-    
+
     -- Metadatos
     usuario VARCHAR(100) DEFAULT 'Sistema',
     fecha_creacion TIMESTAMP DEFAULT NOW(),
     fecha_actualizacion TIMESTAMP DEFAULT NOW(),
-    
+
     UNIQUE(dia, id_sheet, fecha)
 );
 ```
 
 ### **Relaciones de Tablas**
+
 ```
 Vendedor (1) ←→ (N) CargueOperativo
 CargueOperativo (1) ←→ (N) DetalleCargue
@@ -1132,9 +1728,10 @@ Producto (1) ←→ (N) DetalleCargue
 ```
 
 ### **Consultas SQL Útiles**
+
 ```sql
 -- Consultar lotes vencidos por vendedor
-SELECT 
+SELECT
     v.nombre as vendedor,
     v.id_vendedor,
     co.dia,
@@ -1151,7 +1748,7 @@ WHERE co.fecha = '2025-01-08'
 ORDER BY v.id_vendedor, p.nombre;
 
 -- ⭐ NUEVA CONSULTA - Control de cumplimiento por día
-SELECT 
+SELECT
     dia,
     id_sheet,
     fecha,
@@ -1167,26 +1764,26 @@ WHERE fecha = '2025-01-08'
 ORDER BY dia, id_sheet;
 
 -- Estadísticas de cumplimiento por ítem
-SELECT 
+SELECT
     'Licencia Transporte' as item,
     COUNT(CASE WHEN licencia_transporte = 'C' THEN 1 END) as cumple,
     COUNT(CASE WHEN licencia_transporte = 'NC' THEN 1 END) as no_cumple
 FROM api_controlcumplimiento
 UNION ALL
-SELECT 
+SELECT
     'SOAT' as item,
     COUNT(CASE WHEN soat = 'C' THEN 1 END) as cumple,
     COUNT(CASE WHEN soat = 'NC' THEN 1 END) as no_cumple
 FROM api_controlcumplimiento
 UNION ALL
-SELECT 
+SELECT
     'Higiene' as item,
     COUNT(CASE WHEN higiene = 'C' THEN 1 END) as cumple,
     COUNT(CASE WHEN higiene = 'NC' THEN 1 END) as no_cumple
 FROM api_controlcumplimiento;
 
 -- Estadísticas de motivos de lotes vencidos
-SELECT 
+SELECT
     motivo,
     COUNT(*) as cantidad,
     COUNT(DISTINCT dc.producto_id) as productos_afectados
@@ -1201,6 +1798,7 @@ ORDER BY cantidad DESC;
 ## 🚀 INSTALACIÓN COMPLETA
 
 ### **Requisitos del Sistema**
+
 ```
 Python 3.8+
 Node.js 16+
@@ -1209,6 +1807,7 @@ Git
 ```
 
 ### **1. Configuración del Backend**
+
 ```bash
 # Clonar repositorio
 git clone <repository-url>
@@ -1240,6 +1839,7 @@ python manage.py runserver
 ```
 
 ### **2. Configuración del Frontend**
+
 ```bash
 # Navegar a frontend
 cd frontend
@@ -1260,6 +1860,7 @@ npm start
 ```
 
 ### **3. Configuración de Archivos**
+
 ```bash
 # Crear directorios necesarios
 mkdir -p frontend/public/images/productos
@@ -1270,6 +1871,7 @@ cp assets/images/* frontend/src/assets/images/
 ```
 
 ### **4. Datos Iniciales**
+
 ```python
 # Crear datos de prueba en Django Admin o shell
 python manage.py shell
@@ -1297,6 +1899,7 @@ productos = [
 ```
 
 ### **5. Verificación de Instalación**
+
 ```bash
 # Backend - Verificar APIs
 curl http://localhost:8000/api/productos/
@@ -1315,6 +1918,7 @@ http://localhost:3000/cargue     # Cargue
 ## 📊 MÉTRICAS Y RENDIMIENTO
 
 ### **Capacidad del Sistema**
+
 - **Productos**: Hasta 1000 productos simultáneos
 - **Vendedores**: 6 vendedores independientes
 - **Días operativos**: 7 días por semana
@@ -1322,6 +1926,7 @@ http://localhost:3000/cargue     # Cargue
 - **localStorage**: ~1.8MB para 25 productos × 24 días × 6 vendedores
 
 ### **Optimizaciones Implementadas**
+
 - **Debounce**: 2 segundos para guardado en PostgreSQL
 - **Cache**: 5 minutos para consultas repetitivas
 - **Lazy loading**: Componentes cargados bajo demanda
@@ -1332,18 +1937,23 @@ http://localhost:3000/cargue     # Cargue
 ## 🔍 DEBUGGING Y LOGS
 
 ### **Frontend**
+
 ```javascript
 // Habilitar logs detallados
-localStorage.setItem('debug', 'true');
+localStorage.setItem("debug", "true");
 
 // Ver estado de productos
-console.log('Products:', JSON.parse(localStorage.getItem('products')));
+console.log("Products:", JSON.parse(localStorage.getItem("products")));
 
 // Ver datos de cargue
-console.log('Cargue ID1:', JSON.parse(localStorage.getItem('cargue_LUNES_ID1_2025-01-08')));
+console.log(
+  "Cargue ID1:",
+  JSON.parse(localStorage.getItem("cargue_LUNES_ID1_2025-01-08"))
+);
 ```
 
 ### **Backend**
+
 ```python
 # settings.py - Habilitar logs
 LOGGING = {

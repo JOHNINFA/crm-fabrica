@@ -18,12 +18,65 @@ const TablaKardex = () => {
     return existencias > 0 ? 'bg-light-green' : 'bg-light-red';
   };
 
-  const productosFiltrados = productos.filter(producto => 
-    producto.nombre.toLowerCase().includes(filtro.toLowerCase())
+  // Orden específico de productos para Kardex
+  const ordenEspecificoKardex = [
+    "AREPA TIPO OBLEA 500Gr",
+    "AREPA MEDIANA 330Gr",
+    "AREPA TIPO PINCHO 330Gr",
+    "AREPA QUESO CORRIENTE 450Gr",
+    "AREPA QUESO ESPECIAL GRANDE 600Gr",
+    "AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr",
+    "AREPA BOYACENSE X 10",
+    "AREPA DE CHOCLO CORRIENTE 300Gr",
+    "AREPA DE CHOCLO CON QUESO GRANDE 1200Gr",
+    "ALMOJABANA X 5 300Gr",
+    "AREPA CON QUESO CUADRADA 450Gr",
+    "AREPA QUESO MINI X10",
+    "AREPA SANTANDEREANA 450Gr",
+    "AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr",
+    "AREPA CON SEMILLA DE QUINUA 450Gr",
+    "AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr",
+    "ALMOJABANAS X 10 600Gr",
+    "AREPA BOYACENSE X 5 450Gr"
+  ];
+
+  // Función para ordenar productos según el orden específico
+  const ordenarProductos = (productos) => {
+    return productos.sort((a, b) => {
+      const nombreA = a.producto || a.nombre;
+      const nombreB = b.producto || b.nombre;
+
+      const indiceA = ordenEspecificoKardex.findIndex(orden =>
+        nombreA.toUpperCase().includes(orden.toUpperCase()) || orden.toUpperCase().includes(nombreA.toUpperCase())
+      );
+      const indiceB = ordenEspecificoKardex.findIndex(orden =>
+        nombreB.toUpperCase().includes(orden.toUpperCase()) || orden.toUpperCase().includes(nombreB.toUpperCase())
+      );
+
+      // Si ambos están en el orden específico, usar ese orden
+      if (indiceA !== -1 && indiceB !== -1) {
+        return indiceA - indiceB;
+      }
+
+      // Si solo uno está en el orden específico, ese va primero
+      if (indiceA !== -1) return -1;
+      if (indiceB !== -1) return 1;
+
+      // Si ninguno está en el orden específico, orden alfabético
+      return nombreA.localeCompare(nombreB);
+    });
+  };
+
+  const productosFiltrados = ordenarProductos(
+    productos.filter(producto =>
+      producto.nombre.toLowerCase().includes(filtro.toLowerCase())
+    )
   );
 
-  const movimientosFiltrados = movimientosFromBD.filter(movimiento => 
-    movimiento.producto.toLowerCase().includes(filtro.toLowerCase())
+  const movimientosFiltrados = ordenarProductos(
+    movimientosFromBD.filter(movimiento =>
+      movimiento.producto.toLowerCase().includes(filtro.toLowerCase())
+    )
   );
 
   // Cargar movimientos desde BD
@@ -33,7 +86,7 @@ const TablaKardex = () => {
       const productosResponse = await fetch('http://localhost:8000/api/productos/');
       if (!productosResponse.ok) throw new Error('Error al obtener productos');
       const productosBD = await productosResponse.json();
-      
+
       // Crear un mapa de productos por ID para referencia rápida
       const productosMap = {};
       productosBD.forEach(p => {
@@ -43,20 +96,20 @@ const TablaKardex = () => {
           existencias: p.stock_total || 0
         };
       });
-      
+
       // Obtener registros de inventario
       const response = await fetch('http://localhost:8000/api/registro-inventario/');
       if (!response.ok) throw new Error('Error al obtener registros');
-      
+
       const todosLosRegistros = await response.json();
       const existenciasPorProducto = {};
-      
+
       // Procesar registros para obtener el más reciente por producto
       todosLosRegistros.forEach(registro => {
         const productoId = registro.producto_id;
-        
-        if (!existenciasPorProducto[productoId] || 
-            new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
+
+        if (!existenciasPorProducto[productoId] ||
+          new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
           existenciasPorProducto[productoId] = {
             nombre: registro.producto_nombre,
             existencias: productosMap[productoId]?.existencias || registro.saldo, // Usar stock actual de BD
@@ -65,7 +118,7 @@ const TablaKardex = () => {
           };
         }
       });
-      
+
       // Convertir a formato para mostrar
       const movimientosConvertidos = Object.values(existenciasPorProducto).map(data => {
         const mov = data.ultimoMovimiento;
@@ -77,17 +130,17 @@ const TablaKardex = () => {
           producto: data.nombre,
           cantidad: mov.cantidad,
           existencias: data.existencias, // Usar existencias actualizadas
-          tipo: mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' : 
-                mov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
+          tipo: mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' :
+            mov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
           usuario: mov.usuario,
           lote: '-',
           fechaVencimiento: '-',
           registrado: true
         };
       });
-      
+
       setMovimientosFromBD(movimientosConvertidos);
-      
+
       console.log('📊 Kardex actualizado con datos de BD:', movimientosConvertidos.length, 'movimientos');
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
@@ -98,15 +151,15 @@ const TablaKardex = () => {
   // Effects
   useEffect(() => {
     cargarMovimientosFromBD();
-    
+
     // Configurar actualización periódica cada 30 segundos
     const interval = setInterval(() => {
       cargarMovimientosFromBD();
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, [fechaSeleccionada]);
-  
+
   const handleDateSelect = (date) => {
     setFechaSeleccionada(date);
   };
@@ -114,19 +167,19 @@ const TablaKardex = () => {
   // Renderizar fila de movimiento
   const renderMovimientoRow = (movimiento) => (
     <tr key={movimiento.id}>
-      <td className="fw-medium" style={{color: '#1e293b'}}>
+      <td className="fw-medium" style={{ color: '#1e293b' }}>
         {movimiento.producto}
       </td>
-      <td className="text-center" style={{paddingLeft: '0'}}>
-        <span className={`${getExistenciasClass(movimiento.existencias)} rounded-pill-sm`} style={{marginTop: '1px'}}>
+      <td className="text-center" style={{ paddingLeft: '0' }}>
+        <span className={`${getExistenciasClass(movimiento.existencias)} rounded-pill-sm`} style={{ marginTop: '1px' }}>
           {movimiento.existencias} und
         </span>
       </td>
-      <td style={{color: '#1E293B'}} className="text-center">
+      <td style={{ color: '#1E293B' }} className="text-center">
         <i className="bi bi-person" /> {movimiento.usuario}
       </td>
-      <td style={{color: '#1E293B'}} className="text-center">
-        <i className={`bi ${movimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle text-success' : 'bi-arrow-up-circle text-danger'}`} /> 
+      <td style={{ color: '#1E293B' }} className="text-center">
+        <i className={`bi ${movimiento.tipo === 'Entrada' ? 'bi-arrow-down-circle text-success' : 'bi-arrow-up-circle text-danger'}`} />
         {movimiento.tipo}
       </td>
     </tr>
@@ -135,21 +188,21 @@ const TablaKardex = () => {
   // Renderizar fila sin movimiento
   const renderSinMovimientoRow = (producto) => (
     <tr key={`no-mov-${producto.id}`}>
-      <td className="fw-medium" style={{color: '#1e293b'}}>
+      <td className="fw-medium" style={{ color: '#1e293b' }}>
         {producto.nombre}
         <div className="small text-muted d-none d-md-block">
           {fechaSeleccionada.toLocaleDateString('es-ES')} --:--
         </div>
       </td>
-      <td className="text-center" style={{paddingLeft: '0'}}>
-        <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`} style={{padding: '2.4px 7.2px 3.6px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', display: 'inline-block', marginTop: '2px'}}>
+      <td className="text-center" style={{ paddingLeft: '0' }}>
+        <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`} style={{ padding: '2.4px 7.2px 3.6px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', display: 'inline-block', marginTop: '2px' }}>
           {producto.existencias} und
         </span>
       </td>
-      <td style={{color: '#1E293B'}} className="text-center">
+      <td style={{ color: '#1E293B' }} className="text-center">
         <i className="bi bi-dash" /> Sin usuario
       </td>
-      <td style={{color: '#1E293B'}} className="text-center">
+      <td style={{ color: '#1E293B' }} className="text-center">
         <i className="bi bi-dash" /> Sin movimientos
       </td>
     </tr>
@@ -176,9 +229,9 @@ const TablaKardex = () => {
           </InputGroup>
         </Col>
       </Row>
-      
+
       <div className="table-responsive">
-        <Table size="sm" className="mb-0 table-kardex" style={{lineHeight: '1.2'}}>
+        <Table size="sm" className="mb-0 table-kardex" style={{ lineHeight: '1.2' }}>
           <thead>
             <tr>
               <th style={{ width: '45%' }}>Producto</th>
@@ -202,7 +255,7 @@ const TablaKardex = () => {
           </tbody>
         </Table>
       </div>
-      
+
       {/* Botón para activar/desactivar el efecto hover */}
       <HoverToggleButton />
     </>
