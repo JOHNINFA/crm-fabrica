@@ -1,4 +1,4 @@
- import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProducts } from '../../context/ProductContext';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
@@ -245,8 +245,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
             updated.neto = Math.round(updated.total * updated.valor);
 
-            // ✅ INVENTARIO: Afectar TOTAL cuando el botón está en FINALIZAR (verde)
-            if (estadoBoton === 'FINALIZAR' && (campo === 'cantidad' || campo === 'adicional' || campo === 'dctos' || campo === 'devoluciones' || campo === 'vencidas')) {
+            // ✅ INVENTARIO: Afectar solo campos permitidos cuando el botón está en FINALIZAR
+            if (estadoBoton === 'FINALIZAR' && (campo === 'cantidad' || campo === 'adicional' || campo === 'dctos')) {
+              // DEVOLUCIONES y VENCIDAS NO afectan inventario en FINALIZAR
               const totalAnterior = p.total || 0;
               const totalNuevo = updated.total;
               const diferenciaTOTAL = totalNuevo - totalAnterior;
@@ -262,6 +263,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 // Actualizar inventario basado en el cambio del TOTAL
                 actualizarInventarioPorTOTAL(id, diferenciaTOTAL);
               }
+            } else if (estadoBoton === 'FINALIZAR' && (campo === 'devoluciones' || campo === 'vencidas')) {
+              console.log(`📝 ${campo.toUpperCase()} REGISTRADO: ${valorProcesado} (NO afecta inventario en FINALIZAR - se procesará al finalizar)`);
             } else {
               console.log(`📝 CAMBIO REGISTRADO: ${campo} = ${valorProcesado} (inventario NO afectado - botón: ${estadoBoton})`);
             }
