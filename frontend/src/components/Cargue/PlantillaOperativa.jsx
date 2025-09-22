@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { useProducts } from '../../context/ProductContext';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
@@ -245,21 +245,25 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
             updated.neto = Math.round(updated.total * updated.valor);
 
-            // 🚀 NUEVO: Actualizar inventario en tiempo real si está en DESPACHO
-            if (estadoBoton === 'DESPACHO' && (campo === 'adicional' || campo === 'dctos')) {
-              const diferencia = valorProcesado - valorAnterior;
+            // ✅ INVENTARIO: Afectar TOTAL cuando el botón está en FINALIZAR (verde)
+            if (estadoBoton === 'FINALIZAR' && (campo === 'cantidad' || campo === 'adicional' || campo === 'dctos' || campo === 'devoluciones' || campo === 'vencidas')) {
+              const totalAnterior = p.total || 0;
+              const totalNuevo = updated.total;
+              const diferenciaTOTAL = totalNuevo - totalAnterior;
 
-              if (diferencia !== 0) {
-                console.log(`🔥 DESPACHO ACTIVO - Actualizando inventario en tiempo real:`);
+              if (diferenciaTOTAL !== 0) {
+                console.log(`🟢 FINALIZAR ACTIVO - Actualizando inventario por cambio en TOTAL:`);
                 console.log(`   - Producto: ${updated.producto}`);
-                console.log(`   - Campo: ${campo}`);
-                console.log(`   - Valor anterior: ${valorAnterior}`);
-                console.log(`   - Valor nuevo: ${valorProcesado}`);
-                console.log(`   - Diferencia: ${diferencia}`);
+                console.log(`   - Campo modificado: ${campo}`);
+                console.log(`   - TOTAL anterior: ${totalAnterior}`);
+                console.log(`   - TOTAL nuevo: ${totalNuevo}`);
+                console.log(`   - Diferencia TOTAL: ${diferenciaTOTAL}`);
 
-                // Actualizar inventario inmediatamente
-                actualizarInventarioTiempoReal(id, diferencia, campo);
+                // Actualizar inventario basado en el cambio del TOTAL
+                actualizarInventarioPorTOTAL(id, diferenciaTOTAL);
               }
+            } else {
+              console.log(`📝 CAMBIO REGISTRADO: ${campo} = ${valorProcesado} (inventario NO afectado - botón: ${estadoBoton})`);
             }
 
             console.log(`📊 ${updated.producto}: cantidad=${updated.cantidad}, total=${updated.total} ${estadoBoton === 'DESPACHO' ? '- DESPACHO ACTIVO' : '- Sin afectar inventario'}`);
@@ -272,7 +276,49 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     );
   };
 
-  // 🚀 NUEVA FUNCIÓN: Actualizar inventario en tiempo real durante DESPACHO
+  // 🚀 NUEVA FUNCIÓN: Actualizar inventario basado en cambio de TOTAL
+  const actualizarInventarioPorTOTAL = async (productoId, diferenciaTOTAL) => {
+    try {
+      console.log(`🔥 ACTUALIZANDO INVENTARIO POR CAMBIO EN TOTAL:`);
+      console.log(`   - Producto ID: ${productoId}`);
+      console.log(`   - Diferencia TOTAL: ${diferenciaTOTAL}`);
+
+      // Si el TOTAL aumenta, se descuenta más del inventario (cantidad negativa)
+      // Si el TOTAL disminuye, se suma de vuelta al inventario (cantidad positiva)
+      const cantidadFinal = -diferenciaTOTAL;
+
+      console.log(`   - Cantidad a enviar al inventario: ${cantidadFinal}`);
+
+      const response = await fetch(`http://localhost:8000/api/productos/${productoId}/actualizar_stock/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cantidad: cantidadFinal,
+          usuario: `Sistema Despacho - ${idSheet}`,
+          nota: `Ajuste por cambio en TOTAL: ${diferenciaTOTAL} - ${dia} - ${new Date().toISOString()}`
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Error actualizando inventario: ${errorText}`);
+        throw new Error(`Error al actualizar inventario: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ INVENTARIO ACTUALIZADO POR TOTAL:`);
+      console.log(`   - Stock actualizado: ${result.stock_actual}`);
+      console.log(`   - Diferencia TOTAL aplicada: ${diferenciaTOTAL}`);
+
+    } catch (error) {
+      console.error('❌ Error actualizando inventario por TOTAL:', error);
+      alert(`❌ Error actualizando inventario: ${error.message}`);
+    }
+  };
+
+  // 🚀 FUNCIÓN ANTERIOR: Actualizar inventario en tiempo real durante DESPACHO
   const actualizarInventarioTiempoReal = async (productoId, diferencia, campo) => {
     try {
       console.log(`🔥 ACTUALIZANDO INVENTARIO EN TIEMPO REAL:`);
@@ -280,10 +326,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       console.log(`   - Diferencia: ${diferencia}`);
       console.log(`   - Campo: ${campo}`);
 
-      // Para ADICIONAL: más mercancía sale (restar del inventario)
-      // Para DCTOS: menos mercancía sale (sumar al inventario)
+      // Lógica de inventario:
+      // CANTIDAD: más mercancía sale (restar del inventario)
+      // ADICIONAL: más mercancía sale (restar del inventario)  
+      // DCTOS: menos mercancía sale (sumar al inventario)
       let cantidadFinal;
-      if (campo === 'adicional') {
+      if (campo === 'cantidad') {
+        cantidadFinal = -diferencia; // Cantidad resta del inventario
+      } else if (campo === 'adicional') {
         cantidadFinal = -diferencia; // Adicional resta del inventario
       } else if (campo === 'dctos') {
         cantidadFinal = diferencia;  // Descuento suma al inventario
@@ -423,7 +473,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
           />
         </div>
         <div className="col-lg-4">
-          <ResumenVentas datos={datosResumen} productos={productosOperativos} />
+          <ResumenVentas
+            datos={datosResumen}
+            productos={productosOperativos}
+            dia={dia}
+            fechaSeleccionada={fechaSeleccionada}
+          />
         </div>
       </div>
     </div>

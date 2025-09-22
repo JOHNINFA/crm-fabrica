@@ -153,9 +153,19 @@ export const cargueService = {
       const productosConDatos = datosCompletos.productos.filter(p => p.cantidad > 0);
       
       for (const producto of productosConDatos) {
+        // Buscar el producto por nombre para obtener su ID
+        const productoResponse = await fetch(`${API_URL}/productos/?name=${encodeURIComponent(producto.producto_nombre)}`);
+        const productos = await productoResponse.json();
+        const productoId = productos.length > 0 ? productos[0].id : null;
+        
+        if (!productoId) {
+          console.warn(`⚠️ Producto no encontrado: ${producto.producto_nombre}`);
+          continue; // Saltar este producto si no se encuentra
+        }
+
         const detalleData = {
-          cargue_operativo: cargue.id,
-          producto_nombre: producto.producto_nombre,
+          cargue_id: cargue.id,
+          producto_id: productoId,
           vendedor_check: producto.vendedor || false,
           despachador_check: producto.despachador || false,
           cantidad: producto.cantidad || 0,
@@ -168,7 +178,37 @@ export const cargueService = {
           neto: producto.neto || 0
         };
         
+        // Los lotes vencidos se guardarán en una tabla separada si es necesario
+        console.log(`💾 Guardando producto: ${producto.producto_nombre} (ID: ${productoId})`);
+        if (producto.lotes_vencidos && producto.lotes_vencidos.length > 0) {
+          console.log(`🗂️ Lotes vencidos para ${producto.producto_nombre}:`, producto.lotes_vencidos);
+        }
+        
         await detalleCargueService.create(detalleData);
+      }
+      
+      return cargue;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Guardar datos de resumen (BASE CAJA, CONCEPTOS, etc.)
+  guardarResumen: async (datosResumen) => {
+    try {
+      // Crear un cargue especial para datos de resumen
+      const cargueData = {
+        dia: datosResumen.dia_semana,
+        fecha: datosResumen.fecha,
+        usuario: datosResumen.responsable,
+        vendedor: 7, // ID especial para datos de resumen
+        observaciones: JSON.stringify(datosResumen.datos_adicionales)
+      };
+      
+      const cargue = await cargueService.create(cargueData);
+      
+      if (cargue.error) {
+        throw new Error(cargue.message);
       }
       
       return cargue;
