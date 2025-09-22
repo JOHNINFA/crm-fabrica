@@ -1,0 +1,109 @@
+/* Estilos para la tabla de Producción Principal */
+.tabla-produccion {
+  font-size: 0.65rem;
+}
+
+.tabla-produccion .header-produccion {
+  background-color: #e2efda;
+  font-weight: bold;
+  text-align: center;
+  color: #000;
+}
+
+.tabla-produccion th, .tabla-produccion td {
+  vertical-align: middle;
+  border: 1px solid #dee2e6;
+  padding: 0.1rem 0.2rem;
+  text-align: center;
+}
+
+.tabla-produccion .fila-produccion {
+  background-color: #f8f9fa;
+}
+
+.tabla-produccion .producto-cell {
+  font-weight: 500;
+  min-width: 200px;
+  text-align: left;
+}
+
+.tabla-produccion input[type="number"] {
+  border: none;
+  background: transparent;
+  width: 50px;
+  padding: 0px 1px;
+  text-align: center;
+  display: block;
+  margin: 0 auto;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #000;
+}
+
+.tabla-produccion input[type="number"]:focus {
+  background: white;
+  border: 1px solid #007bff;
+  outline: none;
+}
+
+/* Estilos para la tabla de Porciones */
+.tabla-porciones {
+  border-collapse: collapse;
+}
+
+.tabla-porciones .header-porciones {
+  background-color: #d9e1f2;
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.tabla-porciones th, .tabla-porciones td {
+  border: 2px solid #b4c6e7;
+  text-align: center;
+  padding: 0.2rem;
+  font-size: 0.75rem;
+}
+
+.tabla-porciones input[type="number"] {
+  border: none;
+  background: transparent;
+  width: 50px;
+  padding: 0px 1px;
+  text-align: center;
+  display: block;
+  margin: 0 auto;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #000;
+}
+
+.tabla-porciones input[type="number"]:focus {
+  background: white;
+  border: 1px solid #007bff;
+  outline: none;
+}
+
+.tabla-porciones .footer-porciones td {
+  background-color: #d9e1f2;
+  font-weight: bold;
+  border: 2px solid #000;
+}
+
+/* Colores intercalados para tabla de producción */
+.tabla-produccion tbody tr:nth-child(odd) td {
+  background-color: #e8f5e8 !important;
+}
+
+.tabla-produccion tbody tr:nth-child(even) td {
+  background-color: white !important;
+}
+
+/* Colores intercalados para tabla de porciones */
+.tabla-porciones tbody tr:nth-child(odd) td {
+  background-color: #e8f5e8 !important;
+}
+
+.tabla-porciones tbody tr:nth-child(even) td {
+  background-color: white !important;
+}

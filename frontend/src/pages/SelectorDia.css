@@ -1,0 +1,113 @@
+/* src/pages/SelectorDia.css */
+
+.selector-dia-container {
+    width: 100%;
+    max-width: 896px;
+    border-radius: 0.5rem !important;
+}
+
+.selector-dia-container .card-body {
+    padding: 2rem !important;
+}
+
+.selector-dia-container h1 {
+    font-size: 1.875rem !important;
+    font-weight: 700 !important;
+    color: #1f2937 !important;
+    margin-bottom: 2.5rem !important;
+}
+
+.selector-dia-container .btn-primary {
+    padding: 0.5rem 3rem !important;
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 2px 4px rgba(6, 56, 109, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease-in-out !important;
+    width: 100% !important;
+    margin-left: -0.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transform: translateY(0) !important;
+}
+
+.selector-dia-container .btn-primary:hover {
+    background-color: #052c65 !important;
+    border-color: #052c65 !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(6, 56, 109, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+.selector-dia-container .btn-primary:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 0.2rem rgba(6, 56, 109, 0.5) !important;
+}
+
+.selector-dia-container .btn-secondary {
+    padding: 0.75rem 1.5rem !important;
+    background-color: #1e7e34 !important;
+    border-color: #1e7e34 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 2px 4px rgba(30, 126, 52, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease-in-out !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transform: translateY(0) !important;
+}
+
+
+.selector-dia-container .btn-secondary:hover {
+    background-color: #155724 !important;
+    border-color: #155724 !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(30, 126, 52, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+.selector-dia-container .btn-secondary:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 0.2rem rgba(30, 126, 52, 0.5) !important;
+}
+
+.selector-dia-container .btn i.bi {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+@media (max-width: 576px) {
+    .selector-dia-container {
+        margin: 1rem;
+        max-width: calc(100% - 2rem);
+    }
+    
+    .selector-dia-container .card-body {
+        padding: 1.5rem !important;
+    }
+    
+    .selector-dia-container h1 {
+        font-size: 1.4rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+    
+    .selector-dia-container .btn-primary {
+        padding: 0.75rem 1rem !important;
+        margin-left: -0.3rem !important;
+    }
+    
+    .selector-dia-container .btn-secondary {
+        padding: 0.75rem 1.5rem !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .selector-dia-container .btn {
+        font-size: 0.8rem;
+    }
+}

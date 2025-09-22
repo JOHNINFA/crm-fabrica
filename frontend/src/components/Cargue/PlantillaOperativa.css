@@ -1,0 +1,359 @@
+/* Cambiar color azul Bootstrap primary a #06386d */
+.plantilla-operativa .btn-primary {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.plantilla-operativa .btn-primary:hover {
+    background-color: #052c65 !important;
+    border-color: #052c65 !important;
+}
+
+.plantilla-operativa .btn-primary:focus,
+.plantilla-operativa .btn-primary.focus {
+    box-shadow: 0 0 0 0.2rem rgba(6, 56, 109, 0.5) !important;
+}
+
+/* Checkboxes con fondo azul personalizado */
+.plantilla-operativa .form-check-input:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.plantilla-operativa .form-check-input:focus {
+    border-color: #06386d !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Checkboxes en tablas */
+.tabla-productos input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.tabla-productos input[type="checkbox"]:focus {
+    border-color: #06386d !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Checkboxes globales en el módulo Cargue */
+input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+}
+
+input[type="checkbox"]:focus {
+    border-color: #06386d !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Forzar estilos específicos para checkboxes en tablas */
+.container-fluid input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+/* Estilos más específicos para sobrescribir Bootstrap */
+.table input[type="checkbox"]:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.form-check-input:checked {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+/* Botones outline primary */
+.plantilla-operativa .btn-outline-primary {
+    color: #06386d !important;
+    border-color: #06386d !important;
+}
+
+.plantilla-operativa .btn-outline-primary:hover {
+    background-color: #06386d !important;
+    border-color: #06386d !important;
+    color: white !important;
+}
+
+/* Estilos generales */
+.responsable-title {
+    font-weight: bold;
+    color: #4CAF50;
+    font-size: 1.5rem;
+}
+
+/* Estilos de la tabla de productos */
+.tabla-productos {
+    font-size: 0.65rem;
+}
+
+.tabla-productos .table-header {
+    background-color: #e2efda;
+    font-weight: bold;
+    text-align: center;
+    color: #000;
+}
+
+.tabla-productos td,
+.tabla-productos th {
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+    padding: 0.1rem 0.2rem;
+    text-align: center;
+}
+
+.tabla-productos td span,
+.tabla-productos td div {
+    text-align: center;
+    display: block;
+    width: 100%;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #000;
+}
+
+.table-row {
+    background-color: #f8f9fa;
+}
+
+.producto-nombre {
+    font-weight: 500;
+    min-width: 200px;
+}
+
+.tabla-productos tbody tr:nth-child(odd) td:nth-child(n+3) {
+    background-color: #e8f5e8 !important;
+}
+
+.tabla-productos tbody tr:nth-child(even) td:nth-child(n+3) {
+    background-color: white !important;
+}
+
+.total-cell {
+    font-weight: bold;
+    background-color: #e2efda;
+    text-align: center;
+}
+
+.valor-cell {
+    font-weight: bold;
+    text-align: center;
+    color: #cc0000 !important;
+}
+
+.neto-cell {
+    font-weight: bold;
+    background-color: #d4edda;
+    text-align: center !important;
+    min-width: 80px;
+    width: 80px;
+}
+
+/* Inputs en la tabla */
+.tabla-productos input[type="number"] {
+    border: none;
+    background: transparent;
+    width: 50px;
+    padding: 0px 1px;
+    text-align: center;
+    display: block;
+    margin: 0 auto;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #000;
+}
+
+.tabla-productos input[type="number"]:focus {
+    background: white;
+    border: 1px solid #007bff;
+    outline: none;
+}
+
+.tabla-productos input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+/* Estilos del resumen */
+.resumen-container {
+    background: #f8f9fa;
+    padding: 0 0.3rem 0.3rem 0.3rem;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    width: 100%;
+    max-width: 350px;
+    margin-right: 1rem;
+    position: relative;
+    z-index: 10;
+}
+
+/* Alineación horizontal de tablas */
+.resumen-pagos {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Alinear tabla de resumen con tabla principal */
+.row > .col-lg-4 {
+    display: flex;
+    align-items: flex-start;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.resumen-container {
+    margin-top: 0;
+    align-self: flex-start;
+}
+
+.resumen-container h5 {
+    margin-bottom: 0.5rem;
+    padding-top: 0;
+    margin-top: 0;
+}
+
+.resumen-pagos .table-header {
+    background-color: #c6e0b4;
+    font-weight: bold;
+    text-align: center;
+    color: #000;
+}
+
+.resumen-pagos tfoot td {
+    background-color: #e2efda;
+    font-weight: bold;
+}
+
+/* Filas más angostas estilo tabla */
+.resumen-pagos td,
+.resumen-pagos th {
+    padding: 0.15rem 0.3rem;
+    height: 25px;
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+    font-size: 0.75rem;
+}
+
+.resumen-pagos .form-control {
+    height: 24px;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.875rem;
+    border: none;
+    background: transparent;
+    width: 100%;
+}
+
+.resumen-pagos .form-control:focus {
+    background: #f8f9fa;
+    border: 1px solid #007bff;
+    outline: none;
+    box-shadow: none;
+}
+
+/* Estilos de los totales */
+.resumen-totales {
+    width: 100%;
+    font-size: 13.6px;
+}
+
+.resumen-totales > div {
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    font-size: 13.6px;
+}
+
+.resumen-totales > div:first-child .fw-bold {
+    padding-left: 8px;
+}
+
+.resumen-totales strong,
+.resumen-totales .fw-bold {
+    font-size: 13.6px;
+}
+
+.resumen-totales .text-end {
+    font-size: 13.6px;
+}
+
+.resumen-totales .bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.resumen-totales .bg-lightpink {
+    background-color: #fce4d6 !important;
+    border-color: #f8cbad !important;
+}
+
+.resumen-totales .bg-lightgreen {
+    background-color: #e2efda !important;
+    border-color: #c6e0b4 !important;
+}
+
+/* Botón limpiar */
+.btn-limpiar {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+    font-weight: 500;
+}
+
+.btn-limpiar:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #000;
+}
+
+/* Info de cargue */
+.info-cargue .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.8rem;
+}
+
+.info-cargue .bg-primary {
+    background-color: #007bff !important;
+}
+
+.info-cargue .bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.info-cargue .bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.tabla-productos {
+    white-space: nowrap;
+}
+
+/* Asegurar que el contenido tenga ancho suficiente para scroll horizontal */
+.plantilla-operativa .row {
+    min-width: 1800px;
+}
+
+.plantilla-operativa .col-lg-8 {
+    padding-left: 0.5rem;
+}
+
+.plantilla-operativa .col-lg-4 {
+    flex-shrink: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .tabla-productos {
+        font-size: 0.7rem;
+    }
+    
+    .tabla-productos input[type="number"] {
+        width: 50px;
+    }
+    
+    .responsable-title {
+        font-size: 1.2rem;
+    }
+}

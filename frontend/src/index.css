@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+body {
+  font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+  background: #f7f7fa;
+  margin: 0;
+}
+.material-icons {
+  font-family: 'Material Icons' !important;
+}
+.sidebar-bg {
+  background: #0c2c53;
+}
+.sidebar-item {
+  color: #fff;
+  font-size: 1rem;
+}
+.sidebar-item.active, .sidebar-item:hover {
+  background: #163864;
+  color: #fccc1a;
+}
+.brand-yellow { color: #fccc1a; }
+.brand-blue   { color: #0c2c53; }
+.topbar-bg {
+  background: #fff;
+  border-bottom: 1px solid #e5e9f2;
+}
+.card-bg {
+  background: #fff;
+  border-radius: 9px;
+  box-shadow: 0 2px 8px 0 rgba(13, 23, 64, 0.09);
+  padding: 16px;
+  margin-bottom: 16px;
+  border: none;
+}
+::-webkit-scrollbar { width: 8px; background: #e9e9ee; }
+::-webkit-scrollbar-thumb { background: #d6d8e3; border-radius: 4px;}
