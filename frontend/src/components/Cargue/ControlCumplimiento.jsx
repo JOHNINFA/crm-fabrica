@@ -23,7 +23,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
     try {
       const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
       const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
-      
+
       // 1. Intentar cargar desde localStorage primero
       const datosLocal = localStorage.getItem(keyLocal);
       if (datosLocal) {
@@ -37,24 +37,24 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
           console.error('Error parsing localStorage:', error);
         }
       }
-      
+
       // 2. Si no hay datos locales, cargar desde PostgreSQL
       console.log(`🔍 Cargando desde PostgreSQL: ${dia} - ${idSheet} - ${fechaAUsar}`);
       const url = `http://localhost:8000/api/control-cumplimiento/?dia=${dia.toUpperCase()}&id_sheet=${idSheet}&fecha=${fechaAUsar}`;
       const response = await fetch(url);
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.results && data.results.length > 0) {
           const registro = data.results[0];
           const cumplimientoData = {};
-          
+
           items.forEach(item => {
             if (registro[item.key] && registro[item.key] !== null) {
               cumplimientoData[item.key] = registro[item.key];
             }
           });
-          
+
           setCumplimiento(cumplimientoData);
           // Guardar en localStorage para próxima vez
           localStorage.setItem(keyLocal, JSON.stringify(cumplimientoData));
@@ -72,17 +72,17 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
   // Guardar datos en PostgreSQL
   const guardarDatos = async (nuevosCumplimientos) => {
     if (loading) return;
-    
+
     setLoading(true);
     try {
       const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
-      
+
       // Siempre intentar obtener el registro existente primero
       const responseGet = await fetch(`http://localhost:8000/api/control-cumplimiento/?dia=${dia.toUpperCase()}&id_sheet=${idSheet}&fecha=${fechaAUsar}`);
-      
+
       if (responseGet.ok) {
         const existingData = await responseGet.json();
-        
+
         if (existingData.results && existingData.results.length > 0) {
           // Actualizar registro existente
           const registroId = existingData.results[0].id;
@@ -93,7 +93,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
             },
             body: JSON.stringify(nuevosCumplimientos)
           });
-          
+
           if (response.ok) {
             console.log('✅ Cumplimiento actualizado');
           } else {
@@ -108,7 +108,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
             usuario: 'Sistema',
             ...nuevosCumplimientos
           };
-          
+
           const response = await fetch('http://localhost:8000/api/control-cumplimiento/', {
             method: 'POST',
             headers: {
@@ -116,7 +116,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
             },
             body: JSON.stringify(datosCompletos)
           });
-          
+
           if (response.ok) {
             console.log('✅ Cumplimiento creado');
           } else {
@@ -133,7 +133,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
 
   // Cargar datos al montar el componente
   useEffect(() => {
-    if (dia && idSheet) {
+    if (dia && idSheet && fechaSeleccionada) {
       cargarDatos();
     }
   }, [dia, idSheet, fechaSeleccionada]);
@@ -150,9 +150,9 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
       ...cumplimiento,
       [itemKey]: valor || null
     };
-    
+
     setCumplimiento(nuevosCumplimientos);
-    
+
     // Guardar inmediatamente en localStorage
     const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
     const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
@@ -171,7 +171,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
             <div className="cumplimiento-item">{item.label}</div>
             <div className="cumplimiento-selector">
               {cumplimiento[item.key] ? (
-                <div 
+                <div
                   className="cumplimiento-resultado"
                   onClick={() => handleSeleccion(item.key, '')}
                 >
@@ -200,7 +200,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
             <div className="cumplimiento-item">{item.label}</div>
             <div className="cumplimiento-selector">
               {cumplimiento[item.key] ? (
-                <div 
+                <div
                   className="cumplimiento-resultado"
                   onClick={() => handleSeleccion(item.key, '')}
                 >

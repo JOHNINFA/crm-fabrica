@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.conf import settings
+from django.db import transaction
 import os
 import base64
 import re
@@ -350,9 +351,83 @@ class VendedorViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(id_vendedor=id_vendedor)
             
         return queryset
+    
+    @action(detail=False, methods=['post'])
+    def actualizar_responsable(self, request):
+        """Actualizar responsable de un vendedor por id_vendedor"""
+        try:
+            import datetime
+            timestamp = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]
+            
+            id_vendedor = request.data.get('id_vendedor')
+            nuevo_responsable = request.data.get('responsable', '').strip()
+            
+            print(f"\n=== 🔥 ACTUALIZANDO RESPONSABLE [{timestamp}] ===")
+            print(f"ID Vendedor: {id_vendedor}")
+            print(f"Nuevo Responsable: '{nuevo_responsable}'")
+            print(f"Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
+            print(f"Request User-Agent: {request.META.get('HTTP_USER_AGENT', 'Unknown')[:50]}...")
+            
+            if not id_vendedor:
+                print("❌ Error: id_vendedor es requerido")
+                return Response(
+                    {'error': 'id_vendedor es requerido'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not nuevo_responsable:
+                print("❌ Error: responsable no puede estar vacío")
+                return Response(
+                    {'error': 'responsable no puede estar vacío'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Buscar o crear vendedor
+            vendedor, created = Vendedor.objects.get_or_create(
+                id_vendedor=id_vendedor,
+                defaults={
+                    'nombre': f'Vendedor {id_vendedor}',
+                    'ruta': f'Ruta {id_vendedor}',
+                    'responsable': nuevo_responsable
+                }
+            )
+            
+            if created:
+                print(f"🆕 Vendedor creado: {vendedor.nombre} ({vendedor.id_vendedor})")
+            else:
+                responsable_anterior = vendedor.responsable
+                vendedor.responsable = nuevo_responsable
+                vendedor.save()
+                print(f"🔄 Vendedor actualizado: {vendedor.nombre} ({vendedor.id_vendedor})")
+                print(f"Responsable ANTES: '{responsable_anterior}'")
+                print(f"Responsable DESPUÉS: '{vendedor.responsable}'")
+            
+            print(f"=== ✅ RESPONSABLE ACTUALIZADO [{timestamp}] ===\n")
+            
+            return Response({
+                'success': True,
+                'vendedor': {
+                    'id': vendedor.id,
+                    'id_vendedor': vendedor.id_vendedor,
+                    'nombre': vendedor.nombre,
+                    'responsable': vendedor.responsable,
+                    'ruta': vendedor.ruta
+                },
+                'created': created,
+                'message': f'Responsable {"asignado" if created else "actualizado"} exitosamente'
+            })
+            
+        except Exception as e:
+            print(f"❌ Error actualizando responsable: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Error interno: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class CargueOperativoViewSet(viewsets.ModelViewSet):
-    """API para gestionar cargues operativos"""
+    """API para gestionar cargues operativos con lógica Crear o Actualizar (Upsert)"""
     queryset = CargueOperativo.objects.all()
     serializer_class = CargueOperativoSerializer
     permission_classes = [permissions.AllowAny]
@@ -373,6 +448,186 @@ class CargueOperativoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(fecha=fecha)
             
         return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Crear o Actualizar cargue operativo con datos anidados (Lógica Upsert)"""
+        try:
+            print("🚛 Datos recibidos para CargueOperativo:", request.data)
+            
+            # 1. Extraer datos anidados del request
+            data = request.data.copy()
+            productos_data = data.pop('productos', [])
+            pagos_data = data.pop('pagos', [])
+            resumen_data = data.pop('resumen', {})
+            vendedor_id = data.get('vendedor_id')
+            dia = data.get('dia', '').upper()
+            fecha = data.get('fecha')
+            
+            print(f"📦 Productos: {len(productos_data)} items")
+            print(f"💰 Pagos: {len(pagos_data)} items")
+            print(f"📊 Resumen: {bool(resumen_data)}")
+            print(f"👤 Vendedor ID: {vendedor_id}")
+            print(f"📅 Día: {dia}, Fecha: {fecha}")
+            
+            # 2. Buscar vendedor por id_vendedor
+            try:
+                vendedor = Vendedor.objects.get(id_vendedor=vendedor_id)
+                data['vendedor'] = vendedor.id
+                print(f"✅ Vendedor encontrado: {vendedor.nombre} ({vendedor.id_vendedor})")
+            except Vendedor.DoesNotExist:
+                return Response(
+                    {'error': f'Vendedor con ID {vendedor_id} no encontrado'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 3. Usar transacción atómica para toda la operación
+            with transaction.atomic():
+                # 4. Buscar si ya existe un CargueOperativo (Lógica Upsert)
+                cargue_existente = None
+                es_actualizacion = False
+                
+                try:
+                    cargue_existente = CargueOperativo.objects.get(
+                        dia=dia,
+                        vendedor=vendedor,
+                        fecha=fecha
+                    )
+                    es_actualizacion = True
+                    print(f"🔄 CargueOperativo existente encontrado: ID {cargue_existente.id}")
+                except CargueOperativo.DoesNotExist:
+                    print("🆕 No existe CargueOperativo, se creará uno nuevo")
+                
+                # 5. Crear o actualizar CargueOperativo principal
+                if es_actualizacion:
+                    # Actualizar el existente
+                    cargue_existente.usuario = data.get('usuario', 'Sistema Web')
+                    cargue_existente.activo = data.get('activo', True)
+                    cargue_existente.save()
+                    cargue = cargue_existente
+                    print(f"🔄 CargueOperativo actualizado: ID {cargue.id}")
+                    
+                    # Eliminar datos anidados antiguos
+                    print("🗑️ Eliminando datos anidados antiguos...")
+                    DetalleCargue.objects.filter(cargue=cargue).delete()
+                    ResumenPagos.objects.filter(cargue=cargue).delete()
+                    ResumenTotales.objects.filter(cargue=cargue).delete()
+                    print("✅ Datos anidados antiguos eliminados")
+                    
+                else:
+                    # Crear nuevo
+                    cargue_serializer = self.get_serializer(data=data)
+                    if not cargue_serializer.is_valid():
+                        print("❌ Errores en cargue:", cargue_serializer.errors)
+                        return Response(cargue_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    cargue = cargue_serializer.save()
+                    print(f"🆕 CargueOperativo creado: ID {cargue.id}")
+                
+                # 6. Crear nuevos DetalleCargue para cada producto
+                productos_creados = 0
+                for producto_data in productos_data:
+                    try:
+                        # Buscar producto por nombre
+                        producto_nombre = producto_data.get('producto_nombre') or producto_data.get('nombre')
+                        if not producto_nombre:
+                            print(f"⚠️ Producto sin nombre, saltando: {producto_data}")
+                            continue
+                            
+                        producto = Producto.objects.get(nombre=producto_nombre)
+                        
+                        # Crear DetalleCargue
+                        DetalleCargue.objects.create(
+                            cargue=cargue,
+                            producto=producto,
+                            vendedor_check=producto_data.get('vendedor_check', False),
+                            despachador_check=producto_data.get('despachador_check', False),
+                            cantidad=int(producto_data.get('cantidad', 0)),
+                            dctos=int(producto_data.get('dctos', 0)),
+                            adicional=int(producto_data.get('adicional', 0)),
+                            devoluciones=int(producto_data.get('devoluciones', 0)),
+                            vencidas=int(producto_data.get('vencidas', 0)),
+                            valor=float(producto_data.get('valor', 0))
+                        )
+                        productos_creados += 1
+                        print(f"✅ DetalleCargue creado: {producto.nombre}")
+                        
+                    except Producto.DoesNotExist:
+                        print(f"❌ Producto no encontrado: {producto_nombre}")
+                        return Response(
+                            {'error': f'Producto "{producto_nombre}" no encontrado'}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    except (ValueError, TypeError) as e:
+                        print(f"❌ Error en datos del producto {producto_nombre}: {e}")
+                        return Response(
+                            {'error': f'Datos inválidos para producto "{producto_nombre}": {str(e)}'}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                print(f"📦 Total productos creados: {productos_creados}")
+                
+                # 7. Crear nuevos ResumenPagos si existen
+                pagos_creados = 0
+                for pago_data in pagos_data:
+                    try:
+                        ResumenPagos.objects.create(
+                            cargue=cargue,
+                            concepto=pago_data.get('concepto', ''),
+                            descuentos=float(pago_data.get('descuentos', 0)),
+                            nequi=float(pago_data.get('nequi', 0)),
+                            daviplata=float(pago_data.get('daviplata', 0))
+                        )
+                        pagos_creados += 1
+                        print(f"✅ ResumenPagos creado: {pago_data.get('concepto', 'Sin concepto')}")
+                    except (ValueError, TypeError) as e:
+                        print(f"❌ Error en datos de pago: {e}")
+                        return Response(
+                            {'error': f'Datos inválidos en pagos: {str(e)}'}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                print(f"💰 Total pagos creados: {pagos_creados}")
+                
+                # 8. Crear nuevo ResumenTotales si existe
+                if resumen_data:
+                    try:
+                        ResumenTotales.objects.create(
+                            cargue=cargue,
+                            base_caja=float(resumen_data.get('base_caja', 0)),
+                            total_despacho=float(resumen_data.get('total_despacho', 0)),
+                            total_pedidos=float(resumen_data.get('total_pedidos', 0)),
+                            total_dctos=float(resumen_data.get('total_dctos', 0)),
+                            venta=float(resumen_data.get('venta', 0)),
+                            total_efectivo=float(resumen_data.get('total_efectivo', 0))
+                        )
+                        print("✅ ResumenTotales creado")
+                    except (ValueError, TypeError) as e:
+                        print(f"❌ Error en datos de resumen: {e}")
+                        return Response(
+                            {'error': f'Datos inválidos en resumen: {str(e)}'}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                # 9. Retornar cargue completo con todos los detalles
+                cargue_completo = CargueOperativoSerializer(cargue)
+                
+                # Determinar código de estado según si fue creación o actualización
+                status_code = status.HTTP_200_OK if es_actualizacion else status.HTTP_201_CREATED
+                action = "actualizado" if es_actualizacion else "creado"
+                
+                print(f"🎉 CargueOperativo {action} exitosamente: ID {cargue.id}")
+                print(f"📊 Resumen: {productos_creados} productos, {pagos_creados} pagos, resumen: {bool(resumen_data)}")
+                
+                return Response(cargue_completo.data, status=status_code)
+                
+        except Exception as e:
+            print(f"❌ Error general en CargueOperativo: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Error interno del servidor: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class DetalleCargueViewSet(viewsets.ModelViewSet):
     """API para gestionar detalles de cargue"""

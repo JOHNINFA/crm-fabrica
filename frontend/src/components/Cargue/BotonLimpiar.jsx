@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from 'react-bootstrap';
 import VerificarGuardado from './VerificarGuardado';
+import { useVendedores } from '../../context/VendedoresContext';
 
 const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpiar }) => {
   const [estado, setEstado] = useState('ALISTAMIENTO');
   const [loading, setLoading] = useState(false);
   const [productosValidados, setProductosValidados] = useState([]);
+
+  // Obtener datos frescos del contexto de vendedores
+  const { datosVendedores } = useVendedores();
 
   // Verificar productos listos en todos los IDs (V=true, D=true, TOTAL>0)
   const verificarProductosListos = async () => {
@@ -143,47 +147,75 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // Guardar todos los datos en la base de datos
+  // Guardar todos los datos en la base de datos usando el contexto como fuente de verdad
   const guardarDatosCompletos = async (fechaAUsar, idsVendedores) => {
     try {
-      console.log('💾 GUARDANDO DATOS COMPLETOS EN BASE DE DATOS...');
+      console.log('💾 GUARDANDO DATOS COMPLETOS DESDE EL CONTEXTO...');
+      console.log('🔍 DEBUG - datosVendedores completo:', datosVendedores);
+      console.log('🔍 DEBUG - Keys disponibles:', Object.keys(datosVendedores));
+      console.log('🔍 DEBUG - IDs a procesar:', idsVendedores);
 
-      const { simpleStorage } = await import('../../services/simpleStorage');
+      // Debug detallado de cada vendedor
+      idsVendedores.forEach(id => {
+        const datos = datosVendedores[id];
+        console.log(`🔍 DEBUG - ${id}:`, datos);
+        if (datos && datos.productos) {
+          console.log(`🔍 DEBUG - ${id} productos:`, datos.productos.length);
+          console.log(`🔍 DEBUG - ${id} productos con datos:`, datos.productos.filter(p => p.cantidad > 0 || p.vendedor || p.despachador));
+        }
+      });
+
       const { cargueService } = await import('../../services/cargueService');
 
-      // 1. Guardar datos de cada ID (tablas de cumplimiento)
+      // 1. Guardar datos de cada ID directamente desde el contexto (NO desde localStorage)
       for (const id of idsVendedores) {
-        const key = `cargue_${dia}_${id}_${fechaAUsar}`;
-        const datos = await simpleStorage.getItem(key);
+        // Obtiene los datos del vendedor directamente del contexto
+        const datosDelVendedor = datosVendedores[id];
 
-        if (datos && datos.productos && datos.productos.length > 0) {
-          const datosParaGuardar = {
-            dia_semana: dia,
-            vendedor_id: id,
-            fecha: fechaAUsar,
-            responsable: datos.responsable || 'SISTEMA',
-            productos: datos.productos.map(p => ({
-              producto_nombre: p.producto,
-              cantidad: p.cantidad || 0,
-              dctos: p.dctos || 0,
-              adicional: p.adicional || 0,
-              devoluciones: p.devoluciones || 0,
-              vencidas: p.vencidas || 0,
-              lotes_vencidos: p.lotesVencidos || [],
-              total: p.total || 0,
-              valor: p.valor || 0,
-              neto: p.neto || 0,
-              vendedor: p.vendedor || false,
-              despachador: p.despachador || false
-            }))
-          };
+        if (datosDelVendedor && datosDelVendedor.productos && datosDelVendedor.productos.length > 0) {
+          // Filtrar solo productos que tienen datos relevantes
+          const productosParaGuardar = datosDelVendedor.productos.filter(p =>
+            p.cantidad > 0 || p.dctos > 0 || p.adicional > 0 ||
+            p.devoluciones > 0 || p.vencidas > 0 || p.vendedor || p.despachador
+          );
 
-          await cargueService.guardarCargue(datosParaGuardar);
-          console.log(`✅ Guardado ${id}: ${datos.productos.length} productos`);
+          // Solo guardar si hay productos con datos
+          if (productosParaGuardar.length > 0) {
+            const datosParaGuardar = {
+              dia_semana: dia,
+              vendedor_id: id,
+              fecha: fechaAUsar,
+              responsable: 'SISTEMA', // O puedes añadirlo al contexto
+              productos: productosParaGuardar.map(p => ({
+                producto_nombre: p.producto,
+                cantidad: p.cantidad || 0,
+                dctos: p.dctos || 0,
+                adicional: p.adicional || 0,
+                devoluciones: p.devoluciones || 0,
+                vencidas: p.vencidas || 0,
+                lotes_vencidos: p.lotesVencidos || [],
+                valor: p.valor || 0,
+                // 'total' y 'neto' se calculan en el backend, no es necesario enviarlos
+                vendedor: p.vendedor || false,
+                despachador: p.despachador || false
+              }))
+            };
+
+            console.log(`🚀 Preparando para enviar datos de ${id}:`, datosParaGuardar);
+            console.log(`📦 Productos con datos para ${id}: ${productosParaGuardar.length}`);
+
+            console.log(`🚀 ENVIANDO A API - ${id}:`, JSON.stringify(datosParaGuardar, null, 2));
+            await cargueService.guardarCargueCompleto(datosParaGuardar);
+            console.log(`✅ Datos de ${id} enviados a la API.`);
+          } else {
+            console.log(`⚠️ ${id} no tiene productos con datos para guardar`);
+          }
+        } else {
+          console.log(`⚠️ No hay datos en el contexto para ${id}`);
         }
       }
 
-      // 2. Guardar datos de BASE CAJA y RESUMEN
+      // 2. Guardar datos de BASE CAJA y RESUMEN (mantener desde localStorage ya que estos no están en el contexto)
       const datosBaseCaja = localStorage.getItem(`base_caja_${dia}_${fechaAUsar}`);
       const datosConceptos = localStorage.getItem(`conceptos_pagos_${dia}_${fechaAUsar}`);
 
@@ -203,7 +235,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         console.log('✅ Guardados datos de BASE CAJA y CONCEPTOS');
       }
 
-      // 3. Guardar datos de PRODUCCIÓN
+      // 3. Guardar datos de PRODUCCIÓN (mantener desde localStorage ya que estos no están en el contexto)
       const datosProduccion = localStorage.getItem(`produccion_${dia}_${fechaAUsar}`);
       if (datosProduccion) {
         const produccionData = JSON.parse(datosProduccion);
@@ -219,7 +251,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       return true;
     } catch (error) {
-      console.error('❌ Error guardando datos completos:', error);
+      console.error('❌ Error guardando datos completos desde el contexto:', error);
       throw error;
     }
   };

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Responsable Storage - Sin Rebote</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .responsable-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: red;
+            padding: 10px;
+            border: 2px solid #ccc;
+            margin: 10px 0;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🚀 Test Responsable Storage - Sin Rebote</h1>
+
+    <div class="test-section">
+        <h3>Simulación PlantillaOperativa ID1</h3>
+        <div class="responsable-display" id="responsable-id1">RESPONSABLE</div>
+        <button onclick="cambiarResponsable('ID1', 'RAUL')">Cambiar a RAUL</button>
+        <button onclick="cambiarResponsable('ID1', 'MARIA')">Cambiar a MARIA</button>
+        <button onclick="cambiarResponsable('ID1', 'CARLOS')">Cambiar a CARLOS</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Simulación PlantillaOperativa ID2</h3>
+        <div class="responsable-display" id="responsable-id2">RESPONSABLE</div>
+        <button onclick="cambiarResponsable('ID2', 'PEDRO')">Cambiar a PEDRO</button>
+        <button onclick="cambiarResponsable('ID2', 'ANA')">Cambiar a ANA</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Controles</h3>
+        <button onclick="limpiarStorage()">🗑️ Limpiar Storage</button>
+        <button onclick="mostrarStorage()">📦 Mostrar Storage</button>
+        <button onclick="recargarPagina()">🔄 Recargar Página</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Log de Eventos</h3>
+        <div class="log" id="log"></div>
+        <button onclick="limpiarLog()">Limpiar Log</button>
+    </div>
+
+    <script>
+        // 🚀 UTILIDAD RESPONSABLE STORAGE (Copia de la implementación)
+        const STORAGE_KEY = 'responsables_cargue';
+
+        const responsableStorage = {
+            get: (idSheet) => {
+                try {
+                    const responsables = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                    const responsable = responsables[idSheet];
+
+                    if (responsable && responsable !== 'RESPONSABLE') {
+                        log(`📦 ResponsableStorage.get(${idSheet}): "${responsable}"`);
+                        return responsable;
+                    }
+
+                    log(`⚠️ ResponsableStorage.get(${idSheet}): No encontrado o es RESPONSABLE`);
+                    return null;
+                } catch (error) {
+                    log(`❌ Error obteniendo responsable: ${error}`);
+                    return null;
+                }
+            },
+
+            set: (idSheet, nombre) => {
+                try {
+                    const responsables = responsableStorage.getAll();
+                    responsables[idSheet] = nombre;
+
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(responsables));
+
+                    // Disparar evento para notificar cambios
+                    window.dispatchEvent(new CustomEvent('responsableActualizado', {
+                        detail: {
+                            idSheet,
+                            nuevoNombre: nombre
+                        }
+                    }));
+
+                    log(`💾 ResponsableStorage.set(${idSheet}): "${nombre}"`);
+                    return true;
+                } catch (error) {
+                    log(`❌ Error guardando responsable: ${error}`);
+                    return false;
+                }
+            },
+
+            getAll: () => {
+                try {
+                    const responsables = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                    return responsables;
+                } catch (error) {
+                    log(`❌ Error obteniendo todos los responsables: ${error}`);
+                    return {};
+                }
+            },
+
+            clear: () => {
+                try {
+                    localStorage.removeItem(STORAGE_KEY);
+                    log('🗑️ ResponsableStorage.clear(): Limpiado');
+                    return true;
+                } catch (error) {
+                    log(`❌ Error limpiando responsables: ${error}`);
+                    return false;
+                }
+            }
+        };
+
+        // 🚀 SIMULACIÓN DE COMPONENTES REACT
+        class ResponsableComponent {
+            constructor(idSheet, elementId) {
+                this.idSheet = idSheet;
+                this.elementId = elementId;
+                this.element = document.getElementById(elementId);
+
+                // Inicializar desde localStorage (sin rebote)
+                this.nombreResponsable = this.initializeFromStorage();
+                this.updateDisplay();
+
+                // Escuchar eventos de actualización
+                this.setupEventListeners();
+
+                log(`🎯 Componente ${idSheet} inicializado: "${this.nombreResponsable}"`);
+            }
+
+            initializeFromStorage() {
+                const responsableGuardado = responsableStorage.get(this.idSheet);
+
+                if (responsableGuardado) {
+                    log(`📦 INICIAL - Responsable desde storage para ${this.idSheet}: "${responsableGuardado}"`);
+                    return responsableGuardado;
+                }
+
+                log(`🔄 INICIAL - Usando valor por defecto para ${this.idSheet}: "RESPONSABLE"`);
+                return "RESPONSABLE";
+            }
+
+            setupEventListeners() {
+                const handleUpdate = (e) => {
+                    if (e.detail && e.detail.idSheet === this.idSheet && e.detail.nuevoNombre) {
+                        log(`🔄 EVENTO - Actualizando ${this.idSheet}: "${e.detail.nuevoNombre}"`);
+                        this.nombreResponsable = e.detail.nuevoNombre;
+                        this.updateDisplay();
+                    }
+                };
+
+                window.addEventListener('responsableActualizado', handleUpdate);
+            }
+
+            updateDisplay() {
+                this.element.textContent = this.nombreResponsable;
+                this.element.style.backgroundColor = this.nombreResponsable === 'RESPONSABLE' ? '#ffebee' : '#e8f5e8';
+            }
+        }
+
+        // Inicializar componentes cuando carga la página
+        let componentes = {};
+
+        window.addEventListener('DOMContentLoaded', () => {
+            componentes.ID1 = new ResponsableComponent('ID1', 'responsable-id1');
+            componentes.ID2 = new ResponsableComponent('ID2', 'responsable-id2');
+
+            log('✅ Página cargada - Componentes inicializados');
+            mostrarStorage();
+        });
+
+        // 🚀 FUNCIONES DE PRUEBA
+        function cambiarResponsable(idSheet, nuevoNombre) {
+            log(`🔄 CAMBIO SOLICITADO: ${idSheet} -> "${nuevoNombre}"`);
+            responsableStorage.set(idSheet, nuevoNombre);
+        }
+
+        function limpiarStorage() {
+            responsableStorage.clear();
+            // Simular recarga de componentes
+            Object.values(componentes).forEach(comp => {
+                comp.nombreResponsable = 'RESPONSABLE';
+                comp.updateDisplay();
+            });
+            log('🗑️ Storage limpiado y componentes reseteados');
+        }
+
+        function mostrarStorage() {
+            const storage = responsableStorage.getAll();
+            log(`📦 STORAGE ACTUAL: ${JSON.stringify(storage)}`);
+        }
+
+        function recargarPagina() {
+            log('🔄 RECARGANDO PÁGINA...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }
+
+        function limpiarLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function log(mensaje) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${mensaje}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(mensaje);
+        }
+
+        // 🚀 PRUEBA AUTOMÁTICA AL CARGAR
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🧪 INICIANDO PRUEBA AUTOMÁTICA...');
+
+                // Simular que ya hay datos en localStorage
+                responsableStorage.set('ID1', 'RAUL');
+
+                setTimeout(() => {
+                    log('✅ PRUEBA COMPLETADA - ¿Hubo rebote? Revisa los logs');
+                }, 1000);
+            }, 2000);
+        });
+    </script>
+</body>
+
+</html>

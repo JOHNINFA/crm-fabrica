@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ProductProvider } from "../../context/ProductContext";
-import { VendedoresProvider } from "../../context/VendedoresContext";
+import { VendedoresProvider, useVendedores } from "../../context/VendedoresContext";
+import { responsableStorage } from "../../utils/responsableStorage";
 import PlantillaOperativa from "./PlantillaOperativa";
 import Produccion from "./Produccion";
 
@@ -141,19 +142,86 @@ export default function MenuSheets() {
     PRODUCCION: { nombreResponsable: "", datosTabla: {} }
   });
 
+
+
   const id_usuario = 1; // mock de autenticación
 
-  // Al cambiar dia en la URL, reiniciamos todos los datos
+  // Al cambiar dia en la URL, reiniciamos todos los datos y cargamos responsables
   useEffect(() => {
-    setDatosIds({
-      ID1: { nombreResponsable: "", datosTabla: {} },
-      ID2: { nombreResponsable: "", datosTabla: {} },
-      ID3: { nombreResponsable: "", datosTabla: {} },
-      ID4: { nombreResponsable: "", datosTabla: {} },
-      ID5: { nombreResponsable: "", datosTabla: {} },
-      ID6: { nombreResponsable: "", datosTabla: {} },
-      PRODUCCION: { nombreResponsable: "", datosTabla: {} }
-    });
+    const cargarResponsables = async () => {
+      // Cargar responsables desde localStorage primero para evitar rebote
+      const responsablesGuardados = localStorage.getItem('responsables_cargue');
+      let responsablesIniciales = {};
+
+      if (responsablesGuardados) {
+        try {
+          responsablesIniciales = JSON.parse(responsablesGuardados);
+          console.log('📦 Responsables cargados desde localStorage:', responsablesIniciales);
+        } catch (error) {
+          console.error('❌ Error parsing responsables localStorage:', error);
+        }
+      }
+
+      const nuevosIds = {
+        ID1: { nombreResponsable: responsablesIniciales.ID1 || "RESPONSABLE", datosTabla: {} },
+        ID2: { nombreResponsable: responsablesIniciales.ID2 || "RESPONSABLE", datosTabla: {} },
+        ID3: { nombreResponsable: responsablesIniciales.ID3 || "RESPONSABLE", datosTabla: {} },
+        ID4: { nombreResponsable: responsablesIniciales.ID4 || "RESPONSABLE", datosTabla: {} },
+        ID5: { nombreResponsable: responsablesIniciales.ID5 || "RESPONSABLE", datosTabla: {} },
+        ID6: { nombreResponsable: responsablesIniciales.ID6 || "RESPONSABLE", datosTabla: {} },
+        PRODUCCION: { nombreResponsable: "", datosTabla: {} }
+      };
+
+      // Establecer estado inicial inmediatamente (sin rebote)
+      setDatosIds(nuevosIds);
+
+      // Cargar responsables desde la BD para cada ID
+      for (const idVendedor of ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6']) {
+        try {
+          console.log(`🔍 Cargando responsable para ${idVendedor}...`);
+          const response = await fetch(`http://localhost:8000/api/vendedores/?id_vendedor=${idVendedor}`);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`📡 Respuesta API para ${idVendedor}:`, data);
+
+            // La API devuelve un array directo, no un objeto con results
+            if (Array.isArray(data) && data.length > 0) {
+              const vendedor = data[0];
+              const responsable = vendedor.responsable || 'RESPONSABLE';
+
+              nuevosIds[idVendedor].nombreResponsable = responsable;
+              console.log(`📥 Responsable asignado para ${idVendedor}: "${responsable}"`);
+            } else {
+              nuevosIds[idVendedor].nombreResponsable = 'RESPONSABLE';
+              console.log(`⚠️ No se encontró vendedor para ${idVendedor}, usando RESPONSABLE`);
+            }
+          } else {
+            nuevosIds[idVendedor].nombreResponsable = 'RESPONSABLE';
+            console.log(`❌ Error HTTP para ${idVendedor}:`, response.status);
+          }
+        } catch (error) {
+          console.error(`❌ Error cargando responsable para ${idVendedor}:`, error);
+          nuevosIds[idVendedor].nombreResponsable = 'RESPONSABLE';
+        }
+      }
+
+      console.log('🎯 Estado final de nuevosIds:', nuevosIds);
+
+      setDatosIds(nuevosIds);
+
+      // Guardar responsables en localStorage para evitar rebote
+      localStorage.setItem('responsables_cargue', JSON.stringify({
+        ID1: nuevosIds.ID1.nombreResponsable,
+        ID2: nuevosIds.ID2.nombreResponsable,
+        ID3: nuevosIds.ID3.nombreResponsable,
+        ID4: nuevosIds.ID4.nombreResponsable,
+        ID5: nuevosIds.ID5.nombreResponsable,
+        ID6: nuevosIds.ID6.nombreResponsable
+      }));
+    };
+
+    cargarResponsables();
   }, [dia]);
 
   const abrirModal = () => {
@@ -161,14 +229,49 @@ export default function MenuSheets() {
     setShowModal(true);
   };
 
-  const guardarNombre = () => {
-    setDatosIds(prev => ({
-      ...prev,
-      [idSeleccionado]: {
-        ...prev[idSeleccionado],
-        nombreResponsable: tempNombre
+  const guardarNombre = async () => {
+    try {
+      console.log(`🔄 Guardando responsable: ${idSeleccionado} -> ${tempNombre}`);
+
+      // Llamada directa a la API
+      const response = await fetch('http://localhost:8000/api/vendedores/actualizar_responsable/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id_vendedor: idSeleccionado,
+          responsable: tempNombre
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Responsable actualizado en BD:', data);
+
+        // Actualizar estado local solo si la BD se actualizó correctamente
+        setDatosIds(prev => ({
+          ...prev,
+          [idSeleccionado]: {
+            ...prev[idSeleccionado],
+            nombreResponsable: tempNombre
+          }
+        }));
+
+        // 🚀 Actualizar localStorage usando utilidad (incluye evento automático)
+        responsableStorage.set(idSeleccionado, tempNombre);
+
+        console.log('✅ Responsable guardado exitosamente en BD y localStorage');
+      } else {
+        const error = await response.json();
+        console.error('❌ Error actualizando responsable:', error);
+        alert('Error guardando el responsable. Inténtalo de nuevo.');
       }
-    }));
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      alert('Error de conexión. Inténtalo de nuevo.');
+    }
+
     setShowModal(false);
   };
 
@@ -285,7 +388,11 @@ export default function MenuSheets() {
           ) : (
             <ProductProvider>
               <PlantillaOperativa
-                responsable={datosIds[idSeleccionado].nombreResponsable || "RESPONSABLE"}
+                responsable={(() => {
+                  const responsable = datosIds[idSeleccionado].nombreResponsable || "RESPONSABLE";
+                  console.log(`🎯 Pasando responsable a PlantillaOperativa para ${idSeleccionado}: "${responsable}"`);
+                  return responsable;
+                })()}
                 dia={dia}
                 idSheet={idSeleccionado}
                 idUsuario={id_usuario}
@@ -310,8 +417,8 @@ export default function MenuSheets() {
                     type="button"
                     onClick={() => setIdSeleccionado(i)}
                     className={`btn btn-sm me-1 ${i === idSeleccionado
-                        ? 'btn-primary'
-                        : 'btn-outline-secondary'
+                      ? 'btn-primary'
+                      : 'btn-outline-secondary'
                       }`}
                     style={{
                       minWidth: '50px',

@@ -130,6 +130,11 @@ export const cargueService = {
   // Guardar cargue completo con productos
   guardarCargue: async (datosCompletos) => {
     try {
+      console.log('🚀 INICIANDO GUARDADO DE CARGUE:', datosCompletos);
+      
+      // ▼▼▼ LOG PARA DEBUGGEAR DATOS ENVIADOS AL BACKEND ▼▼▼
+      console.log('🚀 ENVIANDO AL BACKEND (/api/cargues/):', JSON.stringify(datosCompletos, null, 2));
+      
       // Mapear vendedor_id a database ID
       const vendedorMap = {
         'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6
@@ -140,14 +145,22 @@ export const cargueService = {
         dia: datosCompletos.dia_semana,
         fecha: datosCompletos.fecha,
         usuario: datosCompletos.responsable,
-        vendedor: vendedorMap[datosCompletos.vendedor_id] || 1
+        vendedor_id: vendedorMap[datosCompletos.vendedor_id] || 1,
+        estado: 'COMPLETADO',
+        activo: true
       };
       
+      console.log('📤 Enviando datos de cargue:', cargueData);
       const cargue = await cargueService.create(cargueData);
       
+      console.log('📥 Respuesta del servidor:', cargue);
+      
       if (cargue.error) {
+        console.error('❌ Error en respuesta:', cargue);
         throw new Error(cargue.message);
       }
+      
+      console.log('✅ Cargue creado exitosamente con ID:', cargue.id);
       
       // Guardar detalles de productos (solo los que tienen cantidad > 0)
       const productosConDatos = datosCompletos.productos.filter(p => p.cantidad > 0);
@@ -190,6 +203,38 @@ export const cargueService = {
       return cargue;
     } catch (error) {
       return handleApiError(error);
+    }
+  },
+
+  // ✨ NUEVA FUNCIÓN PARA EL ENDPOINT MEJORADO CON DATOS ANIDADOS ✨
+  guardarCargueCompleto: async (datosParaGuardar) => {
+    try {
+      // ▼▼▼ LOG PARA DEBUGGEAR DATOS ENVIADOS AL BACKEND ▼▼▼
+      console.log('🚀 ENVIANDO AL BACKEND (/api/cargues/):', JSON.stringify(datosParaGuardar, null, 2));
+      
+      const response = await fetch(`${API_URL}/cargues/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosParaGuardar),
+      });
+
+      console.log('📡 Respuesta del servidor - Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error del servidor:', errorText);
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+      
+      const resultado = await response.json();
+      console.log('✅ Respuesta exitosa del servidor:', resultado);
+      
+      return resultado;
+    } catch (error) {
+      console.error('❌ Error en guardarCargueCompleto:', error);
+      return { error: true, message: error.message };
     }
   },
 

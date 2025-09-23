@@ -144,7 +144,7 @@ class VendedorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendedor
         fields = [
-            'id', 'nombre', 'id_vendedor', 'ruta', 'activo', 'fecha_creacion'
+            'id', 'nombre', 'id_vendedor', 'ruta', 'responsable', 'activo', 'fecha_creacion'
         ]
         read_only_fields = ('fecha_creacion',)
 

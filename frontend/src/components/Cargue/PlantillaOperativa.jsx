@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useProducts } from '../../context/ProductContext';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
+import { responsableStorage } from '../../utils/responsableStorage';
 import TablaProductos from './TablaProductos';
 import ResumenVentas from './ResumenVentas';
 import BotonLimpiar from './BotonLimpiar';
@@ -12,21 +13,47 @@ import './PlantillaOperativa.css';
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
   const { products } = useProducts();
   const { actualizarDatosVendedor } = useVendedores();
-  const [nombreResponsable, setNombreResponsable] = useState(responsable);
 
-  // Buscar vendedor asignado a este ID
-  useEffect(() => {
-    const vendedoresGuardados = localStorage.getItem('vendedores');
-    if (vendedoresGuardados) {
-      const vendedores = JSON.parse(vendedoresGuardados);
-      const vendedorAsignado = vendedores.find(v => v.idVendedor === idSheet);
-      if (vendedorAsignado) {
-        setNombreResponsable(vendedorAsignado.nombre.toUpperCase());
-      } else {
-        setNombreResponsable(responsable);
-      }
+  // 🚀 SOLUCIÓN ANTI-REBOTE: Inicializar directamente desde localStorage usando utilidad
+  const [nombreResponsable, setNombreResponsable] = useState(() => {
+    const responsableGuardado = responsableStorage.get(idSheet);
+
+    if (responsableGuardado) {
+      console.log(`📦 INICIAL - Responsable desde storage para ${idSheet}: "${responsableGuardado}"`);
+      return responsableGuardado;
     }
-  }, [idSheet, responsable]);
+
+    // Si no hay en localStorage, usar el prop
+    console.log(`🔄 INICIAL - Usando responsable desde prop para ${idSheet}: "${responsable}"`);
+    return responsable || "RESPONSABLE";
+  });
+
+  // 🚀 LISTENER SIMPLIFICADO para cambios en responsables
+  useEffect(() => {
+    const handleResponsableUpdate = (e) => {
+      if (e.detail && e.detail.idSheet === idSheet && e.detail.nuevoNombre) {
+        console.log(`🔄 RESPONSABLE ACTUALIZADO - ${idSheet}: "${e.detail.nuevoNombre}"`);
+        setNombreResponsable(e.detail.nuevoNombre);
+      }
+    };
+
+    window.addEventListener('responsableActualizado', handleResponsableUpdate);
+
+    return () => {
+      window.removeEventListener('responsableActualizado', handleResponsableUpdate);
+    };
+  }, [idSheet]);
+
+  // Actualizar desde prop solo si no hay valor en localStorage
+  useEffect(() => {
+    const responsableGuardado = responsableStorage.get(idSheet);
+
+    if (!responsableGuardado && responsable && responsable !== 'RESPONSABLE' && responsable !== nombreResponsable) {
+      console.log(`🔄 PROP UPDATE - Responsable desde prop para ${idSheet}: "${responsable}"`);
+      setNombreResponsable(responsable);
+    }
+  }, [idSheet, responsable, nombreResponsable]);
+
   const [productosOperativos, setProductosOperativos] = useState([]);
   const [datosResumen, setDatosResumen] = useState({
     totalDespacho: 0,
@@ -207,10 +234,15 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
   useEffect(() => {
     console.log(`🔍 ${idSheet} - Productos disponibles:`, products.length, products.map(p => p.name));
-    if (products.length > 5) { // Esperar a que se carguen todos los productos (no solo "Servicio")
+
+    // La condición clave es que el array de productos del contexto esté completamente cargado.
+    const productosEstanListos = products && products.length > 1 && products.some(p => p.name !== 'Servicio');
+
+    if (productosEstanListos) {
+      console.log(`✅ ${idSheet} - Productos del contexto listos. Cargando datos guardados...`);
       cargarDatosGuardados();
     } else {
-      console.log(`⏳ ${idSheet} - Esperando productos completos... (actual: ${products.length})`);
+      console.log(`⏳ ${idSheet} - Esperando que la lista completa de productos se cargue desde el contexto...`);
     }
   }, [products, dia, idSheet, fechaSeleccionada]);
 
@@ -379,47 +411,43 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
   // Sin lógica especial de sincronización - todos los IDs funcionan igual
 
   useEffect(() => {
-    // Calcular resumen automáticamente
-    const totalNeto = productosOperativos.reduce((sum, p) => sum + (p.neto || 0), 0);
-    setDatosResumen({
-      totalDespacho: totalNeto,
-      totalPedidos: 0,
-      totalDctos: 0,
-      venta: totalNeto,
-      totalEfectivo: totalNeto,
-    });
+    // La guarda de seguridad es correcta y debe permanecer.
+    if (productosOperativos.length === 0 && products.length > 0) {
+      console.log(`🤔 Omitiendo actualización/guardado para ${idSheet} porque productosOperativos está vacío.`);
+      return;
+    }
 
-    // Actualizar contexto siempre, excepto cuando esté en modo ALISTAMIENTO activo
-    const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
-    const estadoDespacho = localStorage.getItem(`estado_despacho_${dia}_${fechaSeleccionada}`);
-
-    // SIEMPRE actualizar datos locales - el congelamiento solo afecta PRODUCCION
-    actualizarDatosVendedor(idSheet, productosOperativos);
-    console.log(`✅ Datos actualizados para ${idSheet}:`, productosOperativos.filter(p => p.total > 0).map(p => `${p.producto}: ${p.total}`));
-
-    // IMPORTANTE: SIEMPRE guardar en localStorage (independiente del estado de PRODUCCION)
-    console.log(`💾 Guardando en localStorage ${idSheet}:`, productosOperativos.filter(p => p.total > 0).length, 'productos con datos');
-
-    // Guardar inmediatamente en localStorage
+    // Solo actualizar y guardar si hay productos operativos para procesar.
     if (productosOperativos.length > 0) {
+      // Calcular resumen automáticamente
+      const totalNeto = productosOperativos.reduce((sum, p) => sum + (p.neto || 0), 0);
+      setDatosResumen({
+        totalDespacho: totalNeto,
+        totalPedidos: 0,
+        totalDctos: 0,
+        venta: totalNeto,
+        totalEfectivo: totalNeto,
+      });
+
+      // Actualizar contexto y localStorage
+      actualizarDatosVendedor(idSheet, productosOperativos);
+      console.log(`✅ Datos actualizados para ${idSheet} en contexto.`);
+
       const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
       const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
-      // Guardar todos los productos (sin filtrar)
-      const productosFiltrados = productosOperativos;
-
       const datos = {
         dia,
         idSheet,
         fecha: fechaAUsar,
-        productos: productosFiltrados,
+        productos: productosOperativos,
         timestamp: Date.now(),
-        sincronizado: false // Marcar como no sincronizado
+        sincronizado: false
       };
 
       localStorage.setItem(key, JSON.stringify(datos));
-      console.log(`💾 Guardado en localStorage: ${idSheet} - Productos con datos:`, productosFiltrados.filter(p => p.cantidad > 0).length);
+      console.log(`💾 Guardado en localStorage (${key}).`);
     }
-  }, [productosOperativos, idSheet]);
+  }, [productosOperativos, idSheet, dia, fechaSeleccionada]);
 
   // Función limpiarDatos deshabilitada para debug
   const limpiarDatos = () => {

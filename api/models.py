@@ -321,6 +321,7 @@ class Vendedor(models.Model):
     nombre = models.CharField(max_length=100)
     id_vendedor = models.CharField(max_length=3, choices=ID_CHOICES, unique=True)
     ruta = models.CharField(max_length=255)
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     
