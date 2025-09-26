@@ -87,13 +87,13 @@ export const VendedoresProvider = ({ children }) => {
   // Cargar responsable desde la BD
   const cargarResponsable = async (idVendedor) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/vendedores/?id_vendedor=${idVendedor}`);
+      console.log(`🔍 Cargando responsable para ${idVendedor} desde BD...`);
+      const response = await fetch(`http://localhost:8000/api/vendedores/obtener_responsable/?id_vendedor=${idVendedor}`);
 
       if (response.ok) {
         const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          const vendedor = data.results[0];
-          const responsable = vendedor.responsable || 'RESPONSABLE';
+        if (data.success && data.responsable) {
+          const responsable = data.responsable;
 
           console.log(`📥 Responsable cargado para ${idVendedor}: ${responsable}`);
 
@@ -103,7 +103,11 @@ export const VendedoresProvider = ({ children }) => {
           }));
 
           return responsable;
+        } else {
+          console.log(`⚠️ No se encontró responsable para ${idVendedor} en BD`);
         }
+      } else {
+        console.error(`❌ Error HTTP ${response.status} cargando responsable para ${idVendedor}`);
       }
 
       return 'RESPONSABLE';

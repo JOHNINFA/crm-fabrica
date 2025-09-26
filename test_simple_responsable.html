@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Responsable - Endpoint</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Test de Endpoint de Responsables</h1>
+
+        <div class="test-section">
+            <h3>📝 Configuración</h3>
+            <label>ID Vendedor: <input type="text" id="idVendedor" value="ID1"></label><br>
+            <label>Responsable: <input type="text" id="responsable" value="MARIA GONZALEZ - TEST"></label><br>
+            <label>API URL: <input type="text" id="apiUrl" value="http://localhost:8000/api"
+                    style="width: 300px;"></label>
+        </div>
+
+        <div class="test-section">
+            <h3>🚀 Acciones</h3>
+            <button onclick="probarActualizar()">Actualizar Responsable</button>
+            <button onclick="probarObtener()">Obtener Responsable</button>
+            <button onclick="probarTodo()">Ejecutar Todas las Pruebas</button>
+            <button onclick="limpiarLog()">Limpiar Log</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Resultados</h3>
+            <div id="resultados"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Log</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let logElement = document.getElementById('log');
+        let resultadosElement = document.getElementById('resultados');
+
+        function log(mensaje) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${mensaje}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(mensaje);
+        }
+
+        function limpiarLog() {
+            logElement.textContent = '';
+            resultadosElement.innerHTML = '';
+        }
+
+        function mostrarResultado(tipo, mensaje) {
+            const div = document.createElement('div');
+            div.className = `test-section ${tipo}`;
+            div.innerHTML = `<strong>${tipo.toUpperCase()}:</strong> ${mensaje}`;
+            resultadosElement.appendChild(div);
+        }
+
+        async function probarActualizar() {
+            log('🧪 INICIANDO PRUEBA DE ACTUALIZACIÓN');
+
+            const idVendedor = document.getElementById('idVendedor').value;
+            const responsable = document.getElementById('responsable').value;
+            const apiUrl = document.getElementById('apiUrl').value;
+
+            const url = `${apiUrl}/vendedores/actualizar_responsable/`;
+            const datos = {
+                id_vendedor: idVendedor,
+                responsable: responsable
+            };
+
+            log(`📤 URL: ${url}`);
+            log(`📦 Datos: ${JSON.stringify(datos)}`);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                log(`📥 Status: ${response.status}`);
+
+                if (response.ok) {
+                    const resultado = await response.json();
+                    log(`✅ Respuesta: ${JSON.stringify(resultado, null, 2)}`);
+                    mostrarResultado('success', `Responsable actualizado: ${resultado.responsable}`);
+                    return true;
+                } else {
+                    const error = await response.text();
+                    log(`❌ Error: ${error}`);
+                    mostrarResultado('error', `Error HTTP ${response.status}: ${error}`);
+                    return false;
+                }
+
+            } catch (error) {
+                log(`❌ Error de red: ${error.message}`);
+                mostrarResultado('error', `Error de conexión: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function probarObtener() {
+            log('🔍 INICIANDO PRUEBA DE OBTENCIÓN');
+
+            const idVendedor = document.getElementById('idVendedor').value;
+            const apiUrl = document.getElementById('apiUrl').value;
+
+            const url = `${apiUrl}/vendedores/obtener_responsable/?id_vendedor=${idVendedor}`;
+
+            log(`📤 URL: ${url}`);
+
+            try {
+                const response = await fetch(url);
+                log(`📥 Status: ${response.status}`);
+
+                if (response.ok) {
+                    const resultado = await response.json();
+                    log(`✅ Respuesta: ${JSON.stringify(resultado, null, 2)}`);
+                    mostrarResultado('success', `Responsable actual: ${resultado.responsable}`);
+                    return true;
+                } else {
+                    const error = await response.text();
+                    log(`❌ Error: ${error}`);
+                    mostrarResultado('error', `Error HTTP ${response.status}: ${error}`);
+                    return false;
+                }
+
+            } catch (error) {
+                log(`❌ Error de red: ${error.message}`);
+                mostrarResultado('error', `Error de conexión: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function probarTodo() {
+            limpiarLog();
+            log('🚀 EJECUTANDO TODAS LAS PRUEBAS');
+            log('='.repeat(50));
+
+            const resultados = {
+                actualizar: false,
+                obtener: false
+            };
+
+            // 1. Probar actualización
+            log('\n1️⃣ PRUEBA DE ACTUALIZACIÓN');
+            resultados.actualizar = await probarActualizar();
+
+            // Esperar un poco
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // 2. Probar obtención
+            log('\n2️⃣ PRUEBA DE OBTENCIÓN');
+            resultados.obtener = await probarObtener();
+
+            // Resumen
+            log('\n📊 RESUMEN FINAL');
+            log('='.repeat(30));
+            log(`Actualizar: ${resultados.actualizar ? '✅ PASS' : '❌ FAIL'}`);
+            log(`Obtener: ${resultados.obtener ? '✅ PASS' : '❌ FAIL'}`);
+
+            if (resultados.actualizar && resultados.obtener) {
+                mostrarResultado('success', '🎉 ¡TODAS LAS PRUEBAS PASARON! El endpoint funciona correctamente.');
+            } else {
+                mostrarResultado('warning', '⚠️ Algunas pruebas fallaron. Revisar la configuración del servidor.');
+            }
+        }
+
+        // Ejecutar prueba inicial al cargar
+        window.onload = function () {
+            log('🌐 Página cargada. Listo para pruebas.');
+            log('ℹ️ Asegúrate de que el servidor Django esté corriendo en localhost:8000');
+        };
+    </script>
+</body>
+
+</html>

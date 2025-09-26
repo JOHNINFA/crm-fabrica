@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test Frontend Completo - CRM Fábrica de Arepas</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+
+        .test-section h3 {
+            color: #34495e;
+            margin-top: 0;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button.success {
+            background-color: #27ae60;
+        }
+
+        button.danger {
+            background-color: #e74c3c;
+        }
+
+        button.warning {
+            background-color: #f39c12;
+        }
+
+        #console {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .instructions {
+            background-color: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .instructions h4 {
+            margin-top: 0;
+            color: #2980b9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Test Frontend Completo</h1>
+        <p style="text-align: center; color: #7f8c8d;">
+            Sistema de pruebas para verificar que todos los IDs y producción estén guardando correctamente
+        </p>
+
+        <div class="instructions">
+            <h4>📋 Instrucciones:</h4>
+            <ol>
+                <li>Asegúrate de que el backend esté corriendo en <code>http://localhost:8000</code></li>
+                <li>Asegúrate de que el frontend esté corriendo en <code>http://localhost:3000</code></li>
+                <li>Ejecuta los tests desde esta página</li>
+                <li>Revisa los resultados en la consola de abajo</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>🚀 Tests Principales</h3>
+            <div class="grid">
+                <button onclick="ejecutarTestCompleto()" class="success">
+                    🧪 Test Completo
+                </button>
+                <button onclick="testConectividad()" class="warning">
+                    🔌 Test Conectividad
+                </button>
+                <button onclick="limpiarConsola()">
+                    🧹 Limpiar Consola
+                </button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Tests por ID Individual</h3>
+            <div class="grid">
+                <button onclick="testID('ID1')">🔵 Test ID1</button>
+                <button onclick="testID('ID2')">🟢 Test ID2</button>
+                <button onclick="testID('ID3')">🟡 Test ID3</button>
+                <button onclick="testID('ID4')">🟠 Test ID4</button>
+                <button onclick="testID('ID5')">🔴 Test ID5</button>
+                <button onclick="testID('ID6')">🟣 Test ID6</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🏭 Test de Producción</h3>
+            <div class="grid">
+                <button onclick="testProduccion()" class="success">
+                    🏭 Test Producción
+                </button>
+                <button onclick="testCongelarProduccion()">
+                    🧊 Test Congelar
+                </button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Verificación de Base de Datos</h3>
+            <div class="grid">
+                <button onclick="verificarBaseDatos()" class="warning">
+                    🗄️ Verificar BD
+                </button>
+                <button onclick="mostrarEstructuraTablas()">
+                    📋 Estructura Tablas
+                </button>
+            </div>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div id="console"></div>
+    </div>
+
+    <script>
+        // ========================================
+        // CONFIGURACIÓN Y UTILIDADES
+        // ========================================
+
+        const API_URL = 'http://localhost:8000/api';
+        const consoleElement = document.getElementById('console');
+        const statusElement = document.getElementById('status');
+
+        // Función para mostrar mensajes en la consola
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            consoleElement.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        // Función para mostrar estado
+        function showStatus(message, type = 'success') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+            statusElement.style.display = 'block';
+
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // Función para limpiar consola
+        function limpiarConsola() {
+            consoleElement.textContent = '';
+            log('Consola limpiada', 'info');
+        }
+
+        // ========================================
+        // DATOS DE PRUEBA
+        // ========================================
+
+        const datosPrueba = {
+            'ID1': {
+                dia_semana: 'LUNES',
+                vendedor_id: 'ID1',
+                fecha: '2025-09-24',
+                responsable: 'TEST_ID1',
+                productos: [{
+                    producto_nombre: 'AREPA TIPO OBLEA 500Gr',
+                    cantidad: 10,
+                    dctos: 1,
+                    adicional: 0,
+                    devoluciones: 2,
+                    vencidas: 1,
+                    valor: 1625,
+                    vendedor: true,
+                    despachador: true,
+                    lotes_vencidos: [{ lote: '12345', motivo: 'HONGO' }]
+                }],
+                pagos: [{
+                    concepto: 'Gasolina',
+                    descuentos: 5000,
+                    nequi: 15000,
+                    daviplata: 10000
+                }],
+                resumen: {
+                    base_caja: 50000,
+                    total_despacho: 162500,
+                    total_pedidos: 150000,
+                    total_dctos: 5000,
+                    venta: 145000,
+                    total_efectivo: 140000
+                }
+            },
+            'ID2': {
+                dia_semana: 'MARTES',
+                vendedor_id: 'ID2',
+                fecha: '2025-09-24',
+                responsable: 'TEST_ID2',
+                productos: [{
+                    producto_nombre: 'AREPA TIPO OBLEA 1000Gr',
+                    cantidad: 8,
+                    dctos: 0,
+                    adicional: 1,
+                    devoluciones: 1,
+                    vencidas: 0,
+                    valor: 3200,
+                    vendedor: true,
+                    despachador: false,
+                    lotes_vencidos: []
+                }],
+                pagos: [{
+                    concepto: 'Combustible',
+                    descuentos: 3000,
+                    nequi: 20000,
+                    daviplata: 5000
+                }],
+                resumen: {
+                    base_caja: 30000,
+                    total_despacho: 256000,
+                    total_pedidos: 250000,
+                    total_dctos: 3000,
+                    venta: 247000,
+                    total_efectivo: 244000
+                }
+            },
+            'ID3': {
+                dia_semana: 'MIERCOLES',
+                vendedor_id: 'ID3',
+                fecha: '2025-09-24',
+                responsable: 'TEST_ID3',
+                productos: [{
+                    producto_nombre: 'ALMOJABANA 500Gr',
+                    cantidad: 15,
+                    dctos: 2,
+                    adicional: 0,
+                    devoluciones: 0,
+                    vencidas: 1,
+                    valor: 2800,
+                    vendedor: false,
+                    despachador: true,
+                    lotes_vencidos: [{ lote: '67890', motivo: 'FVTO' }]
+                }],
+                pagos: [],
+                resumen: {
+                    base_caja: 25000,
+                    total_despacho: 336000,
+                    total_pedidos: 320000,
+                    total_dctos: 0,
+                    venta: 320000,
+                    total_efectivo: 295000
+                }
+            },
+            'ID4': {
+                dia_semana: 'JUEVES',
+                vendedor_id: 'ID4',
+                fecha: '2025-09-24',
+                responsable: 'TEST_ID4',
+                productos: [{
+                    producto_nombre: 'BUÑUELO 500Gr',
+                    cantidad: 12,
+                    dctos: 1,
+                    adicional: 2,
+                    devoluciones: 1,
+                    vencidas: 0,
+                    valor: 2500,
+                    vendedor: true,
+                    despachador: true,
+                    lotes_vencidos: []
+                }],
+                pagos: [{
+                    concepto: 'Mantenimiento',
+                    descuentos: 8000,
+                    nequi: 12000,
+                    daviplata: 18000
+                }],
+                resumen: {
+                    base_caja: 40000,
+                    total_despacho: 300000,
+                    total_pedidos: 280000,
+                    total_dctos: 8000,
+                    venta: 272000,
+                    total_efectivo: 232000
+                }
+            },
+            'ID5': {
+                dia_semana: 'VIERNES',
+                vendedor_id: 'ID5',
+                fecha: '2025-09-24',
+                responsable: 'TEST_ID5',
+                productos: [{
+                    producto_nombre: 'PANDEBONO 500Gr',
+                    cantidad: 20,
+                    dctos: 0,
+                    adicional: 0,
+                    devoluciones: 3,
+                    vencidas: 2,
+                    valor: 3500,
+                    vendedor: true,
+                    despachador: false,
+                    lotes_vencidos: [
+                        { lote: '11111', motivo: 'HONGO' },
+                        { lote: '22222', motivo: 'SELLADO' }
+                    ]
+                }],
+                pagos: [{
+                    concepto: 'Varios',
+                    descuentos: 2000,
+                    nequi: 25000,
+                    daviplata: 15000
+                }],
+                resumen: {
+                    base_caja: 60000,
+                    total_despacho: 525000,
+                    total_pedidos: 500000,
+                    total_dctos: 2000,
+                    venta: 498000,
+                    total_efectivo: 438000
+                }
+            },
+            'ID6': {
+                dia_semana: 'SABADO',
+                vendedor_id: 'ID6',
+                fecha: '2025-09-24',
+                responsable: 'TEST_ID6',
+                productos: [{
+                    producto_nombre: 'ROSCON 500Gr',
+                    cantidad: 6,
+                    dctos: 1,
+                    adicional: 1,
+                    devoluciones: 0,
+                    vencidas: 1,
+                    valor: 4000,
+                    vendedor: false,
+                    despachador: false,
+                    lotes_vencidos: [{ lote: '33333', motivo: 'FVTO' }]
+                }],
+                pagos: [],
+                resumen: {
+                    base_caja: 20000,
+                    total_despacho: 200000,
+                    total_pedidos: 180000,
+                    total_dctos: 0,
+                    venta: 180000,
+                    total_efectivo: 160000
+                }
+            }
+        };
+
+        const datosProduccion = [
+            {
+                fecha: '2025-09-24',
+                producto: 'AREPA TIPO OBLEA 500Gr',
+                cantidad: 100,
+                lote: 'PROD001',
+                congelado: false,
+                usuario: 'TEST_PRODUCCION'
+            },
+            {
+                fecha: '2025-09-24',
+                producto: 'ALMOJABANA 500Gr',
+                cantidad: 80,
+                lote: 'PROD002',
+                congelado: false,
+                usuario: 'TEST_PRODUCCION'
+            },
+            {
+                fecha: '2025-09-24',
+                producto: 'BUÑUELO 500Gr',
+                cantidad: 60,
+                lote: 'PROD003',
+                congelado: false,
+                usuario: 'TEST_PRODUCCION'
+            }
+        ];
+
+        // ========================================
+        // FUNCIONES DE TEST
+        // ========================================
+
+        // Mapeo de endpoints
+        function getEndpointForVendedor(vendedorId) {
+            const map = {
+                'ID1': 'cargue-id1',
+                'ID2': 'cargue-id2',
+                'ID3': 'cargue-id3',
+                'ID4': 'cargue-id4',
+                'ID5': 'cargue-id5',
+                'ID6': 'cargue-id6'
+            };
+            return map[vendedorId] || 'cargue-id1';
+        }
+
+        // Transformar datos al formato de tabla plana
+        function transformarDatos(datos) {
+            const producto = datos.productos[0] || {};
+            const pago = datos.pagos[0] || {};
+            const resumen = datos.resumen || {};
+
+            return {
+                dia: datos.dia_semana,
+                fecha: datos.fecha,
+                usuario: datos.responsable,
+                activo: true,
+
+                // Producto
+                producto: producto.producto_nombre || '',
+                cantidad: producto.cantidad || 0,
+                dctos: producto.dctos || 0,
+                adicional: producto.adicional || 0,
+                devoluciones: producto.devoluciones || 0,
+                vencidas: producto.vencidas || 0,
+                valor: producto.valor || 0,
+                v: producto.vendedor || false,
+                d: producto.despachador || false,
+                lotes_vencidos: JSON.stringify(producto.lotes_vencidos || []),
+
+                // Pagos
+                concepto: pago.concepto || '',
+                descuentos: pago.descuentos || 0,
+                nequi: pago.nequi || 0,
+                daviplata: pago.daviplata || 0,
+
+                // Resumen
+                base_caja: resumen.base_caja || 0,
+                total_despacho: resumen.total_despacho || 0,
+                total_pedidos: resumen.total_pedidos || 0,
+                total_dctos: resumen.total_dctos || 0,
+                venta: resumen.venta || 0,
+                total_efectivo: resumen.total_efectivo || 0
+            };
+        }
+
+        // Test de conectividad
+        async function testConectividad() {
+            log('🔌 Iniciando test de conectividad...', 'info');
+
+            const endpoints = [
+                'cargue-id1', 'cargue-id2', 'cargue-id3',
+                'cargue-id4', 'cargue-id5', 'cargue-id6',
+                'produccion'
+            ];
+
+            let conectados = 0;
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_URL}/${endpoint}/`);
+                    if (response.ok) {
+                        log(`✅ ${endpoint}: Conectado`, 'success');
+                        conectados++;
+                    } else {
+                        log(`❌ ${endpoint}: Error ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    log(`❌ ${endpoint}: Sin conexión`, 'error');
+                }
+            }
+
+            const porcentaje = Math.round((conectados / endpoints.length) * 100);
+            log(`📊 Conectividad: ${conectados}/${endpoints.length} endpoints (${porcentaje}%)`, 'info');
+
+            if (porcentaje === 100) {
+                showStatus('🎉 Todos los endpoints están conectados', 'success');
+            } else {
+                showStatus(`⚠️ Solo ${conectados}/${endpoints.length} endpoints conectados`, 'warning');
+            }
+        }
+
+        // Test individual para un ID
+        async function testID(idVendedor) {
+            log(`🧪 Iniciando test para ${idVendedor}...`, 'info');
+
+            try {
+                const datos = datosPrueba[idVendedor];
+                if (!datos) {
+                    log(`❌ No hay datos de prueba para ${idVendedor}`, 'error');
+                    return false;
+                }
+
+                log(`📤 Enviando datos para ${idVendedor}...`, 'info');
+
+                const endpoint = getEndpointForVendedor(idVendedor);
+                const datosTransformados = transformarDatos(datos);
+
+                const response = await fetch(`${API_URL}/${endpoint}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datosTransformados),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Error ${response.status}: ${errorText}`);
+                }
+
+                const resultado = await response.json();
+                log(`✅ ${idVendedor} guardado exitosamente (ID: ${resultado.id})`, 'success');
+
+                // Verificar que se guardó
+                await verificarGuardado(idVendedor, datos);
+
+                showStatus(`✅ ${idVendedor} testeado exitosamente`, 'success');
+                return true;
+
+            } catch (error) {
+                log(`❌ Error testeando ${idVendedor}: ${error.message}`, 'error');
+                showStatus(`❌ Error en ${idVendedor}`, 'error');
+                return false;
+            }
+        }
+
+        // Test de producción
+        async function testProduccion() {
+            log('🏭 Iniciando test de producción...', 'info');
+
+            try {
+                let exitosos = 0;
+
+                for (const item of datosProduccion) {
+                    log(`📤 Enviando item de producción: ${item.producto}`, 'info');
+
+                    const response = await fetch(`${API_URL}/produccion/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(item),
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Error ${response.status}: ${errorText}`);
+                    }
+
+                    const resultado = await response.json();
+                    log(`✅ ${item.producto} guardado (ID: ${resultado.id})`, 'success');
+                    exitosos++;
+                }
+
+                log(`🎉 Producción testeada: ${exitosos}/${datosProduccion.length} items`, 'success');
+                showStatus(`✅ Producción testeada exitosamente`, 'success');
+                return true;
+
+            } catch (error) {
+                log(`❌ Error testeando producción: ${error.message}`, 'error');
+                showStatus(`❌ Error en producción`, 'error');
+                return false;
+            }
+        }
+
+        // Test de congelar producción
+        async function testCongelarProduccion() {
+            log('🧊 Iniciando test de congelar producción...', 'info');
+
+            try {
+                // Primero crear un item de producción
+                const item = {
+                    fecha: '2025-09-24',
+                    producto: 'TEST_CONGELAR',
+                    cantidad: 50,
+                    lote: 'CONGELAR_TEST',
+                    congelado: false,
+                    usuario: 'TEST_CONGELAR'
+                };
+
+                const response = await fetch(`${API_URL}/produccion/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(item),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error creando item: ${response.status}`);
+                }
+
+                const resultado = await response.json();
+                log(`✅ Item creado para congelar (ID: ${resultado.id})`, 'success');
+
+                // Ahora congelarlo
+                const congelarResponse = await fetch(`${API_URL}/produccion/${resultado.id}/congelar/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ usuario: 'TEST_CONGELADO' }),
+                });
+
+                if (!congelarResponse.ok) {
+                    throw new Error(`Error congelando: ${congelarResponse.status}`);
+                }
+
+                const congelarResultado = await congelarResponse.json();
+                log(`🧊 Item congelado exitosamente`, 'success');
+                log(`📅 Fecha congelado: ${congelarResultado.fecha_congelado}`, 'info');
+
+                showStatus(`✅ Test de congelar exitoso`, 'success');
+                return true;
+
+            } catch (error) {
+                log(`❌ Error en test de congelar: ${error.message}`, 'error');
+                showStatus(`❌ Error congelando`, 'error');
+                return false;
+            }
+        }
+
+        // Verificar que los datos se guardaron
+        async function verificarGuardado(idVendedor, datosOriginales) {
+            try {
+                const endpoint = getEndpointForVendedor(idVendedor);
+                const response = await fetch(`${API_URL}/${endpoint}/?dia=${datosOriginales.dia_semana}&fecha=${datosOriginales.fecha}`);
+
+                if (response.ok) {
+                    const datos = await response.json();
+                    if (datos.length > 0) {
+                        log(`✅ Verificación ${idVendedor}: ${datos.length} registros encontrados en BD`, 'success');
+                        return true;
+                    } else {
+                        log(`⚠️ Verificación ${idVendedor}: No se encontraron datos en BD`, 'warning');
+                        return false;
+                    }
+                } else {
+                    log(`⚠️ Verificación ${idVendedor}: Error consultando BD`, 'warning');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Error verificando ${idVendedor}: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Verificar base de datos
+        async function verificarBaseDatos() {
+            log('🗄️ Verificando estado de la base de datos...', 'info');
+
+            const endpoints = ['cargue-id1', 'cargue-id2', 'cargue-id3', 'cargue-id4', 'cargue-id5', 'cargue-id6', 'produccion'];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_URL}/${endpoint}/`);
+                    if (response.ok) {
+                        const datos = await response.json();
+                        log(`📊 ${endpoint}: ${datos.length} registros`, 'info');
+                    } else {
+                        log(`❌ ${endpoint}: Error ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    log(`❌ ${endpoint}: Error de conexión`, 'error');
+                }
+            }
+        }
+
+        // Mostrar estructura de tablas
+        async function mostrarEstructuraTablas() {
+            log('📋 Mostrando estructura de tablas...', 'info');
+
+            const estructura = {
+                'Cargue (ID1-ID6)': [
+                    'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos',
+                    'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos',
+                    'total', 'valor', 'neto', 'concepto', 'descuentos', 'nequi',
+                    'daviplata', 'base_caja', 'total_despacho', 'total_pedidos',
+                    'total_dctos', 'venta', 'total_efectivo', 'licencia_transporte',
+                    'soat', 'uniforme', 'no_locion', 'no_accesorios',
+                    'capacitacion_carnet', 'higiene', 'estibas', 'desinfeccion',
+                    'usuario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
+                ],
+                'Producción': [
+                    'fecha', 'producto', 'cantidad', 'lote', 'congelado',
+                    'fecha_congelado', 'usuario_congelado', 'usuario', 'activo',
+                    'fecha_creacion', 'fecha_actualizacion'
+                ]
+            };
+
+            for (const [tabla, campos] of Object.entries(estructura)) {
+                log(`📋 ${tabla} (${campos.length} campos):`, 'info');
+                log(`   ${campos.join(', ')}`, 'info');
+            }
+        }
+
+        // Test completo
+        async function ejecutarTestCompleto() {
+            log('🚀 ===== INICIANDO TEST COMPLETO =====', 'info');
+            showStatus('🚀 Ejecutando test completo...', 'warning');
+
+            const resultados = {
+                exitosos: [],
+                fallidos: [],
+                total: 0
+            };
+
+            // Test de conectividad primero
+            await testConectividad();
+
+            // Testear todos los IDs
+            for (const idVendedor of ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6']) {
+                const exito = await testID(idVendedor);
+                if (exito) {
+                    resultados.exitosos.push(idVendedor);
+                } else {
+                    resultados.fallidos.push(idVendedor);
+                }
+                resultados.total++;
+
+                // Pausa entre tests
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Testear producción
+            const exitoProduccion = await testProduccion();
+            if (exitoProduccion) {
+                resultados.exitosos.push('PRODUCCION');
+            } else {
+                resultados.fallidos.push('PRODUCCION');
+            }
+            resultados.total++;
+
+            // Mostrar resumen final
+            log('🎯 ===== RESUMEN FINAL =====', 'info');
+            log(`✅ Exitosos: ${resultados.exitosos.length}/${resultados.total}`, 'success');
+            log(`❌ Fallidos: ${resultados.fallidos.length}/${resultados.total}`, 'error');
+
+            if (resultados.exitosos.length > 0) {
+                log(`🎉 Tests exitosos: ${resultados.exitosos.join(', ')}`, 'success');
+            }
+
+            if (resultados.fallidos.length > 0) {
+                log(`💥 Tests fallidos: ${resultados.fallidos.join(', ')}`, 'error');
+            }
+
+            const porcentajeExito = Math.round((resultados.exitosos.length / resultados.total) * 100);
+            log(`📊 Porcentaje de éxito: ${porcentajeExito}%`, 'info');
+
+            if (porcentajeExito === 100) {
+                log('🏆 ¡TODOS LOS TESTS PASARON! El frontend está funcionando correctamente.', 'success');
+                showStatus('🏆 ¡Todos los tests pasaron!', 'success');
+            } else if (porcentajeExito >= 80) {
+                log('⚠️ La mayoría de tests pasaron, pero hay algunos problemas.', 'warning');
+                showStatus('⚠️ Algunos tests fallaron', 'warning');
+            } else {
+                log('❌ Hay problemas significativos que necesitan atención.', 'error');
+                showStatus('❌ Múltiples tests fallaron', 'error');
+            }
+
+            return resultados;
+        }
+
+        // Inicializar consola
+        log('🧪 Test Frontend Completo cargado', 'info');
+        log('📋 Listo para ejecutar tests', 'info');
+        log('🔗 Backend: ' + API_URL, 'info');
+    </script>
+</body>
+
+</html>

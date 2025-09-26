@@ -307,97 +307,49 @@ class PrecioProducto(models.Model):
     def __str__(self):
         return f"{self.producto.nombre} - {self.lista_precio.nombre} - ${self.precio}"
 
-class Vendedor(models.Model):
-    """Modelo para gestionar vendedores del sistema"""
-    ID_CHOICES = [
-        ('ID1', 'ID1'),
-        ('ID2', 'ID2'),
-        ('ID3', 'ID3'),
-        ('ID4', 'ID4'),
-        ('ID5', 'ID5'),
-        ('ID6', 'ID6'),
-    ]
-    
-    nombre = models.CharField(max_length=100)
-    id_vendedor = models.CharField(max_length=3, choices=ID_CHOICES, unique=True)
-    ruta = models.CharField(max_length=255)
-    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)
-    activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(default=timezone.now)
-    
-    def __str__(self):
-        return f"{self.nombre} - {self.id_vendedor} - {self.ruta}"
+# ========================================
+# NUEVOS MODELOS SIMPLIFICADOS DE CARGUE
+# ========================================
 
-class CargueOperativo(models.Model):
-    """Modelo para registros operativos de cargue"""
+class CargueID1(models.Model):
+    """Modelo simplificado para cargue ID1 - Toda la información en una tabla"""
+    
+    # Choices reutilizables
     DIAS_CHOICES = [
-        ('LUNES', 'Lunes'),
-        ('MARTES', 'Martes'),
-        ('MIERCOLES', 'Miércoles'),
-        ('JUEVES', 'Jueves'),
-        ('VIERNES', 'Viernes'),
-        ('SABADO', 'Sábado'),
-        ('DOMINGO', 'Domingo'),
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
     ]
     
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    MOTIVO_CHOICES = [('HONGO', 'Hongo'), ('FVTO', 'FVTO'), ('SELLADO', 'Sellado')]
+    
+    # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='cargues')
     fecha = models.DateField(default=timezone.now)
-    usuario = models.CharField(max_length=100, default='Sistema')
-    activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(default=timezone.now)
     
-    class Meta:
-        unique_together = ('dia', 'vendedor', 'fecha')
+    # ===== CHECKBOXES =====
+    v = models.BooleanField(default=False)  # vendedor
+    d = models.BooleanField(default=False)  # despachador
     
-    def __str__(self):
-        return f"{self.dia} - {self.vendedor.nombre} ({self.vendedor.id_vendedor}) - {self.fecha}"
-
-class DetalleCargue(models.Model):
-    """Modelo para detalles de productos en cada cargue"""
-    cargue = models.ForeignKey(CargueOperativo, on_delete=models.CASCADE, related_name='detalles')
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    
-    # Checkboxes
-    vendedor_check = models.BooleanField(default=False)
-    despachador_check = models.BooleanField(default=False)
-    
-    # Cantidades
+    # ===== PRODUCTOS =====
+    producto = models.CharField(max_length=255, blank=True)
     cantidad = models.IntegerField(default=0)
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
-    
-    # Calculados
+    lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
-    def save(self, *args, **kwargs):
-        # Calcular total
-        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
-        # Calcular neto
-        self.neto = self.total * self.valor
-        super().save(*args, **kwargs)
-    
-    def __str__(self):
-        return f"{self.cargue} - {self.producto.nombre} - Total: {self.total}"
-
-class ResumenPagos(models.Model):
-    """Modelo para tabla de pagos del cargue"""
-    cargue = models.ForeignKey(CargueOperativo, on_delete=models.CASCADE, related_name='pagos')
-    concepto = models.CharField(max_length=255, blank=True, null=True)
+    # ===== PAGOS =====
+    concepto = models.CharField(max_length=255, blank=True)
     descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
-    def __str__(self):
-        return f"{self.cargue} - {self.concepto}"
-
-class ResumenTotales(models.Model):
-    """Modelo para resumen de totales del cargue"""
-    cargue = models.OneToOneField(CargueOperativo, on_delete=models.CASCADE, related_name='resumen')
+    # ===== RESUMEN =====
     base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -405,67 +357,7 @@ class ResumenTotales(models.Model):
     venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
-    def __str__(self):
-        return f"Resumen {self.cargue} - Despacho: ${self.total_despacho}"
-
-class LoteVencido(models.Model):
-    """Modelo para registrar lotes vencidos con motivos"""
-    MOTIVO_CHOICES = [
-        ('HONGO', 'Hongo'),
-        ('FVTO', 'FVTO'),
-        ('SELLADO', 'Sellado'),
-    ]
-    
-    # Relación con DetalleCargue
-    detalle_cargue = models.ForeignKey(DetalleCargue, on_delete=models.CASCADE, related_name='lotes_vencidos')
-    
-    # Información del lote
-    lote = models.CharField(max_length=100)
-    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES)
-    
-    # Metadatos
-    fecha_registro = models.DateTimeField(default=timezone.now)
-    usuario = models.CharField(max_length=100, default='Sistema')
-    
-    def __str__(self):
-        return f"Lote {self.lote} - {self.motivo} - {self.detalle_cargue.producto.nombre}"
-    
-    class Meta:
-        verbose_name = "Lote Vencido"
-        verbose_name_plural = "Lotes Vencidos"
-
-class ControlCumplimiento(models.Model):
-    """Modelo para control de cumplimiento de vendedores"""
-    CUMPLIMIENTO_CHOICES = [
-        ('C', 'Cumple'),
-        ('NC', 'No Cumple'),
-    ]
-    
-    DIAS_CHOICES = [
-        ('LUNES', 'Lunes'),
-        ('MARTES', 'Martes'),
-        ('MIERCOLES', 'Miércoles'),
-        ('JUEVES', 'Jueves'),
-        ('VIERNES', 'Viernes'),
-        ('SABADO', 'Sábado'),
-        ('DOMINGO', 'Domingo'),
-    ]
-    
-    ID_CHOICES = [
-        ('ID1', 'ID1'),
-        ('ID2', 'ID2'),
-        ('ID3', 'ID3'),
-        ('ID4', 'ID4'),
-        ('ID5', 'ID5'),
-        ('ID6', 'ID6'),
-    ]
-    
-    # Identificación del registro
-    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    id_sheet = models.CharField(max_length=3, choices=ID_CHOICES)
-    fecha = models.DateField(default=timezone.now)
-    
-    # Items de cumplimiento
+    # ===== CONTROL DE CUMPLIMIENTO =====
     licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
@@ -476,15 +368,431 @@ class ControlCumplimiento(models.Model):
     estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
     
-    # Metadatos
+    # ===== METADATOS =====
     usuario = models.CharField(max_length=100, default='Sistema')
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
-    class Meta:
-        unique_together = ('dia', 'id_sheet', 'fecha')
-        verbose_name = "Control de Cumplimiento"
-        verbose_name_plural = "Controles de Cumplimiento"
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.dia} - {self.id_sheet} - {self.fecha}"
+        return f"ID1 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+
+class CargueID2(models.Model):
+    """Modelo simplificado para cargue ID2 - Toda la información en una tabla"""
+    
+    # Choices reutilizables
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    MOTIVO_CHOICES = [('HONGO', 'Hongo'), ('FVTO', 'FVTO'), ('SELLADO', 'Sellado')]
+    
+    # ===== IDENTIFICACIÓN =====
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # ===== CHECKBOXES =====
+    v = models.BooleanField(default=False)  # vendedor
+    d = models.BooleanField(default=False)  # despachador
+    
+    # ===== PRODUCTOS =====
+    producto = models.CharField(max_length=255, blank=True)
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== PAGOS =====
+    concepto = models.CharField(max_length=255, blank=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # ===== RESUMEN =====
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== CONTROL DE CUMPLIMIENTO =====
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # ===== METADATOS =====
+    usuario = models.CharField(max_length=100, default='Sistema')
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"ID2 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+
+class CargueID3(models.Model):
+    """Modelo simplificado para cargue ID3 - Toda la información en una tabla"""
+    
+    # Choices reutilizables
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    MOTIVO_CHOICES = [('HONGO', 'Hongo'), ('FVTO', 'FVTO'), ('SELLADO', 'Sellado')]
+    
+    # ===== IDENTIFICACIÓN =====
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # ===== CHECKBOXES =====
+    v = models.BooleanField(default=False)  # vendedor
+    d = models.BooleanField(default=False)  # despachador
+    
+    # ===== PRODUCTOS =====
+    producto = models.CharField(max_length=255, blank=True)
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== PAGOS =====
+    concepto = models.CharField(max_length=255, blank=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # ===== RESUMEN =====
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== CONTROL DE CUMPLIMIENTO =====
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # ===== METADATOS =====
+    usuario = models.CharField(max_length=100, default='Sistema')
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"ID3 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+
+class CargueID4(models.Model):
+    """Modelo simplificado para cargue ID4 - Toda la información en una tabla"""
+    
+    # Choices reutilizables
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    MOTIVO_CHOICES = [('HONGO', 'Hongo'), ('FVTO', 'FVTO'), ('SELLADO', 'Sellado')]
+    
+    # ===== IDENTIFICACIÓN =====
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # ===== CHECKBOXES =====
+    v = models.BooleanField(default=False)  # vendedor
+    d = models.BooleanField(default=False)  # despachador
+    
+    # ===== PRODUCTOS =====
+    producto = models.CharField(max_length=255, blank=True)
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== PAGOS =====
+    concepto = models.CharField(max_length=255, blank=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # ===== RESUMEN =====
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== CONTROL DE CUMPLIMIENTO =====
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # ===== METADATOS =====
+    usuario = models.CharField(max_length=100, default='Sistema')
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"ID4 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+
+class CargueID5(models.Model):
+    """Modelo simplificado para cargue ID5 - Toda la información en una tabla"""
+    
+    # Choices reutilizables
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    MOTIVO_CHOICES = [('HONGO', 'Hongo'), ('FVTO', 'FVTO'), ('SELLADO', 'Sellado')]
+    
+    # ===== IDENTIFICACIÓN =====
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # ===== CHECKBOXES =====
+    v = models.BooleanField(default=False)  # vendedor
+    d = models.BooleanField(default=False)  # despachador
+    
+    # ===== PRODUCTOS =====
+    producto = models.CharField(max_length=255, blank=True)
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== PAGOS =====
+    concepto = models.CharField(max_length=255, blank=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # ===== RESUMEN =====
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== CONTROL DE CUMPLIMIENTO =====
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # ===== METADATOS =====
+    usuario = models.CharField(max_length=100, default='Sistema')
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"ID5 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+
+class CargueID6(models.Model):
+    """Modelo simplificado para cargue ID6 - Toda la información en una tabla"""
+    
+    # Choices reutilizables
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    MOTIVO_CHOICES = [('HONGO', 'Hongo'), ('FVTO', 'FVTO'), ('SELLADO', 'Sellado')]
+    
+    # ===== IDENTIFICACIÓN =====
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField(default=timezone.now)
+    
+    # ===== CHECKBOXES =====
+    v = models.BooleanField(default=False)  # vendedor
+    d = models.BooleanField(default=False)  # despachador
+    
+    # ===== PRODUCTOS =====
+    producto = models.CharField(max_length=255, blank=True)
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    total = models.IntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== PAGOS =====
+    concepto = models.CharField(max_length=255, blank=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # ===== RESUMEN =====
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ===== CONTROL DE CUMPLIMIENTO =====
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # ===== METADATOS =====
+    usuario = models.CharField(max_length=100, default='Sistema')
+    responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        # Calcular neto
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"ID6 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+
+# ========================================
+# TABLA DE PRODUCCIÓN SEPARADA
+# ========================================
+
+class Produccion(models.Model):
+    """Modelo para producción con función de congelado"""
+    
+    # Identificación
+    fecha = models.DateField(default=timezone.now)
+    producto = models.CharField(max_length=255)
+    cantidad = models.IntegerField(default=0)
+    lote = models.CharField(max_length=100, blank=True)
+    
+    # Función especial de congelado
+    congelado = models.BooleanField(default=False)
+    fecha_congelado = models.DateTimeField(blank=True, null=True)
+    usuario_congelado = models.CharField(max_length=100, blank=True)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def congelar(self, usuario):
+        """Función para congelar la producción"""
+        self.congelado = True
+        self.fecha_congelado = timezone.now()
+        self.usuario_congelado = usuario
+        self.save()
+    
+    def descongelar(self, usuario):
+        """Función para descongelar la producción"""
+        self.congelado = False
+        self.fecha_congelado = None
+        self.usuario_congelado = usuario
+        self.save()
+    
+    def __str__(self):
+        estado = "🧊 CONGELADO" if self.congelado else "🔥 ACTIVO"
+        return f"{estado} - {self.fecha} - {self.producto} - {self.cantidad}"

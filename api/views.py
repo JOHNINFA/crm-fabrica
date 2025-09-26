@@ -7,12 +7,12 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales, LoteVencido, ControlCumplimiento
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    VendedorSerializer, CargueOperativoSerializer, DetalleCargueSerializer, ResumenPagosSerializer, ResumenTotalesSerializer, LoteVencidoSerializer, ControlCumplimientoSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -332,362 +332,331 @@ class PrecioProductoViewSet(viewsets.ModelViewSet):
             
         return queryset
 
-class VendedorViewSet(viewsets.ModelViewSet):
-    """API para gestionar vendedores"""
-    queryset = Vendedor.objects.all()
-    serializer_class = VendedorSerializer
+# ========================================
+# NUEVAS VIEWS SIMPLIFICADAS
+# ========================================
+
+class CargueID1ViewSet(viewsets.ModelViewSet):
+    """API simplificada para CargueID1 - Como api_vendedor"""
+    queryset = CargueID1.objects.all()
+    serializer_class = CargueID1Serializer
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = Vendedor.objects.all().order_by('id_vendedor')
+        queryset = CargueID1.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
         activo = self.request.query_params.get('activo')
-        id_vendedor = self.request.query_params.get('id_vendedor')
         
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
-        if id_vendedor:
-            queryset = queryset.filter(id_vendedor=id_vendedor)
+            
+        return queryset
+
+class CargueID2ViewSet(viewsets.ModelViewSet):
+    """API simplificada para CargueID2 - Como api_vendedor"""
+    queryset = CargueID2.objects.all()
+    serializer_class = CargueID2Serializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = CargueID2.objects.all().order_by('-fecha', '-fecha_actualizacion')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        activo = self.request.query_params.get('activo')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset
+
+class CargueID3ViewSet(viewsets.ModelViewSet):
+    """API simplificada para CargueID3 - Como api_vendedor"""
+    queryset = CargueID3.objects.all()
+    serializer_class = CargueID3Serializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = CargueID3.objects.all().order_by('-fecha', '-fecha_actualizacion')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        activo = self.request.query_params.get('activo')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset
+
+class CargueID4ViewSet(viewsets.ModelViewSet):
+    """API simplificada para CargueID4 - Como api_vendedor"""
+    queryset = CargueID4.objects.all()
+    serializer_class = CargueID4Serializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = CargueID4.objects.all().order_by('-fecha', '-fecha_actualizacion')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        activo = self.request.query_params.get('activo')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset
+
+class CargueID5ViewSet(viewsets.ModelViewSet):
+    """API simplificada para CargueID5 - Como api_vendedor"""
+    queryset = CargueID5.objects.all()
+    serializer_class = CargueID5Serializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = CargueID5.objects.all().order_by('-fecha', '-fecha_actualizacion')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        activo = self.request.query_params.get('activo')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset
+
+class CargueID6ViewSet(viewsets.ModelViewSet):
+    """API simplificada para CargueID6 - Como api_vendedor"""
+    queryset = CargueID6.objects.all()
+    serializer_class = CargueID6Serializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = CargueID6.objects.all().order_by('-fecha', '-fecha_actualizacion')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        activo = self.request.query_params.get('activo')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset
+
+class ProduccionViewSet(viewsets.ModelViewSet):
+    """API para Producción con función de congelado"""
+    queryset = Produccion.objects.all()
+    serializer_class = ProduccionSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Produccion.objects.all().order_by('-fecha', '-fecha_actualizacion')
+        
+        # Filtros opcionales
+        fecha = self.request.query_params.get('fecha')
+        congelado = self.request.query_params.get('congelado')
+        activo = self.request.query_params.get('activo')
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if congelado is not None:
+            queryset = queryset.filter(congelado=congelado.lower() == 'true')
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
             
         return queryset
     
+    @action(detail=True, methods=['post'])
+    def congelar(self, request, pk=None):
+        """Congelar producción"""
+        try:
+            produccion = self.get_object()
+            usuario = request.data.get('usuario', 'Sistema')
+            
+            if produccion.congelado:
+                return Response(
+                    {'error': 'La producción ya está congelada'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            produccion.congelar(usuario)
+            
+            return Response({
+                'success': True,
+                'message': 'Producción congelada exitosamente',
+                'congelado': True,
+                'fecha_congelado': produccion.fecha_congelado,
+                'usuario_congelado': produccion.usuario_congelado
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def descongelar(self, request, pk=None):
+        """Descongelar producción"""
+        try:
+            produccion = self.get_object()
+            usuario = request.data.get('usuario', 'Sistema')
+            
+            if not produccion.congelado:
+                return Response(
+                    {'error': 'La producción no está congelada'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            produccion.descongelar(usuario)
+            
+            return Response({
+                'success': True,
+                'message': 'Producción descongelada exitosamente',
+                'congelado': False,
+                'usuario_descongelado': usuario
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# ========================================
+# VIEWSET PARA VENDEDORES/RESPONSABLES
+# ========================================
+
+class VendedorViewSet(viewsets.ViewSet):
+    """API para gestionar responsables de vendedores"""
+    permission_classes = [permissions.AllowAny]
+    
     @action(detail=False, methods=['post'])
     def actualizar_responsable(self, request):
-        """Actualizar responsable de un vendedor por id_vendedor"""
+        """Actualizar responsable de un vendedor específico"""
         try:
-            import datetime
-            timestamp = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]
-            
             id_vendedor = request.data.get('id_vendedor')
-            nuevo_responsable = request.data.get('responsable', '').strip()
+            responsable = request.data.get('responsable')
             
-            print(f"\n=== 🔥 ACTUALIZANDO RESPONSABLE [{timestamp}] ===")
-            print(f"ID Vendedor: {id_vendedor}")
-            print(f"Nuevo Responsable: '{nuevo_responsable}'")
-            print(f"Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
-            print(f"Request User-Agent: {request.META.get('HTTP_USER_AGENT', 'Unknown')[:50]}...")
+            if not id_vendedor or not responsable:
+                return Response(
+                    {'error': 'id_vendedor y responsable son requeridos'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Mapear ID de vendedor a modelo correspondiente
+            modelos_vendedor = {
+                'ID1': CargueID1,
+                'ID2': CargueID2,
+                'ID3': CargueID3,
+                'ID4': CargueID4,
+                'ID5': CargueID5,
+                'ID6': CargueID6,
+            }
+            
+            modelo = modelos_vendedor.get(id_vendedor)
+            if not modelo:
+                return Response(
+                    {'error': f'Vendedor {id_vendedor} no válido'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Actualizar todos los registros existentes de este vendedor
+            registros_actualizados = modelo.objects.filter(activo=True).update(responsable=responsable)
+            
+            return Response({
+                'success': True,
+                'message': f'Responsable actualizado para {id_vendedor}',
+                'id_vendedor': id_vendedor,
+                'responsable': responsable,
+                'registros_actualizados': registros_actualizados
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def obtener_responsable(self, request):
+        """Obtener responsable actual de un vendedor"""
+        try:
+            id_vendedor = request.query_params.get('id_vendedor')
             
             if not id_vendedor:
-                print("❌ Error: id_vendedor es requerido")
                 return Response(
                     {'error': 'id_vendedor es requerido'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            if not nuevo_responsable:
-                print("❌ Error: responsable no puede estar vacío")
+            # Mapear ID de vendedor a modelo correspondiente
+            modelos_vendedor = {
+                'ID1': CargueID1,
+                'ID2': CargueID2,
+                'ID3': CargueID3,
+                'ID4': CargueID4,
+                'ID5': CargueID5,
+                'ID6': CargueID6,
+            }
+            
+            modelo = modelos_vendedor.get(id_vendedor)
+            if not modelo:
                 return Response(
-                    {'error': 'responsable no puede estar vacío'}, 
+                    {'error': f'Vendedor {id_vendedor} no válido'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Buscar o crear vendedor
-            vendedor, created = Vendedor.objects.get_or_create(
-                id_vendedor=id_vendedor,
-                defaults={
-                    'nombre': f'Vendedor {id_vendedor}',
-                    'ruta': f'Ruta {id_vendedor}',
-                    'responsable': nuevo_responsable
-                }
-            )
+            # Obtener el responsable del registro más reciente
+            ultimo_registro = modelo.objects.filter(activo=True).order_by('-fecha_creacion').first()
             
-            if created:
-                print(f"🆕 Vendedor creado: {vendedor.nombre} ({vendedor.id_vendedor})")
-            else:
-                responsable_anterior = vendedor.responsable
-                vendedor.responsable = nuevo_responsable
-                vendedor.save()
-                print(f"🔄 Vendedor actualizado: {vendedor.nombre} ({vendedor.id_vendedor})")
-                print(f"Responsable ANTES: '{responsable_anterior}'")
-                print(f"Responsable DESPUÉS: '{vendedor.responsable}'")
-            
-            print(f"=== ✅ RESPONSABLE ACTUALIZADO [{timestamp}] ===\n")
+            responsable = 'RESPONSABLE'  # Valor por defecto
+            if ultimo_registro and ultimo_registro.responsable:
+                responsable = ultimo_registro.responsable
             
             return Response({
                 'success': True,
-                'vendedor': {
-                    'id': vendedor.id,
-                    'id_vendedor': vendedor.id_vendedor,
-                    'nombre': vendedor.nombre,
-                    'responsable': vendedor.responsable,
-                    'ruta': vendedor.ruta
-                },
-                'created': created,
-                'message': f'Responsable {"asignado" if created else "actualizado"} exitosamente'
+                'id_vendedor': id_vendedor,
+                'responsable': responsable,
+                'results': [{
+                    'id_vendedor': id_vendedor,
+                    'responsable': responsable
+                }]
             })
             
         except Exception as e:
-            print(f"❌ Error actualizando responsable: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return Response(
-                {'error': f'Error interno: {str(e)}'}, 
+                {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-class CargueOperativoViewSet(viewsets.ModelViewSet):
-    """API para gestionar cargues operativos con lógica Crear o Actualizar (Upsert)"""
-    queryset = CargueOperativo.objects.all()
-    serializer_class = CargueOperativoSerializer
-    permission_classes = [permissions.AllowAny]
-    
-    def get_queryset(self):
-        queryset = CargueOperativo.objects.all().order_by('-fecha')
-        
-        # Filtros opcionales
-        dia = self.request.query_params.get('dia')
-        vendedor = self.request.query_params.get('vendedor')
-        fecha = self.request.query_params.get('fecha')
-        
-        if dia:
-            queryset = queryset.filter(dia=dia.upper())
-        if vendedor:
-            queryset = queryset.filter(vendedor_id=vendedor)
-        if fecha:
-            queryset = queryset.filter(fecha=fecha)
-            
-        return queryset
-    
-    def create(self, request, *args, **kwargs):
-        """Crear o Actualizar cargue operativo con datos anidados (Lógica Upsert)"""
-        try:
-            print("🚛 Datos recibidos para CargueOperativo:", request.data)
-            
-            # 1. Extraer datos anidados del request
-            data = request.data.copy()
-            productos_data = data.pop('productos', [])
-            pagos_data = data.pop('pagos', [])
-            resumen_data = data.pop('resumen', {})
-            vendedor_id = data.get('vendedor_id')
-            dia = data.get('dia', '').upper()
-            fecha = data.get('fecha')
-            
-            print(f"📦 Productos: {len(productos_data)} items")
-            print(f"💰 Pagos: {len(pagos_data)} items")
-            print(f"📊 Resumen: {bool(resumen_data)}")
-            print(f"👤 Vendedor ID: {vendedor_id}")
-            print(f"📅 Día: {dia}, Fecha: {fecha}")
-            
-            # 2. Buscar vendedor por id_vendedor
-            try:
-                vendedor = Vendedor.objects.get(id_vendedor=vendedor_id)
-                data['vendedor'] = vendedor.id
-                print(f"✅ Vendedor encontrado: {vendedor.nombre} ({vendedor.id_vendedor})")
-            except Vendedor.DoesNotExist:
-                return Response(
-                    {'error': f'Vendedor con ID {vendedor_id} no encontrado'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # 3. Usar transacción atómica para toda la operación
-            with transaction.atomic():
-                # 4. Buscar si ya existe un CargueOperativo (Lógica Upsert)
-                cargue_existente = None
-                es_actualizacion = False
-                
-                try:
-                    cargue_existente = CargueOperativo.objects.get(
-                        dia=dia,
-                        vendedor=vendedor,
-                        fecha=fecha
-                    )
-                    es_actualizacion = True
-                    print(f"🔄 CargueOperativo existente encontrado: ID {cargue_existente.id}")
-                except CargueOperativo.DoesNotExist:
-                    print("🆕 No existe CargueOperativo, se creará uno nuevo")
-                
-                # 5. Crear o actualizar CargueOperativo principal
-                if es_actualizacion:
-                    # Actualizar el existente
-                    cargue_existente.usuario = data.get('usuario', 'Sistema Web')
-                    cargue_existente.activo = data.get('activo', True)
-                    cargue_existente.save()
-                    cargue = cargue_existente
-                    print(f"🔄 CargueOperativo actualizado: ID {cargue.id}")
-                    
-                    # Eliminar datos anidados antiguos
-                    print("🗑️ Eliminando datos anidados antiguos...")
-                    DetalleCargue.objects.filter(cargue=cargue).delete()
-                    ResumenPagos.objects.filter(cargue=cargue).delete()
-                    ResumenTotales.objects.filter(cargue=cargue).delete()
-                    print("✅ Datos anidados antiguos eliminados")
-                    
-                else:
-                    # Crear nuevo
-                    cargue_serializer = self.get_serializer(data=data)
-                    if not cargue_serializer.is_valid():
-                        print("❌ Errores en cargue:", cargue_serializer.errors)
-                        return Response(cargue_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                    
-                    cargue = cargue_serializer.save()
-                    print(f"🆕 CargueOperativo creado: ID {cargue.id}")
-                
-                # 6. Crear nuevos DetalleCargue para cada producto
-                productos_creados = 0
-                for producto_data in productos_data:
-                    try:
-                        # Buscar producto por nombre
-                        producto_nombre = producto_data.get('producto_nombre') or producto_data.get('nombre')
-                        if not producto_nombre:
-                            print(f"⚠️ Producto sin nombre, saltando: {producto_data}")
-                            continue
-                            
-                        producto = Producto.objects.get(nombre=producto_nombre)
-                        
-                        # Crear DetalleCargue
-                        DetalleCargue.objects.create(
-                            cargue=cargue,
-                            producto=producto,
-                            vendedor_check=producto_data.get('vendedor_check', False),
-                            despachador_check=producto_data.get('despachador_check', False),
-                            cantidad=int(producto_data.get('cantidad', 0)),
-                            dctos=int(producto_data.get('dctos', 0)),
-                            adicional=int(producto_data.get('adicional', 0)),
-                            devoluciones=int(producto_data.get('devoluciones', 0)),
-                            vencidas=int(producto_data.get('vencidas', 0)),
-                            valor=float(producto_data.get('valor', 0))
-                        )
-                        productos_creados += 1
-                        print(f"✅ DetalleCargue creado: {producto.nombre}")
-                        
-                    except Producto.DoesNotExist:
-                        print(f"❌ Producto no encontrado: {producto_nombre}")
-                        return Response(
-                            {'error': f'Producto "{producto_nombre}" no encontrado'}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                    except (ValueError, TypeError) as e:
-                        print(f"❌ Error en datos del producto {producto_nombre}: {e}")
-                        return Response(
-                            {'error': f'Datos inválidos para producto "{producto_nombre}": {str(e)}'}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                print(f"📦 Total productos creados: {productos_creados}")
-                
-                # 7. Crear nuevos ResumenPagos si existen
-                pagos_creados = 0
-                for pago_data in pagos_data:
-                    try:
-                        ResumenPagos.objects.create(
-                            cargue=cargue,
-                            concepto=pago_data.get('concepto', ''),
-                            descuentos=float(pago_data.get('descuentos', 0)),
-                            nequi=float(pago_data.get('nequi', 0)),
-                            daviplata=float(pago_data.get('daviplata', 0))
-                        )
-                        pagos_creados += 1
-                        print(f"✅ ResumenPagos creado: {pago_data.get('concepto', 'Sin concepto')}")
-                    except (ValueError, TypeError) as e:
-                        print(f"❌ Error en datos de pago: {e}")
-                        return Response(
-                            {'error': f'Datos inválidos en pagos: {str(e)}'}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                print(f"💰 Total pagos creados: {pagos_creados}")
-                
-                # 8. Crear nuevo ResumenTotales si existe
-                if resumen_data:
-                    try:
-                        ResumenTotales.objects.create(
-                            cargue=cargue,
-                            base_caja=float(resumen_data.get('base_caja', 0)),
-                            total_despacho=float(resumen_data.get('total_despacho', 0)),
-                            total_pedidos=float(resumen_data.get('total_pedidos', 0)),
-                            total_dctos=float(resumen_data.get('total_dctos', 0)),
-                            venta=float(resumen_data.get('venta', 0)),
-                            total_efectivo=float(resumen_data.get('total_efectivo', 0))
-                        )
-                        print("✅ ResumenTotales creado")
-                    except (ValueError, TypeError) as e:
-                        print(f"❌ Error en datos de resumen: {e}")
-                        return Response(
-                            {'error': f'Datos inválidos en resumen: {str(e)}'}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                # 9. Retornar cargue completo con todos los detalles
-                cargue_completo = CargueOperativoSerializer(cargue)
-                
-                # Determinar código de estado según si fue creación o actualización
-                status_code = status.HTTP_200_OK if es_actualizacion else status.HTTP_201_CREATED
-                action = "actualizado" if es_actualizacion else "creado"
-                
-                print(f"🎉 CargueOperativo {action} exitosamente: ID {cargue.id}")
-                print(f"📊 Resumen: {productos_creados} productos, {pagos_creados} pagos, resumen: {bool(resumen_data)}")
-                
-                return Response(cargue_completo.data, status=status_code)
-                
-        except Exception as e:
-            print(f"❌ Error general en CargueOperativo: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': f'Error interno del servidor: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-class DetalleCargueViewSet(viewsets.ModelViewSet):
-    """API para gestionar detalles de cargue"""
-    queryset = DetalleCargue.objects.all()
-    serializer_class = DetalleCargueSerializer
-    permission_classes = [permissions.AllowAny]
-
-class ResumenPagosViewSet(viewsets.ModelViewSet):
-    """API para gestionar resumen de pagos"""
-    queryset = ResumenPagos.objects.all()
-    serializer_class = ResumenPagosSerializer
-    permission_classes = [permissions.AllowAny]
-
-class ResumenTotalesViewSet(viewsets.ModelViewSet):
-    """API para gestionar resumen de totales"""
-    queryset = ResumenTotales.objects.all()
-    serializer_class = ResumenTotalesSerializer
-    permission_classes = [permissions.AllowAny]
-
-class LoteVencidoViewSet(viewsets.ModelViewSet):
-    """API para gestionar lotes vencidos"""
-    queryset = LoteVencido.objects.all()
-    serializer_class = LoteVencidoSerializer
-    permission_classes = [permissions.AllowAny]
-    
-    def get_queryset(self):
-        queryset = LoteVencido.objects.all().order_by('-fecha_registro')
-        
-        # Filtros opcionales
-        detalle_cargue = self.request.query_params.get('detalle_cargue')
-        motivo = self.request.query_params.get('motivo')
-        
-        if detalle_cargue:
-            queryset = queryset.filter(detalle_cargue_id=detalle_cargue)
-        if motivo:
-            queryset = queryset.filter(motivo=motivo.upper())
-            
-        return queryset
-
-class ControlCumplimientoViewSet(viewsets.ModelViewSet):
-    """API para gestionar control de cumplimiento"""
-    queryset = ControlCumplimiento.objects.all()
-    serializer_class = ControlCumplimientoSerializer
-    permission_classes = [permissions.AllowAny]
-    
-    def get_queryset(self):
-        queryset = ControlCumplimiento.objects.all().order_by('-fecha')
-        
-        # Filtros opcionales
-        dia = self.request.query_params.get('dia')
-        id_sheet = self.request.query_params.get('id_sheet')
-        fecha = self.request.query_params.get('fecha')
-        
-        if dia:
-            queryset = queryset.filter(dia=dia.upper())
-        if id_sheet:
-            queryset = queryset.filter(id_sheet=id_sheet)
-        if fecha:
-            queryset = queryset.filter(fecha=fecha)
-            
-        return queryset
-
-    

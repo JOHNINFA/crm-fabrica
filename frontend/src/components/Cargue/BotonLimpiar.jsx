@@ -7,18 +7,27 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   const [estado, setEstado] = useState('ALISTAMIENTO');
   const [loading, setLoading] = useState(false);
   const [productosValidados, setProductosValidados] = useState([]);
+  const [productosPendientes, setProductosPendientes] = useState([]);
 
   // Obtener datos frescos del contexto de vendedores
   const { datosVendedores } = useVendedores();
 
-  // Verificar productos listos en todos los IDs (V=true, D=true, TOTAL>0)
+  // Verificar productos listos y detectar productos pendientes
   const verificarProductosListos = async () => {
     try {
       const { simpleStorage } = await import('../../services/simpleStorage');
-      const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+
+      // 🚀 CORREGIDO: Usar fechaSeleccionada directamente sin fallback
+      if (!fechaSeleccionada) {
+        console.warn('⚠️ fechaSeleccionada no definida en verificarProductosListos');
+        return { listos: [], pendientes: [] };
+      }
+
+      const fechaAUsar = fechaSeleccionada;
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
       const todosLosProductos = {};
+      const productosPendientes = {};
 
       // Recopilar productos de todos los IDs
       for (const id of idsVendedores) {
@@ -32,6 +41,23 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               console.log(`🔍 ${id} - ${producto.producto}: V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
             }
 
+            // Productos con cantidad pero sin checkboxes completos
+            if (producto.total > 0 && (!producto.vendedor || !producto.despachador)) {
+              if (!productosPendientes[producto.id]) {
+                productosPendientes[producto.id] = {
+                  id: producto.id,
+                  nombre: producto.producto,
+                  totalCantidad: 0,
+                  vendedorId: id,
+                  vendedor: producto.vendedor,
+                  despachador: producto.despachador
+                };
+              }
+              productosPendientes[producto.id].totalCantidad += producto.total;
+              console.log(`⚠️ PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - V:${producto.vendedor} D:${producto.despachador}`);
+            }
+
+            // Productos completamente listos (V=true, D=true, TOTAL>0)
             if (producto.vendedor && producto.despachador && producto.total > 0) {
               if (!todosLosProductos[producto.id]) {
                 todosLosProductos[producto.id] = {
@@ -47,10 +73,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      return Object.values(todosLosProductos);
+      return {
+        listos: Object.values(todosLosProductos),
+        pendientes: Object.values(productosPendientes)
+      };
     } catch (error) {
       console.error('Error verificando productos:', error);
-      return [];
+      return { listos: [], pendientes: [] };
     }
   };
 
@@ -76,11 +105,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     if (idSheet !== 'ID1') return;
 
     const verificarYAvanzar = async () => {
-      const listos = await verificarProductosListos();
-      setProductosValidados(listos);
+      const resultado = await verificarProductosListos();
+      setProductosValidados(resultado.listos);
+      setProductosPendientes(resultado.pendientes);
 
       // Auto-avance solo de ALISTAMIENTO_ACTIVO → DESPACHO
-      if (estado === 'ALISTAMIENTO_ACTIVO' && listos.length > 0) {
+      if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.listos.length > 0) {
         console.log('🤖 AUTO-AVANCE: ALISTAMIENTO_ACTIVO → DESPACHO');
         setEstado('DESPACHO');
         localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'DESPACHO');
@@ -170,22 +200,79 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // 1. Guardar datos de cada ID directamente desde el contexto (NO desde localStorage)
       for (const id of idsVendedores) {
         // Obtiene los datos del vendedor directamente del contexto
-        const datosDelVendedor = datosVendedores[id];
+        const productosDelVendedor = datosVendedores[id];
 
-        if (datosDelVendedor && datosDelVendedor.productos && datosDelVendedor.productos.length > 0) {
+        console.log(`🔍 DEBUG - Datos de ${id}:`, productosDelVendedor);
+        console.log(`🔍 DEBUG - Tipo de datos de ${id}:`, Array.isArray(productosDelVendedor) ? 'Array' : typeof productosDelVendedor);
+
+        if (productosDelVendedor && Array.isArray(productosDelVendedor) && productosDelVendedor.length > 0) {
           // Filtrar solo productos que tienen datos relevantes
-          const productosParaGuardar = datosDelVendedor.productos.filter(p =>
+          const productosParaGuardar = productosDelVendedor.filter(p =>
             p.cantidad > 0 || p.dctos > 0 || p.adicional > 0 ||
             p.devoluciones > 0 || p.vencidas > 0 || p.vendedor || p.despachador
           );
 
           // Solo guardar si hay productos con datos
           if (productosParaGuardar.length > 0) {
+            // 🚀 CORREGIDO: Obtener responsable real desde localStorage
+            const { responsableStorage } = await import('../../utils/responsableStorage');
+
+            // 🔍 DEBUG DETALLADO: Verificar múltiples fuentes de responsable
+            console.log(`🔍 DEBUG RESPONSABLE para ${id}:`);
+
+            // Método 1: responsableStorage
+            const responsableRS = responsableStorage.get(id);
+            console.log(`   - responsableStorage.get("${id}"): "${responsableRS}"`);
+
+            // Método 2: localStorage directo
+            const responsableLS = localStorage.getItem(`responsable_${id}`);
+            console.log(`   - localStorage.getItem("responsable_${id}"): "${responsableLS}"`);
+
+            // Método 3: localStorage alternativo
+            const responsableAlt = localStorage.getItem(`cargue_responsable_${id}`);
+            console.log(`   - localStorage.getItem("cargue_responsable_${id}"): "${responsableAlt}"`);
+
+            // Método 4: responsables_cargue
+            const responsablesCargue = localStorage.getItem('responsables_cargue');
+            let responsableFromCargue = null;
+            if (responsablesCargue) {
+              try {
+                const parsed = JSON.parse(responsablesCargue);
+                responsableFromCargue = parsed[id];
+                console.log(`   - responsables_cargue["${id}"]: "${responsableFromCargue}"`);
+              } catch (error) {
+                console.log(`   - responsables_cargue: Error parsing`);
+              }
+            } else {
+              console.log(`   - responsables_cargue: No existe`);
+            }
+
+            // Determinar el responsable real usando prioridad
+            let responsableReal = 'RESPONSABLE';
+
+            if (responsableRS && responsableRS !== 'RESPONSABLE') {
+              responsableReal = responsableRS;
+              console.log(`   ✅ Usando responsableStorage: "${responsableReal}"`);
+            } else if (responsableLS && responsableLS !== 'RESPONSABLE') {
+              responsableReal = responsableLS;
+              console.log(`   ✅ Usando localStorage directo: "${responsableReal}"`);
+            } else if (responsableAlt && responsableAlt !== 'RESPONSABLE') {
+              responsableReal = responsableAlt;
+              console.log(`   ✅ Usando localStorage alternativo: "${responsableReal}"`);
+            } else if (responsableFromCargue && responsableFromCargue !== 'RESPONSABLE') {
+              responsableReal = responsableFromCargue;
+              console.log(`   ✅ Usando responsables_cargue: "${responsableReal}"`);
+            } else {
+              console.log(`   ❌ No se encontró responsable válido, usando: "${responsableReal}"`);
+            }
+
+            console.log(`📝 RESPONSABLE FINAL para ${id}: "${responsableReal}"`);
+
             const datosParaGuardar = {
               dia_semana: dia,
               vendedor_id: id,
               fecha: fechaAUsar,
-              responsable: 'SISTEMA', // O puedes añadirlo al contexto
+              responsable: responsableReal, // ✅ Usar responsable real
               productos: productosParaGuardar.map(p => ({
                 producto_nombre: p.producto,
                 cantidad: p.cantidad || 0,
@@ -203,15 +290,24 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
             console.log(`🚀 Preparando para enviar datos de ${id}:`, datosParaGuardar);
             console.log(`📦 Productos con datos para ${id}: ${productosParaGuardar.length}`);
+            console.log(`📅 Fecha que se enviará: ${datosParaGuardar.fecha}`);
+            console.log(`👤 Responsable que se enviará: ${datosParaGuardar.responsable}`);
 
             console.log(`🚀 ENVIANDO A API - ${id}:`, JSON.stringify(datosParaGuardar, null, 2));
-            await cargueService.guardarCargueCompleto(datosParaGuardar);
-            console.log(`✅ Datos de ${id} enviados a la API.`);
+            const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
+
+            if (resultado.error) {
+              console.error(`❌ Error enviando datos de ${id}:`, resultado.message);
+              throw new Error(`Error guardando datos de ${id}: ${resultado.message}`);
+            }
+
+            console.log(`✅ Datos de ${id} enviados a la API exitosamente.`);
           } else {
             console.log(`⚠️ ${id} no tiene productos con datos para guardar`);
           }
         } else {
-          console.log(`⚠️ No hay datos en el contexto para ${id}`);
+          console.log(`⚠️ No hay datos en el contexto para ${id} o no es un array válido`);
+          console.log(`🔍 DEBUG - Valor actual de datosVendedores[${id}]:`, productosDelVendedor);
         }
       }
 
@@ -224,7 +320,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           dia_semana: `${dia}_RESUMEN`,
           vendedor_id: 'BASE_CAJA',
           fecha: fechaAUsar,
-          responsable: 'SISTEMA',
+          responsable: 'SISTEMA_RESUMEN',
           datos_adicionales: {
             base_caja: datosBaseCaja ? JSON.parse(datosBaseCaja) : {},
             conceptos_pagos: datosConceptos ? JSON.parse(datosConceptos) : []
@@ -243,7 +339,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           dia_semana: `${dia}_PRODUCCION`,
           vendedor_id: 'PRODUCCION',
           fecha: fechaAUsar,
-          responsable: 'SISTEMA',
+          responsable: 'SISTEMA_PRODUCCION',
           productos: produccionData.productos || []
         });
         console.log('✅ Guardados datos de PRODUCCIÓN');
@@ -293,6 +389,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   const validarLotesVencidos = async (fechaAUsar, idsVendedores) => {
     try {
       console.log('🔍 VALIDANDO LOTES VENCIDOS...');
+      console.log(`📅 Fecha para validación: ${fechaAUsar}`);
 
       const { simpleStorage } = await import('../../services/simpleStorage');
       const productosConVencidasSinLotes = [];
@@ -359,7 +456,17 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log('🏁 INICIANDO FINALIZACIÓN COMPLETA');
 
       const { simpleStorage } = await import('../../services/simpleStorage');
-      const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+
+      // 🚀 CORREGIDO: Validar que fechaSeleccionada existe y no usar fallback a fecha actual
+      if (!fechaSeleccionada) {
+        console.error('❌ ERROR: fechaSeleccionada no está definida');
+        alert('❌ Error: No se ha seleccionado una fecha válida');
+        setLoading(false);
+        return;
+      }
+
+      const fechaAUsar = fechaSeleccionada; // ✅ Usar directamente fechaSeleccionada sin fallback
+      console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
       // VALIDACIÓN PREVIA: Verificar lotes vencidos
@@ -432,6 +539,36 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   const manejarDespacho = async () => {
     console.log('🚚 EJECUTANDO DESPACHO - AFECTANDO INVENTARIO (según README)');
 
+    // 🚀 VALIDACIÓN ESTRICTA: NO permitir avanzar si hay productos pendientes
+    if (productosPendientes.length > 0) {
+      const listaPendientes = productosPendientes.map(p => {
+        const checksFaltantes = [];
+        if (!p.vendedor) checksFaltantes.push('V');
+        if (!p.despachador) checksFaltantes.push('D');
+
+        return `• ${p.nombre} (${p.totalCantidad} und) - Faltan: ${checksFaltantes.join(', ')}`;
+      }).join('\n');
+
+      const confirmar = window.confirm(
+        `❌ NO SE PUEDE REALIZAR EL DESPACHO\n\n` +
+        `Los siguientes productos tienen cantidades pero NO están completamente verificados:\n\n` +
+        `${listaPendientes}\n\n` +
+        `🔧 SOLUCIÓN: Marque los checkboxes V (Vendedor) y D (Despachador) faltantes para todos los productos con cantidad.\n\n` +
+        `⚠️ TODOS los productos con cantidad deben tener ambos checkboxes marcados antes de continuar.\n\n` +
+        `✅ ACEPTAR: Volver a revisar y marcar checkboxes\n` +
+        `❌ CANCELAR: Quedarse en esta pantalla`
+      );
+
+      if (confirmar) {
+        console.log('🔄 Usuario eligió volver a revisar checkboxes');
+      } else {
+        console.log('🚫 Usuario eligió quedarse en la pantalla actual');
+      }
+
+      console.log('🚫 DESPACHO BLOQUEADO - Hay productos sin verificar completamente');
+      return; // Salir sin hacer despacho
+    }
+
     setLoading(true);
 
     try {
@@ -462,9 +599,18 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       console.log('✅ DESPACHO COMPLETADO - Inventario afectado según README');
 
+      // Mostrar resumen con advertencia si hay pendientes
       const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
       const totalGeneral = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
-      alert(`✅ Despacho Realizado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`);
+
+      let mensaje = `✅ Despacho Realizado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`;
+
+      if (productosPendientes.length > 0) {
+        const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
+        mensaje += `\n\n⚠️ PRODUCTOS NO DESPACHADOS: ${productosPendientes.length} productos (${totalPendientes} unidades)\n(Falta marcar checkboxes V y/o D)`;
+      }
+
+      alert(mensaje);
 
     } catch (error) {
       console.error('❌ Error en despacho:', error);
@@ -476,6 +622,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
   const obtenerConfigBoton = () => {
     const listos = productosValidados;
+    const pendientes = productosPendientes;
 
     switch (estado) {
       case 'ALISTAMIENTO':
@@ -489,7 +636,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO_ACTIVO');
             // Congelar datos actuales de producción
             const datosParaCongelar = {};
-            const fechaActual = fechaSeleccionada || new Date().toISOString().split('T')[0];
+
+            // 🚀 CORREGIDO: Usar fechaSeleccionada directamente
+            if (!fechaSeleccionada) {
+              console.error('❌ ERROR: fechaSeleccionada no definida para congelar producción');
+              return;
+            }
+
+            const fechaActual = fechaSeleccionada;
             const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
             const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
@@ -538,9 +692,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         };
       case 'DESPACHO':
         return {
-          texto: '🚚 DESPACHO',
-          variant: 'primary',
-          disabled: loading,
+          texto: pendientes.length > 0 ? '🚚 DESPACHO (BLOQUEADO)' : '🚚 DESPACHO',
+          variant: pendientes.length > 0 ? 'warning' : 'primary',
+          disabled: loading || pendientes.length > 0, // Deshabilitar si hay pendientes
           onClick: manejarDespacho
         };
       case 'FINALIZAR':
@@ -584,6 +738,16 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           {loading ? '⏳ Procesando...' : config.texto}
         </Button>
       </div>
+
+      {/* Indicador de productos pendientes */}
+      {idSheet === 'ID1' && productosPendientes.length > 0 && (
+        <div className="mt-2">
+          <div className="alert alert-warning py-2 px-3" style={{ fontSize: '0.85em' }}>
+            <strong>⚠️ DESPACHO BLOQUEADO</strong><br />
+            {productosPendientes.length} producto(s) con cantidad necesitan verificación completa (checkboxes V y D)
+          </div>
+        </div>
+      )}
 
       {/* Botón de verificar guardado solo en ID1 y después de COMPLETADO */}
       {idSheet === 'ID1' && estado === 'COMPLETADO' && (

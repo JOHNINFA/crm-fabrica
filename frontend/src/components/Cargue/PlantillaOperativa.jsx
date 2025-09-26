@@ -12,21 +12,77 @@ import './PlantillaOperativa.css';
 
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
   const { products } = useProducts();
-  const { actualizarDatosVendedor } = useVendedores();
+  const { actualizarDatosVendedor, actualizarResponsable, cargarResponsable } = useVendedores();
 
-  // 🚀 SOLUCIÓN ANTI-REBOTE: Inicializar directamente desde localStorage usando utilidad
+  // 🚀 SOLUCIÓN ANTI-REBOTE MEJORADA: Múltiples fuentes para evitar rebote
   const [nombreResponsable, setNombreResponsable] = useState(() => {
-    const responsableGuardado = responsableStorage.get(idSheet);
+    // Intentar múltiples fuentes en orden de prioridad
+    let responsableInicial = "RESPONSABLE";
 
-    if (responsableGuardado) {
-      console.log(`📦 INICIAL - Responsable desde storage para ${idSheet}: "${responsableGuardado}"`);
-      return responsableGuardado;
+    try {
+      // 1. Intentar responsableStorage
+      const responsableLS = responsableStorage?.get(idSheet);
+      if (responsableLS && responsableLS !== 'RESPONSABLE') {
+        console.log(`📦 INICIAL - Responsable desde responsableStorage para ${idSheet}: "${responsableLS}"`);
+        responsableInicial = responsableLS;
+      } else {
+        // 2. Intentar localStorage directo
+        const responsableDirecto = localStorage.getItem(`responsable_${idSheet}`);
+        if (responsableDirecto && responsableDirecto !== 'RESPONSABLE') {
+          console.log(`📦 INICIAL - Responsable desde localStorage directo para ${idSheet}: "${responsableDirecto}"`);
+          responsableInicial = responsableDirecto;
+        } else {
+          // 3. Intentar clave alternativa
+          const responsableAlt = localStorage.getItem(`cargue_responsable_${idSheet}`);
+          if (responsableAlt && responsableAlt !== 'RESPONSABLE') {
+            console.log(`📦 INICIAL - Responsable desde clave alternativa para ${idSheet}: "${responsableAlt}"`);
+            responsableInicial = responsableAlt;
+          } else {
+            console.log(`🔄 INICIAL - No se encontró responsable guardado para ${idSheet}, usando: "RESPONSABLE"`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error inicializando responsable para ${idSheet}:`, error);
     }
 
-    // Si no hay en localStorage, usar el prop
-    console.log(`🔄 INICIAL - Usando responsable desde prop para ${idSheet}: "${responsable}"`);
-    return responsable || "RESPONSABLE";
+    return responsableInicial;
   });
+
+  // 🔍 DEBUG: Monitorear cambios en nombreResponsable
+  useEffect(() => {
+    console.log(`🎯 CAMBIO EN nombreResponsable para ${idSheet}: "${nombreResponsable}"`);
+  }, [nombreResponsable, idSheet]);
+
+  // 🚀 CARGA INMEDIATA: Intentar cargar desde BD inmediatamente si no hay datos locales
+  useEffect(() => {
+    const cargarInmediatamente = async () => {
+      // Solo ejecutar si el estado actual es "RESPONSABLE" (valor por defecto)
+      if (nombreResponsable === "RESPONSABLE") {
+        console.log(`⚡ CARGA INMEDIATA - Intentando cargar desde BD para ${idSheet}...`);
+
+        try {
+          const responsableDB = await cargarResponsable(idSheet);
+          if (responsableDB && responsableDB !== 'RESPONSABLE') {
+            console.log(`⚡ CARGA INMEDIATA - Encontrado en BD: "${responsableDB}"`);
+            setNombreResponsable(responsableDB);
+
+            // Guardar en múltiples ubicaciones para próximas cargas
+            responsableStorage.set(idSheet, responsableDB);
+            localStorage.setItem(`responsable_${idSheet}`, responsableDB);
+            localStorage.setItem(`cargue_responsable_${idSheet}`, responsableDB);
+          }
+        } catch (error) {
+          console.error(`❌ Error en carga inmediata para ${idSheet}:`, error);
+        }
+      } else {
+        console.log(`✅ CARGA INMEDIATA - Ya tiene valor válido: "${nombreResponsable}"`);
+      }
+    };
+
+    // 🚀 CORREGIDO: Ejecutar inmediatamente sin delay, solo UNA VEZ por idSheet
+    cargarInmediatamente();
+  }, [idSheet]); // ✅ Solo idSheet como dependencia para evitar loop infinito
 
   // 🚀 LISTENER SIMPLIFICADO para cambios en responsables
   useEffect(() => {
@@ -34,6 +90,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       if (e.detail && e.detail.idSheet === idSheet && e.detail.nuevoNombre) {
         console.log(`🔄 RESPONSABLE ACTUALIZADO - ${idSheet}: "${e.detail.nuevoNombre}"`);
         setNombreResponsable(e.detail.nuevoNombre);
+
+        // ✅ Sincronizar con la base de datos
+        actualizarResponsable(idSheet, e.detail.nuevoNombre);
       }
     };
 
@@ -42,9 +101,42 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     return () => {
       window.removeEventListener('responsableActualizado', handleResponsableUpdate);
     };
-  }, [idSheet]);
+  }, [idSheet, actualizarResponsable]);
 
-  // Actualizar desde prop solo si no hay valor en localStorage
+  // ✅ Sincronizar con BD (sin rebote porque ya inicializamos desde localStorage)
+  useEffect(() => {
+    const sincronizarConBD = async () => {
+      try {
+        console.log(`🔄 SINCRONIZANDO CON BD para ${idSheet}...`);
+        console.log(`🔍 Estado actual nombreResponsable: "${nombreResponsable}"`);
+
+        const responsableDB = await cargarResponsable(idSheet);
+        console.log(`🔍 Respuesta de BD: "${responsableDB}"`);
+
+        // Solo actualizar si el valor de la BD es diferente al actual
+        if (responsableDB && responsableDB !== 'RESPONSABLE' && responsableDB !== nombreResponsable) {
+          console.log(`🔄 SINCRONIZANDO - BD tiene "${responsableDB}", actual es "${nombreResponsable}"`);
+          setNombreResponsable(responsableDB);
+          responsableStorage.set(idSheet, responsableDB); // Actualizar localStorage
+        } else if (responsableDB === nombreResponsable) {
+          console.log(`✅ SINCRONIZADO - BD y estado local coinciden: "${responsableDB}"`);
+        } else {
+          console.log(`⚠️ BD no tiene responsable válido para ${idSheet}, manteniendo: "${nombreResponsable}"`);
+        }
+      } catch (error) {
+        console.error(`❌ Error sincronizando con BD para ${idSheet}:`, error);
+        console.log(`📦 MANTENIENDO valor actual: "${nombreResponsable}"`);
+      }
+    };
+
+    // 🚀 CORREGIDO: Ejecutar sincronización solo UNA VEZ por idSheet
+    // Removemos cargarResponsable de las dependencias para evitar loop infinito
+    const timer = setTimeout(sincronizarConBD, 200);
+
+    return () => clearTimeout(timer);
+  }, [idSheet]); // ✅ Solo idSheet como dependencia
+
+  // Actualizar desde prop solo si no hay valor en localStorage ni BD
   useEffect(() => {
     const responsableGuardado = responsableStorage.get(idSheet);
 
@@ -439,6 +531,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         dia,
         idSheet,
         fecha: fechaAUsar,
+        responsable: nombreResponsable,  // ✅ Incluir responsable en los datos guardados
         productos: productosOperativos,
         timestamp: Date.now(),
         sincronizado: false

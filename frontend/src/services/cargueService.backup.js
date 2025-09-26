@@ -1,67 +1,26 @@
-// 🚀 SERVICIO ADAPTADO - MANTIENE LA MISMA INTERFAZ CON NUEVOS ENDPOINTS
-// Migrado automáticamente para usar las nuevas tablas simplificadas
-
+// Servicio para manejar las llamadas a la API de cargues
 const API_URL = 'http://localhost:8000/api';
-
-// Mapeo de IDs a endpoints nuevos
-const ENDPOINT_MAP = {
-  'ID1': 'cargue-id1',
-  'ID2': 'cargue-id2', 
-  'ID3': 'cargue-id3',
-  'ID4': 'cargue-id4',
-  'ID5': 'cargue-id5',
-  'ID6': 'cargue-id6'
-};
-
-// Función para obtener el endpoint correcto según el vendedor_id
-const getEndpointForVendedor = (vendedorId) => {
-  return ENDPOINT_MAP[vendedorId] || 'cargue-id1';
-};
 
 // Función para manejar errores de la API
 const handleApiError = (error) => {
-  console.error('❌ Error en API:', error);
   return { error: 'API_UNAVAILABLE', message: 'API no disponible' };
 };
 
-// Servicios para Cargues Operativos (INTERFAZ MANTENIDA)
+// Servicios para Cargues Operativos
 export const cargueService = {
-  // Obtener todos los cargues (ADAPTADO A NUEVOS ENDPOINTS)
+  // Obtener todos los cargues
   getAll: async (params = {}) => {
     try {
-      // Si hay vendedor específico, usar su endpoint
-      if (params.vendedor_id) {
-        const endpoint = getEndpointForVendedor(params.vendedor_id);
-        const queryParams = new URLSearchParams();
-        
-        // Mapear parámetros al nuevo formato
-        if (params.dia) queryParams.append('dia', params.dia);
-        if (params.fecha) queryParams.append('fecha', params.fecha);
-        if (params.activo !== undefined) queryParams.append('activo', params.activo);
-        
-        const url = `${API_URL}/${endpoint}/?${queryParams.toString()}`;
-        console.log('🔍 Consultando endpoint:', url);
-        
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Error al obtener cargues: ${response.status}`);
-        
-        return await response.json();
-      }
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key]) queryParams.append(key, params[key]);
+      });
       
-      // Si no hay vendedor específico, consultar todos (para compatibilidad)
-      const allResults = [];
-      for (const vendedorId of Object.keys(ENDPOINT_MAP)) {
-        try {
-          const result = await cargueService.getAll({ ...params, vendedor_id: vendedorId });
-          if (result && !result.error) {
-            allResults.push(...(Array.isArray(result) ? result : [result]));
-          }
-        } catch (error) {
-          console.warn(`⚠️ Error consultando ${vendedorId}:`, error);
-        }
-      }
+      const url = `${API_URL}/cargues/?${queryParams.toString()}`;
+      const response = await fetch(url);
       
-      return allResults;
+      if (!response.ok) throw new Error(`Error al obtener cargues: ${response.status}`);
+      return await response.json();
     } catch (error) {
       return handleApiError(error);
     }
@@ -247,86 +206,67 @@ export const cargueService = {
     }
   },
 
-  // ✨ FUNCIÓN PRINCIPAL ADAPTADA A NUEVOS ENDPOINTS ✨
+  // ✨ NUEVA FUNCIÓN PARA EL ENDPOINT MEJORADO CON DATOS ANIDADOS ✨
   guardarCargueCompleto: async (datosParaGuardar) => {
     try {
-      console.log('🚀 GUARDANDO CARGUE COMPLETO (NUEVO SISTEMA):', JSON.stringify(datosParaGuardar, null, 2));
+      console.log('🚀 DATOS ORIGINALES RECIBIDOS:', JSON.stringify(datosParaGuardar, null, 2));
       
-      const vendedorId = datosParaGuardar.vendedor_id;
-      const endpoint = getEndpointForVendedor(vendedorId);
+      // 🔄 TRANSFORMAR DATOS AL FORMATO QUE ESPERA EL BACKEND
+      const vendedorMap = {
+        'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6
+      };
       
-      console.log(`📍 Usando endpoint: ${endpoint} para vendedor: ${vendedorId}`);
+      const datosTransformados = {
+        // Mapear campos del frontend al backend
+        dia: datosParaGuardar.dia_semana,
+        vendedor_id: datosParaGuardar.vendedor_id, // Mantener como string para el backend
+        fecha: datosParaGuardar.fecha,
+        usuario: datosParaGuardar.responsable || 'Sistema Web',
+        estado: 'COMPLETADO', // ✅ Agregar campo estado requerido
+        activo: true,
+        
+        // Transformar productos
+        productos: datosParaGuardar.productos.map(p => ({
+          producto_nombre: p.producto_nombre,
+          cantidad: p.cantidad || 0,
+          dctos: p.dctos || 0,
+          adicional: p.adicional || 0,
+          devoluciones: p.devoluciones || 0,
+          vencidas: p.vencidas || 0,
+          valor: p.valor || 0,
+          vendedor_check: p.vendedor || false,
+          despachador_check: p.despachador || false,
+          lotes_vencidos: p.lotes_vencidos || []
+        })),
+        
+        // Agregar arrays vacíos para pagos y resumen si no existen
+        pagos: datosParaGuardar.pagos || [],
+        resumen: datosParaGuardar.resumen || {}
+      };
       
-      // Para cada producto, crear un registro separado (como tabla plana)
-      const productos = datosParaGuardar.productos || [];
-      const resultados = [];
+      console.log('🔄 DATOS TRANSFORMADOS PARA BACKEND:', JSON.stringify(datosTransformados, null, 2));
       
-      for (const producto of productos) {
-        // Solo procesar productos con datos relevantes
-        if (producto.cantidad > 0 || producto.devoluciones > 0 || producto.vencidas > 0) {
-          const datosTransformados = {
-            dia: datosParaGuardar.dia_semana,
-            fecha: datosParaGuardar.fecha,
-            usuario: datosParaGuardar.responsable || 'Sistema',
-            responsable: datosParaGuardar.responsable || 'RESPONSABLE',  // ✅ Campo responsable agregado
-            activo: true,
-            
-            // Datos del producto
-            producto: producto.producto_nombre || '',
-            cantidad: producto.cantidad || 0,
-            dctos: producto.dctos || 0,
-            adicional: producto.adicional || 0,
-            devoluciones: producto.devoluciones || 0,
-            vencidas: producto.vencidas || 0,
-            valor: producto.valor || 0,
-            v: producto.vendedor || false,
-            d: producto.despachador || false,
-            lotes_vencidos: JSON.stringify(producto.lotes_vencidos || []),
-            
-            // Datos de pagos (si existen)
-            ...(datosParaGuardar.pagos && datosParaGuardar.pagos.length > 0 && {
-              concepto: datosParaGuardar.pagos[0].concepto || '',
-              descuentos: datosParaGuardar.pagos[0].descuentos || 0,
-              nequi: datosParaGuardar.pagos[0].nequi || 0,
-              daviplata: datosParaGuardar.pagos[0].daviplata || 0
-            }),
-            
-            // Datos de resumen (si existe)
-            ...(datosParaGuardar.resumen && {
-              base_caja: datosParaGuardar.resumen.base_caja || 0,
-              total_despacho: datosParaGuardar.resumen.total_despacho || 0,
-              total_pedidos: datosParaGuardar.resumen.total_pedidos || 0,
-              total_dctos: datosParaGuardar.resumen.total_dctos || 0,
-              venta: datosParaGuardar.resumen.venta || 0,
-              total_efectivo: datosParaGuardar.resumen.total_efectivo || 0
-            })
-          };
-          
-          console.log(`💾 Guardando producto: ${producto.producto_nombre}`, datosTransformados);
-          
-          const response = await fetch(`${API_URL}/${endpoint}/`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(datosTransformados),
-          });
+      const response = await fetch(`${API_URL}/cargues/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosTransformados),
+      });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`❌ Error guardando ${producto.producto_nombre}:`, errorText);
-            return { error: true, message: `Error guardando ${producto.producto_nombre}: ${errorText}` };
-          }
-          
-          const resultado = await response.json();
-          resultados.push(resultado);
-          console.log(`✅ Producto guardado: ${producto.producto_nombre}`);
-        }
+      console.log('📡 Respuesta del servidor - Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error del servidor:', errorText);
+        console.error('❌ Datos que causaron el error:', JSON.stringify(datosTransformados, null, 2));
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
       
-      console.log('🎉 Todos los productos guardados exitosamente:', resultados.length);
-      return { success: true, resultados, count: resultados.length };
+      const resultado = await response.json();
+      console.log('✅ Respuesta exitosa del servidor:', resultado);
       
+      return resultado;
     } catch (error) {
       console.error('❌ Error en guardarCargueCompleto:', error);
       return { error: true, message: error.message };

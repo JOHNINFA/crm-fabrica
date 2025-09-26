@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Producto, Registro, Categoria, Lote, MovimientoInventario, RegistroInventario, Vendedor, CargueOperativo, DetalleCargue, ResumenPagos, ResumenTotales
+from .models import Producto, Registro, Categoria, Lote, MovimientoInventario, RegistroInventario, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
@@ -39,34 +39,68 @@ class RegistroInventarioAdmin(admin.ModelAdmin):
     search_fields = ('producto_nombre', 'usuario')
     date_hierarchy = 'fecha_produccion'
 
-@admin.register(Vendedor)
-class VendedorAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre', 'id_vendedor', 'ruta', 'activo', 'fecha_creacion')
-    list_filter = ('id_vendedor', 'activo')
-    search_fields = ('nombre', 'ruta')
-    ordering = ('id_vendedor',)
+# ========================================
+# NUEVOS ADMINS SIMPLIFICADOS
+# ========================================
 
-@admin.register(CargueOperativo)
-class CargueOperativoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'dia', 'vendedor', 'fecha', 'usuario', 'activo')
-    list_filter = ('dia', 'vendedor', 'activo')
-    search_fields = ('vendedor__nombre', 'usuario')
+@admin.register(CargueID1)
+class CargueID1Admin(admin.ModelAdmin):
+    list_display = ('id', 'dia', 'fecha', 'producto', 'cantidad', 'total', 'neto', 'usuario', 'activo')
+    list_filter = ('dia', 'fecha', 'activo', 'v', 'd')
+    search_fields = ('producto', 'usuario')
     date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
 
-@admin.register(DetalleCargue)
-class DetalleCargueAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cargue', 'producto', 'cantidad', 'total', 'neto')
-    list_filter = ('cargue__dia', 'cargue__vendedor')
-    search_fields = ('producto__nombre',)
+@admin.register(CargueID2)
+class CargueID2Admin(admin.ModelAdmin):
+    list_display = ('id', 'dia', 'fecha', 'producto', 'cantidad', 'total', 'neto', 'usuario', 'activo')
+    list_filter = ('dia', 'fecha', 'activo', 'v', 'd')
+    search_fields = ('producto', 'usuario')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
 
-@admin.register(ResumenPagos)
-class ResumenPagosAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cargue', 'concepto', 'descuentos', 'nequi', 'daviplata')
-    list_filter = ('cargue__dia', 'cargue__vendedor')
-    search_fields = ('concepto',)
+@admin.register(CargueID3)
+class CargueID3Admin(admin.ModelAdmin):
+    list_display = ('id', 'dia', 'fecha', 'producto', 'cantidad', 'total', 'neto', 'usuario', 'activo')
+    list_filter = ('dia', 'fecha', 'activo', 'v', 'd')
+    search_fields = ('producto', 'usuario')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
 
-@admin.register(ResumenTotales)
-class ResumenTotalesAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cargue', 'total_despacho', 'base_caja', 'total_efectivo')
-    list_filter = ('cargue__dia', 'cargue__vendedor')
-    search_fields = ('cargue__vendedor__nombre',)
+@admin.register(CargueID4)
+class CargueID4Admin(admin.ModelAdmin):
+    list_display = ('id', 'dia', 'fecha', 'producto', 'cantidad', 'total', 'neto', 'usuario', 'activo')
+    list_filter = ('dia', 'fecha', 'activo', 'v', 'd')
+    search_fields = ('producto', 'usuario')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
+
+@admin.register(CargueID5)
+class CargueID5Admin(admin.ModelAdmin):
+    list_display = ('id', 'dia', 'fecha', 'producto', 'cantidad', 'total', 'neto', 'usuario', 'activo')
+    list_filter = ('dia', 'fecha', 'activo', 'v', 'd')
+    search_fields = ('producto', 'usuario')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
+
+@admin.register(CargueID6)
+class CargueID6Admin(admin.ModelAdmin):
+    list_display = ('id', 'dia', 'fecha', 'producto', 'cantidad', 'total', 'neto', 'usuario', 'activo')
+    list_filter = ('dia', 'fecha', 'activo', 'v', 'd')
+    search_fields = ('producto', 'usuario')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
+
+@admin.register(Produccion)
+class ProduccionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'fecha', 'producto', 'cantidad', 'lote', 'congelado', 'usuario', 'activo')
+    list_filter = ('fecha', 'congelado', 'activo')
+    search_fields = ('producto', 'lote', 'usuario')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha', '-fecha_actualizacion')
+    
+    def get_readonly_fields(self, request, obj=None):
+        # Si está congelado, hacer campos de solo lectura
+        if obj and obj.congelado:
+            return ('fecha', 'producto', 'cantidad', 'lote', 'fecha_congelado', 'usuario_congelado')
+        return ('fecha_congelado', 'usuario_congelado')
