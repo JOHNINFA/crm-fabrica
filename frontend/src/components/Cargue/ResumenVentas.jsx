@@ -13,7 +13,7 @@ const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
 
   // Cargar datos guardados al inicializar
   useEffect(() => {
-    const fechaActual = fechaSeleccionada || new Date().toISOString().split('T')[0];
+    const fechaActual = fechaSeleccionada;
 
     // Cargar BASE CAJA
     const baseCajaGuardada = localStorage.getItem(`base_caja_${dia}_${fechaActual}`);
@@ -35,7 +35,7 @@ const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
 
   // Guardar datos cuando cambien
   useEffect(() => {
-    const fechaActual = fechaSeleccionada || new Date().toISOString().split('T')[0];
+    const fechaActual = fechaSeleccionada;
 
     // Guardar BASE CAJA
     if (baseCaja > 0) {
@@ -44,7 +44,7 @@ const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
   }, [baseCaja, dia, fechaSeleccionada]);
 
   useEffect(() => {
-    const fechaActual = fechaSeleccionada || new Date().toISOString().split('T')[0];
+    const fechaActual = fechaSeleccionada;
 
     // Guardar CONCEPTOS (solo si hay datos)
     const hayDatos = filas.some(fila => fila.concepto || fila.descuentos > 0 || fila.nequi > 0 || fila.daviplata > 0);

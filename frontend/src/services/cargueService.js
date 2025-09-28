@@ -283,15 +283,15 @@ export const cargueService = {
             d: producto.despachador || false,
             lotes_vencidos: JSON.stringify(producto.lotes_vencidos || []),
             
-            // Datos de pagos (si existen)
-            ...(datosParaGuardar.pagos && datosParaGuardar.pagos.length > 0 && {
-              concepto: datosParaGuardar.pagos[0].concepto || '',
-              descuentos: datosParaGuardar.pagos[0].descuentos || 0,
-              nequi: datosParaGuardar.pagos[0].nequi || 0,
-              daviplata: datosParaGuardar.pagos[0].daviplata || 0
+            // ✅ Datos de pagos (estructura corregida)
+            ...(datosParaGuardar.pagos && {
+              concepto: datosParaGuardar.pagos.concepto || '',
+              descuentos: datosParaGuardar.pagos.descuentos || 0,
+              nequi: datosParaGuardar.pagos.nequi || 0,
+              daviplata: datosParaGuardar.pagos.daviplata || 0
             }),
             
-            // Datos de resumen (si existe)
+            // ✅ Datos de resumen (estructura corregida)
             ...(datosParaGuardar.resumen && {
               base_caja: datosParaGuardar.resumen.base_caja || 0,
               total_despacho: datosParaGuardar.resumen.total_despacho || 0,
@@ -299,6 +299,19 @@ export const cargueService = {
               total_dctos: datosParaGuardar.resumen.total_dctos || 0,
               venta: datosParaGuardar.resumen.venta || 0,
               total_efectivo: datosParaGuardar.resumen.total_efectivo || 0
+            }),
+
+            // ✅ Datos de cumplimiento (nuevo)
+            ...(datosParaGuardar.cumplimiento && {
+              licencia_transporte: datosParaGuardar.cumplimiento.licencia_transporte || null,
+              soat: datosParaGuardar.cumplimiento.soat || null,
+              uniforme: datosParaGuardar.cumplimiento.uniforme || null,
+              no_locion: datosParaGuardar.cumplimiento.no_locion || null,
+              no_accesorios: datosParaGuardar.cumplimiento.no_accesorios || null,
+              capacitacion_carnet: datosParaGuardar.cumplimiento.capacitacion_carnet || null,
+              higiene: datosParaGuardar.cumplimiento.higiene || null,
+              estibas: datosParaGuardar.cumplimiento.estibas || null,
+              desinfeccion: datosParaGuardar.cumplimiento.desinfeccion || null
             })
           };
           

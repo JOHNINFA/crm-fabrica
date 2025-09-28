@@ -244,7 +244,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
 
   // Verificar si la producción está congelada
   const verificarProduccionCongelada = () => {
-    const fechaActual = fechaSeleccionada || new Date().toISOString().split('T')[0];
+    const fechaActual = fechaSeleccionada;
     const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
     return estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR' || estadoBoton === 'COMPLETADO';
   };

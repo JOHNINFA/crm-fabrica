@@ -24,7 +24,7 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
 
         // Actualizar localStorage
         try {
-            const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+            const fechaAUsar = fechaSeleccionada;
             const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
 
             const datosActuales = localStorage.getItem(key);

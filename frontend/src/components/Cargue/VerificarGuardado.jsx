@@ -14,7 +14,7 @@ const VerificarGuardado = ({ dia, fechaSeleccionada }) => {
         try {
             console.log('🔍 VERIFICANDO DATOS GUARDADOS...');
 
-            const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+            const fechaAUsar = fechaSeleccionada;
             const { cargueService } = await import('../../services/cargueService');
 
             // Consultar cargues guardados para hoy

@@ -268,11 +268,61 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
             console.log(`📝 RESPONSABLE FINAL para ${id}: "${responsableReal}"`);
 
+            // 🚀 RECOPILAR DATOS DE PAGOS desde localStorage
+            const datosConceptos = localStorage.getItem(`conceptos_pagos_${dia}_${fechaAUsar}`);
+            let pagosData = {};
+            if (datosConceptos) {
+              try {
+                const conceptos = JSON.parse(datosConceptos);
+                // Sumar todos los conceptos para obtener totales
+                pagosData = {
+                  concepto: conceptos.filter(c => c.concepto).map(c => c.concepto).join(', ') || '',
+                  descuentos: conceptos.reduce((sum, c) => sum + (parseFloat(c.descuentos) || 0), 0),
+                  nequi: conceptos.reduce((sum, c) => sum + (parseFloat(c.nequi) || 0), 0),
+                  daviplata: conceptos.reduce((sum, c) => sum + (parseFloat(c.daviplata) || 0), 0)
+                };
+                console.log(`💰 Datos de pagos para ${id}:`, pagosData);
+              } catch (error) {
+                console.error(`❌ Error parsing conceptos para ${id}:`, error);
+              }
+            }
+
+            // 🚀 RECOPILAR DATOS DE BASE CAJA
+            const datosBaseCaja = localStorage.getItem(`base_caja_${dia}_${fechaAUsar}`);
+            const baseCaja = datosBaseCaja ? parseFloat(datosBaseCaja) || 0 : 0;
+
+            // 🚀 CALCULAR TOTALES DE RESUMEN
+            const totalProductos = productosParaGuardar.reduce((sum, p) => sum + ((p.total || 0) * (p.valor || 0)), 0);
+            const totalDctos = productosParaGuardar.reduce((sum, p) => sum + ((p.dctos || 0) * (p.valor || 0)), 0);
+            const resumenData = {
+              base_caja: baseCaja,
+              total_despacho: totalProductos,
+              total_pedidos: 0, // Se puede calcular si es necesario
+              total_dctos: totalDctos,
+              venta: totalProductos - totalDctos,
+              total_efectivo: totalProductos - (pagosData.nequi || 0) - (pagosData.daviplata || 0)
+            };
+
+            // 🚀 RECOPILAR DATOS DE CUMPLIMIENTO desde localStorage
+            const datosCumplimiento = localStorage.getItem(`cumplimiento_${dia}_${id}_${fechaAUsar}`);
+            let cumplimientoData = {};
+            if (datosCumplimiento) {
+              try {
+                cumplimientoData = JSON.parse(datosCumplimiento);
+                console.log(`✅ Datos de cumplimiento para ${id}:`, cumplimientoData);
+              } catch (error) {
+                console.error(`❌ Error parsing cumplimiento para ${id}:`, error);
+              }
+            }
+
             const datosParaGuardar = {
               dia_semana: dia,
               vendedor_id: id,
               fecha: fechaAUsar,
               responsable: responsableReal, // ✅ Usar responsable real
+              pagos: pagosData, // ✅ Incluir datos de pagos
+              resumen: resumenData, // ✅ Incluir datos de resumen
+              cumplimiento: cumplimientoData, // ✅ Incluir datos de cumplimiento
               productos: productosParaGuardar.map(p => ({
                 producto_nombre: p.producto,
                 cantidad: p.cantidad || 0,
@@ -292,6 +342,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             console.log(`📦 Productos con datos para ${id}: ${productosParaGuardar.length}`);
             console.log(`📅 Fecha que se enviará: ${datosParaGuardar.fecha}`);
             console.log(`👤 Responsable que se enviará: ${datosParaGuardar.responsable}`);
+            console.log(`💰 Pagos que se enviarán:`, datosParaGuardar.pagos);
+            console.log(`📊 Resumen que se enviará:`, datosParaGuardar.resumen);
+            console.log(`✅ Cumplimiento que se enviará:`, datosParaGuardar.cumplimiento);
 
             console.log(`🚀 ENVIANDO A API - ${id}:`, JSON.stringify(datosParaGuardar, null, 2));
             const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
@@ -371,7 +424,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         `produccion_congelada_${dia}_${fechaAUsar}`,
         `base_caja_${dia}_${fechaAUsar}`,
         `conceptos_pagos_${dia}_${fechaAUsar}`,
-        `produccion_${dia}_${fechaAUsar}`
+        `produccion_${dia}_${fechaAUsar}`,
+        // ✅ Limpiar datos de cumplimiento para todos los IDs
+        `cumplimiento_${dia}_ID1_${fechaAUsar}`,
+        `cumplimiento_${dia}_ID2_${fechaAUsar}`,
+        `cumplimiento_${dia}_ID3_${fechaAUsar}`,
+        `cumplimiento_${dia}_ID4_${fechaAUsar}`,
+        `cumplimiento_${dia}_ID5_${fechaAUsar}`,
+        `cumplimiento_${dia}_ID6_${fechaAUsar}`
       ];
 
       clavesALimpiar.forEach(clave => {

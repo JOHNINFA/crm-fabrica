@@ -128,7 +128,9 @@ export default function MenuSheets() {
 
   // Actualizar fecha cuando cambie el día
   useEffect(() => {
-    setFechaSeleccionada(calcularFechaPorDia(dia));
+    const nuevaFecha = calcularFechaPorDia(dia);
+    console.log(`📅 FECHA CALCULADA para ${dia}: ${nuevaFecha}`);
+    setFechaSeleccionada(nuevaFecha);
   }, [dia]);
 
   // Estado independiente para cada ID

@@ -158,8 +158,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
   // Cargar datos desde localStorage
   const cargarDatosGuardados = async () => {
     try {
-      // Usar fecha actual si no se proporciona fechaSeleccionada
-      const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+      // ✅ CORREGIDO: Usar siempre fechaSeleccionada sin fallback
+      const fechaAUsar = fechaSeleccionada;
       const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
 
       console.log(`🔍 CARGANDO ${idSheet} - Key: ${key}`);
@@ -525,7 +525,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
       actualizarDatosVendedor(idSheet, productosOperativos);
       console.log(`✅ Datos actualizados para ${idSheet} en contexto.`);
 
-      const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+      const fechaAUsar = fechaSeleccionada;
       const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
       const datos = {
         dia,

@@ -21,7 +21,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
   // Cargar datos desde localStorage primero, luego PostgreSQL
   const cargarDatos = async () => {
     try {
-      const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+      const fechaAUsar = fechaSeleccionada;
       const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
 
       // 1. Intentar cargar desde localStorage primero
@@ -69,61 +69,19 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
     }
   };
 
-  // Guardar datos en PostgreSQL
+  // ✅ CORREGIDO: Solo guardar en localStorage - se enviará junto con el cargue principal
   const guardarDatos = async (nuevosCumplimientos) => {
     if (loading) return;
 
     setLoading(true);
     try {
-      const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+      const fechaAUsar = fechaSeleccionada;
+      const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
 
-      // Siempre intentar obtener el registro existente primero
-      const responseGet = await fetch(`http://localhost:8000/api/control-cumplimiento/?dia=${dia.toUpperCase()}&id_sheet=${idSheet}&fecha=${fechaAUsar}`);
+      // Solo guardar en localStorage - el BotonLimpiar se encargará de enviar todo junto
+      localStorage.setItem(keyLocal, JSON.stringify(nuevosCumplimientos));
+      console.log('✅ Cumplimiento guardado en localStorage para envío posterior');
 
-      if (responseGet.ok) {
-        const existingData = await responseGet.json();
-
-        if (existingData.results && existingData.results.length > 0) {
-          // Actualizar registro existente
-          const registroId = existingData.results[0].id;
-          const response = await fetch(`http://localhost:8000/api/control-cumplimiento/${registroId}/`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(nuevosCumplimientos)
-          });
-
-          if (response.ok) {
-            console.log('✅ Cumplimiento actualizado');
-          } else {
-            console.error('❌ Error actualizando:', await response.text());
-          }
-        } else {
-          // Crear nuevo registro solo si no existe
-          const datosCompletos = {
-            dia: dia.toUpperCase(),
-            id_sheet: idSheet,
-            fecha: fechaAUsar,
-            usuario: 'Sistema',
-            ...nuevosCumplimientos
-          };
-
-          const response = await fetch('http://localhost:8000/api/control-cumplimiento/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(datosCompletos)
-          });
-
-          if (response.ok) {
-            console.log('✅ Cumplimiento creado');
-          } else {
-            console.error('❌ Error creando:', await response.text());
-          }
-        }
-      }
     } catch (error) {
       console.error('❌ Error guardando cumplimiento:', error);
     } finally {
@@ -154,7 +112,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
     setCumplimiento(nuevosCumplimientos);
 
     // Guardar inmediatamente en localStorage
-    const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+    const fechaAUsar = fechaSeleccionada;
     const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
     localStorage.setItem(keyLocal, JSON.stringify(nuevosCumplimientos));
   };

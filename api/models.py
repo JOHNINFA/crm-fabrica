@@ -325,7 +325,7 @@ class CargueID1(models.Model):
     
     # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    fecha = models.DateField(default=timezone.now)
+    fecha = models.DateField()  # ✅ Sin default automático - se pasa desde frontend
     
     # ===== CHECKBOXES =====
     v = models.BooleanField(default=False)  # vendedor
@@ -382,6 +382,12 @@ class CargueID1(models.Model):
         self.neto = self.total * self.valor
         super().save(*args, **kwargs)
     
+    def clean(self):
+        # ✅ Validar que fecha sea requerida
+        if not self.fecha:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("La fecha es requerida y debe ser proporcionada desde el frontend")
+    
     def __str__(self):
         return f"ID1 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
 
@@ -399,7 +405,7 @@ class CargueID2(models.Model):
     
     # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    fecha = models.DateField(default=timezone.now)
+    fecha = models.DateField()  # ✅ Sin default automático - se pasa desde frontend
     
     # ===== CHECKBOXES =====
     v = models.BooleanField(default=False)  # vendedor
@@ -473,7 +479,7 @@ class CargueID3(models.Model):
     
     # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    fecha = models.DateField(default=timezone.now)
+    fecha = models.DateField()  # ✅ Sin default automático - se pasa desde frontend
     
     # ===== CHECKBOXES =====
     v = models.BooleanField(default=False)  # vendedor
@@ -547,7 +553,7 @@ class CargueID4(models.Model):
     
     # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    fecha = models.DateField(default=timezone.now)
+    fecha = models.DateField()  # ✅ Sin default automático - se pasa desde frontend
     
     # ===== CHECKBOXES =====
     v = models.BooleanField(default=False)  # vendedor
@@ -621,7 +627,7 @@ class CargueID5(models.Model):
     
     # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    fecha = models.DateField(default=timezone.now)
+    fecha = models.DateField()  # ✅ Sin default automático - se pasa desde frontend
     
     # ===== CHECKBOXES =====
     v = models.BooleanField(default=False)  # vendedor
@@ -695,7 +701,7 @@ class CargueID6(models.Model):
     
     # ===== IDENTIFICACIÓN =====
     dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
-    fecha = models.DateField(default=timezone.now)
+    fecha = models.DateField()  # ✅ Sin default automático - se pasa desde frontend
     
     # ===== CHECKBOXES =====
     v = models.BooleanField(default=False)  # vendedor
