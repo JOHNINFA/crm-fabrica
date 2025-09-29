@@ -79,9 +79,40 @@ input[type="checkbox"]:focus {
 
 /* Estilos generales */
 .responsable-title {
-    font-weight: bold;
-    color: #4CAF50;
-    font-size: 1.5rem;
+    font-weight: bold !important;
+    color: #FF3333 !important;
+    font-size: 1.2rem !important;
+}
+
+/* Sobrescribir estilos de Bootstrap para el campo responsable */
+.plantilla-operativa .responsable-title {
+    color: #FF3333 !important;
+    font-weight: bold !important;
+    text-decoration: none !important;
+}
+
+.plantilla-operativa .responsable-title:hover {
+    color: #FF3333 !important;
+    text-decoration: none !important;
+}
+
+.plantilla-operativa .responsable-title:focus {
+    color: #FF3333 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Sobrescribir específicamente btn-link de Bootstrap */
+.plantilla-operativa .btn-link.responsable-title {
+    color: #FF3333 !important;
+}
+
+.plantilla-operativa .btn-link.responsable-title:hover {
+    color: #FF3333 !important;
+}
+
+.plantilla-operativa .btn-link.responsable-title:focus {
+    color: #FF3333 !important;
 }
 
 /* Estilos de la tabla de productos */
@@ -195,7 +226,7 @@ input[type="checkbox"]:focus {
 }
 
 /* Alinear tabla de resumen con tabla principal */
-.row > .col-lg-4 {
+.row>.col-lg-4 {
     display: flex;
     align-items: flex-start;
     padding-left: 0.5rem;
@@ -257,7 +288,7 @@ input[type="checkbox"]:focus {
     font-size: 13.6px;
 }
 
-.resumen-totales > div {
+.resumen-totales>div {
     border-radius: 4px;
     border: 1px solid #dee2e6;
     display: flex;
@@ -267,7 +298,7 @@ input[type="checkbox"]:focus {
     font-size: 13.6px;
 }
 
-.resumen-totales > div:first-child .fw-bold {
+.resumen-totales>div:first-child .fw-bold {
     padding-left: 8px;
 }
 
@@ -348,11 +379,11 @@ input[type="checkbox"]:focus {
     .tabla-productos {
         font-size: 0.7rem;
     }
-    
+
     .tabla-productos input[type="number"] {
         width: 50px;
     }
-    
+
     .responsable-title {
         font-size: 1.2rem;
     }

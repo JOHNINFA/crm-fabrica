@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Form } from 'react-bootstrap';
 
-const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
+const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
+
+  // 🔍 DEBUG: Monitorear cambios en el prop datos
+  useEffect(() => {
+    console.log(`🔍 RESUMEN - Prop 'datos' cambió:`, datos);
+  }, [datos]);
   const [filas, setFilas] = useState(Array(10).fill().map(() => ({
     concepto: '',
     descuentos: 0,
@@ -11,47 +16,212 @@ const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
 
   const [baseCaja, setBaseCaja] = useState(0);
 
-  // Cargar datos guardados al inicializar
-  useEffect(() => {
-    const fechaActual = fechaSeleccionada;
+  // 🚀 MEJORADO: Cargar datos según el estado (COMPLETADO = BD, otros = localStorage)
+  const cargarDatos = async () => {
+    try {
+      const fechaActual = fechaSeleccionada;
 
-    // Cargar BASE CAJA
-    const baseCajaGuardada = localStorage.getItem(`base_caja_${dia}_${fechaActual}`);
-    if (baseCajaGuardada) {
-      setBaseCaja(parseInt(baseCajaGuardada) || 0);
-    }
+      // 🚀 CORREGIDO: Verificar estado COMPLETADO desde localStorage
+      const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`) || 'ALISTAMIENTO';
+      const estaCompletado = estadoCompletado || estadoBoton === 'COMPLETADO';
 
-    // Cargar CONCEPTOS
-    const conceptosGuardados = localStorage.getItem(`conceptos_pagos_${dia}_${fechaActual}`);
-    if (conceptosGuardados) {
-      try {
-        const conceptos = JSON.parse(conceptosGuardados);
-        setFilas(conceptos);
-      } catch (error) {
-        console.error('Error cargando conceptos:', error);
+      console.log(`🔍 RESUMEN - ${idSheet} Estado:`, {
+        estadoCompletado,
+        estadoBoton,
+        estaCompletado,
+        dia,
+        fechaActual
+      });
+
+      // 🚀 NUEVO: Si está COMPLETADO, cargar SIEMPRE desde BD
+      if (estaCompletado) {
+        console.log(`🔍 RESUMEN - ${idSheet} Día COMPLETADO, cargando desde BD: ${dia} - ${fechaActual}`);
+
+        // 🚀 CORREGIDO: Usar el mismo endpoint que los productos (ya incluye conceptos y base_caja)
+        const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+          idSheet === 'ID2' ? 'cargue-id2' :
+            idSheet === 'ID3' ? 'cargue-id3' :
+              idSheet === 'ID4' ? 'cargue-id4' :
+                idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+        const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+        console.log(`🔍 RESUMEN - ${idSheet} cargando desde: ${url}`);
+
+        const response = await fetch(url);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ RESUMEN - ${idSheet} datos completos desde BD:`, data.length, 'registros');
+
+          if (Array.isArray(data) && data.length > 0) {
+            // Procesar conceptos de la BD (agrupar por concepto)
+            const conceptosMap = new Map();
+            let baseCajaDB = 0;
+
+            data.forEach((item, index) => {
+              // 🔍 DEBUG: Mostrar cada item para ver qué datos llegan
+              if (index < 3) { // Solo mostrar los primeros 3 para no saturar
+                console.log(`🔍 RESUMEN - Item ${index} para ${idSheet}:`, {
+                  concepto: item.concepto,
+                  descuentos: item.descuentos,
+                  nequi: item.nequi,
+                  daviplata: item.daviplata,
+                  base_caja: item.base_caja
+                });
+              }
+
+              // 🚀 NUEVO: Solo procesar conceptos que tengan datos válidos
+              if (item.concepto && item.concepto.trim() &&
+                (parseFloat(item.descuentos) > 0 || parseFloat(item.nequi) > 0 || parseFloat(item.daviplata) > 0)) {
+
+                const key = item.concepto.trim();
+                if (!conceptosMap.has(key)) {
+                  conceptosMap.set(key, {
+                    concepto: key,
+                    descuentos: 0,
+                    nequi: 0,
+                    daviplata: 0
+                  });
+                }
+                const concepto = conceptosMap.get(key);
+                concepto.descuentos += parseFloat(item.descuentos) || 0;
+                concepto.nequi += parseFloat(item.nequi) || 0;
+                concepto.daviplata += parseFloat(item.daviplata) || 0;
+
+                console.log(`🔍 RESUMEN - Procesando concepto "${key}" para ${idSheet}:`, {
+                  descuentos: item.descuentos,
+                  nequi: item.nequi,
+                  daviplata: item.daviplata,
+                  acumulado: concepto
+                });
+              }
+
+              // Procesar base caja (tomar el primer valor no cero)
+              if (item.base_caja && parseFloat(item.base_caja) > 0 && baseCajaDB === 0) {
+                baseCajaDB = parseFloat(item.base_caja);
+                console.log(`🔍 RESUMEN - Base caja encontrada:`, item.base_caja, '-> parsed:', baseCajaDB);
+              }
+            });
+
+            // Convertir conceptos a array de 10 elementos
+            const conceptosArray = Array(10).fill().map(() => ({
+              concepto: '',
+              descuentos: 0,
+              nequi: 0,
+              daviplata: 0
+            }));
+
+            let index = 0;
+            for (const concepto of conceptosMap.values()) {
+              if (index < 10) {
+                conceptosArray[index] = concepto;
+                index++;
+              }
+            }
+
+            console.log('✅ RESUMEN - Conceptos procesados:', conceptosArray);
+            console.log('✅ RESUMEN - Base caja:', baseCajaDB);
+
+            setFilas(conceptosArray);
+            setBaseCaja(baseCajaDB);
+          }
+        }
+
+        return;
       }
-    }
-  }, [dia, fechaSeleccionada]);
 
-  // Guardar datos cuando cambien
+      // 🚀 CORREGIDO: Lógica para días no completados - ESPECÍFICA POR ID
+      console.log(`📂 RESUMEN - ${idSheet} Día no completado, cargando desde localStorage...`);
+
+      // 🚀 CORREGIDO: Cargar BASE CAJA específica por ID
+      const baseCajaKey = `base_caja_${dia}_${idSheet}_${fechaActual}`;
+      const baseCajaGuardada = localStorage.getItem(baseCajaKey);
+      console.log(`📂 RESUMEN - ${idSheet} Buscando base caja en: ${baseCajaKey} = ${baseCajaGuardada}`);
+
+      if (baseCajaGuardada) {
+        const baseCajaValor = parseInt(baseCajaGuardada) || 0;
+        console.log(`📂 RESUMEN - ${idSheet} Base caja cargada: ${baseCajaValor}`);
+        setBaseCaja(baseCajaValor);
+      }
+
+      // 🚀 CORREGIDO: Cargar CONCEPTOS específicos por ID
+      const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fechaActual}`;
+      const conceptosGuardados = localStorage.getItem(conceptosKey);
+      console.log(`📂 RESUMEN - ${idSheet} Buscando conceptos en: ${conceptosKey}`);
+
+      if (conceptosGuardados) {
+        try {
+          const conceptos = JSON.parse(conceptosGuardados);
+          console.log(`📂 RESUMEN - ${idSheet} Conceptos cargados:`, conceptos);
+          setFilas(conceptos);
+        } catch (error) {
+          console.error(`❌ RESUMEN - ${idSheet} Error cargando conceptos:`, error);
+        }
+      } else {
+        console.log(`📂 RESUMEN - ${idSheet} No hay conceptos guardados, usando array vacío`);
+        // Inicializar con array vacío si no hay datos
+        setFilas(Array(10).fill().map(() => ({
+          concepto: '',
+          descuentos: 0,
+          nequi: 0,
+          daviplata: 0
+        })));
+      }
+    } catch (error) {
+      console.error('❌ Error cargando datos de resumen:', error);
+    }
+  };
+
+  // 🚀 NUEVO: Limpiar datos al cambiar de ID para evitar mostrar datos de otro vendedor
+  useEffect(() => {
+    console.log(`🔄 RESUMEN - Cambio de ID detectado: ${idSheet}`);
+
+    // Limpiar datos inmediatamente al cambiar de ID
+    setFilas(Array(10).fill().map(() => ({
+      concepto: '',
+      descuentos: 0,
+      nequi: 0,
+      daviplata: 0
+    })));
+    setBaseCaja(0);
+
+    // Luego cargar los datos específicos del nuevo ID
+    if (idSheet) {
+      setTimeout(() => cargarDatos(), 100); // Pequeño delay para evitar conflictos
+    }
+  }, [idSheet]); // Solo cuando cambie el ID
+
+  // Cargar datos al inicializar o cuando cambie el estado/fecha
+  useEffect(() => {
+    if (idSheet && (dia || fechaSeleccionada || estadoCompletado !== undefined)) {
+      console.log(`🔄 RESUMEN - Recarga por cambio de parámetros: ${idSheet}`);
+      cargarDatos();
+    }
+  }, [dia, fechaSeleccionada, estadoCompletado]); // Sin idSheet para evitar doble carga
+
+  // 🚀 CORREGIDO: Guardar datos cuando cambien - ESPECÍFICO POR ID
   useEffect(() => {
     const fechaActual = fechaSeleccionada;
 
-    // Guardar BASE CAJA
-    if (baseCaja > 0) {
-      localStorage.setItem(`base_caja_${dia}_${fechaActual}`, baseCaja.toString());
+    // 🚀 CORREGIDO: Guardar BASE CAJA específica por ID
+    if (baseCaja > 0 && idSheet) {
+      const baseCajaKey = `base_caja_${dia}_${idSheet}_${fechaActual}`;
+      localStorage.setItem(baseCajaKey, baseCaja.toString());
+      console.log(`💾 RESUMEN - ${idSheet} Base caja guardada: ${baseCajaKey} = ${baseCaja}`);
     }
-  }, [baseCaja, dia, fechaSeleccionada]);
+  }, [baseCaja, dia, idSheet, fechaSeleccionada]);
 
   useEffect(() => {
     const fechaActual = fechaSeleccionada;
 
-    // Guardar CONCEPTOS (solo si hay datos)
+    // 🚀 CORREGIDO: Guardar CONCEPTOS específicos por ID
     const hayDatos = filas.some(fila => fila.concepto || fila.descuentos > 0 || fila.nequi > 0 || fila.daviplata > 0);
-    if (hayDatos) {
-      localStorage.setItem(`conceptos_pagos_${dia}_${fechaActual}`, JSON.stringify(filas));
+    if (hayDatos && idSheet) {
+      const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fechaActual}`;
+      localStorage.setItem(conceptosKey, JSON.stringify(filas));
+      console.log(`💾 RESUMEN - ${idSheet} Conceptos guardados: ${conceptosKey}`, filas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0));
     }
-  }, [filas, dia, fechaSeleccionada]);
+  }, [filas, dia, idSheet, fechaSeleccionada]);
 
   const formatCurrency = (amount) => {
     const num = Number(amount) || 0;
@@ -88,6 +258,8 @@ const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
 
   return (
     <div className="resumen-container">
+
+
 
       {/* Tabla de Pagos */}
       <div style={{ paddingRight: '15px' }}>
@@ -178,12 +350,12 @@ const ResumenVentas = ({ datos, productos = [], dia, fechaSeleccionada }) => {
 
         <div className="bg-lightgreen p-2 mb-2">
           <strong>VENTA:</strong>
-          <div className="text-end">{formatCurrency(datos.venta)}</div>
+          <div className="text-end">{formatCurrency(calcularTotalDespacho() - calcularTotal('descuentos'))}</div>
         </div>
 
         <div className="bg-light p-2">
           <strong>TOTAL EFECTIVO:</strong>
-          <div className="text-end">{formatCurrency(datos.totalEfectivo)}</div>
+          <div className="text-end">{formatCurrency((calcularTotalDespacho() - calcularTotal('descuentos')) - calcularTotal('nequi') - calcularTotal('daviplata'))}</div>
         </div>
       </div>
     </div>

@@ -12,7 +12,63 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Obtener datos frescos del contexto de vendedores
   const { datosVendedores } = useVendedores();
 
-  // Verificar productos listos y detectar productos pendientes
+  // 🚀 NUEVA FUNCIÓN: Verificar productos de un ID específico
+  const verificarProductosDelID = async (idVendedor) => {
+    try {
+      const { simpleStorage } = await import('../../services/simpleStorage');
+
+      if (!fechaSeleccionada) {
+        console.warn(`⚠️ fechaSeleccionada no definida para ${idVendedor}`);
+        return { listos: [], pendientes: [] };
+      }
+
+      const fechaAUsar = fechaSeleccionada;
+      const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
+      const datos = await simpleStorage.getItem(key);
+
+      const productosListos = [];
+      const productosPendientes = [];
+
+      if (datos && datos.productos) {
+        for (const producto of datos.productos) {
+          // Debug: mostrar estado de checks para productos con total > 0
+          if (producto.total > 0) {
+            console.log(`🔍 ${idVendedor} - ${producto.producto}: V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
+          }
+
+          // Productos con cantidad pero sin checkboxes completos
+          if (producto.total > 0 && (!producto.vendedor || !producto.despachador)) {
+            productosPendientes.push({
+              id: producto.id,
+              nombre: producto.producto,
+              totalCantidad: producto.total,
+              vendedorId: idVendedor,
+              vendedor: producto.vendedor,
+              despachador: producto.despachador
+            });
+            console.log(`⚠️ ${idVendedor} PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - V:${producto.vendedor} D:${producto.despachador}`);
+          }
+
+          // Productos completamente listos (V=true, D=true, TOTAL>0)
+          if (producto.vendedor && producto.despachador && producto.total > 0) {
+            productosListos.push({
+              id: producto.id,
+              nombre: producto.producto,
+              totalCantidad: producto.total
+            });
+            console.log(`✅ ${idVendedor} PRODUCTO LISTO: ${producto.producto} - Total: ${producto.total}`);
+          }
+        }
+      }
+
+      return { listos: productosListos, pendientes: productosPendientes };
+    } catch (error) {
+      console.error(`Error verificando productos de ${idVendedor}:`, error);
+      return { listos: [], pendientes: [] };
+    }
+  };
+
+  // Verificar productos listos y detectar productos pendientes (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const verificarProductosListos = async () => {
     try {
       const { simpleStorage } = await import('../../services/simpleStorage');
@@ -83,14 +139,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // Recuperar estado guardado al cargar
+  // 🚀 SOLO ID1 maneja el estado global para todos los IDs
   useEffect(() => {
     if (idSheet !== 'ID1') return;
 
     const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
     if (estadoGuardado) {
       setEstado(estadoGuardado);
-      console.log(`🔄 Estado recuperado: ${estadoGuardado}`);
+      console.log(`🔄 Estado global recuperado: ${estadoGuardado}`);
     }
 
     // También verificar si hay datos congelados
@@ -100,7 +156,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   }, [dia, fechaSeleccionada, idSheet]);
 
-  // Verificar productos y avanzar automáticamente
+  // 🚀 SOLO ID1 verifica productos de TODOS los IDs
   useEffect(() => {
     if (idSheet !== 'ID1') return;
 
@@ -130,11 +186,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     };
   }, [dia, fechaSeleccionada, idSheet, estado]);
 
-  // Solo mostrar botón en ID1
+  // 🚀 SOLO ID1 TIENE EL BOTÓN MAESTRO que controla todos los IDs
   if (idSheet !== 'ID1') {
     return (
       <div className="mt-3">
-        <small className="text-muted">Marque V y D para habilitar</small>
+        <small className="text-muted">Controlado desde ID1</small>
       </div>
     );
   }
@@ -177,8 +233,203 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // Guardar todos los datos en la base de datos usando el contexto como fuente de verdad
+  // 🚀 NUEVA FUNCIÓN: Guardar datos de un ID específico
+  const guardarDatosDelID = async (fechaAUsar, idVendedor) => {
+    try {
+      console.log(`💾 ${idVendedor} - GUARDANDO DATOS ESPECÍFICOS...`);
+
+      const { simpleStorage } = await import('../../services/simpleStorage');
+      const { cargueService } = await import('../../services/cargueService');
+
+      // Obtener datos desde localStorage del ID específico
+      const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
+      const datos = await simpleStorage.getItem(key);
+
+      if (!datos || !datos.productos) {
+        console.log(`⚠️ ${idVendedor} - No hay datos para guardar`);
+        return false;
+      }
+
+      // Filtrar solo productos que tienen datos relevantes
+      const productosParaGuardar = datos.productos.filter(p =>
+        p.cantidad > 0 || p.dctos > 0 || p.adicional > 0 ||
+        p.devoluciones > 0 || p.vencidas > 0 || p.vendedor || p.despachador
+      );
+
+      if (productosParaGuardar.length === 0) {
+        console.log(`⚠️ ${idVendedor} - No hay productos con datos para guardar`);
+        return false;
+      }
+
+      // Obtener responsable real
+      const { responsableStorage } = await import('../../utils/responsableStorage');
+      let responsableReal = 'RESPONSABLE';
+
+      const responsableRS = responsableStorage.get(idVendedor);
+      const responsableLS = localStorage.getItem(`responsable_${idVendedor}`);
+      const responsableFromDatos = datos.responsable;
+
+      if (responsableFromDatos && responsableFromDatos !== 'RESPONSABLE' && responsableFromDatos.trim() !== '') {
+        responsableReal = responsableFromDatos.trim();
+      } else if (responsableRS && responsableRS !== 'RESPONSABLE' && responsableRS.trim() !== '') {
+        responsableReal = responsableRS.trim();
+      } else if (responsableLS && responsableLS !== 'RESPONSABLE' && responsableLS.trim() !== '') {
+        responsableReal = responsableLS.trim();
+      }
+
+      console.log(`📝 ${idVendedor} - RESPONSABLE FINAL: "${responsableReal}"`);
+
+      // 🚀 CORREGIDO: Recopilar datos de pagos específicos del ID
+      const conceptosKey = `conceptos_pagos_${dia}_${idVendedor}_${fechaAUsar}`;
+      const datosConceptos = localStorage.getItem(conceptosKey);
+      let pagosData = {};
+
+      console.log(`💰 ${idVendedor} - Buscando conceptos en: ${conceptosKey}`);
+
+      if (datosConceptos) {
+        try {
+          const conceptos = JSON.parse(datosConceptos);
+          console.log(`💰 ${idVendedor} - Conceptos encontrados:`, conceptos);
+
+          pagosData = {
+            concepto: conceptos.filter(c => c.concepto).map(c => c.concepto).join(', ') || '',
+            descuentos: conceptos.reduce((sum, c) => sum + (parseFloat(c.descuentos) || 0), 0),
+            nequi: conceptos.reduce((sum, c) => sum + (parseFloat(c.nequi) || 0), 0),
+            daviplata: conceptos.reduce((sum, c) => sum + (parseFloat(c.daviplata) || 0), 0)
+          };
+
+          console.log(`💰 ${idVendedor} - Datos de pagos procesados:`, pagosData);
+        } catch (error) {
+          console.error(`❌ Error parsing conceptos para ${idVendedor}:`, error);
+        }
+      } else {
+        console.log(`⚠️ ${idVendedor} - No se encontraron datos de conceptos en: ${conceptosKey}`);
+      }
+
+      // Calcular totales de resumen
+      const totalProductos = productosParaGuardar.reduce((sum, p) => sum + ((p.total || 0) * (p.valor || 0)), 0);
+      const totalDctos = productosParaGuardar.reduce((sum, p) => sum + ((p.dctos || 0) * (p.valor || 0)), 0);
+      // 🚀 CORREGIDO: Buscar BASE CAJA específica del ID
+      const baseCajaKey = `base_caja_${dia}_${idVendedor}_${fechaAUsar}`;
+      const baseCaja = parseFloat(localStorage.getItem(baseCajaKey)) || 0;
+
+      console.log(`💰 ${idVendedor} - Buscando base caja en: ${baseCajaKey} = ${baseCaja}`);
+
+      // 🚀 CORREGIDO: Calcular VENTA y TOTAL EFECTIVO correctamente
+      const ventaCalculada = totalProductos - totalDctos - (pagosData.descuentos || 0);
+      const totalEfectivoCalculado = ventaCalculada - (pagosData.nequi || 0) - (pagosData.daviplata || 0);
+
+      const resumenData = {
+        base_caja: baseCaja,
+        total_despacho: totalProductos,
+        total_pedidos: 0,
+        total_dctos: totalDctos + (pagosData.descuentos || 0), // Incluir descuentos de pagos
+        venta: ventaCalculada,
+        total_efectivo: totalEfectivoCalculado
+      };
+
+      console.log(`💰 ${idVendedor} - Cálculos de resumen:`, {
+        totalProductos,
+        totalDctos,
+        descuentosPagos: pagosData.descuentos || 0,
+        ventaCalculada,
+        nequi: pagosData.nequi || 0,
+        daviplata: pagosData.daviplata || 0,
+        totalEfectivoCalculado
+      });
+
+      // Recopilar datos de cumplimiento
+      const datosCumplimiento = localStorage.getItem(`cumplimiento_${dia}_${idVendedor}_${fechaAUsar}`);
+      let cumplimientoData = {};
+      if (datosCumplimiento) {
+        try {
+          cumplimientoData = JSON.parse(datosCumplimiento);
+        } catch (error) {
+          console.error(`❌ Error parsing cumplimiento para ${idVendedor}:`, error);
+        }
+      }
+
+      const datosParaGuardar = {
+        dia_semana: dia,
+        vendedor_id: idVendedor,
+        fecha: fechaAUsar,
+        responsable: responsableReal,
+        pagos: pagosData,
+        resumen: resumenData,
+        cumplimiento: cumplimientoData,
+        productos: productosParaGuardar.map(p => ({
+          producto_nombre: p.producto,
+          cantidad: p.cantidad || 0,
+          dctos: p.dctos || 0,
+          adicional: p.adicional || 0,
+          devoluciones: p.devoluciones || 0,
+          vencidas: p.vencidas || 0,
+          lotes_vencidos: p.lotesVencidos || [],
+          valor: p.valor || 0,
+          vendedor: p.vendedor || false,
+          despachador: p.despachador || false
+        }))
+      };
+
+      console.log(`🚀 ${idVendedor} - Enviando datos a API:`, datosParaGuardar);
+      const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
+
+      if (resultado.error) {
+        console.error(`❌ Error enviando datos de ${idVendedor}:`, resultado.message);
+        throw new Error(`Error guardando datos de ${idVendedor}: ${resultado.message}`);
+      }
+
+      console.log(`✅ ${idVendedor} - Datos enviados a la API exitosamente`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error guardando datos de ${idVendedor}:`, error);
+      throw error;
+    }
+  };
+
+  // Guardar todos los datos en la base de datos usando el contexto como fuente de verdad (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const guardarDatosCompletos = async (fechaAUsar, idsVendedores) => {
+    try {
+      console.log('💾 GUARDANDO DATOS COMPLETOS DESDE EL CONTEXTO...');
+      console.log('🔍 DEBUG - datosVendedores completo:', datosVendedores);
+      console.log('🔍 DEBUG - Keys disponibles:', Object.keys(datosVendedores));
+      console.log('🔍 DEBUG - IDs a procesar:', idsVendedores);
+
+      // Debug detallado de cada vendedor
+      idsVendedores.forEach(id => {
+        const datos = datosVendedores[id];
+        console.log(`🔍 DEBUG - ${id}:`, datos);
+        if (datos && datos.productos) {
+          console.log(`🔍 DEBUG - ${id} productos:`, datos.productos.length);
+          console.log(`🔍 DEBUG - ${id} productos con datos:`, datos.productos.filter(p => p.cantidad > 0 || p.vendedor || p.despachador));
+        }
+      });
+
+      const { cargueService } = await import('../../services/cargueService');
+
+      // 1. Guardar datos de cada ID usando las funciones específicas
+      for (const id of idsVendedores) {
+        console.log(`💾 Guardando datos de ${id}...`);
+
+        try {
+          await guardarDatosDelID(fechaAUsar, id);
+          console.log(`✅ ${id} - Datos guardados exitosamente`);
+        } catch (error) {
+          console.error(`❌ Error guardando ${id}:`, error);
+          throw new Error(`Error guardando datos de ${id}: ${error.message}`);
+        }
+      }
+
+      console.log('✅ TODOS LOS IDs GUARDADOS EXITOSAMENTE');
+      return true;
+    } catch (error) {
+      console.error('❌ Error guardando datos completos:', error);
+      throw error;
+    }
+  };
+
+  // Función original mantenida para referencia
+  const guardarDatosCompletosOriginal = async (fechaAUsar, idsVendedores) => {
     try {
       console.log('💾 GUARDANDO DATOS COMPLETOS DESDE EL CONTEXTO...');
       console.log('🔍 DEBUG - datosVendedores completo:', datosVendedores);
@@ -214,7 +465,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
           // Solo guardar si hay productos con datos
           if (productosParaGuardar.length > 0) {
-            // 🚀 CORREGIDO: Obtener responsable real desde localStorage
+            // 🚀 MEJORADO: Obtener responsable real con verificación exhaustiva
             const { responsableStorage } = await import('../../utils/responsableStorage');
 
             // 🔍 DEBUG DETALLADO: Verificar múltiples fuentes de responsable
@@ -247,20 +498,38 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               console.log(`   - responsables_cargue: No existe`);
             }
 
-            // Determinar el responsable real usando prioridad
+            // Método 5: Desde los datos del cargue actual
+            const keyDatosCargue = `cargue_${dia}_${id}_${fechaAUsar}`;
+            const datosCargue = localStorage.getItem(keyDatosCargue);
+            let responsableFromDatos = null;
+            if (datosCargue) {
+              try {
+                const parsed = JSON.parse(datosCargue);
+                responsableFromDatos = parsed.responsable;
+                console.log(`   - datos_cargue["${id}"].responsable: "${responsableFromDatos}"`);
+              } catch (error) {
+                console.log(`   - datos_cargue: Error parsing`);
+              }
+            }
+
+            // Determinar el responsable real usando prioridad mejorada
             let responsableReal = 'RESPONSABLE';
 
-            if (responsableRS && responsableRS !== 'RESPONSABLE') {
-              responsableReal = responsableRS;
+            // Prioridad: datos del cargue > responsableStorage > localStorage directo > alternativo > cargue general
+            if (responsableFromDatos && responsableFromDatos !== 'RESPONSABLE' && responsableFromDatos.trim() !== '') {
+              responsableReal = responsableFromDatos.trim();
+              console.log(`   ✅ Usando datos_cargue: "${responsableReal}"`);
+            } else if (responsableRS && responsableRS !== 'RESPONSABLE' && responsableRS.trim() !== '') {
+              responsableReal = responsableRS.trim();
               console.log(`   ✅ Usando responsableStorage: "${responsableReal}"`);
-            } else if (responsableLS && responsableLS !== 'RESPONSABLE') {
-              responsableReal = responsableLS;
+            } else if (responsableLS && responsableLS !== 'RESPONSABLE' && responsableLS.trim() !== '') {
+              responsableReal = responsableLS.trim();
               console.log(`   ✅ Usando localStorage directo: "${responsableReal}"`);
-            } else if (responsableAlt && responsableAlt !== 'RESPONSABLE') {
-              responsableReal = responsableAlt;
+            } else if (responsableAlt && responsableAlt !== 'RESPONSABLE' && responsableAlt.trim() !== '') {
+              responsableReal = responsableAlt.trim();
               console.log(`   ✅ Usando localStorage alternativo: "${responsableReal}"`);
-            } else if (responsableFromCargue && responsableFromCargue !== 'RESPONSABLE') {
-              responsableReal = responsableFromCargue;
+            } else if (responsableFromCargue && responsableFromCargue !== 'RESPONSABLE' && responsableFromCargue.trim() !== '') {
+              responsableReal = responsableFromCargue.trim();
               console.log(`   ✅ Usando responsables_cargue: "${responsableReal}"`);
             } else {
               console.log(`   ❌ No se encontró responsable válido, usando: "${responsableReal}"`);
@@ -268,12 +537,18 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
             console.log(`📝 RESPONSABLE FINAL para ${id}: "${responsableReal}"`);
 
-            // 🚀 RECOPILAR DATOS DE PAGOS desde localStorage
-            const datosConceptos = localStorage.getItem(`conceptos_pagos_${dia}_${fechaAUsar}`);
+            // 🚀 CORREGIDO: RECOPILAR DATOS DE PAGOS específicos del ID
+            const conceptosKey = `conceptos_pagos_${dia}_${id}_${fechaAUsar}`;
+            const datosConceptos = localStorage.getItem(conceptosKey);
             let pagosData = {};
+
+            console.log(`💰 ${id} - Buscando conceptos en: ${conceptosKey}`);
+
             if (datosConceptos) {
               try {
                 const conceptos = JSON.parse(datosConceptos);
+                console.log(`💰 ${id} - Conceptos encontrados:`, conceptos);
+
                 // Sumar todos los conceptos para obtener totales
                 pagosData = {
                   concepto: conceptos.filter(c => c.concepto).map(c => c.concepto).join(', ') || '',
@@ -281,27 +556,47 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                   nequi: conceptos.reduce((sum, c) => sum + (parseFloat(c.nequi) || 0), 0),
                   daviplata: conceptos.reduce((sum, c) => sum + (parseFloat(c.daviplata) || 0), 0)
                 };
-                console.log(`💰 Datos de pagos para ${id}:`, pagosData);
+                console.log(`💰 ${id} - Datos de pagos procesados:`, pagosData);
               } catch (error) {
                 console.error(`❌ Error parsing conceptos para ${id}:`, error);
               }
+            } else {
+              console.log(`⚠️ ${id} - No se encontraron datos de conceptos en: ${conceptosKey}`);
             }
 
-            // 🚀 RECOPILAR DATOS DE BASE CAJA
-            const datosBaseCaja = localStorage.getItem(`base_caja_${dia}_${fechaAUsar}`);
+            // 🚀 CORREGIDO: RECOPILAR DATOS DE BASE CAJA específica del ID
+            const baseCajaKey = `base_caja_${dia}_${id}_${fechaAUsar}`;
+            const datosBaseCaja = localStorage.getItem(baseCajaKey);
             const baseCaja = datosBaseCaja ? parseFloat(datosBaseCaja) || 0 : 0;
 
-            // 🚀 CALCULAR TOTALES DE RESUMEN
+            console.log(`💰 ${id} - Buscando base caja en: ${baseCajaKey} = ${baseCaja}`);
+
+            // 🚀 CORREGIDO: CALCULAR TOTALES DE RESUMEN correctamente
             const totalProductos = productosParaGuardar.reduce((sum, p) => sum + ((p.total || 0) * (p.valor || 0)), 0);
             const totalDctos = productosParaGuardar.reduce((sum, p) => sum + ((p.dctos || 0) * (p.valor || 0)), 0);
+
+            // Calcular VENTA y TOTAL EFECTIVO correctamente
+            const ventaCalculada = totalProductos - totalDctos - (pagosData.descuentos || 0);
+            const totalEfectivoCalculado = ventaCalculada - (pagosData.nequi || 0) - (pagosData.daviplata || 0);
+
             const resumenData = {
               base_caja: baseCaja,
               total_despacho: totalProductos,
               total_pedidos: 0, // Se puede calcular si es necesario
-              total_dctos: totalDctos,
-              venta: totalProductos - totalDctos,
-              total_efectivo: totalProductos - (pagosData.nequi || 0) - (pagosData.daviplata || 0)
+              total_dctos: totalDctos + (pagosData.descuentos || 0), // Incluir descuentos de pagos
+              venta: ventaCalculada,
+              total_efectivo: totalEfectivoCalculado
             };
+
+            console.log(`💰 ${id} - Cálculos de resumen:`, {
+              totalProductos,
+              totalDctos,
+              descuentosPagos: pagosData.descuentos || 0,
+              ventaCalculada,
+              nequi: pagosData.nequi || 0,
+              daviplata: pagosData.daviplata || 0,
+              totalEfectivoCalculado
+            });
 
             // 🚀 RECOPILAR DATOS DE CUMPLIMIENTO desde localStorage
             const datosCumplimiento = localStorage.getItem(`cumplimiento_${dia}_${id}_${fechaAUsar}`);
@@ -405,16 +700,45 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // Limpiar localStorage después de guardar
+  // 🚀 NUEVA FUNCIÓN: Limpiar localStorage de un ID específico
+  const limpiarLocalStorageDelID = (fechaAUsar, idVendedor) => {
+    try {
+      console.log(`🧹 ${idVendedor} - LIMPIANDO LOCALSTORAGE...`);
+
+      // Limpiar datos del ID específico
+      const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
+      localStorage.removeItem(key);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${key}`);
+
+      // Limpiar cumplimiento específico del ID
+      const cumplimientoKey = `cumplimiento_${dia}_${idVendedor}_${fechaAUsar}`;
+      localStorage.removeItem(cumplimientoKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${cumplimientoKey}`);
+
+      // 🚀 CORREGIDO: Limpiar conceptos específicos del ID
+      const conceptosKey = `conceptos_pagos_${dia}_${idVendedor}_${fechaAUsar}`;
+      localStorage.removeItem(conceptosKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${conceptosKey}`);
+
+      // 🚀 CORREGIDO: Limpiar base caja específica del ID
+      const baseCajaKey = `base_caja_${dia}_${idVendedor}_${fechaAUsar}`;
+      localStorage.removeItem(baseCajaKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${baseCajaKey}`);
+
+      console.log(`✅ ${idVendedor} - LocalStorage limpiado completamente`);
+    } catch (error) {
+      console.error(`❌ Error limpiando localStorage de ${idVendedor}:`, error);
+    }
+  };
+
+  // Limpiar localStorage después de guardar (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const limpiarLocalStorage = (fechaAUsar, idsVendedores) => {
     try {
       console.log('🧹 LIMPIANDO LOCALSTORAGE...');
 
-      // Limpiar datos de cada ID
+      // Limpiar datos de cada ID usando funciones específicas
       for (const id of idsVendedores) {
-        const key = `cargue_${dia}_${id}_${fechaAUsar}`;
-        localStorage.removeItem(key);
-        console.log(`🗑️ Eliminado: ${key}`);
+        limpiarLocalStorageDelID(fechaAUsar, id);
       }
 
       // Limpiar datos adicionales
@@ -422,9 +746,21 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         `estado_boton_${dia}_${fechaAUsar}`,
         `estado_despacho_${dia}_${fechaAUsar}`,
         `produccion_congelada_${dia}_${fechaAUsar}`,
-        `base_caja_${dia}_${fechaAUsar}`,
-        `conceptos_pagos_${dia}_${fechaAUsar}`,
         `produccion_${dia}_${fechaAUsar}`,
+        // 🚀 CORREGIDO: Limpiar conceptos específicos por ID
+        `conceptos_pagos_${dia}_ID1_${fechaAUsar}`,
+        `conceptos_pagos_${dia}_ID2_${fechaAUsar}`,
+        `conceptos_pagos_${dia}_ID3_${fechaAUsar}`,
+        `conceptos_pagos_${dia}_ID4_${fechaAUsar}`,
+        `conceptos_pagos_${dia}_ID5_${fechaAUsar}`,
+        `conceptos_pagos_${dia}_ID6_${fechaAUsar}`,
+        // 🚀 CORREGIDO: Limpiar base caja específica por ID
+        `base_caja_${dia}_ID1_${fechaAUsar}`,
+        `base_caja_${dia}_ID2_${fechaAUsar}`,
+        `base_caja_${dia}_ID3_${fechaAUsar}`,
+        `base_caja_${dia}_ID4_${fechaAUsar}`,
+        `base_caja_${dia}_ID5_${fechaAUsar}`,
+        `base_caja_${dia}_ID6_${fechaAUsar}`,
         // ✅ Limpiar datos de cumplimiento para todos los IDs
         `cumplimiento_${dia}_ID1_${fechaAUsar}`,
         `cumplimiento_${dia}_ID2_${fechaAUsar}`,
@@ -445,7 +781,59 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // Validar lotes vencidos antes de finalizar
+  // 🚀 NUEVA FUNCIÓN: Validar lotes vencidos de un ID específico
+  const validarLotesVencidosDelID = async (fechaAUsar, idVendedor) => {
+    try {
+      console.log(`🔍 ${idVendedor} - VALIDANDO LOTES VENCIDOS...`);
+
+      const { simpleStorage } = await import('../../services/simpleStorage');
+      const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
+      const datos = await simpleStorage.getItem(key);
+
+      const productosConVencidasSinLotes = [];
+
+      if (datos && datos.productos) {
+        for (const producto of datos.productos) {
+          if (producto.vencidas > 0) {
+            const lotesVencidos = producto.lotesVencidos || [];
+            const lotesCompletos = lotesVencidos.filter(lote =>
+              lote.lote && lote.lote.trim() !== '' &&
+              lote.motivo && lote.motivo.trim() !== ''
+            );
+
+            if (lotesCompletos.length === 0) {
+              productosConVencidasSinLotes.push({
+                id: idVendedor,
+                producto: producto.producto,
+                vencidas: producto.vencidas
+              });
+            }
+          }
+        }
+      }
+
+      if (productosConVencidasSinLotes.length > 0) {
+        console.log(`❌ ${idVendedor} - PRODUCTOS CON VENCIDAS SIN LOTES:`, productosConVencidasSinLotes);
+
+        const mensaje = `❌ ${idVendedor} - No se puede finalizar\n\nLos siguientes productos tienen vencidas pero no tienen información de lotes:\n\n${productosConVencidasSinLotes.map(p =>
+          `• ${p.producto} (${p.vencidas} vencidas)`
+        ).join('\n')
+          }\n\nPor favor complete la información de lotes vencidos antes de finalizar.`;
+
+        alert(mensaje);
+        return false;
+      }
+
+      console.log(`✅ ${idVendedor} - VALIDACIÓN DE LOTES VENCIDOS COMPLETADA`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error validando lotes vencidos de ${idVendedor}:`, error);
+      alert(`❌ Error validando lotes vencidos de ${idVendedor}. No se puede finalizar.`);
+      return false;
+    }
+  };
+
+  // Validar lotes vencidos antes de finalizar (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const validarLotesVencidos = async (fechaAUsar, idsVendedores) => {
     try {
       console.log('🔍 VALIDANDO LOTES VENCIDOS...');
@@ -504,7 +892,91 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // Manejar finalizar (devoluciones, vencidas y guardado completo)
+  // 🚀 NUEVA FUNCIÓN: Manejar finalizar para un ID específico
+  const manejarFinalizarDelID = async () => {
+    console.log(`🚀🚀🚀 ${idSheet} - BOTÓN FINALIZAR PRESIONADO 🚀🚀🚀`);
+    console.log('⏰ Timestamp:', Date.now());
+    console.log(`📊 ${idSheet} - Productos validados disponibles:`, productosValidados.length);
+
+    setLoading(true);
+
+    try {
+      console.log(`🏁 ${idSheet} - INICIANDO FINALIZACIÓN ESPECÍFICA`);
+
+      const { simpleStorage } = await import('../../services/simpleStorage');
+
+      if (!fechaSeleccionada) {
+        console.error(`❌ ${idSheet} - ERROR: fechaSeleccionada no está definida`);
+        alert(`❌ ${idSheet} - Error: No se ha seleccionado una fecha válida`);
+        setLoading(false);
+        return;
+      }
+
+      const fechaAUsar = fechaSeleccionada;
+      console.log(`📅 ${idSheet} - Fecha a usar para guardado: ${fechaAUsar}`);
+
+      // VALIDACIÓN PREVIA: Verificar lotes vencidos del ID específico
+      console.log(`🔍 ${idSheet} - VALIDACIÓN PREVIA: Verificando lotes vencidos...`);
+      const lotesValidos = await validarLotesVencidosDelID(fechaAUsar, idSheet);
+
+      if (!lotesValidos) {
+        setLoading(false);
+        return;
+      }
+
+      console.log(`✅ ${idSheet} - VALIDACIÓN COMPLETADA - Continuando con finalización...`);
+
+      let totalDevoluciones = 0;
+      let totalVencidas = 0;
+
+      // PASO 1: Procesar devoluciones y vencidas del ID específico
+      console.log(`📦 ${idSheet} - PASO 1: Procesando devoluciones y vencidas...`);
+      const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
+      const datos = await simpleStorage.getItem(key);
+
+      if (datos && datos.productos) {
+        for (const producto of datos.productos) {
+          if (producto.id) {
+            // Procesar devoluciones (sumar al inventario)
+            if (producto.devoluciones > 0) {
+              await actualizarInventario(producto.id, producto.devoluciones, 'SUMAR');
+              totalDevoluciones += producto.devoluciones;
+              console.log(`⬆️ ${idSheet} - DEVOLUCIÓN: ${producto.producto} +${producto.devoluciones}`);
+            }
+
+            // Procesar vencidas (NO afectar inventario - solo registrar)
+            if (producto.vencidas > 0) {
+              totalVencidas += producto.vencidas;
+              console.log(`🗑️ ${idSheet} - VENCIDAS: ${producto.producto} ${producto.vencidas} (sin afectar inventario)`);
+            }
+          }
+        }
+      }
+
+      // PASO 2: Guardar datos del ID específico en la base de datos
+      console.log(`💾 ${idSheet} - PASO 2: Guardando datos en base de datos...`);
+      await guardarDatosDelID(fechaAUsar, idSheet);
+
+      // PASO 3: Limpiar localStorage del ID específico
+      console.log(`🧹 ${idSheet} - PASO 3: Limpiando localStorage...`);
+      limpiarLocalStorageDelID(fechaAUsar, idSheet);
+
+      // PASO 4: Cambiar estado a COMPLETADO para el ID específico
+      setEstado('COMPLETADO');
+      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaSeleccionada}`, 'COMPLETADO');
+
+      console.log(`🎉 ${idSheet} - FINALIZACIÓN COMPLETADA EXITOSAMENTE`);
+      alert(`✅ ${idSheet} - Jornada Finalizada y Guardada\n\n📊 Datos guardados en base de datos\n⬆️ Devoluciones: ${totalDevoluciones}\n🗑️ Vencidas: ${totalVencidas}\n🧹 LocalStorage limpiado`);
+
+    } catch (error) {
+      console.error(`❌ ${idSheet} - Error en finalización:`, error);
+      alert(`❌ ${idSheet} - Error en finalización: ${error.message}\n\nLos datos pueden no haberse guardado correctamente.`);
+    }
+
+    setLoading(false);
+  };
+
+  // Manejar finalizar (devoluciones, vencidas y guardado completo) - FUNCIÓN ORIGINAL - mantener para compatibilidad
   const manejarFinalizar = async () => {
     console.log('🚀🚀🚀 BOTÓN FINALIZAR PRESIONADO 🚀🚀🚀');
     console.log('⏰ Timestamp:', Date.now());
@@ -595,7 +1067,91 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     setLoading(false);
   };
 
-  // Manejar despacho (SÍ afectar inventario según README original)
+  // 🚀 NUEVA FUNCIÓN: Manejar despacho para un ID específico
+  const manejarDespachoDelID = async () => {
+    console.log(`🚚 ${idSheet} - EJECUTANDO DESPACHO - AFECTANDO INVENTARIO`);
+
+    // Validación estricta: NO permitir avanzar si hay productos pendientes
+    if (productosPendientes.length > 0) {
+      const listaPendientes = productosPendientes.map(p => {
+        const checksFaltantes = [];
+        if (!p.vendedor) checksFaltantes.push('V');
+        if (!p.despachador) checksFaltantes.push('D');
+
+        return `• ${p.nombre} (${p.totalCantidad} und) - Faltan: ${checksFaltantes.join(', ')}`;
+      }).join('\n');
+
+      const confirmar = window.confirm(
+        `❌ ${idSheet} - NO SE PUEDE REALIZAR EL DESPACHO\n\n` +
+        `Los siguientes productos tienen cantidades pero NO están completamente verificados:\n\n` +
+        `${listaPendientes}\n\n` +
+        `🔧 SOLUCIÓN: Marque los checkboxes V (Vendedor) y D (Despachador) faltantes para todos los productos con cantidad.\n\n` +
+        `⚠️ TODOS los productos con cantidad deben tener ambos checkboxes marcados antes de continuar.\n\n` +
+        `✅ ACEPTAR: Volver a revisar y marcar checkboxes\n` +
+        `❌ CANCELAR: Quedarse en esta pantalla`
+      );
+
+      if (confirmar) {
+        console.log(`🔄 ${idSheet} - Usuario eligió volver a revisar checkboxes`);
+      } else {
+        console.log(`🚫 ${idSheet} - Usuario eligió quedarse en la pantalla actual`);
+      }
+
+      console.log(`🚫 ${idSheet} - DESPACHO BLOQUEADO - Hay productos sin verificar completamente`);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log(`📋 ${idSheet} - Productos validados para despacho:`, productosValidados.length);
+
+      // DESCONTAR del inventario
+      for (const producto of productosValidados) {
+        console.log(`🔥 ${idSheet} - PROCESANDO: ${producto.nombre}`);
+
+        const productoId = producto.id || null;
+
+        if (productoId) {
+          console.log(`   - Producto ID: ${productoId}`);
+          console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
+
+          const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
+          console.log(`✅ ${idSheet} - DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
+        } else {
+          console.error(`❌ ${idSheet} - Producto ID NO encontrado para: ${producto.nombre}`);
+        }
+      }
+
+      // Cambiar estado a FINALIZAR para el ID específico
+      setEstado('FINALIZAR');
+      localStorage.setItem(`estado_despacho_${dia}_${idSheet}_${fechaSeleccionada}`, 'DESPACHO');
+      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaSeleccionada}`, 'FINALIZAR');
+
+      console.log(`✅ ${idSheet} - DESPACHO COMPLETADO - Inventario afectado`);
+
+      // Mostrar resumen
+      const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
+      const totalGeneral = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
+
+      let mensaje = `✅ ${idSheet} - Despacho Realizado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`;
+
+      if (productosPendientes.length > 0) {
+        const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
+        mensaje += `\n\n⚠️ PRODUCTOS NO DESPACHADOS: ${productosPendientes.length} productos (${totalPendientes} unidades)`;
+      }
+
+      alert(mensaje);
+
+    } catch (error) {
+      console.error(`❌ ${idSheet} - Error en despacho:`, error);
+      alert(`❌ ${idSheet} - Error en despacho: ${error.message}`);
+    }
+
+    setLoading(false);
+  };
+
+  // Manejar despacho (SÍ afectar inventario según README original) - FUNCIÓN ORIGINAL - mantener para compatibilidad
   const manejarDespacho = async () => {
     console.log('🚚 EJECUTANDO DESPACHO - AFECTANDO INVENTARIO (según README)');
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ControlCumplimiento.css';
 
-const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
+const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
   const [cumplimiento, setCumplimiento] = useState({});
   const [loading, setLoading] = useState(false);
   const [cargaInicial, setCargaInicial] = useState(true);
@@ -18,18 +18,70 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
     { key: 'desinfeccion', label: 'Desinfección' }
   ];
 
-  // Cargar datos desde localStorage primero, luego PostgreSQL
+  // 🚀 MEJORADO: Cargar datos según el estado (COMPLETADO = BD, otros = localStorage)
   const cargarDatos = async () => {
     try {
       const fechaAUsar = fechaSeleccionada;
       const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
 
+      // 🚀 NUEVO: Si está COMPLETADO, cargar SIEMPRE desde BD
+      if (estadoCompletado) {
+        console.log(`🔍 CUMPLIMIENTO - Día COMPLETADO, cargando desde BD: ${dia} - ${idSheet} - ${fechaAUsar}`);
+        // 🚀 CORREGIDO: Usar el mismo endpoint que los productos
+        const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+          idSheet === 'ID2' ? 'cargue-id2' :
+            idSheet === 'ID3' ? 'cargue-id3' :
+              idSheet === 'ID4' ? 'cargue-id4' :
+                idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+        const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaAUsar}`;
+        console.log(`🔍 CUMPLIMIENTO - URL: ${url}`);
+        const response = await fetch(url);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🔍 CUMPLIMIENTO - Respuesta completa de BD:', data);
+
+          // 🚀 CORREGIDO: Los datos vienen como array directo, no con results
+          if (Array.isArray(data) && data.length > 0) {
+            const registro = data[0]; // Tomar el primer registro
+            console.log('🔍 CUMPLIMIENTO - Primer registro:', registro);
+
+            const cumplimientoData = {};
+
+            items.forEach(item => {
+              const valor = registro[item.key];
+              console.log(`🔍 CUMPLIMIENTO - ${item.key}: "${valor}"`);
+
+              if (valor && valor !== null && valor !== '') {
+                cumplimientoData[item.key] = valor;
+              }
+            });
+
+            console.log('✅ CUMPLIMIENTO - Datos procesados:', cumplimientoData);
+            setCumplimiento(cumplimientoData);
+            setCargaInicial(false);
+            return;
+          } else {
+            console.log('⚠️ CUMPLIMIENTO - No hay datos en el array');
+          }
+        } else {
+          console.log('❌ CUMPLIMIENTO - Error en response:', response.status, response.statusText);
+        }
+
+        console.log('⚠️ CUMPLIMIENTO - No se encontraron datos en BD');
+        setCumplimiento({});
+        setCargaInicial(false);
+        return;
+      }
+
+      // Lógica original para días no completados
       // 1. Intentar cargar desde localStorage primero
       const datosLocal = localStorage.getItem(keyLocal);
       if (datosLocal) {
         try {
           const cumplimientoLocal = JSON.parse(datosLocal);
-          console.log('✅ Datos cargados desde localStorage:', cumplimientoLocal);
+          console.log('✅ CUMPLIMIENTO - Datos cargados desde localStorage:', cumplimientoLocal);
           setCumplimiento(cumplimientoLocal);
           setCargaInicial(false);
           return; // Si hay datos locales, usarlos
@@ -39,7 +91,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
       }
 
       // 2. Si no hay datos locales, cargar desde PostgreSQL
-      console.log(`🔍 Cargando desde PostgreSQL: ${dia} - ${idSheet} - ${fechaAUsar}`);
+      console.log(`🔍 CUMPLIMIENTO - Cargando desde PostgreSQL: ${dia} - ${idSheet} - ${fechaAUsar}`);
       const url = `http://localhost:8000/api/control-cumplimiento/?dia=${dia.toUpperCase()}&id_sheet=${idSheet}&fecha=${fechaAUsar}`;
       const response = await fetch(url);
 
@@ -89,12 +141,12 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
     }
   };
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente o cuando cambie el estado
   useEffect(() => {
     if (dia && idSheet && fechaSeleccionada) {
       cargarDatos();
     }
-  }, [dia, idSheet, fechaSeleccionada]);
+  }, [dia, idSheet, fechaSeleccionada, estadoCompletado]);
 
   // Guardar datos cuando cambie el cumplimiento (solo si no es la carga inicial)
   useEffect(() => {
@@ -119,6 +171,8 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada }) => {
 
   return (
     <div className="control-cumplimiento">
+
+
       <h6 className="cumplimiento-title">CONTROL DE CUMPLIMIENTO</h6>
       <div className="cumplimiento-tabla">
         <div className="cumplimiento-header">

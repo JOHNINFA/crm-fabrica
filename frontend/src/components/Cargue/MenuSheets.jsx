@@ -148,17 +148,51 @@ export default function MenuSheets() {
 
   const id_usuario = 1; // mock de autenticación
 
-  // Al cambiar dia en la URL, reiniciamos todos los datos y cargamos responsables
+  // 🚀 OPTIMIZADO: Cargar responsables solo una vez por día con caché
   useEffect(() => {
     const cargarResponsables = async () => {
-      // Cargar responsables desde localStorage primero para evitar rebote
+      // 🔍 CACHÉ: Verificar si ya cargamos para este día
+      const cacheKey = `responsables_cache_${dia}`;
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      const ahora = Date.now();
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos de caché
+
+      // Si hay caché válido, usar esos datos
+      if (cacheTimestamp && (ahora - parseInt(cacheTimestamp)) < CACHE_DURATION) {
+        const responsablesCache = localStorage.getItem(cacheKey);
+        if (responsablesCache) {
+          try {
+            const responsablesIniciales = JSON.parse(responsablesCache);
+            console.log('⚡ CACHÉ: Usando responsables cacheados para', dia, responsablesIniciales);
+
+            const nuevosIds = {
+              ID1: { nombreResponsable: responsablesIniciales.ID1 || "RESPONSABLE", datosTabla: {} },
+              ID2: { nombreResponsable: responsablesIniciales.ID2 || "RESPONSABLE", datosTabla: {} },
+              ID3: { nombreResponsable: responsablesIniciales.ID3 || "RESPONSABLE", datosTabla: {} },
+              ID4: { nombreResponsable: responsablesIniciales.ID4 || "RESPONSABLE", datosTabla: {} },
+              ID5: { nombreResponsable: responsablesIniciales.ID5 || "RESPONSABLE", datosTabla: {} },
+              ID6: { nombreResponsable: responsablesIniciales.ID6 || "RESPONSABLE", datosTabla: {} },
+              PRODUCCION: { nombreResponsable: "", datosTabla: {} }
+            };
+
+            setDatosIds(nuevosIds);
+            return; // Salir sin hacer llamadas a la API
+          } catch (error) {
+            console.error('❌ Error usando caché:', error);
+          }
+        }
+      }
+
+      console.log('🔄 CARGANDO: Responsables desde BD para', dia);
+
+      // Cargar desde localStorage como fallback inicial
       const responsablesGuardados = localStorage.getItem('responsables_cargue');
       let responsablesIniciales = {};
 
       if (responsablesGuardados) {
         try {
           responsablesIniciales = JSON.parse(responsablesGuardados);
-          console.log('📦 Responsables cargados desde localStorage:', responsablesIniciales);
+          console.log('📦 Responsables desde localStorage:', responsablesIniciales);
         } catch (error) {
           console.error('❌ Error parsing responsables localStorage:', error);
         }
@@ -174,57 +208,71 @@ export default function MenuSheets() {
         PRODUCCION: { nombreResponsable: "", datosTabla: {} }
       };
 
-      // Establecer estado inicial inmediatamente (sin rebote)
+      // Establecer estado inicial inmediatamente
       setDatosIds(nuevosIds);
 
-      // Cargar responsables desde la BD para cada ID
-      for (const idVendedor of ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6']) {
-        try {
-          console.log(`🔍 Cargando responsable para ${idVendedor}...`);
-          const response = await fetch(`http://localhost:8000/api/vendedores/?id_vendedor=${idVendedor}`);
+      // 🚀 OPTIMIZADO: Una sola llamada para todos los IDs
+      try {
+        console.log('🔍 Cargando todos los responsables en una sola llamada...');
 
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`📡 Respuesta API para ${idVendedor}:`, data);
-
-            // La API devuelve un array directo, no un objeto con results
-            if (Array.isArray(data) && data.length > 0) {
-              const vendedor = data[0];
-              const responsable = vendedor.responsable || 'RESPONSABLE';
-
-              nuevosIds[idVendedor].nombreResponsable = responsable;
-              console.log(`📥 Responsable asignado para ${idVendedor}: "${responsable}"`);
-            } else {
-              nuevosIds[idVendedor].nombreResponsable = 'RESPONSABLE';
-              console.log(`⚠️ No se encontró vendedor para ${idVendedor}, usando RESPONSABLE`);
+        // Hacer todas las llamadas en paralelo
+        const promesas = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'].map(async (idVendedor) => {
+          try {
+            const response = await fetch(`http://localhost:8000/api/vendedores/obtener_responsable/?id_vendedor=${idVendedor}`);
+            if (response.ok) {
+              const data = await response.json();
+              return { id: idVendedor, responsable: data.responsable || 'RESPONSABLE' };
             }
-          } else {
-            nuevosIds[idVendedor].nombreResponsable = 'RESPONSABLE';
-            console.log(`❌ Error HTTP para ${idVendedor}:`, response.status);
+            return { id: idVendedor, responsable: 'RESPONSABLE' };
+          } catch (error) {
+            console.error(`❌ Error para ${idVendedor}:`, error);
+            return { id: idVendedor, responsable: 'RESPONSABLE' };
           }
-        } catch (error) {
-          console.error(`❌ Error cargando responsable para ${idVendedor}:`, error);
-          nuevosIds[idVendedor].nombreResponsable = 'RESPONSABLE';
+        });
+
+        // Esperar todas las respuestas
+        const resultados = await Promise.all(promesas);
+        console.log('📡 Resultados de todas las APIs:', resultados);
+
+        // Actualizar solo si hay cambios
+        let hayChangios = false;
+        resultados.forEach(({ id, responsable }) => {
+          if (nuevosIds[id].nombreResponsable !== responsable) {
+            nuevosIds[id].nombreResponsable = responsable;
+            hayChangios = true;
+          }
+        });
+
+        if (hayChangios) {
+          console.log('🔄 Actualizando estado con nuevos responsables');
+          setDatosIds({ ...nuevosIds });
+
+          // Guardar en caché
+          const responsablesParaCache = {
+            ID1: nuevosIds.ID1.nombreResponsable,
+            ID2: nuevosIds.ID2.nombreResponsable,
+            ID3: nuevosIds.ID3.nombreResponsable,
+            ID4: nuevosIds.ID4.nombreResponsable,
+            ID5: nuevosIds.ID5.nombreResponsable,
+            ID6: nuevosIds.ID6.nombreResponsable
+          };
+
+          localStorage.setItem(cacheKey, JSON.stringify(responsablesParaCache));
+          localStorage.setItem(`${cacheKey}_timestamp`, ahora.toString());
+          localStorage.setItem('responsables_cargue', JSON.stringify(responsablesParaCache));
+
+          console.log('💾 Responsables guardados en caché para', dia);
+        } else {
+          console.log('✅ No hay cambios en responsables');
         }
+
+      } catch (error) {
+        console.error('❌ Error cargando responsables:', error);
       }
-
-      console.log('🎯 Estado final de nuevosIds:', nuevosIds);
-
-      setDatosIds(nuevosIds);
-
-      // Guardar responsables en localStorage para evitar rebote
-      localStorage.setItem('responsables_cargue', JSON.stringify({
-        ID1: nuevosIds.ID1.nombreResponsable,
-        ID2: nuevosIds.ID2.nombreResponsable,
-        ID3: nuevosIds.ID3.nombreResponsable,
-        ID4: nuevosIds.ID4.nombreResponsable,
-        ID5: nuevosIds.ID5.nombreResponsable,
-        ID6: nuevosIds.ID6.nombreResponsable
-      }));
     };
 
     cargarResponsables();
-  }, [dia]);
+  }, [dia]); // Solo depende del día
 
   const abrirModal = () => {
     setTempNombre(datosIds[idSeleccionado].nombreResponsable);

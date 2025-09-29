@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Campo Responsable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .responsable-demo {
+            padding: 15px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            background: #f8fff8;
+            margin: 10px 0;
+        }
+
+        .responsable-title {
+            font-weight: bold;
+            color: #4CAF50;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            background: none;
+        }
+
+        .responsable-title:hover {
+            color: #45a049;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Test Campo Responsable</h1>
+
+        <div class="test-section">
+            <h3>📋 Descripción</h3>
+            <p>Este test verifica que el <strong>campo responsable editable</strong> esté funcionando correctamente en
+                PlantillaOperativa.jsx</p>
+
+            <h4>✅ Características que debe tener:</h4>
+            <ul>
+                <li><strong>Ubicación:</strong> Encima de la tabla de productos</li>
+                <li><strong>Estilo:</strong> Color verde (#4CAF50), negrita, tamaño 1.2rem</li>
+                <li><strong>Funcionalidad:</strong> Clickeable para editar nombre</li>
+                <li><strong>Icono:</strong> Lápiz (bi-pencil-square) al lado</li>
+                <li><strong>Info adicional:</strong> Día, fecha e ID en la derecha</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🎨 Vista Previa del Campo</h3>
+            <div class="responsable-demo">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center;">
+                        <span style="margin-right: 8px; font-weight: bold;">Responsable:</span>
+                        <button class="responsable-title" onclick="alert('¡Campo responsable clickeado!')">
+                            MARIA GONZALEZ
+                        </button>
+                        <i style="margin-left: 8px; color: #6c757d; font-size: 0.9rem;">✏️</i>
+                    </div>
+                    <div style="color: #6c757d; font-size: 0.875rem;">
+                        MARTES - 2025-09-23 - ID1
+                    </div>
+                </div>
+            </div>
+            <p><em>👆 Así debería verse el campo en la aplicación</em></p>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Pruebas a Realizar</h3>
+            <button onclick="simularResponsables()">Simular Responsables Diferentes</button>
+            <button onclick="verificarCampo()">Verificar Campo en App</button>
+            <button onclick="limpiarDatos()">Limpiar Datos</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Resultados</h3>
+            <div id="resultados"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Logs</h3>
+            <div id="logs" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Instrucciones de Verificación</h3>
+            <ol>
+                <li><strong>Ir a la aplicación:</strong> <a href="http://localhost:3000/cargue/MARTES"
+                        target="_blank">localhost:3000/cargue/MARTES</a></li>
+                <li><strong>Seleccionar ID1:</strong> Verificar que aparece el campo responsable encima de la tabla</li>
+                <li><strong>Hacer clic en el nombre:</strong> Debe abrir el modal de edición</li>
+                <li><strong>Cambiar nombre:</strong> Guardar y verificar que se actualiza</li>
+                <li><strong>Cambiar a ID2:</strong> Verificar que tiene su propio responsable</li>
+                <li><strong>Volver a ID1:</strong> Verificar que mantiene el nombre cambiado</li>
+            </ol>
+        </div>
+
+        <div class="test-section warning">
+            <h3>⚠️ Problemas Comunes</h3>
+            <ul>
+                <li><strong>Campo no aparece:</strong> Verificar que se agregó correctamente en PlantillaOperativa.jsx
+                </li>
+                <li><strong>No es clickeable:</strong> Verificar que onEditarNombre se pasa desde MenuSheets</li>
+                <li><strong>Estilos incorrectos:</strong> Verificar PlantillaOperativa.css</li>
+                <li><strong>Modal no abre:</strong> Verificar la función abrirModal en MenuSheets</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let logContainer = document.getElementById('logs');
+        let resultadosContainer = document.getElementById('resultados');
+
+        function log(mensaje) {
+            console.log(mensaje);
+            logContainer.innerHTML += mensaje + '\n';
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function mostrarResultado(html) {
+            resultadosContainer.innerHTML = html;
+        }
+
+        function simularResponsables() {
+            log('🧪 SIMULANDO responsables diferentes para cada ID...');
+
+            const fecha = '2025-09-23';
+            const responsables = {
+                ID1: 'MARIA GONZALEZ',
+                ID2: 'CARLOS RODRIGUEZ',
+                ID3: 'ANA MARTINEZ',
+                ID4: 'LUIS PEREZ',
+                ID5: 'SOFIA LOPEZ',
+                ID6: 'DIEGO TORRES'
+            };
+
+            // Guardar responsables en localStorage
+            localStorage.setItem('responsables_cargue', JSON.stringify(responsables));
+
+            // También guardar en las claves individuales
+            Object.entries(responsables).forEach(([id, nombre]) => {
+                localStorage.setItem(`responsable_${id}`, nombre);
+                localStorage.setItem(`cargue_responsable_${id}`, nombre);
+                log(`💾 ${id}: ${nombre}`);
+            });
+
+            mostrarResultado(`
+                <div class="success">
+                    <h4>✅ Responsables Simulados</h4>
+                    <ul>
+                        ${Object.entries(responsables).map(([id, nombre]) =>
+                `<li><strong>${id}:</strong> ${nombre}</li>`
+            ).join('')}
+                    </ul>
+                    <p><em>Ve a la aplicación y cambia entre IDs para ver los diferentes responsables.</em></p>
+                </div>
+            `);
+        }
+
+        function verificarCampo() {
+            log('🔍 VERIFICANDO campo responsable...');
+
+            // Verificar si hay responsables guardados
+            const responsablesGuardados = localStorage.getItem('responsables_cargue');
+
+            if (responsablesGuardados) {
+                const responsables = JSON.parse(responsablesGuardados);
+                log('✅ Responsables encontrados en localStorage:');
+                Object.entries(responsables).forEach(([id, nombre]) => {
+                    log(`   ${id}: ${nombre}`);
+                });
+
+                mostrarResultado(`
+                    <div class="success">
+                        <h4>✅ Campo Responsable Configurado</h4>
+                        <p>Se encontraron responsables en localStorage. Ve a la aplicación para verificar:</p>
+                        <ol>
+                            <li>El campo aparece encima de la tabla de productos</li>
+                            <li>Muestra el nombre del responsable en verde</li>
+                            <li>Es clickeable para editar</li>
+                            <li>Cada ID tiene su propio responsable</li>
+                        </ol>
+                        <p><strong>Ir a:</strong> <a href="http://localhost:3000/cargue/MARTES" target="_blank">localhost:3000/cargue/MARTES</a></p>
+                    </div>
+                `);
+            } else {
+                log('⚠️ No se encontraron responsables. Ejecuta "Simular Responsables" primero.');
+                mostrarResultado(`
+                    <div class="warning">
+                        <h4>⚠️ Sin Datos</h4>
+                        <p>No se encontraron responsables guardados. Ejecuta "Simular Responsables Diferentes" primero.</p>
+                    </div>
+                `);
+            }
+        }
+
+        function limpiarDatos() {
+            log('🧹 LIMPIANDO datos de responsables...');
+
+            const claves = [
+                'responsables_cargue',
+                'responsable_ID1', 'responsable_ID2', 'responsable_ID3',
+                'responsable_ID4', 'responsable_ID5', 'responsable_ID6',
+                'cargue_responsable_ID1', 'cargue_responsable_ID2', 'cargue_responsable_ID3',
+                'cargue_responsable_ID4', 'cargue_responsable_ID5', 'cargue_responsable_ID6'
+            ];
+
+            claves.forEach(clave => {
+                if (localStorage.getItem(clave)) {
+                    localStorage.removeItem(clave);
+                    log(`🗑️ Eliminado: ${clave}`);
+                }
+            });
+
+            mostrarResultado(`
+                <div class="success">
+                    <h4>✅ Datos Limpiados</h4>
+                    <p>Todos los datos de responsables han sido eliminados. Los campos mostrarán "RESPONSABLE" por defecto.</p>
+                </div>
+            `);
+        }
+
+        // Inicializar
+        log('🧪 Test Campo Responsable cargado');
+        log('📋 Usa los botones para configurar y probar el campo');
+    </script>
+</body>
+
+</html>
