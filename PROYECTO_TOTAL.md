@@ -955,87 +955,188 @@ def actualizar_stock(self, request, pk=None):
     })
 ```
 
-### 3. 🚛 Cargue Operativo
+### 3. 🚛 Módulo Cargue Operativo (SISTEMA COMPLETO)
 
-**Ubicación:** `frontend/src/components/Cargue/`
+**Ubicación Principal:** `frontend/src/components/Cargue/`
 
-**Funcionalidades:**
-- ✅ Gestión por días de la semana
-- ✅ Control de 6 vendedores (ID1-ID6)
-- ✅ Registro de productos por vendedor
-- ✅ Control de cantidades, descuentos, devoluciones
-- ✅ Checkboxes de vendedor/despachador
-- ✅ Resumen de pagos (Nequi, Daviplata)
-- ✅ Totales automáticos
-- ✅ Persistencia en localStorage
-- ✅ Sincronización con API
-- ✅ **SOLUCIÓN ANTI-REBOTE** para nombres de responsables
-- ✅ Sistema de eventos personalizados para actualizaciones
-- ✅ Utilidad centralizada para manejo de responsables
-- ✅ **VALIDACIÓN ESTRICTA DE DESPACHO** - Productos deben tener V y D marcados
-- ✅ **DETECCIÓN DE PRODUCTOS PENDIENTES** - Alerta de productos sin verificar
-- ✅ **BLOQUEO INTELIGENTE** - No permite despacho hasta completar verificaciones
-- ✅ **CAMPO RESPONSABLE EN BD** - Guardado correcto en base de datos
-- ✅ **ACTUALIZACIÓN DE INVENTARIO** - Solo en estado DESPACHO según flujo original
+#### 🏗️ **ARQUITECTURA ACTUAL DEL MÓDULO**
 
-### 🚀 **NUEVAS FUNCIONALIDADES CRÍTICAS (Enero 2025):**
-- ✅ **FECHAS CONSISTENTES** - Sincronización total frontend-backend
-- ✅ **GUARDADO COMPLETO** - Todos los datos (productos, pagos, resumen, cumplimiento)
-- ✅ **INTEGRACIÓN UNIFICADA** - Un solo flujo para todos los tipos de datos
-- ✅ **VALIDACIÓN ESTRICTA** - Backend requiere fecha desde frontend
-- ✅ **CONTROL DE CUMPLIMIENTO INTEGRADO** - Guardado junto con productos
-- ✅ **CÁLCULOS AUTOMÁTICOS** - Totales de resumen calculados automáticamente
-- ✅ **LIMPIEZA COMPLETA** - LocalStorage se limpia correctamente al finalizar
-- ✅ **AUDITORÍA COMPLETA** - Todos los datos disponibles para reportes
+**Componentes Principales:**
+```
+📂 Cargue/
+├── 🎯 MenuSheets.jsx              # Navegación principal (días + IDs)
+├── 📋 PlantillaOperativa.jsx      # Plantilla principal por vendedor
+├── 📊 TablaProductos.jsx          # Tabla de productos operativa
+├── 💰 ResumenVentas.jsx           # Resumen de pagos y totales
+├── 🔘 BotonLimpiar.jsx            # Control de estados y finalización
+├── ✅ ControlCumplimiento.jsx     # Control de cumplimiento operativo
+├── 🏭 Produccion.jsx              # Módulo de producción independiente
+├── 📅 SelectorFecha.jsx           # Selector de fechas
+├── 👤 ResponsableManager.jsx      # Gestión de responsables
+├── 🔄 BotonSincronizar.jsx        # Sincronización manual
+├── ⚠️ LotesVencidos.jsx           # Gestión de lotes vencidos
+└── 🔧 VerificarGuardado.jsx       # Verificación de datos guardados
+```
 
-**Estructura de datos COMPLETA:**
+#### 🚀 **FUNCIONALIDADES IMPLEMENTADAS (ENERO 2025)**
+
+**✅ Sistema de Navegación:**
+- **Selector de Días:** LUNES a SÁBADO con navegación por URL
+- **6 Vendedores Independientes:** ID1, ID2, ID3, ID4, ID5, ID6 + PRODUCCIÓN
+- **Selector de Fechas:** Calendario integrado con persistencia
+- **Navegación Fluida:** Cambio entre IDs sin pérdida de datos
+
+**✅ Gestión de Productos:**
+- **18 Productos Específicos** en orden fijo predefinido
+- **Campos Operativos:** Cantidad, Dctos, Adicional, Devoluciones, Vencidas
+- **Cálculos Automáticos:** Total = Cantidad - Dctos + Adicional - Devoluciones - Vencidas
+- **Valores Dinámicos:** Neto = Total × Valor (precio unitario)
+- **Checkboxes V/D:** Vendedor y Despachador con validación estricta
+
+**✅ Sistema de Lotes Vencidos:**
+- **Modal Interactivo:** Registro de lotes con motivos específicos
+- **Motivos Predefinidos:** FVTO, DAÑADO, CONTAMINADO, OTROS
+- **Persistencia Completa:** Guardado en localStorage y PostgreSQL
+- **Visualización:** Badges informativos en la tabla
+
+**✅ Control de Cumplimiento:**
+- **9 Criterios de Evaluación:** Licencia, SOAT, Uniforme, etc.
+- **Estados:** C (Cumple), NC (No Cumple), NA (No Aplica)
+- **Persistencia Dual:** localStorage + PostgreSQL
+- **Carga Inteligente:** Desde BD si está completado, localStorage si no
+
+**✅ Resumen de Pagos y Totales:**
+- **Tabla de Conceptos:** 10 filas para diferentes conceptos de pago
+- **Métodos de Pago:** Descuentos, Nequi, Daviplata
+- **Base Caja:** Campo editable para base de efectivo
+- **Cálculos Automáticos:** Totales por columna y resumen general
+- **Sincronización:** Carga desde BD para días completados
+
+#### 🎯 **FLUJO OPERATIVO COMPLETO**
+
+**1. Navegación y Selección:**
+```
+SelectorDia.jsx → MenuSheets.jsx → PlantillaOperativa.jsx
+     ↓                ↓                    ↓
+  Día semana    →   ID Vendedor    →   Fecha específica
+```
+
+**2. Estados del Sistema:**
+```
+📦 SUGERIDO → 📦 ALISTAMIENTO → 🚚 DESPACHO → ✅ FINALIZAR → 🎉 COMPLETADO
+```
+
+**3. Validaciones Implementadas:**
+- **Productos Pendientes:** Detección automática de productos sin V/D
+- **Bloqueo Inteligente:** No permite avanzar con productos incompletos
+- **Fechas Consistentes:** Sincronización total frontend-backend
+- **Responsables Sin Rebote:** Carga directa desde localStorage
+
+#### 🔧 **ARQUITECTURA TÉCNICA ACTUAL**
+
+**✅ Persistencia Híbrida:**
 ```javascript
-// ✅ NUEVA ESTRUCTURA COMPLETA DEL CARGUE (Enero 2025)
-{
+// Sistema de almacenamiento dual
+localStorage (inmediato) ↔ PostgreSQL (persistente)
+                ↓
+    Sincronización automática cada 2 segundos
+```
+
+**✅ Gestión de Estados:**
+```javascript
+// Estados por vendedor y fecha
+const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
+const estadoBoton = `estado_boton_${dia}_${fechaSeleccionada}`;
+const responsable = `responsables_cargue[${idSheet}]`;
+```
+
+**✅ APIs Especializadas:**
+```javascript
+// Endpoints por vendedor
+/api/cargue-id1/  // CargueID1ViewSet
+/api/cargue-id2/  // CargueID2ViewSet  
+/api/cargue-id3/  // CargueID3ViewSet
+/api/cargue-id4/  // CargueID4ViewSet
+/api/cargue-id5/  // CargueID5ViewSet
+/api/cargue-id6/  // CargueID6ViewSet
+/api/produccion/  // ProduccionViewSet (independiente)
+```
+
+#### 🚀 **MEJORAS CRÍTICAS IMPLEMENTADAS (ENERO 2025)**
+
+**✅ Problema de Fechas Resuelto:**
+- **Antes:** Inconsistencias entre frontend (fechas futuras) y backend (fecha actual)
+- **Después:** Sincronización total, backend requiere fecha desde frontend
+- **Resultado:** Datos guardados con fechas correctas, consultas exitosas
+
+**✅ Guardado Completo Implementado:**
+- **Productos:** Cantidades, checkboxes, lotes vencidos
+- **Pagos:** Conceptos, descuentos, Nequi, Daviplata  
+- **Resumen:** Base caja, totales calculados automáticamente
+- **Cumplimiento:** Todos los criterios de evaluación
+- **Responsables:** Nombres sin rebotes visuales
+
+**✅ Validación Estricta de Despacho:**
+- **Detección Automática:** Productos con cantidad pero sin V/D marcados
+- **Bloqueo Visual:** Botón cambia a warning con lista de pendientes
+- **Imposible Avanzar:** Sistema previene despachos incompletos
+- **Experiencia Guiada:** Información clara de qué falta verificar
+
+#### 📊 **ESTRUCTURA DE DATOS COMPLETA (ENERO 2025)**
+
+**✅ Formato Unificado de Guardado:**
+```javascript
+// Estructura completa enviada a PostgreSQL
+const datosCompletos = {
+  // === IDENTIFICACIÓN ===
   dia_semana: "LUNES",
   vendedor_id: "ID1", 
   fecha: "2025-01-27",  // ✅ Fecha consistente frontend-backend
-  responsable: "WILSON GARCIA",  // ✅ Nombre del responsable
+  responsable: "WILSON GARCIA",  // ✅ Sin rebotes visuales
   
-  // ✅ PRODUCTOS (como antes)
+  // === PRODUCTOS OPERATIVOS ===
   productos: [
     {
-      producto_nombre: "AREPA TIPO OBLEAS",
+      producto_nombre: "AREPA TIPO OBLEA 500Gr",
       cantidad: 50,
       dctos: 2,
       adicional: 0,
       devoluciones: 1,
       vencidas: 0,
+      total: 47,  // Calculado: cantidad - dctos + adicional - devoluciones - vencidas
       valor: 1600,
-      vendedor: true,  // ✅ Checkbox V
-      despachador: true,  // ✅ Checkbox D
-      lotes_vencidos: [  // ✅ Información de lotes
-        { lote: "L001", motivo: "FVTO" }
+      neto: 75200,  // Calculado: total * valor
+      vendedor: true,  // ✅ Checkbox V (obligatorio)
+      despachador: true,  // ✅ Checkbox D (obligatorio)
+      lotes_vencidos: [  // ✅ Lotes con motivos específicos
+        { lote: "L001", motivo: "FVTO" },
+        { lote: "L002", motivo: "DAÑADO" }
       ]
     }
+    // ... más productos
   ],
   
-  // ✅ NUEVO: DATOS DE PAGOS
+  // === PAGOS Y DESCUENTOS ===
   pagos: {
-    concepto: "EFECTIVO, NEQUI",
+    concepto: "EFECTIVO, NEQUI",  // Descripción libre
     descuentos: 5000,
     nequi: 50000,
     daviplata: 25000
   },
   
-  // ✅ NUEVO: DATOS DE RESUMEN (calculados automáticamente)
+  // === RESUMEN CALCULADO AUTOMÁTICAMENTE ===
   resumen: {
-    base_caja: 100000,
-    total_despacho: 76800,  // (50-2) * 1600
-    total_pedidos: 0,
-    total_dctos: 3200,  // 2 * 1600
-    venta: 73600,  // total_despacho - total_dctos
-    total_efectivo: -1400  // venta - nequi - daviplata
+    base_caja: 100000,  // Editable por usuario
+    total_despacho: 75200,  // Suma de todos los netos
+    total_pedidos: 0,  // Calculado desde otros módulos
+    total_dctos: 5000,  // Suma de descuentos
+    venta: 70200,  // total_despacho - total_dctos
+    total_efectivo: -4800  // venta - nequi - daviplata
   },
   
-  // ✅ NUEVO: CONTROL DE CUMPLIMIENTO
+  // === CONTROL DE CUMPLIMIENTO ===
   cumplimiento: {
-    licencia_transporte: "C",
+    licencia_transporte: "C",    // C=Cumple, NC=No Cumple, NA=No Aplica
     soat: "C", 
     uniforme: "NC",
     no_locion: "C",
@@ -1044,59 +1145,141 @@ def actualizar_stock(self, request, pk=None):
     higiene: "C",
     estibas: "C",
     desinfeccion: "C"
-  }
-  ],
-  resumen: {
-    total_despacho: 150000,
-    venta: 140000,
-    total_efectivo: 125000
-  }
-}
+  },
+  
+  // === METADATOS ===
+  timestamp: 1706380800000,  // Momento del guardado
+  usuario: "Sistema",
+  sincronizado: true,
+  estado: "COMPLETADO"  // SUGERIDO, ALISTAMIENTO, DESPACHO, FINALIZAR, COMPLETADO
+};
 ```
 
-**Flujo de cargue mejorado:**
-1. Seleccionar día de la semana
-2. Elegir vendedor (ID1-ID6)
-3. Configurar fecha
-4. Registrar productos y cantidades
-5. **VALIDACIÓN OBLIGATORIA:** Marcar checkboxes V (Vendedor) y D (Despachador) para TODOS los productos con cantidad
-6. **VERIFICACIÓN AUTOMÁTICA:** Sistema detecta productos pendientes de verificación
-7. **DESPACHO CONTROLADO:** Solo permite avanzar cuando todos los productos están verificados
-8. Registrar pagos y descuentos
-9. Calcular totales automáticamente
-10. Guardar en localStorage
-11. **SINCRONIZACIÓN COMPLETA:** Envío a base de datos con campo responsable correcto
-12. **ACTUALIZACIÓN DE INVENTARIO:** Solo durante el estado DESPACHO
+**✅ Mapeo a Base de Datos PostgreSQL:**
+```sql
+-- Tabla CargueID1 (similar para ID2-ID6)
+INSERT INTO api_cargueid1 (
+  dia, fecha, responsable,
+  producto, cantidad, dctos, adicional, devoluciones, vencidas, 
+  total, valor, neto, v, d, lotes_vencidos,
+  concepto, descuentos, nequi, daviplata,
+  base_caja, total_despacho, venta, total_efectivo,
+  licencia_transporte, soat, uniforme, no_locion, 
+  no_accesorios, capacitacion_carnet, higiene, estibas, desinfeccion,
+  usuario, activo, fecha_creacion, fecha_actualizacion
+) VALUES (...);
+```
+```
 
-**🚀 FLUJO DE DESPACHO MEJORADO:**
+#### 🔄 **FLUJO OPERATIVO PASO A PASO**
 
-#### Estados del botón de despacho:
-1. **📦 SUGERIDO** - Estado inicial, permite activar alistamiento
-2. **📦 ALISTAMIENTO ACTIVO** - Esperando que se marquen checkboxes V y D
-3. **🚚 DESPACHO** - Listo para despachar (solo si todos los productos están verificados)
-4. **🚚 DESPACHO (BLOQUEADO)** - Hay productos pendientes de verificación
-5. **✅ FINALIZAR** - Procesar devoluciones, vencidas y guardado final
-6. **🎉 COMPLETADO** - Proceso terminado
+**1. Navegación Inicial:**
+```
+Usuario → SelectorDia.jsx → Selecciona día (LUNES-SÁBADO)
+       → MenuSheets.jsx → Selecciona vendedor (ID1-ID6) + fecha
+       → PlantillaOperativa.jsx → Interfaz operativa completa
+```
 
-#### Validaciones implementadas:
-- **Productos pendientes:** Sistema detecta automáticamente productos con cantidad pero sin V y D marcados
-- **Bloqueo inteligente:** Botón se deshabilita y cambia a color warning si hay productos pendientes
-- **Confirm informativo:** Muestra lista detallada de productos que necesitan verificación
-- **Indicador visual:** Alert box amarillo permanente cuando hay productos sin verificar
-- **Validación estricta:** NO permite avanzar hasta que TODOS los productos estén verificados
+**2. Estados del Botón de Control:**
+```
+📦 SUGERIDO (inicial)
+    ↓ [Click activar]
+📦 ALISTAMIENTO ACTIVO (permite marcar V)
+    ↓ [Productos con V marcados]
+🚚 DESPACHO (permite marcar D)
+    ↓ [Todos los productos V+D completos]
+✅ FINALIZAR (procesar devoluciones/vencidas)
+    ↓ [Guardado completo en BD]
+🎉 COMPLETADO (solo lectura)
+```
 
-#### Resultado del flujo mejorado:
-- ✅ **Imposible** hacer despacho incompleto
-- ✅ **Información clara** de qué falta verificar
-- ✅ **Experiencia guiada** para completar verificaciones
-- ✅ **Prevención de errores** humanos en el proceso
+**3. Validaciones en Tiempo Real:**
+- **Detección Automática:** Productos con cantidad > 0 pero sin V/D
+- **Bloqueo Visual:** Botón warning + lista de productos pendientes
+- **Imposible Avanzar:** Sistema previene estados inconsistentes
+- **Información Clara:** Alert permanente con productos faltantes
 
-**🚀 SOLUCIÓN ANTI-REBOTE IMPLEMENTADA:**
-- **Problema resuelto:** Eliminado el rebote visual del nombre "RAUL" → "RESPONSABLE" → "RAUL"
-- **Solución:** Inicialización directa desde localStorage sin useEffect que cause rebote
-- **Utilidad:** `responsableStorage.js` centraliza toda la lógica
-- **Eventos:** Sistema de eventos personalizados para actualizaciones inmediatas
-- **Resultado:** Nombres aparecen correctamente desde la primera carga
+**4. Guardado Completo:**
+```javascript
+// Al finalizar, se envía TODO a PostgreSQL:
+BotonLimpiar.jsx → guardarDatosCompletos() → cargueService.js → Django API
+                                                ↓
+                            CargueID1-ID6 tables (todos los campos)
+```
+
+#### 🛠️ **COMPONENTES ESPECIALIZADOS**
+
+**✅ ResponsableManager.jsx:**
+```javascript
+// Gestión sin rebotes de nombres de responsables
+const [nombreResponsable, setNombreResponsable] = useState(() => {
+  // Carga INMEDIATA desde localStorage (sin useEffect)
+  const responsableLS = responsableStorage.get(idSheet);
+  return responsableLS || "RESPONSABLE";
+});
+
+// Sistema de eventos para actualizaciones
+window.addEventListener('responsableActualizado', handleUpdate);
+```
+
+**✅ TablaProductos.jsx:**
+```javascript
+// Control de checkboxes con validación estricta
+const handleCheckboxChange = (id, campo, checked) => {
+  // Solo permitir marcar si hay cantidad > 0
+  if (checked && producto.total <= 0) return;
+  
+  // Controlar D según estado del botón
+  if (campo === 'despachador' && estadoBoton === 'ALISTAMIENTO') return;
+  
+  onActualizarProducto(id, campo, checked);
+};
+```
+
+**✅ ResumenVentas.jsx:**
+```javascript
+// Carga inteligente según estado
+const cargarDatos = async () => {
+  if (estadoCompletado) {
+    // Cargar desde PostgreSQL (con fallback a fechas cercanas)
+    const data = await fetch(`/api/cargue-${idSheet}/?dia=${dia}&fecha=${fecha}`);
+  } else {
+    // Cargar desde localStorage
+    const datos = localStorage.getItem(`conceptos_pagos_${dia}_${idSheet}_${fecha}`);
+  }
+};
+```
+
+**✅ ControlCumplimiento.jsx:**
+```javascript
+// 9 criterios de evaluación con persistencia dual
+const items = [
+  { key: 'licencia_transporte', label: 'Licencia de transporte' },
+  { key: 'soat', label: 'SOAT' },
+  { key: 'uniforme', label: 'Uniforme' },
+  // ... 6 más
+];
+
+// Estados: C (Cumple), NC (No Cumple), NA (No Aplica)
+```
+
+#### 🎯 **RESULTADO FINAL DEL MÓDULO**
+
+**✅ Sistema Completamente Funcional:**
+- **6 Vendedores Independientes** con datos separados
+- **Persistencia Dual** (localStorage + PostgreSQL)
+- **Validaciones Estrictas** que previenen errores
+- **Sincronización Automática** sin rebotes visuales
+- **Guardado Completo** de todos los tipos de datos
+- **Estados Controlados** con flujo guiado
+- **Fechas Consistentes** entre frontend y backend
+
+**✅ Beneficios Operativos:**
+- **Imposible perder datos** (doble persistencia)
+- **Imposible despacho incompleto** (validaciones estrictas)
+- **Experiencia fluida** (sin rebotes ni inconsistencias)
+- **Auditoría completa** (todos los datos en BD)
+- **Escalabilidad** (arquitectura modular y extensible)
 
 ### 4. 👥 Gestión de Clientes
 

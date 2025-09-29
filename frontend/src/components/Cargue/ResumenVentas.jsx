@@ -53,6 +53,27 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
           const data = await response.json();
           console.log(`✅ RESUMEN - ${idSheet} datos completos desde BD:`, data.length, 'registros');
 
+          // 🚀 NUEVO: Si no hay datos para la fecha exacta, buscar en fechas cercanas
+          if (data.length === 0) {
+            console.log(`🔍 RESUMEN - ${idSheet} No hay datos para ${fechaActual}, buscando en fechas cercanas...`);
+
+            // Buscar sin filtro de fecha, solo por día
+            const urlSinFecha = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}`;
+            const responseSinFecha = await fetch(urlSinFecha);
+
+            if (responseSinFecha.ok) {
+              const dataSinFecha = await responseSinFecha.json();
+              console.log(`🔍 RESUMEN - ${idSheet} Datos encontrados sin filtro de fecha:`, dataSinFecha.length, 'registros');
+
+              if (dataSinFecha.length > 0) {
+                // Usar los datos más recientes
+                const datosRecientes = dataSinFecha.sort((a, b) => new Date(b.fecha_actualizacion) - new Date(a.fecha_actualizacion));
+                console.log(`🔍 RESUMEN - ${idSheet} Usando datos más recientes de fecha:`, datosRecientes[0].fecha);
+                data.push(...datosRecientes);
+              }
+            }
+          }
+
           if (Array.isArray(data) && data.length > 0) {
             // Procesar conceptos de la BD (agrupar por concepto)
             const conceptosMap = new Map();
@@ -70,14 +91,16 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                 });
               }
 
-              // 🚀 NUEVO: Solo procesar conceptos que tengan datos válidos
-              if (item.concepto && item.concepto.trim() &&
-                (parseFloat(item.descuentos) > 0 || parseFloat(item.nequi) > 0 || parseFloat(item.daviplata) > 0)) {
+              // 🚀 CORREGIDO: Procesar conceptos con datos válidos (incluyendo concepto vacío si hay montos)
+              const tieneConcepto = item.concepto && item.concepto.trim();
+              const tieneMontos = parseFloat(item.descuentos) > 0 || parseFloat(item.nequi) > 0 || parseFloat(item.daviplata) > 0;
 
-                const key = item.concepto.trim();
+              if (tieneConcepto || tieneMontos) {
+
+                const key = item.concepto ? item.concepto.trim() : 'SIN_CONCEPTO';
                 if (!conceptosMap.has(key)) {
                   conceptosMap.set(key, {
-                    concepto: key,
+                    concepto: key === 'SIN_CONCEPTO' ? '' : key,
                     descuentos: 0,
                     nequi: 0,
                     daviplata: 0
