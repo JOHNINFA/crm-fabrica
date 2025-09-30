@@ -27,6 +27,12 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
       return;
     }
 
+    // 🚫 NUEVA VALIDACIÓN: Bloquear campos específicos en estado DESPACHO
+    if (estadoBoton === 'DESPACHO' && ['dctos', 'adicional', 'devoluciones', 'vencidas'].includes(campo)) {
+      alert('Despacho pendiente');
+      return;
+    }
+
     onActualizarProducto(id, campo, valor);
   };
 
@@ -146,8 +152,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
+                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td>
@@ -158,8 +164,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
+                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td>
@@ -170,8 +176,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
+                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td>
@@ -182,8 +188,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
+                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td colSpan="2" style={{ position: 'relative', width: '120px', padding: '4px' }}>
