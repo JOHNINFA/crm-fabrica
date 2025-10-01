@@ -7,12 +7,12 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -660,3 +660,66 @@ class VendedorViewSet(viewsets.ViewSet):
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class ProduccionSolicitadaViewSet(viewsets.ViewSet):
+    """API para gestionar producción solicitada"""
+    permission_classes = [permissions.AllowAny]
+    
+    def create(self, request):
+        """Guardar/actualizar solicitadas de producción"""
+        try:
+            dia = request.data.get('dia')
+            fecha = request.data.get('fecha')
+            productos = request.data.get('productos', [])
+            
+            if not dia or not fecha:
+                return Response(
+                    {'error': 'Día y fecha son requeridos'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Limpiar registros existentes para este día/fecha
+            ProduccionSolicitada.objects.filter(dia=dia, fecha=fecha).delete()
+            
+            # Crear nuevos registros
+            registros_creados = []
+            for producto_data in productos:
+                if producto_data.get('cantidad_solicitada', 0) > 0:
+                    registro = ProduccionSolicitada.objects.create(
+                        dia=dia,
+                        fecha=fecha,
+                        producto_nombre=producto_data['producto_nombre'],
+                        cantidad_solicitada=producto_data['cantidad_solicitada']
+                    )
+                    registros_creados.append(registro)
+            
+            serializer = ProduccionSolicitadaSerializer(registros_creados, many=True)
+            
+            return Response({
+                'success': True,
+                'message': f'Guardadas {len(registros_creados)} solicitadas para {dia} {fecha}',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def list(self, request):
+        """Obtener solicitadas por fecha"""
+        fecha = request.query_params.get('fecha')
+        dia = request.query_params.get('dia')
+        
+        queryset = ProduccionSolicitada.objects.all()
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+            
+        queryset = queryset.order_by('producto_nombre')
+        serializer = ProduccionSolicitadaSerializer(queryset, many=True)
+        
+        return Response(serializer.data)

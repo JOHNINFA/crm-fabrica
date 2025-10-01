@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -255,3 +255,14 @@ class ProduccionSerializer(serializers.ModelSerializer):
             'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ('fecha_congelado', 'fecha_creacion', 'fecha_actualizacion')
+
+class ProduccionSolicitadaSerializer(serializers.ModelSerializer):
+    """Serializer para ProduccionSolicitada"""
+    
+    class Meta:
+        model = ProduccionSolicitada
+        fields = [
+            'id', 'dia', 'fecha', 'producto_nombre', 'cantidad_solicitada',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')

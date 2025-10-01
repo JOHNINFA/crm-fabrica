@@ -165,24 +165,24 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       setProductosValidados(resultado.listos);
       setProductosPendientes(resultado.pendientes);
 
-      // Auto-avance solo de ALISTAMIENTO_ACTIVO → DESPACHO
-      if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.listos.length > 0) {
-        console.log('🤖 AUTO-AVANCE: ALISTAMIENTO_ACTIVO → DESPACHO');
-        setEstado('DESPACHO');
-        localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'DESPACHO');
-      }
+      // ❌ AUTO-AVANCE DESACTIVADO - Ahora es manual
+      // if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.listos.length > 0) {
+      //   console.log('🤖 AUTO-AVANCE: ALISTAMIENTO_ACTIVO → DESPACHO');
+      //   setEstado('DESPACHO');
+      //   localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'DESPACHO');
+      // }
     };
 
     verificarYAvanzar();
 
-    // Verificación automática cada 3 segundos cuando está en ALISTAMIENTO_ACTIVO
-    let interval;
-    if (estado === 'ALISTAMIENTO_ACTIVO') {
-      interval = setInterval(verificarYAvanzar, 3000);
-    }
+    // ❌ VERIFICACIÓN AUTOMÁTICA DESACTIVADA - Ahora es manual
+    // let interval;
+    // if (estado === 'ALISTAMIENTO_ACTIVO') {
+    //   interval = setInterval(verificarYAvanzar, 3000);
+    // }
 
     return () => {
-      if (interval) clearInterval(interval);
+      // Cleanup function (vacía porque no hay interval activo)
     };
   }, [dia, fechaSeleccionada, idSheet, estado]);
 
@@ -194,6 +194,59 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       </div>
     );
   }
+
+  // 🔒 FUNCIÓN PARA CONGELAR PRODUCCIÓN (reutilizable)
+  const congelarProduccion = (estadoNombre) => {
+    if (!fechaSeleccionada) {
+      console.error('❌ ERROR: fechaSeleccionada no definida para congelar producción');
+      return;
+    }
+
+    const keyCongelados = `produccion_congelada_${dia}_${fechaSeleccionada}`;
+    const datosExistentes = localStorage.getItem(keyCongelados);
+
+    // 🔒 PROTECCIÓN: Si ya hay datos congelados, NO recongelar
+    if (datosExistentes) {
+      console.log(`❄️ ${estadoNombre} - Producción YA CONGELADA (manteniendo valores originales)`);
+      return; // Salir sin recongelar
+    }
+
+    // 🆕 PRIMERA VEZ: Congelar datos actuales
+    const datosParaCongelar = {};
+    const fechaActual = fechaSeleccionada;
+    const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+
+    // Calcular totales actuales para congelar
+    for (const diaActual of diasSemana) {
+      for (const id of idsVendedores) {
+        const key = `cargue_${diaActual}_${id}_${fechaActual}`;
+        const datosString = localStorage.getItem(key);
+
+        if (datosString) {
+          try {
+            const datos = JSON.parse(datosString);
+            if (datos && datos.productos) {
+              datos.productos.forEach(producto => {
+                if (producto.total > 0) {
+                  if (!datosParaCongelar[producto.producto]) {
+                    datosParaCongelar[producto.producto] = 0;
+                  }
+                  datosParaCongelar[producto.producto] += producto.total;
+                }
+              });
+            }
+          } catch (error) {
+            // Ignorar errores
+          }
+        }
+      }
+    }
+
+    localStorage.setItem(keyCongelados, JSON.stringify(datosParaCongelar));
+    console.log(`❄️ ${estadoNombre} - Producción CONGELADA POR PRIMERA VEZ`);
+    console.log('Datos congelados:', datosParaCongelar);
+  };
 
   // Función para actualizar inventario
   const actualizarInventario = async (productoId, cantidad, tipo) => {
@@ -1052,6 +1105,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log('🧹 PASO 3: Limpiando localStorage...');
       limpiarLocalStorage(fechaAUsar, idsVendedores);
 
+      // 🔒 Congelar producción al cambiar a COMPLETADO
+      congelarProduccion('COMPLETADO');
+
       // PASO 4: Cambiar estado a COMPLETADO
       setEstado('COMPLETADO');
       localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'COMPLETADO');
@@ -1208,6 +1264,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
+      // 🔒 Congelar producción al cambiar a FINALIZAR
+      congelarProduccion('FINALIZAR INICIADO');
+
       // Cambiar estado a FINALIZAR
       setEstado('FINALIZAR');
       localStorage.setItem(`estado_despacho_${dia}_${fechaSeleccionada}`, 'DESPACHO');
@@ -1247,52 +1306,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           variant: 'outline-secondary', // Gris suave con borde
           disabled: loading, // Solo deshabilitar si está cargando
           onClick: () => {
+            // 🔒 Congelar producción al activar alistamiento
+            congelarProduccion('ALISTAMIENTO ACTIVADO');
+
             setEstado('ALISTAMIENTO_ACTIVO');
             localStorage.setItem(`estado_despacho_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO');
             localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO_ACTIVO');
-            // Congelar datos actuales de producción
-            const datosParaCongelar = {};
-
-            // 🚀 CORREGIDO: Usar fechaSeleccionada directamente
-            if (!fechaSeleccionada) {
-              console.error('❌ ERROR: fechaSeleccionada no definida para congelar producción');
-              return;
-            }
-
-            const fechaActual = fechaSeleccionada;
-            const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-            const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
-
-            // Calcular totales actuales para congelar
-            for (const diaActual of diasSemana) {
-              for (const id of idsVendedores) {
-                const key = `cargue_${diaActual}_${id}_${fechaActual}`;
-                const datosString = localStorage.getItem(key);
-
-                if (datosString) {
-                  try {
-                    const datos = JSON.parse(datosString);
-                    if (datos && datos.productos) {
-                      datos.productos.forEach(producto => {
-                        if (producto.total > 0) {
-                          if (!datosParaCongelar[producto.producto]) {
-                            datosParaCongelar[producto.producto] = 0;
-                          }
-                          datosParaCongelar[producto.producto] += producto.total;
-                        }
-                      });
-                    }
-                  } catch (error) {
-                    // Ignorar errores
-                  }
-                }
-              }
-            }
-
-            localStorage.setItem(`produccion_congelada_${dia}_${fechaSeleccionada}`, JSON.stringify(datosParaCongelar));
-            console.log('📦 ALISTAMIENTO ACTIVADO - Producción congelada');
-            console.log('Datos congelados:', datosParaCongelar);
-            console.log('📦 ALISTAMIENTO ACTIVADO - Producción congelada');
           }
         };
       case 'ALISTAMIENTO_ACTIVO':
@@ -1301,6 +1320,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           variant: 'dark', // Gris oscuro (activado)
           disabled: listos.length === 0 || loading, // Validar productos listos
           onClick: () => {
+            // 🔒 Congelar producción al cambiar a DESPACHO
+            congelarProduccion('DESPACHO INICIADO');
+
             setEstado('DESPACHO');
             localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'DESPACHO');
             console.log('🚚 Cambiando a DESPACHO');

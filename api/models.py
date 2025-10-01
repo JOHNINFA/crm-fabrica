@@ -802,3 +802,26 @@ class Produccion(models.Model):
     def __str__(self):
         estado = "🧊 CONGELADO" if self.congelado else "🔥 ACTIVO"
         return f"{estado} - {self.fecha} - {self.producto} - {self.cantidad}"
+
+class ProduccionSolicitada(models.Model):
+    """Modelo para guardar las cantidades solicitadas de producción"""
+    
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    producto_nombre = models.CharField(max_length=255)
+    cantidad_solicitada = models.IntegerField(default=0)
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('dia', 'fecha', 'producto_nombre')
+    
+    def __str__(self):
+        return f"{self.dia} - {self.fecha} - {self.producto_nombre}: {self.cantidad_solicitada}"

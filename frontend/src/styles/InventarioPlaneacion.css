@@ -20,7 +20,7 @@
   padding: 0.3rem 0.3rem;
   border-radius: 0.375rem;
   line-height: 1;
-  width: 40%; 
+  width: 40%;
   justify-content: center;
 }
 
@@ -85,4 +85,65 @@
     padding: 0.3rem 0.3rem !important;
     width: 40% !important;
   }
+}
+
+/* 🚀 
+NUEVOS ESTILOS PARA SOLICITADAS CARGADAS DESDE BD */
+.bg-light-blue {
+  background-color: #eff6ff !important;
+  border-color: #3b82f6 !important;
+  color: #1e40af !important;
+}
+
+.bg-light-blue:focus {
+  background-color: #dbeafe !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+}
+
+/* Indicador de datos cargados desde BD */
+.data-source-indicator {
+  font-size: 0.8rem;
+  color: #3b82f6;
+  margin-left: 0.25rem;
+}
+
+/* Tooltip para indicador */
+.data-source-indicator:hover {
+  color: #1d4ed8;
+  cursor: help;
+}
+
+/* 🎯 Estilos para números de solicitadas - Igual que nombres de productos */
+.solicitadas-display {
+  display: inline-block;
+  min-width: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: #1e293b;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: none;
+  box-shadow: none;
+  appearance: none;
+}
+
+.solicitadas-display.has-data {
+  background-color: transparent;
+  border: none;
+  color: #1e293b;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+/* Asegurar que quantity-input tenga el mismo estilo */
+.quantity-input {
+  min-width: 50px;
+  text-align: center;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
 }

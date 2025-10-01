@@ -13,6 +13,9 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   const [pedidos, setPedidos] = useState({});
   const [sugeridos, setSugeridos] = useState({});
   const [datosProduccionCargados, setDatosProduccionCargados] = useState(false);
+  const [ultimosTotalesGuardados, setUltimosTotalesGuardados] = useState({});
+  const [hayDatosNuevos, setHayDatosNuevos] = useState(false);
+  const [estadoBoton, setEstadoBoton] = useState('SUGERIDO');
 
   // Cargar datos de producción guardados
   const cargarDatosProduccion = async () => {
@@ -113,10 +116,10 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       fechaActual = new Date().toISOString().split('T')[0];
     }
 
-    console.log(`🔍 PRODUCCION - ${nombreProducto}:`);
-    console.log(`   - Día: ${dia}`);
-    console.log(`   - Fecha seleccionada: ${fechaSeleccionada}`);
-    console.log(`   - Fecha a usar: ${fechaActual}`);
+    // console.log(`🔍 PRODUCCION - ${nombreProducto}:`);
+    // console.log(`   - Día: ${dia}`);
+    // console.log(`   - Fecha seleccionada: ${fechaSeleccionada}`);
+    // console.log(`   - Fecha a usar: ${fechaActual}`);
 
     // DEBUG: Mostrar información de detección
     if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
@@ -153,18 +156,40 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       console.log(`   - Día activo: ${diaActivo}`);
     }
 
-    // VERIFICAR SI HAY DATOS CONGELADOS (ALISTAMIENTO_ACTIVO)
+    // 🔒 VERIFICAR SI HAY DATOS CONGELADOS (ESTADOS AVANZADOS)
     const estadoBoton = localStorage.getItem(`estado_boton_${diaActivo}_${fechaActual}`);
-    if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR') {
-      const datosCongelados = localStorage.getItem(`produccion_congelada_${diaActivo}_${fechaActual}`);
+
+    // ✅ CORRECCIÓN: Incluir COMPLETADO y verificar datos congelados SIEMPRE en estados avanzados
+    if (estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR' || estadoBoton === 'COMPLETADO') {
+      const keyCongelados = `produccion_congelada_${diaActivo}_${fechaActual}`;
+      const datosCongelados = localStorage.getItem(keyCongelados);
+
       if (datosCongelados) {
         try {
           const totalesCongelados = JSON.parse(datosCongelados);
-          const totalCongelado = totalesCongelados[nombreProducto] || 0;
-          return totalCongelado;
+          const totalCongelado = totalesCongelados[nombreProducto];
+
+          if (totalCongelado !== undefined) {
+            if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
+              console.log(`   - ❄️ DATOS CONGELADOS ENCONTRADOS: ${totalCongelado}`);
+              console.log(`   - Estado: ${estadoBoton}`);
+              console.log(`   - Key congelados: ${keyCongelados}`);
+              console.log(`   - 🚫 SALTANDO CÁLCULO - USANDO VALOR CONGELADO`);
+            }
+            return totalCongelado;
+          }
         } catch (error) {
-          // Error en datos congelados, continuar con cálculo normal
+          if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
+            console.log(`   - ❌ Error parsing datos congelados: ${error.message}`);
+          }
         }
+      }
+
+      // Si no hay datos congelados en estados avanzados, mostrar advertencia
+      if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
+        console.log(`   - ⚠️ NO HAY DATOS CONGELADOS para estado: ${estadoBoton}`);
+        console.log(`   - Key buscada: ${keyCongelados}`);
+        console.log(`   - 🔧 CONTINUANDO CON CÁLCULO NORMAL (DEBERÍA CONGELARSE)`);
       }
     }
 
@@ -219,15 +244,17 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       }
     }
 
-    if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
-      console.log(`   - 🎯 TOTAL CALCULADO: ${total}`);
-    }
+    // if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
+    //   console.log(`   - 🎯 TOTAL CALCULADO: ${total}`);
+    // }
 
-    // Si el botón está activo y no había datos congelados, congelar ahora
-    if (estadoBoton === 'ALISTAMIENTO_ACTIVO' && total > 0) {
+    // 🔒 CONGELAR DATOS AUTOMÁTICAMENTE en estados avanzados si no existen
+    if ((estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR' || estadoBoton === 'COMPLETADO') && total > 0) {
+      const keyCongelados = `produccion_congelada_${diaActivo}_${fechaActual}`;
       let datosCongelados = {};
+
       try {
-        const datosExistentes = localStorage.getItem(`produccion_congelada_${diaActivo}_${fechaActual}`);
+        const datosExistentes = localStorage.getItem(keyCongelados);
         if (datosExistentes) {
           datosCongelados = JSON.parse(datosExistentes);
         }
@@ -235,8 +262,25 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
         datosCongelados = {};
       }
 
-      datosCongelados[nombreProducto] = total;
-      localStorage.setItem(`produccion_congelada_${diaActivo}_${fechaActual}`, JSON.stringify(datosCongelados));
+      // Solo congelar si no existe el producto en datos congelados
+      if (!datosCongelados[nombreProducto]) {
+        datosCongelados[nombreProducto] = total;
+        localStorage.setItem(keyCongelados, JSON.stringify(datosCongelados));
+
+        if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
+          console.log(`   - 🔒 CONGELADO AUTOMÁTICO: ${total} unidades`);
+          console.log(`   - Estado: ${estadoBoton}`);
+        }
+      } else {
+        // Si ya existe, usar el valor congelado en lugar del calculado
+        const valorCongelado = datosCongelados[nombreProducto];
+
+        if (nombreProducto === 'AREPA TIPO OBLEA 500Gr') {
+          console.log(`   - 🔒 USANDO VALOR CONGELADO EXISTENTE: ${valorCongelado} (calculado era: ${total})`);
+        }
+
+        return valorCongelado;
+      }
     }
 
     return total;
@@ -248,6 +292,163 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
     const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
     return estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'DESPACHO' || estadoBoton === 'FINALIZAR' || estadoBoton === 'COMPLETADO';
   };
+
+  // 🚀 NUEVO: Detectar estado del botón en tiempo real
+  useEffect(() => {
+    const detectarEstado = () => {
+      const fechaActual = fechaSeleccionada;
+      const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
+      const estado = estadoGuardado && estadoGuardado !== 'null' ? estadoGuardado : 'SUGERIDO';
+      console.log(`🎯 Estado detectado: ${estado} (guardado: ${estadoGuardado})`);
+      setEstadoBoton(estado);
+    };
+
+    detectarEstado();
+    const interval = setInterval(detectarEstado, 1000); // Verificar cada segundo
+    return () => clearInterval(interval);
+  }, [dia, fechaSeleccionada]);
+
+  // 🚀 NUEVO: Función para eliminar solicitadas existentes
+  const eliminarSolicitadasExistentes = async () => {
+    try {
+      // Obtener registros existentes para esta fecha
+      const response = await fetch(`http://localhost:8000/api/produccion/?fecha=${fechaSeleccionada}`);
+
+      if (response.ok) {
+        const registrosExistentes = await response.json();
+
+        // Filtrar solo los que son solicitadas (lote contiene "SOLICITADAS")
+        const solicitadasExistentes = registrosExistentes.filter(r =>
+          r.lote && r.lote.includes('SOLICITADAS')
+        );
+
+        // Eliminar cada registro
+        for (const registro of solicitadasExistentes) {
+          await fetch(`http://localhost:8000/api/produccion/${registro.id}/`, {
+            method: 'DELETE'
+          });
+        }
+
+        if (solicitadasExistentes.length > 0) {
+          console.log(`🗑️ Eliminados ${solicitadasExistentes.length} registros de solicitadas anteriores`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error eliminando solicitadas existentes:', error);
+    }
+  };
+
+  // 🚀 NUEVO: Función para guardar solicitadas en BD
+  const guardarSolicitadasEnBD = async () => {
+    try {
+      console.log('💾 GUARDANDO SOLICITADAS EN BD...');
+
+      // Primero eliminar registros existentes para esta fecha
+      await eliminarSolicitadasExistentes();
+
+      // Calcular totales actuales para cada producto
+      const productosParaGuardar = [];
+
+      products.forEach(producto => {
+        const totalProductos = calcularTotalDirecto(producto.name);
+        const pedidosProducto = pedidos[producto.name] || 0;
+        const totalFinal = totalProductos + pedidosProducto;
+
+        if (totalFinal > 0) {
+          productosParaGuardar.push({
+            fecha: fechaSeleccionada,
+            producto: producto.name,
+            cantidad: totalFinal,
+            lote: `SOLICITADAS_${dia}`,
+            usuario: 'SISTEMA_PRODUCCION'
+          });
+        }
+      });
+
+      // 🚀 CORREGIDO: Usar la API correcta para solicitadas
+      const datosParaGuardar = {
+        dia: dia,
+        fecha: fechaSeleccionada,
+        productos: productosParaGuardar.map(p => ({
+          producto_nombre: p.producto,
+          cantidad_solicitada: p.cantidad
+        }))
+      };
+
+      console.log('📊 Datos a enviar:', datosParaGuardar);
+
+      const response = await fetch('http://localhost:8000/api/produccion-solicitadas/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosParaGuardar)
+      });
+
+      if (response.ok) {
+        const resultado = await response.json();
+        console.log('✅ Solicitadas guardadas exitosamente:', resultado);
+
+        // Actualizar estado
+        const totalesGuardados = {};
+        productosParaGuardar.forEach(p => {
+          totalesGuardados[p.producto] = p.cantidad;
+        });
+        setUltimosTotalesGuardados(totalesGuardados);
+        setHayDatosNuevos(false);
+      } else {
+        const error = await response.json();
+        console.error('❌ Error guardando solicitadas:', error);
+      }
+
+    } catch (error) {
+      console.error('❌ Error guardando solicitadas:', error);
+    }
+  };
+
+  // 🚀 NUEVO: Detectar cambios en totales
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    const totalesActuales = {};
+    products.forEach(producto => {
+      const totalProductos = calcularTotalDirecto(producto.name);
+      const pedidosProducto = pedidos[producto.name] || 0;
+      const totalFinal = totalProductos + pedidosProducto;
+      totalesActuales[producto.name] = totalFinal;
+    });
+
+    // Comparar con últimos guardados
+    const hayDiferencias = JSON.stringify(totalesActuales) !== JSON.stringify(ultimosTotalesGuardados);
+
+    if (hayDiferencias && Object.keys(ultimosTotalesGuardados).length > 0) {
+      console.log('🔄 Cambios detectados en totales de producción');
+      setHayDatosNuevos(true);
+    }
+
+    // Guardar referencia inicial si no existe
+    if (Object.keys(ultimosTotalesGuardados).length === 0) {
+      setUltimosTotalesGuardados({ ...totalesActuales });
+    }
+
+  }, [products, pedidos, sugeridos]);
+
+  // 🚀 Guardado automático inteligente con debounce
+  useEffect(() => {
+    // Solo guardar si está en estado SUGERIDO y hay datos nuevos
+    if (estadoBoton === 'SUGERIDO' && hayDatosNuevos && fechaSeleccionada) {
+      console.log('⏳ Programando guardado automático en 3 segundos...');
+
+      const timeoutId = setTimeout(() => {
+        guardarSolicitadasEnBD();
+      }, 3000); // 3 segundos de debounce
+
+      return () => {
+        console.log('🚫 Cancelando guardado automático (nuevo cambio detectado)');
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [estadoBoton, hayDatosNuevos, fechaSeleccionada]);
 
   const produccionCongelada = verificarProduccionCongelada();
 

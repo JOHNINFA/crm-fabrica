@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Table } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
-import { useProductos } from '../../context/ProductosContext';
+// import { useProductos } from '../../context/ProductosContext'; // No necesario
 import '../../styles/InventarioProduccion.css';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
@@ -9,44 +9,83 @@ import '../../styles/BorderlessInputs.css';
 import '../../styles/ActionButtons.css';
 
 const InventarioPlaneacion = () => {
-  const { productos: productosContext } = useProductos();
+  // const { productos: productosContext } = useProductos(); // No necesario
   const [productos, setProductos] = useState([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const [planeacion, setPlaneacion] = useState([]);
-  
+  const [solicitadasCargadas, setSolicitadasCargadas] = useState(false);
+
+  // 🚀 NUEVA FUNCIÓN: Cargar solicitadas desde BD
+  const cargarSolicitadasDesdeBD = async (fechaSeleccionada) => {
+    try {
+      const fechaFormateada = fechaSeleccionada.toISOString().split('T')[0];
+      console.log('📊 Cargando solicitadas para fecha:', fechaFormateada);
+
+      const response = await fetch(`http://localhost:8000/api/produccion-solicitadas/?fecha=${fechaFormateada}`);
+      if (!response.ok) {
+        console.log('⚠️ No hay solicitadas para esta fecha - Status:', response.status);
+        console.log('🔄 Devolviendo objeto vacío - esto puede causar que se pongan en 0');
+        return {};
+      }
+
+      const solicitadas = await response.json();
+      console.log('✅ Solicitadas cargadas:', solicitadas.length);
+      console.log('📋 Datos de solicitadas:', solicitadas);
+
+      // Convertir array a objeto para búsqueda rápida
+      const solicitadasMap = {};
+      solicitadas.forEach(item => {
+        solicitadasMap[item.producto_nombre] = item.cantidad_solicitada;
+      });
+
+      return solicitadasMap;
+    } catch (error) {
+      console.error('❌ Error cargando solicitadas:', error);
+      return {};
+    }
+  };
+
   // Cargar existencias desde BD
   const cargarExistenciasReales = async () => {
     try {
-      console.log('🔄 Actualizando datos de productos...');
-      
+      console.log('🔄 EJECUTANDO cargarExistenciasReales...', new Date().toLocaleTimeString());
+      console.log('📊 Productos actuales antes de cargar:', productos.length);
+
       // Obtener productos directamente de la API
       const response = await fetch('http://localhost:8000/api/productos/');
       if (!response.ok) throw new Error('Error al obtener productos');
-      
+
       const productosFromBD = await response.json();
       console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
-      
+
+      // 🚀 CARGAR SOLICITADAS DESDE BD
+      const solicitadasMap = await cargarSolicitadasDesdeBD(fechaSeleccionada);
+
       // Preparar productos con planeación
-      const productosConPlaneacion = productosFromBD.map(p => ({
-        id: p.id,
-        nombre: p.nombre,
-        existencias: p.stock_total || 0,
-        solicitado: 0,
-        orden: 0
-      }));
-      
-      // Mantener los valores de solicitado y orden si ya existen
-      if (productos.length > 0) {
-        productosConPlaneacion.forEach(producto => {
-          const productoExistente = productos.find(p => p.id === producto.id);
-          if (productoExistente) {
-            producto.solicitado = productoExistente.solicitado || 0;
-            producto.orden = productoExistente.orden || 0;
-          }
-        });
-      }
-      
+      const productosConPlaneacion = productosFromBD.map(p => {
+        const productoExistente = productos.find(prod => prod.id === p.id);
+
+        // Si hay solicitadas en BD, usar esas. Si no, mantener las existentes
+        let solicitadoFinal = 0;
+        if (solicitadasMap[p.nombre] !== undefined) {
+          solicitadoFinal = solicitadasMap[p.nombre];
+        } else if (productoExistente && productoExistente.solicitado > 0) {
+          solicitadoFinal = productoExistente.solicitado; // Preservar existentes
+          console.log(`🔄 Preservando solicitadas para ${p.nombre}: ${solicitadoFinal}`);
+        }
+
+        return {
+          id: p.id,
+          nombre: p.nombre,
+          existencias: p.stock_total || 0,
+          solicitado: solicitadoFinal,
+          orden: productoExistente ? (productoExistente.orden || 0) : 0
+        };
+      });
+
+      setSolicitadasCargadas(true);
+
       // Definir el orden específico de los productos (igual que en Kardex)
       const ordenProductos = {
         'AREPA TIPO OBLEA 500GR': 1,
@@ -56,26 +95,35 @@ const InventarioPlaneacion = () => {
         'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
         'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
       };
-      
+
       // Ordenar productos según el orden específico
       productosConPlaneacion.sort((a, b) => {
         const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
         const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
         return ordenA - ordenB;
       });
-      
+
+      // Log detallado antes de setear productos
+      console.log('🎯 PRODUCTOS A SETEAR:');
+      productosConPlaneacion.forEach(p => {
+        if (p.solicitado > 0) {
+          console.log(`   - ${p.nombre}: ${p.solicitado} solicitadas`);
+        }
+      });
+
       setProductos(productosConPlaneacion);
-      console.log('✅ Datos actualizados correctamente');
-    } catch (error) {
-      console.error('Error al cargar existencias:', error);
-      if (productos.length === 0) {
-        const productosConPlaneacion = productosContext.map(producto => ({
-          ...producto,
-          solicitado: 0,
-          orden: 0
-        }));
-        setProductos(productosConPlaneacion);
+
+      // Mostrar mensaje si se cargaron solicitadas
+      const totalSolicitadas = Object.values(solicitadasMap).reduce((sum, val) => sum + val, 0);
+      if (totalSolicitadas > 0) {
+        console.log(`✅ Datos actualizados + ${Object.keys(solicitadasMap).length} solicitadas cargadas`);
+        mostrarMensaje(`Solicitadas cargadas desde Producción: ${Object.keys(solicitadasMap).length} productos`, 'info');
+      } else {
+        console.log('⚠️ NO SE ENCONTRARON SOLICITADAS - Esto puede causar que se pongan en 0');
       }
+    } catch (error) {
+      console.error('❌ Error al cargar existencias:', error);
+      // No hacer nada si hay error - mantener productos existentes
     }
   };
   // Utilidades
@@ -83,46 +131,43 @@ const InventarioPlaneacion = () => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
-  
+
   const getExistenciasClass = (existencias) => {
     return existencias > 0 ? 'bg-light-green' : 'bg-light-red';
   };
-  
+
   const updateProducto = (id, field, value) => {
-    const nuevosProductos = productos.map(producto => 
+    const nuevosProductos = productos.map(producto =>
       producto.id === id ? { ...producto, [field]: parseInt(value) || 0 } : producto
     );
     setProductos(nuevosProductos);
   };
-  
+
   // Effects
   useEffect(() => {
+    // Solo cargar al montar el componente
     cargarExistenciasReales();
-    
-    // Configurar actualización periódica cada 30 segundos
-    const interval = setInterval(() => {
-      cargarExistenciasReales();
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, [productosContext]);
-  
-  // Actualizar datos cuando cambia la fecha
+  }, []); // Sin dependencias para evitar recargas
+
+  // Actualizar datos SOLO cuando cambia la fecha
   useEffect(() => {
-    cargarExistenciasReales();
+    if (fechaSeleccionada) {
+      console.log('📅 Fecha cambió, recargando datos...');
+      cargarExistenciasReales();
+    }
   }, [fechaSeleccionada]);
 
-  const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad);
+  // const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad); // No editable
   const handleOrdenChange = (id, cantidad) => updateProducto(id, 'orden', cantidad);
 
   const handleGuardarPlaneacion = () => {
     const productosConPlaneacion = productos.filter(p => p.solicitado > 0 || p.orden > 0);
-    
+
     if (productosConPlaneacion.length === 0) {
       mostrarMensaje('No hay cantidades planeadas para registrar', 'warning');
       return;
     }
-    
+
     const nuevaPlaneacion = {
       id: Date.now(),
       fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
@@ -133,9 +178,9 @@ const InventarioPlaneacion = () => {
         orden: p.orden
       }))
     };
-    
+
     setPlaneacion([nuevaPlaneacion, ...planeacion]);
-    
+
     // Resetear cantidades
     const productosReseteados = productos.map(producto => ({
       ...producto,
@@ -143,7 +188,7 @@ const InventarioPlaneacion = () => {
       orden: 0
     }));
     setProductos(productosReseteados);
-    
+
     mostrarMensaje('Planeación guardada correctamente', 'success');
   };
 
@@ -154,7 +199,7 @@ const InventarioPlaneacion = () => {
       {/* Encabezado y controles */}
       <Row className="mb-4">
         <Col>
-          <p className="text-muted fw-medium" style={{fontSize: '0.95rem'}}>Planifique la cantidad de productos a fabricar para una fecha específica.</p>
+          <p className="text-muted fw-medium" style={{ fontSize: '0.95rem' }}>Planifique la cantidad de productos a fabricar para una fecha específica.</p>
         </Col>
       </Row>
 
@@ -164,8 +209,8 @@ const InventarioPlaneacion = () => {
           <DateSelector onDateSelect={handleDateSelect} />
         </Col>
         <Col xs={12} md={6} className="d-flex justify-content-end align-items-center">
-          <Button 
-            variant="outline-info" 
+          <Button
+            variant="outline-info"
             className="mb-2 mb-md-0"
             onClick={() => {
               cargarExistenciasReales();
@@ -204,7 +249,7 @@ const InventarioPlaneacion = () => {
               <tbody>
                 {productos.map((producto) => (
                   <tr key={producto.id} className="product-row">
-                    <td className="fw-medium" style={{color: '#1e293b'}}>{producto.nombre}</td>
+                    <td className="fw-medium" style={{ color: '#1e293b' }}>{producto.nombre}</td>
                     <td className="text-center">
                       <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
                         {producto.existencias} und
@@ -212,14 +257,9 @@ const InventarioPlaneacion = () => {
                     </td>
                     <td className="text-center">
                       <div className="d-flex justify-content-center">
-                        <Form.Control
-                          type="number"
-                          min="0"
-                          value={producto.solicitado || 0}
-                          onChange={(e) => handleSolicitadoChange(producto.id, e.target.value)}
-                          className="borderless-input"
-                          aria-label={`Cantidad solicitada de ${producto.nombre}`}
-                        />
+                        <span className={`solicitadas-display ${producto.solicitado > 0 ? 'has-data' : ''}`}>
+                          {producto.solicitado || 0}
+                        </span>
                       </div>
                     </td>
                     <td className="text-center">
@@ -252,8 +292,8 @@ const InventarioPlaneacion = () => {
       {/* Botón guardar planeación */}
       <Row className="mb-4">
         <Col className="text-end">
-          <Button 
-            variant="success" 
+          <Button
+            variant="success"
             className="action-button"
             onClick={handleGuardarPlaneacion}
           >
@@ -266,7 +306,7 @@ const InventarioPlaneacion = () => {
       {planeacion.length > 0 && (
         <Row className="mt-5">
           <Col>
-            <h5 className="mb-3 fw-bold" style={{color: '#1e293b'}}>Historial de Planeación</h5>
+            <h5 className="mb-3 fw-bold" style={{ color: '#1e293b' }}>Historial de Planeación</h5>
             <div className="table-container">
               <Table className="align-middle mb-0 table-kardex planeacion-table">
                 <thead>
@@ -280,18 +320,18 @@ const InventarioPlaneacion = () => {
                   {planeacion.map((plan) => (
                     <tr key={plan.id}>
                       <td>
-                        <span className="rounded-pill-sm" style={{backgroundColor: '#f8fafc', color: '#475569'}}>
+                        <span className="rounded-pill-sm" style={{ backgroundColor: '#f8fafc', color: '#475569' }}>
                           {plan.fecha}
                         </span>
                       </td>
                       <td>
                         {plan.productos.map(p => (
                           <div key={p.id} className="mb-1">
-                            <span className="fw-medium" style={{color: '#1e293b'}}>{p.nombre}:</span>
+                            <span className="fw-medium" style={{ color: '#1e293b' }}>{p.nombre}:</span>
                             <span className="rounded-pill-sm bg-light-green ms-2">
                               <i className="bi bi-box-seam me-1"></i> {p.solicitado}
                             </span>
-                            <span className="rounded-pill-sm ms-2" style={{backgroundColor: '#3498DB', color: '#fff'}}>
+                            <span className="rounded-pill-sm ms-2" style={{ backgroundColor: '#3498DB', color: '#fff' }}>
                               <i className="bi bi-clipboard-check me-1"></i> {p.orden}
                             </span>
                           </div>
@@ -302,7 +342,7 @@ const InventarioPlaneacion = () => {
                           variant="outline-primary"
                           size="sm"
                           className="rounded-pill-sm"
-                          style={{backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'}}
+                          style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}
                         >
                           <i className="bi bi-eye me-1"></i>
                           Ver Detalles

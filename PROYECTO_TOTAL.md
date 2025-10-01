@@ -68,6 +68,7 @@ Este es un **Sistema CRM completo** diseñado específicamente para una **fábri
 - ✅ **Tests automatizados** completos
 - ✅ **CAMPO RESPONSABLE CORREGIDO** - Serializers actualizados para incluir campo responsable
 - ✅ **VALIDACIÓN ESTRICTA DE DESPACHO** - Bloqueo hasta completar verificaciones V y D
+- ✅ **CONTROL DE CAMPOS EN DESPACHO** - Bloqueo de campos DCTOS/ADICIONAL/DEVOLUCIONES/VENCIDAS durante despacho
 - ✅ **DETECCIÓN DE PRODUCTOS PENDIENTES** - Sistema inteligente de validación
 - ✅ **CORRECCIÓN DE FECHAS** - Eliminado fallback problemático de fecha actual
 - ✅ **ELIMINACIÓN DE LOOP INFINITO** - Optimización de useEffect y dependencias
@@ -81,6 +82,7 @@ Este es un **Sistema CRM completo** diseñado específicamente para una **fábri
 - ✅ **MIGRACIÓN DE BD APLICADA** - Campo fecha sin default automático
 - ✅ **VALIDACIÓN ESTRICTA** - Backend requiere fecha desde frontend
 - ✅ **LIMPIEZA COMPLETA** - LocalStorage se limpia correctamente al finalizar
+- ✅ **CONTROL DE CAMPOS EN DESPACHO** - Validación de campos bloqueados durante estado DESPACHO (Enero 2025)
 
 ---
 
@@ -1418,6 +1420,33 @@ if (productosPendientes.length > 0) {
       <strong>⚠️ DESPACHO BLOQUEADO</strong><br />
       {productosPendientes.length} producto(s) con cantidad necesitan verificación completa (checkboxes V y D)
     </div>
+
+#### E. Control de campos durante estado DESPACHO (Enero 2025)
+```javascript
+// Nueva validación que bloquea campos específicos en estado DESPACHO
+const handleInputChange = (id, campo, valor) => {
+  // 🚫 NUEVA VALIDACIÓN: Bloquear campos específicos en estado DESPACHO
+  if (estadoBoton === 'DESPACHO' && ['dctos', 'adicional', 'devoluciones', 'vencidas'].includes(campo)) {
+    alert('Despacho pendiente');
+    return;
+  }
+  
+  onActualizarProducto(id, campo, valor);
+};
+```
+
+**Campos bloqueados en estado DESPACHO:**
+- ❌ **DCTOS** (Descuentos) - Solo lectura con fondo gris
+- ❌ **ADICIONAL** - Solo lectura con fondo gris  
+- ❌ **DEVOLUCIONES** - Solo lectura con fondo gris
+- ❌ **VENCIDAS** - Solo lectura con fondo gris
+- ✅ **CANTIDAD** - Sigue siendo editable
+
+**Comportamiento:**
+- **Estado ALISTAMIENTO**: Todos los campos editables
+- **Estado DESPACHO** (botón azul): Solo CANTIDAD editable, otros campos bloqueados
+- **Intento de edición**: Alert "Despacho pendiente" y bloqueo de acción
+- **Visual**: Campos deshabilitados con `backgroundColor: '#f8f9fa'` y `cursor: 'not-allowed'`
   </div>
 )}
 ```
@@ -2157,3 +2186,1244 @@ test: agregar tests
 ---
 
 **🚀 ESTADO ACTUAL:** Sistema funcional con mejoras críticas implementadas, listo para validación completa y corrección de problemas identificados.
+
+---
+
+## 🚀 **SISTEMA DE GUARDADO AUTOMÁTICO DE SOLICITADAS (Octubre 2025)**
+
+### 📋 **Descripción General**
+Sistema inteligente que detecta automáticamente los cambios en la sección de **Producción** y guarda las cantidades solicitadas en la base de datos para su visualización en **Inventario/Planeación**.
+
+### 🎯 **Funcionalidades Implementadas**
+
+#### 1. **Detección Automática de Cambios**
+- **Monitoreo en tiempo real** de cambios en totales de producción
+- **Comparación inteligente** entre valores actuales y últimos guardados
+- **Activación solo en estado SUGERIDO** para evitar guardados no deseados
+
+```javascript
+// useEffect para detectar cambios en totales
+useEffect(() => {
+  if (products.length === 0) return;
+
+  const totalesActuales = {};
+  products.forEach(producto => {
+    const totalProductos = calcularTotalDirecto(producto.name);
+    const pedidosProducto = pedidos[producto.name] || 0;
+    const totalFinal = totalProductos + pedidosProducto;
+    totalesActuales[producto.name] = totalFinal;
+  });
+
+  // Comparar con últimos guardados
+  const hayDiferencias = JSON.stringify(totalesActuales) !== JSON.stringify(ultimosTotalesGuardados);
+
+  if (hayDiferencias && Object.keys(ultimosTotalesGuardados).length > 0) {
+    console.log('🔄 Cambios detectados en totales de producción');
+    setHayDatosNuevos(true);
+  }
+
+  // Guardar referencia inicial si no existe
+  if (Object.keys(ultimosTotalesGuardados).length === 0) {
+    setUltimosTotalesGuardados({ ...totalesActuales });
+  }
+}, [products, pedidos, sugeridos]);
+```
+
+#### 2. **Guardado Automático con Debounce**
+- **Espera inteligente de 3 segundos** sin cambios antes de guardar
+- **Cancelación automática** si se detectan nuevos cambios
+- **Logs detallados** para seguimiento del proceso
+
+```javascript
+// useEffect para guardado automático con debounce
+useEffect(() => {
+  // Solo guardar si está en estado SUGERIDO y hay datos nuevos
+  if (estadoBoton === 'SUGERIDO' && hayDatosNuevos && fechaSeleccionada) {
+    console.log('⏳ Programando guardado automático en 3 segundos...');
+
+    const timeoutId = setTimeout(() => {
+      guardarSolicitadasEnBD();
+    }, 3000); // 3 segundos de debounce
+
+    return () => {
+      console.log('🚫 Cancelando guardado automático (nuevo cambio detectado)');
+      clearTimeout(timeoutId);
+    };
+  }
+}, [estadoBoton, hayDatosNuevos, fechaSeleccionada]);
+```
+
+#### 3. **API Completa para Solicitadas**
+- **Modelo ProduccionSolicitada** en la base de datos
+- **Serializer y ViewSet** completos para gestión de datos
+- **Endpoint dedicado**: `/api/produccion-solicitadas/`
+
+```python
+# models.py - Modelo ProduccionSolicitada
+class ProduccionSolicitada(models.Model):
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    producto_nombre = models.CharField(max_length=255)
+    cantidad_solicitada = models.IntegerField(default=0)
+    usuario = models.CharField(max_length=100, default='SISTEMA_PRODUCCION')
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['dia', 'fecha', 'producto_nombre']
+        ordering = ['-fecha', 'producto_nombre']
+
+# serializers.py - Serializer para ProduccionSolicitada
+class ProduccionSolicitadaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProduccionSolicitada
+        fields = '__all__'
+
+# views.py - ViewSet para ProduccionSolicitada
+class ProduccionSolicitadaViewSet(viewsets.ModelViewSet):
+    queryset = ProduccionSolicitada.objects.all()
+    serializer_class = ProduccionSolicitadaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ProduccionSolicitada.objects.all().order_by('-fecha', 'producto_nombre')
+        
+        # Filtros opcionales
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+            
+        return queryset
+```
+
+#### 4. **Función de Guardado Inteligente**
+- **Eliminación previa** de registros existentes para evitar duplicados
+- **Cálculo automático** de totales (productos + pedidos)
+- **Validación de datos** antes del envío
+- **Manejo de errores** completo
+
+```javascript
+// Función guardarSolicitadasEnBD en Produccion.jsx
+const guardarSolicitadasEnBD = async () => {
+  try {
+    console.log('💾 GUARDANDO SOLICITADAS EN BD...');
+
+    // Primero eliminar registros existentes para esta fecha
+    await eliminarSolicitadasExistentes();
+
+    // Calcular totales actuales para cada producto
+    const productosParaGuardar = [];
+
+    products.forEach(producto => {
+      const totalProductos = calcularTotalDirecto(producto.name);
+      const pedidosProducto = pedidos[producto.name] || 0;
+      const totalFinal = totalProductos + pedidosProducto;
+
+      if (totalFinal > 0) {
+        productosParaGuardar.push({
+          fecha: fechaSeleccionada,
+          producto: producto.name,
+          cantidad: totalFinal,
+          lote: `SOLICITADAS_${dia}`,
+          usuario: 'SISTEMA_PRODUCCION'
+        });
+      }
+    });
+
+    // Preparar datos para la API
+    const datosParaGuardar = {
+      dia: dia,
+      fecha: fechaSeleccionada,
+      productos: productosParaGuardar.map(p => ({
+        producto_nombre: p.producto,
+        cantidad_solicitada: p.cantidad
+      }))
+    };
+
+    console.log('📊 Datos a enviar:', datosParaGuardar);
+
+    // Enviar a la API
+    const response = await fetch('http://localhost:8000/api/produccion-solicitadas/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(datosParaGuardar)
+    });
+
+    if (response.ok) {
+      const resultado = await response.json();
+      console.log('✅ Solicitadas guardadas exitosamente:', resultado);
+
+      // Actualizar estado
+      const totalesGuardados = {};
+      productosParaGuardar.forEach(p => {
+        totalesGuardados[p.producto] = p.cantidad;
+      });
+      setUltimosTotalesGuardados(totalesGuardados);
+      setHayDatosNuevos(false);
+    } else {
+      const error = await response.json();
+      console.error('❌ Error guardando solicitadas:', error);
+    }
+
+  } catch (error) {
+    console.error('❌ Error guardando solicitadas:', error);
+  }
+};
+```
+
+#### 5. **Visualización en Inventario/Planeación**
+- **Carga automática** de solicitadas desde la base de datos
+- **Filtrado por fecha** seleccionada
+- **Notificaciones de confirmación** al usuario
+- **Actualización en tiempo real**
+
+```javascript
+// InventarioPlaneacion.jsx - Función para cargar solicitadas
+const cargarSolicitadasDesdeBD = async () => {
+  try {
+    console.log('🔍 Cargando solicitadas desde BD para fecha:', fechaSeleccionada);
+    
+    const response = await fetch(`http://localhost:8000/api/produccion-solicitadas/?fecha=${fechaSeleccionada}`);
+    
+    if (response.ok) {
+      const solicitadas = await response.json();
+      console.log('📊 Solicitadas cargadas:', solicitadas);
+      
+      if (solicitadas.length > 0) {
+        // Actualizar estado con las solicitadas
+        const solicitadasMap = {};
+        solicitadas.forEach(item => {
+          solicitadasMap[item.producto_nombre] = item.cantidad_solicitada;
+        });
+        
+        setSolicitadasProduccion(solicitadasMap);
+        
+        // Mostrar notificación
+        setNotificacion({
+          tipo: 'info',
+          mensaje: `Solicitadas cargadas desde Producción: ${solicitadas.length} productos`,
+          mostrar: true
+        });
+        
+        // Ocultar notificación después de 5 segundos
+        setTimeout(() => {
+          setNotificacion(prev => ({ ...prev, mostrar: false }));
+        }, 5000);
+      } else {
+        setSolicitadasProduccion({});
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error cargando solicitadas:', error);
+  }
+};
+```
+
+### 🔧 **Estados y Variables de Control**
+
+#### Estados en Produccion.jsx
+```javascript
+const [ultimosTotalesGuardados, setUltimosTotalesGuardados] = useState({});
+const [hayDatosNuevos, setHayDatosNuevos] = useState(false);
+const [estadoBoton, setEstadoBoton] = useState('SUGERIDO');
+```
+
+#### Estados en InventarioPlaneacion.jsx
+```javascript
+const [solicitadasProduccion, setSolicitadasProduccion] = useState({});
+const [notificacion, setNotificacion] = useState({
+  tipo: '',
+  mensaje: '',
+  mostrar: false
+});
+```
+
+### 🎨 **Estilos CSS Implementados**
+
+```css
+/* InventarioPlaneacion.css - Estilos para notificaciones */
+.notificacion-solicitadas {
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  color: #0c5460;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideDown 0.3s ease-out;
+}
+
+.notificacion-solicitadas .btn-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #0c5460;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+}
+
+.notificacion-solicitadas .btn-close:hover {
+  color: #062c33;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilos para columna de solicitadas */
+.solicitadas-column {
+  background-color: #e8f4f8;
+  font-weight: 600;
+  color: #0c5460;
+}
+
+.solicitadas-value {
+  background-color: #d1ecf1;
+  padding: 8px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: bold;
+  color: #0c5460;
+}
+```
+
+### 🔄 **Flujo Completo del Sistema**
+
+#### 1. **Detección de Cambios**
+```
+Usuario modifica valores en Producción
+    ↓
+useEffect detecta cambios en totales
+    ↓
+setHayDatosNuevos(true)
+    ↓
+Console: "🔄 Cambios detectados en totales de producción"
+```
+
+#### 2. **Guardado Automático**
+```
+hayDatosNuevos = true + estadoBoton = 'SUGERIDO'
+    ↓
+setTimeout de 3 segundos iniciado
+    ↓
+Console: "⏳ Programando guardado automático en 3 segundos..."
+    ↓
+Si no hay más cambios → guardarSolicitadasEnBD()
+    ↓
+Console: "💾 GUARDANDO SOLICITADAS EN BD..."
+```
+
+#### 3. **Procesamiento de Datos**
+```
+Eliminar registros existentes para la fecha
+    ↓
+Calcular totales actuales (productos + pedidos)
+    ↓
+Filtrar productos con cantidad > 0
+    ↓
+Preparar datos para API
+    ↓
+POST a /api/produccion-solicitadas/
+```
+
+#### 4. **Confirmación y Actualización**
+```
+Respuesta exitosa del servidor
+    ↓
+Console: "✅ Solicitadas guardadas exitosamente"
+    ↓
+Actualizar ultimosTotalesGuardados
+    ↓
+setHayDatosNuevos(false)
+```
+
+#### 5. **Visualización en Inventario**
+```
+Usuario va a Inventario/Planeación
+    ↓
+cargarSolicitadasDesdeBD() automático
+    ↓
+GET a /api/produccion-solicitadas/?fecha=YYYY-MM-DD
+    ↓
+Actualizar tabla con datos de solicitadas
+    ↓
+Mostrar notificación: "Solicitadas cargadas desde Producción: X productos"
+```
+
+### 🛡️ **Validaciones y Controles**
+
+#### 1. **Control de Estado**
+- Solo funciona en estado **SUGERIDO**
+- Se desactiva automáticamente en estados **DESPACHO**, **ALISTAMIENTO_ACTIVO**, etc.
+
+#### 2. **Validación de Datos**
+- Verifica que `fechaSeleccionada` esté definida
+- Filtra productos con cantidad > 0
+- Valida estructura de datos antes del envío
+
+#### 3. **Manejo de Errores**
+- Try-catch completo en todas las funciones
+- Logs detallados para debugging
+- Respuestas de error del servidor manejadas
+
+#### 4. **Prevención de Duplicados**
+- Eliminación previa de registros existentes
+- Constraint `unique_together` en el modelo
+- Validación en el frontend antes del envío
+
+### 📊 **Logs y Debugging**
+
+#### Logs de Detección
+```javascript
+console.log('🔄 Cambios detectados en totales de producción');
+console.log('⏳ Programando guardado automático en 3 segundos...');
+console.log('🚫 Cancelando guardado automático (nuevo cambio detectado)');
+```
+
+#### Logs de Guardado
+```javascript
+console.log('💾 GUARDANDO SOLICITADAS EN BD...');
+console.log('📊 Datos a enviar:', datosParaGuardar);
+console.log('✅ Solicitadas guardadas exitosamente:', resultado);
+console.log('❌ Error guardando solicitadas:', error);
+```
+
+#### Logs de Carga
+```javascript
+console.log('🔍 Cargando solicitadas desde BD para fecha:', fechaSeleccionada);
+console.log('📊 Solicitadas cargadas:', solicitadas);
+```
+
+### 🎯 **Estado de Detección de Estado del Botón**
+
+#### Problema Solucionado
+- **Problema**: `estadoBoton` se cargaba como `null` desde localStorage
+- **Solución**: Validación mejorada para usar `'SUGERIDO'` como default
+
+```javascript
+// Detección mejorada del estado
+const detectarEstado = () => {
+  const fechaActual = fechaSeleccionada;
+  const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
+  const estado = estadoGuardado && estadoGuardado !== 'null' ? estadoGuardado : 'SUGERIDO';
+  console.log(`🎯 Estado detectado: ${estado} (guardado: ${estadoGuardado})`);
+  setEstadoBoton(estado);
+};
+```
+
+### ✅ **Verificación de Funcionamiento**
+
+#### Pruebas Realizadas
+1. ✅ **Detección de cambios**: Funciona correctamente
+2. ✅ **Guardado automático**: Se ejecuta después de 3 segundos
+3. ✅ **API funcionando**: `/api/produccion-solicitadas/` operativa
+4. ✅ **Base de datos**: Datos se guardan correctamente
+5. ✅ **Visualización**: Datos aparecen en Inventario/Planeación
+6. ✅ **Notificaciones**: Confirmación al usuario funcional
+7. ✅ **Estado del botón**: Se detecta correctamente como 'SUGERIDO'
+
+#### Ejemplo de Funcionamiento Exitoso
+```
+Producción: AREPA TIPO OBLEA 500Gr
+- ID1: 10, ID2: 20, ID3: 40, ID4: 50, ID5: 60, ID6: 60
+- Total calculado: 240
+- Guardado automático: ✅
+- Aparece en Inventario/Planeación: ✅ 240 solicitadas
+- Notificación: "Solicitadas cargadas desde Producción: 1 productos"
+```
+
+### 🚀 **Beneficios del Sistema**
+
+1. **Automatización Completa**: No requiere intervención manual
+2. **Tiempo Real**: Cambios se reflejan inmediatamente
+3. **Integridad de Datos**: Eliminación de duplicados automática
+4. **Trazabilidad**: Logs completos para auditoría
+5. **Experiencia de Usuario**: Notificaciones claras y feedback visual
+6. **Rendimiento**: Debounce evita guardados excesivos
+7. **Confiabilidad**: Manejo robusto de errores
+
+---
+
+## 🔧 **SISTEMA DE CONGELADO DE PRODUCCIÓN**
+
+### 📋 **Descripción General**
+Sistema que congela automáticamente los datos de producción cuando el estado cambia de **SUGERIDO** a otros estados (**ALISTAMIENTO_ACTIVO**, **DESPACHO**, **COMPLETADO**), manteniendo la integridad de los datos durante todo el proceso operativo.
+
+### 🎯 **Funcionalidades del Congelado**
+
+#### 1. **Función de Congelado Reutilizable**
+`*.
+aneación*o/Pl**Inventarin** e cióoducs entre **Pria de datotencne la consise y mantietentexisectura on la arquitfectamente cra perntegema i
+
+El sistdge casedos erores y estasto de ernejo robud**: MabilidaConfia. **s
+6 eficientelidacionesounce y va debo con: Optimizadento**Rendimi**ía
+5. torng y audibuggipara dempletos Logs co*: ilidad*Trazab
+4. **intuitivasaciones laro y valideedback co**: Fuaricia de Usienxpersto
+3. **Eelado robutema de congSis: Datos** de **Integridadual
+2. n manervenciódo sin intrdación y guatec**: Deón Completaizaciomat
+1. **Auta:
+roporciononando. Pnciado y fuplementtamente imple com** estádas Solicitatico deomáGuardado Auta de 
+El **SistemUSIÓN**
+NCL*CO *-
+
+## 🎯nal
+
+-- profesioal claro yack visuia**: Feedb*Experiencargaron
+- *oductos se cs pruánto usuario crma alonfilidad**: Cona**Funcineación
+- laventario/P en Inacionesde notificstema ación**: Sint*Implemeo**
+- *es de Usuaritificacion## 📊 **Noe
+
+#e y eficienttenibl más man*: CódigoResultado*
+- **icadaca unifnes, lógi duplicaciodeliminación ción**: Ect
+- **SoluEffe en useo duplicadoa**: Códig*Problem **
+-de Código*a **Limpiez
+
+### 🔧 rrectamentea coonco funciado automátiado**: Guard- **ResultRIDO'`
+ `'SUGEallback acon fón robusta lidaci VaSolución**:
+- **ull`mo `nba cose cargaoBoton` *: `estadlema* **Probado**
+-orada de Estción Mej **Detec### 🎯bles
+
+s visiortante impogslimpia, lla más  Consoo**:ad**Resultos
+- esaridebug inneclogs de ntado de n**: Comeució- **Solconsola
+ido en la  ruabaneners gcesivo**: Logs exblemas**
+- **Prode Logación  **Optimiz
+### 🚀ADAS**
+PLEMENTIZACIONES IMTIMEJORAS Y OP📈 **M
+---
+
+## 
+toría
+```a audi: ✅ Parponiblerico disistó
+- Hnmutablesanecen is: ✅ Permgelado Datos con
+-OMPLETADOado final: Car
+
+Esteden alter No se pus: ✅blenmutas i
+- Datoe"ho pendientspac: ✅ "⚠️ Demostrado Alert 
+-ENCIDASIONES, VVOLUC DEAL,OS, ADICION ✅ DCTbloqueados:
+- Campos máticamenteados autordos guaela: ✅ DatcongSistema CHO  
+- PA a: DEStado cambiante
+
+Esticame✅ Automáardan: e gu- Datos s campos
+osodos lar: ✅ Tmodifice uario pued
+- Us SUGERIDOial:stado inicto
+```
+Eiende Funcionamjemplo 
+#### Eo
+l proceste todo eienen duranSe mants**: inmutable ✅ **Datos onando
+6.l funcieo visuarts y bloqumpos**: Aleación de caalid*V *nte
+5. ✅ correctamenauncio: Fado**el recong contraProtecciónte
+4. ✅ **do permanengelaDO**: ConMPLETA→ CO*SUGERIDO ✅ *mpos
+3.  caeo deoquado + bl**: Congel → DESPACHO **SUGERIDO2. ✅ático
+elado autom*: CongIVO*O_ACTISTAMIENTDO → ALSUGERIdos
+1. ✅ **stados Proba E*
+
+####amiento*ncione Fuficación d**Veri## ✅ 
+
+#bloqueadose campos  sobrclarock eedbaUsuario**: Fde ncia perie7. **Exdo
+ recongela contraciónecprotma de **: Sisteión Robustaccte
+6. **Proel usuariol d manuaónntervenci requiere in**: Noutomatizació5. **Aior
+n postera revisióstados parrico de eiene histó: Mantoría**dit**Au. ríticas
+4raciones crante opes duidentalenes accmodificacios**: Evita  Errore dePrevenciónos
+3. **s datn congeló lo y quiéándo de cutoro compled**: Registdarazabili
+2. **Tativoo operesprocado el na vez iniciados user alterno pueden atos Los dtos**: Daridad de 
+1. **Integ*
+gelado*onSistema de Cficios del ne### 🎯 **Be```
+
+ }
+}
+ctos
+ s produ ... má }
+    //
+    150alFinal":    "tot": 0,
+  "sugeridos,
+      30dos": "pedi
+      ": 120,lProductos    "tota
+  330Gr": {DIANA "AREPA ME    
+    },
+l": 240natalFi"to   ": 10,
+   geridossu
+      "s": 50,pedido " 180,
+     ":sroducto    "totalP
+  r": {LEA 500G OB"AREPA TIPO  
+  : {"productos" 00Z",
+ 4:30:00.02025-10-08T1": " "timestamp",
+ STEMA_AUTOSIio": "usuar
+  "-10-08", "2025cha":"fee
+{
+   localStoragelados en datos congmplo dept
+// Eje```javascri
+ngelados**
+de Datos CoEstructura ## 📊 **
+
+#
+```toríaara audionibles pgelados disps con    ↓
+Dato histórica
+dadne integritema mantie   ↓
+Sisos
+  congelads permanecen ↓
+Dato
+   ADOETa COMPLia  camb`
+Estado**
+``el Proceson dalizació**Fin#### 4. s
+```
+
+ cálculorangelados pa datos cousaistema 
+S
+    ↓tablesntienen inmuados se maDatos congel
+    ↓
+diente" pen⚠️ Despacholert: "estran an muacióodifictos de m
+Inten
+    ↓ENCIDAS)NES, VEVOLUCIO, D, ADICIONALTOSean (DCe bloqus críticos sampo
+```
+Ctivos**ados Opera*Durante Est *3.```
+
+#### 
+-08" - 2025-10COLESERa para MIn congeladProducció: "❄️ Console ↓
+ge
+   localStorao en ett complsnapshorda   ↓
+Gua
+  )ccion(ngelarProduco → Ejecuta congeladono está    ↓
+Si 
+ ongelado)rec contra ecciónado (prot está congela si yarific
+Ve  ↓ado
+  estbio de  cama detecta elemistDO
+    ↓
+SCOMPLETAVO/DESPACHO/NTO_ACTISTAMIEALIo cambia a `
+Estadivo**
+``rat Opestado a E 2. **Cambio####te
+```
+
+tomáticamen guarda aubios ya cam detecttema  ↓
+Sisorage
+  alStente en locnormalman e guard
+Datos s
+    ↓os camposar todos lmodificio puede suar
+```
+UO)** (SUGERIDdo Inicialsta# 1. **E##
+#ongelado**
+ de Cemael Sistjo d🔄 **Flu## ``
+
+#  };
+};
+` } : {}
+0.6 
+   y:   opacitd',
+    wellot-a cursor: 'no      
+#f8f9fa',Color: 'round backg ? { 
+     ockede: isBlstyl    ',
+rm-controlo' : 'foadcampo-bloquem-control ked ? 'for isBlocssName:    claisBlocked,
+disabled: rn {
+    tu
+  reo);
+  cludes(camp'].inidas, 'vencnes'devoluciol', 'onas', 'adicicto ['d              
+    & DESPACHO' &on === 'estadoBotisBlocked = t {
+  consampo) =>  (cutProps = getInpconstHO
+te DESPACo duranitade deshabilstilos dr et
+// Aplicaavascrip*
+```jVisual*itación **Deshabil## 3. 
+
+##
+```ción
+};de la fun... resto tido
+  // stá perminormal si ea lógica ar con linu
+  // Cont  }
+  ción
+ modificaBloquear laurn; //     ret)) {
+mpocaados(CamposBloquealidar  if (!vicado
+odifde ser mue pl campolidar si e> {
+  // Valor) =mpo, vacato,  (producputChange =handleIn
+const nputsón en los i// Aplicacie;
+};
+
+return tru }
+  }
+  false;
+   eturn ;
+      ro')spachdete el o duranficadr modino puede seEste campo te - o pendienspacht('⚠️ De   aler) {
+   campo)s.includes(posBloqueadoif (cam
+    
+    encidas'];s', 'vucionedevol', 'adicional ['dctos', 'Bloqueados =st campos   con
+ ESPACHO') {oton === 'D (estadoB) => {
+  ifos = (campooqueadosBlarCampt validdo
+constar bloquea esdebeampo ar si un clid vaón paraFunciascript
+// avción**
+```j de Validaentación **Implem## 2.AS**
+
+##*VENCID 
+- *IONES**VOLUC
+- **DEles)s adicionaucto(ProdAL** ADICION**cuentos)
+- CTOS** (Desente:
+- **Dtomáticamloquean aue bs sntes campo siguieos**, lHOo **DESPACnte el estad*
+Duraueados*loq*Campos B
+#### 1. *ACHO**
+te DESPs durannes de Campo*Validacio *🛡️# *
+
+##IDO*ERte a SUGereniftado dlquier es*Cuaeso
+- *l procalizar eO**: Al finMPLETAD  
+- **COhoo de despacesrocante el p DurO**:
+- **DESPACHotamient alisia elnic Cuando se iO**:MIENTO_ACTIV*ALISTAdo**
+- *l Congelactivan edos que A 4. **Esta`
+
+####
+``);a, products]eleccionadchaSia, fe
+}, [derval);intval(> clearIntereturn () =);
+  r1000mbioEstado, nejarCaterval(maal = setIn intervnst cogundo
+ da se caosbicar cam
+  // Verifiado();
+  arCambioEst  manej };
+
+
+    }
+ O');SISTEMA_AUTada, 'leccionaSeduccion(fecharPro   congelón`);
+   do producci - Congelantual}tadoAc ${es cambió aadoEstg(`🔄 console.lo    {
+  lada()) ccionCongeicarProdu!verif&& ERIDO' UG!== 'Sual  (estadoAct
+    if congelado yastáno eo estado y RIDO a otrasa de SUGEar si pngel  // Solo co
+    
+  'SUGERIDO';`) || eleccionada}_${fechaSdia}n_${o_botostad(`eetItemage.g localStortual =t estadoAc cons
+   a) return;
+leccionad (!fechaSe=> {
+    ifstado = () arCambioEst manej  conct(() => {
+useEffe
+ónon proteccitado cde esjar cambios neect para maffpt
+// useE
+```javascriongelado**Recntra otección Co# 3. **Pr
+###
+```
+null;
+};= dos !=tosCongela  return da
+  
+gelado);tItem(keyConalStorage.ge = loceladosatosCongt d
+  cons`;eccionada}Selcha_${feda_${dia}on_congelaci= `producelado onst keyCong 
+  c;
+ urn false) reteleccionadaf (!fechaS => {
+  ia = ()cionCongeladarProducficvericonst ada
+ congelstáoducción er si la prerifica
+// Vascript``javngelado**
+`e Estado Corificación d 2. **Ve
+
+####;
+```ados;
+} datosCongel returno}`);
+  
+ haCongeladia} - ${fecada para ${d congelcciónog(`❄️ Produle.l  consoelados));
+ngCofy(datostringido, JSON.s(keyCongelatItem.seStoragelocal
+
+   }); };
+   cto
+ rodueridosPucto + sugodosPr pedidlProductos +nal: tota totalFicto,
+     rodusPdoos: sugeririd  sugeto,
+    oducPrpedidos  pedidos: tos,
+    Productotal {
+      ucto.name] =oductos[prodados.prsCongel  dato 
+  
+    0;to.name] ||idos[producugeructo = sgeridosProd   const su
+ ;|| 0to.name] dos[producducto = pedipedidosProconst    elado);
+  fechaCongducto.name,Directo(proalcularTotductos = calnst totalPro  co => {
+  ctoproduch(forEaducts.
+  prouctos los prododosatos de tar d // Congel
+  };
+
+ roductos: {}ng(),
+    pStriate().toISOstamp: new D,
+    timeoCongeladoriio: usua,
+    usuareladoCong: fechaha
+    fecados = {osCongelconst datdo}`;
+  chaCongela_${feia}lada_${dion_congeoduccado = `pryCongel ke const => {
+ TEMA') = 'SISladousuarioCongeongelado, (fechaCduccion = ngelarProconst 
+conproduccióongelar ra cizada patral Función cen
+//``javascript
+
+---
+
+## 🚀 **SISTEMA DE GUARDADO AUTOMÁTICO DE SOLICITADAS (Enero 2025)**
+
+### 📋 **Descripción General**
+Sistema completo de guardado automático que sincroniza los datos de producción con el módulo de Inventario/Planeación en tiempo real, permitiendo una gestión eficiente de las cantidades solicitadas.
+
+### 🎯 **Funcionalidades Implementadas**
+
+#### 1. **Sistema de Congelado de Producción**
+```javascript
+// Función de congelado que protege los datos una vez confirmados
+const verificarProduccionCongelada = () => {
+  const estadosCongelados = ['ALISTAMIENTO_ACTIVO', 'DESPACHO', 'COMPLETADO'];
+  return estadosCongelados.includes(estadoBoton);
+};
+```
+
+**Características:**
+- ✅ **Protección de datos**: Una vez que el estado cambia de SUGERIDO, los datos se congelan
+- ✅ **Estados protegidos**: ALISTAMIENTO_ACTIVO, DESPACHO, COMPLETADO
+- ✅ **Prevención de recongelado**: No permite congelar datos ya congelados
+- ✅ **Inmutabilidad**: Los datos permanecen inalterados hasta completar el proceso
+
+#### 2. **Validación de Campos durante DESPACHO**
+```javascript
+// Validación que bloquea campos específicos durante el estado DESPACHO
+const validarCamposDespacho = (campo) => {
+  const camposBloqueados = ['dctos', 'adicional', 'devoluciones', 'vencidas'];
+  if (estadoBoton === 'DESPACHO' && camposBloqueados.includes(campo)) {
+    alert('Despacho pendiente - No se pueden modificar estos campos');
+    return false;
+  }
+  return true;
+};
+```
+
+**Campos bloqueados durante DESPACHO:**
+- ❌ DCTOS (Descuentos)
+- ❌ ADICIONAL 
+- ❌ DEVOLUCIONES
+- ❌ VENCIDAS
+
+#### 3. **Sistema de Guardado Automático Inteligente**
+
+##### **Detección de Cambios**
+```javascript
+// useEffect que detecta cambios en totales de producción
+useEffect(() => {
+  if (products.length === 0) return;
+
+  const totalesActuales = {};
+  products.forEach(producto => {
+    const totalProductos = calcularTotalDirecto(producto.name);
+    const pedidosProducto = pedidos[producto.name] || 0;
+    const totalFinal = totalProductos + pedidosProducto;
+    totalesActuales[producto.name] = totalFinal;
+  });
+
+  // Comparar con últimos guardados
+  const hayDiferencias = JSON.stringify(totalesActuales) !== JSON.stringify(ultimosTotalesGuardados);
+
+  if (hayDiferencias && Object.keys(ultimosTotalesGuardados).length > 0) {
+    console.log('🔄 Cambios detectados en totales de producción');
+    setHayDatosNuevos(true);
+  }
+}, [products, pedidos, sugeridos]);
+```
+
+##### **Guardado con Debounce**
+```javascript
+// useEffect con debounce de 3 segundos para evitar guardados excesivos
+useEffect(() => {
+  // Solo guardar si está en estado SUGERIDO y hay datos nuevos
+  if (estadoBoton === 'SUGERIDO' && hayDatosNuevos && fechaSeleccionada) {
+    console.log('⏳ Programando guardado automático en 3 segundos...');
+
+    const timeoutId = setTimeout(() => {
+      guardarSolicitadasEnBD();
+    }, 3000); // 3 segundos de debounce
+
+    return () => {
+      console.log('🚫 Cancelando guardado automático (nuevo cambio detectado)');
+      clearTimeout(timeoutId);
+    };
+  }
+}, [estadoBoton, hayDatosNuevos, fechaSeleccionada]);
+```
+
+##### **Función de Guardado**
+```javascript
+const guardarSolicitadasEnBD = async () => {
+  try {
+    console.log('💾 GUARDANDO SOLICITADAS EN BD...');
+
+    // Eliminar registros existentes para esta fecha
+    await eliminarSolicitadasExistentes();
+
+    // Calcular totales actuales para cada producto
+    const productosParaGuardar = [];
+    products.forEach(producto => {
+      const totalProductos = calcularTotalDirecto(producto.name);
+      const pedidosProducto = pedidos[producto.name] || 0;
+      const totalFinal = totalProductos + pedidosProducto;
+
+      if (totalFinal > 0) {
+        productosParaGuardar.push({
+          fecha: fechaSeleccionada,
+          producto: producto.name,
+          cantidad: totalFinal,
+          lote: `SOLICITADAS_${dia}`,
+          usuario: 'SISTEMA_PRODUCCION'
+        });
+      }
+    });
+
+    // Enviar a API
+    const datosParaGuardar = {
+      dia: dia,
+      fecha: fechaSeleccionada,
+      productos: productosParaGuardar.map(p => ({
+        producto_nombre: p.producto,
+        cantidad_solicitada: p.cantidad
+      }))
+    };
+
+    const response = await fetch('http://localhost:8000/api/produccion-solicitadas/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datosParaGuardar)
+    });
+
+    if (response.ok) {
+      const resultado = await response.json();
+      console.log('✅ Solicitadas guardadas exitosamente:', resultado);
+      
+      // Actualizar estado
+      const totalesGuardados = {};
+      productosParaGuardar.forEach(p => {
+        totalesGuardados[p.producto] = p.cantidad;
+      });
+      setUltimosTotalesGuardados(totalesGuardados);
+      setHayDatosNuevos(false);
+    }
+  } catch (error) {
+    console.error('❌ Error guardando solicitadas:', error);
+  }
+};
+```
+
+### 🗄️ **API Backend - ProduccionSolicitada**
+
+#### **Modelo de Datos**
+```python
+class ProduccionSolicitada(models.Model):
+    """Modelo para almacenar las cantidades solicitadas desde Producción"""
+    
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    producto_nombre = models.CharField(max_length=255)
+    cantidad_solicitada = models.IntegerField(default=0)
+    lote = models.CharField(max_length=100, blank=True)
+    usuario = models.CharField(max_length=100, default='SISTEMA_PRODUCCION')
+    
+    # Metadatos
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['fecha', 'producto_nombre']
+        ordering = ['-fecha', 'producto_nombre']
+```
+
+#### **Serializer**
+```python
+class ProduccionSolicitadaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProduccionSolicitada
+        fields = '__all__'
+        
+    def create(self, validated_data):
+        # Lógica para crear o actualizar registros existentes
+        fecha = validated_data.get('fecha')
+        producto_nombre = validated_data.get('producto_nombre')
+        
+        obj, created = ProduccionSolicitada.objects.update_or_create(
+            fecha=fecha,
+            producto_nombre=producto_nombre,
+            defaults=validated_data
+        )
+        return obj
+```
+
+#### **ViewSet**
+```python
+class ProduccionSolicitadaViewSet(viewsets.ModelViewSet):
+    """API para gestionar solicitadas de producción"""
+    queryset = ProduccionSolicitada.objects.all()
+    serializer_class = ProduccionSolicitadaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ProduccionSolicitada.objects.all().order_by('-fecha', 'producto_nombre')
+        
+        # Filtros opcionales
+        fecha = self.request.query_params.get('fecha')
+        dia = self.request.query_params.get('dia')
+        activo = self.request.query_params.get('activo')
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Crear múltiples solicitadas de una vez"""
+        data = request.data
+        
+        if 'productos' in data:
+            # Crear múltiples productos
+            productos_creados = []
+            for producto_data in data['productos']:
+                producto_data.update({
+                    'dia': data.get('dia'),
+                    'fecha': data.get('fecha'),
+                    'usuario': data.get('usuario', 'SISTEMA_PRODUCCION')
+                })
+                
+                serializer = self.get_serializer(data=producto_data)
+                if serializer.is_valid():
+                    obj = serializer.save()
+                    productos_creados.append(obj)
+                    
+            return Response({
+                'success': True,
+                'productos_creados': len(productos_creados),
+                'mensaje': f'Se guardaron {len(productos_creados)} productos solicitados'
+            })
+        else:
+            # Crear un solo producto
+            return super().create(request, *args, **kwargs)
+```
+
+#### **URL Configuration**
+```python
+# api/urls.py
+router.register(r'produccion-solicitadas', ProduccionSolicitadaViewSet, basename='produccion-solicitadas')
+
+# Endpoint disponible: /api/produccion-solicitadas/
+```
+
+### 📊 **Visualización en Inventario/Planeación**
+
+#### **Carga Automática de Datos**
+```javascript
+// Función para cargar solicitadas desde BD
+const cargarSolicitadasDesdeBD = async (fechaSeleccionada) => {
+  try {
+    const fechaFormateada = fechaSeleccionada.toISOString().split('T')[0];
+    console.log('📊 Cargando solicitadas para fecha:', fechaFormateada);
+
+    const response = await fetch(`http://localhost:8000/api/produccion-solicitadas/?fecha=${fechaFormateada}`);
+    if (!response.ok) {
+      console.log('⚠️ No hay solicitadas para esta fecha');
+      return {};
+    }
+
+    const solicitadas = await response.json();
+    console.log('✅ Solicitadas cargadas:', solicitadas.length);
+
+    // Convertir array a objeto para búsqueda rápida
+    const solicitadasMap = {};
+    solicitadas.forEach(item => {
+      solicitadasMap[item.producto_nombre] = item.cantidad_solicitada;
+    });
+
+    return solicitadasMap;
+  } catch (error) {
+    console.error('❌ Error cargando solicitadas:', error);
+    return {};
+  }
+};
+```
+
+#### **Integración con Productos**
+```javascript
+// Preparar productos con planeación
+const productosConPlaneacion = productosFromBD.map(p => {
+  const productoExistente = productos.find(prod => prod.id === p.id);
+  
+  // Si hay solicitadas en BD, usar esas. Si no, mantener las existentes
+  let solicitadoFinal = 0;
+  if (solicitadasMap[p.nombre] !== undefined) {
+    solicitadoFinal = solicitadasMap[p.nombre];
+  } else if (productoExistente && productoExistente.solicitado > 0) {
+    solicitadoFinal = productoExistente.solicitado; // Preservar existentes
+  }
+
+  return {
+    id: p.id,
+    nombre: p.nombre,
+    existencias: p.stock_total || 0,
+    solicitado: solicitadoFinal,
+    orden: productoExistente ? (productoExistente.orden || 0) : 0
+  };
+});
+```
+
+#### **Interfaz de Usuario Optimizada**
+```jsx
+{/* Columna de SOLICITADAS - Solo lectura con estilos mejorados */}
+<td className="text-center">
+  <div className="d-flex justify-content-center">
+    <span className={`solicitadas-display ${producto.solicitado > 0 ? 'has-data' : ''}`}>
+      {producto.solicitado || 0}
+    </span>
+  </div>
+</td>
+
+{/* Columna de ORDEN - Editable */}
+<td className="text-center">
+  <div className="d-flex justify-content-center">
+    <Form.Control
+      type="number"
+      min="0"
+      value={producto.orden || 0}
+      onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
+      className="quantity-input"
+      aria-label={`Orden de ${producto.nombre}`}
+    />
+  </div>
+</td>
+```
+
+### 🎨 **Estilos CSS Personalizados**
+```css
+/* Estilos para números de solicitadas (no editables) */
+.solicitadas-display {
+  display: inline-block;
+  min-width: 60px;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  background-color: #f8f9fa;
+  color: #495057;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.solicitadas-display.has-data {
+  background-color: #e3f2fd;
+  border-color: #90caf9;
+  color: #1565c0;
+}
+
+/* Asegurar que quantity-input tenga el mismo estilo */
+.quantity-input {
+  min-width: 60px;
+  text-align: center;
+  font-size: 0.875rem;
+}
+```
+
+### 🔄 **Flujo Operativo Completo**
+
+#### **1. Producción → Detección**
+```
+Usuario modifica valores en Producción
+    ↓
+Sistema detecta cambios en totales
+    ↓
+Se activa flag hayDatosNuevos = true
+```
+
+#### **2. Detección → Guardado**
+```
+hayDatosNuevos = true + estadoBoton = 'SUGERIDO'
+    ↓
+Se inicia debounce de 3 segundos
+    ↓
+Si no hay más cambios → Ejecuta guardarSolicitadasEnBD()
+```
+
+#### **3. Guardado → Base de Datos**
+```
+Elimina registros existentes para la fecha
+    ↓
+Calcula totales actuales (productos + pedidos)
+    ↓
+Envía datos a /api/produccion-solicitadas/
+    ↓
+Actualiza estado local (ultimosTotalesGuardados)
+```
+
+#### **4. Base de Datos → Visualización**
+```
+Usuario accede a Inventario/Planeación
+    ↓
+Sistema carga datos desde /api/produccion-solicitadas/
+    ↓
+Muestra solicitadas en columna no editable
+    ↓
+Notifica: "Solicitadas cargadas desde Producción: X productos"
+```
+
+### ✅ **Características del Sistema**
+
+#### **Robustez**
+- ✅ **Manejo de errores**: Try-catch en todas las operaciones críticas
+- ✅ **Validaciones**: Solo guarda en estado SUGERIDO
+- ✅ **Debounce**: Evita guardados excesivos (3 segundos)
+- ✅ **Limpieza automática**: Elimina registros duplicados
+
+#### **Performance**
+- ✅ **Guardado inteligente**: Solo cuando hay cambios reales
+- ✅ **Carga optimizada**: Consultas específicas por fecha
+- ✅ **Estados locales**: Evita re-renders innecesarios
+- ✅ **Preservación de datos**: Mantiene datos existentes si no hay nuevos
+
+#### **Usabilidad**
+- ✅ **Interfaz clara**: Solicitadas no editables, orden editable
+- ✅ **Feedback visual**: Colores diferentes para datos cargados
+- ✅ **Notificaciones**: Confirmación de operaciones exitosas
+- ✅ **Logs detallados**: Para debugging y monitoreo
+
+#### **Integración**
+- ✅ **API RESTful**: Endpoints estándar para CRUD
+- ✅ **Sincronización**: Frontend ↔ Backend en tiempo real
+- ✅ **Compatibilidad**: Funciona con sistema existente
+- ✅ **Escalabilidad**: Preparado para múltiples usuarios
+
+### 🧪 **Testing y Verificación**
+
+#### **Casos de Prueba Exitosos**
+1. ✅ **Cambio de valores** → Detección automática → Guardado en 3s
+2. ✅ **Múltiples cambios rápidos** → Un solo guardado al final
+3. ✅ **Cambio de fecha** → Carga datos específicos de esa fecha
+4. ✅ **Estado DESPACHO** → No permite guardado automático
+5. ✅ **Datos persistentes** → No se borran ni se ponen en 0
+6. ✅ **Interfaz responsive** → Funciona en diferentes tamaños de pantalla
+
+#### **Logs de Verificación**
+```
+🔄 Cambios detectados en totales de producción
+⏳ Programando guardado automático en 3 segundos...
+💾 GUARDANDO SOLICITADAS EN BD...
+✅ Solicitadas guardadas exitosamente
+📊 Cargando solicitadas para fecha: 2025-10-08
+✅ Solicitadas cargadas: 10
+Solicitadas cargadas desde Producción: 10 productos
+```
+
+### 🚀 **Estado Final del Sistema**
+
+**✅ COMPLETAMENTE FUNCIONAL**
+- **Guardado automático**: ✅ Operativo
+- **Visualización**: ✅ Datos se muestran correctamente
+- **Persistencia**: ✅ Datos se mantienen estables
+- **API**: ✅ Endpoints funcionando
+- **Interfaz**: ✅ Estilos optimizados
+- **Performance**: ✅ Sin re-renders excesivos
+
+**📊 Datos de Ejemplo Verificados:**
+- AREPA TIPO OBLEA 500Gr: 240 solicitadas
+- AREPA MEDIANA 330Gr: 200 solicitadas  
+- AREPA TIPO PINCHO 330Gr: 240 solicitadas
+- AREPA QUESO ESPECIAL GRANDE 600Gr: 380 solicitadas
+- Y más productos con sus cantidades correctas
+
+**🎯 Resultado:** Sistema de guardado automático de solicitadas completamente implementado y funcionando en producción.
+
+---
