@@ -33,15 +33,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         for (const producto of datos.productos) {
           // Debug: mostrar estado de checks para productos con total > 0
           if (producto.total > 0) {
-            console.log(`🔍 ${idVendedor} - ${producto.producto}: V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
+            console.log(`🔍 ${idVendedor} - ${producto.producto}: Cantidad=${producto.cantidad}, Adicional=${producto.adicional}, V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
           }
 
-          // Productos con cantidad pero sin checkboxes completos
+          // 🚀 LÓGICA CORRECTA: Productos con TOTAL > 0 (cantidad + adicional) sin checkboxes completos
           if (producto.total > 0 && (!producto.vendedor || !producto.despachador)) {
             productosPendientes.push({
               id: producto.id,
               nombre: producto.producto,
-              totalCantidad: producto.total,
+              totalCantidad: producto.total, // Contar total (cantidad + adicional)
               vendedorId: idVendedor,
               vendedor: producto.vendedor,
               despachador: producto.despachador
@@ -49,12 +49,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             console.log(`⚠️ ${idVendedor} PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - V:${producto.vendedor} D:${producto.despachador}`);
           }
 
-          // Productos completamente listos (V=true, D=true, TOTAL>0)
+          // 🚀 LÓGICA CORRECTA: Productos completamente listos (V=true, D=true, TOTAL>0)
           if (producto.vendedor && producto.despachador && producto.total > 0) {
             productosListos.push({
               id: producto.id,
               nombre: producto.producto,
-              totalCantidad: producto.total
+              totalCantidad: producto.total // Contar total (cantidad + adicional)
             });
             console.log(`✅ ${idVendedor} PRODUCTO LISTO: ${producto.producto} - Total: ${producto.total}`);
           }
@@ -94,10 +94,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           for (const producto of datos.productos) {
             // Debug: mostrar estado de checks para productos con total > 0
             if (producto.total > 0) {
-              console.log(`🔍 ${id} - ${producto.producto}: V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
+              console.log(`🔍 ${id} - ${producto.producto}: Cantidad=${producto.cantidad}, Adicional=${producto.adicional}, V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
             }
 
-            // Productos con cantidad pero sin checkboxes completos
+            // 🚀 LÓGICA CORRECTA: Productos con TOTAL > 0 (cantidad + adicional) sin checkboxes completos
             if (producto.total > 0 && (!producto.vendedor || !producto.despachador)) {
               if (!productosPendientes[producto.id]) {
                 productosPendientes[producto.id] = {
@@ -109,11 +109,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                   despachador: producto.despachador
                 };
               }
-              productosPendientes[producto.id].totalCantidad += producto.total;
+              productosPendientes[producto.id].totalCantidad += producto.total; // Contar total (cantidad + adicional)
               console.log(`⚠️ PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - V:${producto.vendedor} D:${producto.despachador}`);
             }
 
-            // Productos completamente listos (V=true, D=true, TOTAL>0)
+            // 🚀 LÓGICA CORRECTA: Productos completamente listos (V=true, D=true, TOTAL>0)
             if (producto.vendedor && producto.despachador && producto.total > 0) {
               if (!todosLosProductos[producto.id]) {
                 todosLosProductos[producto.id] = {
@@ -122,7 +122,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                   totalCantidad: 0
                 };
               }
-              todosLosProductos[producto.id].totalCantidad += producto.total;
+              todosLosProductos[producto.id].totalCantidad += producto.total; // Contar total (cantidad + adicional)
               console.log(`✅ PRODUCTO LISTO: ${producto.producto} - Total: ${producto.total}`);
             }
           }
@@ -165,24 +165,45 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       setProductosValidados(resultado.listos);
       setProductosPendientes(resultado.pendientes);
 
-      // ❌ AUTO-AVANCE DESACTIVADO - Ahora es manual
-      // if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.listos.length > 0) {
-      //   console.log('🤖 AUTO-AVANCE: ALISTAMIENTO_ACTIVO → DESPACHO');
-      //   setEstado('DESPACHO');
-      //   localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'DESPACHO');
-      // }
+      console.log(`🔍 Verificación automática - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
     };
 
     verificarYAvanzar();
 
-    // ❌ VERIFICACIÓN AUTOMÁTICA DESACTIVADA - Ahora es manual
-    // let interval;
-    // if (estado === 'ALISTAMIENTO_ACTIVO') {
-    //   interval = setInterval(verificarYAvanzar, 3000);
-    // }
+    // 🚀 VERIFICACIÓN EN TIEMPO REAL: Solo cuando está en ALISTAMIENTO_ACTIVO
+    let interval;
+    if (estado === 'ALISTAMIENTO_ACTIVO') {
+      console.log('🔄 Iniciando verificación automática cada 2 segundos...');
+      interval = setInterval(verificarYAvanzar, 2000); // Verificar cada 2 segundos
+    }
 
     return () => {
-      // Cleanup function (vacía porque no hay interval activo)
+      if (interval) {
+        console.log('🛑 Deteniendo verificación automática');
+        clearInterval(interval);
+      }
+    };
+  }, [dia, fechaSeleccionada, idSheet, estado]);
+
+  // 🚀 NUEVA FUNCIONALIDAD: Detectar cambios en datos de cargue para verificación inmediata
+  useEffect(() => {
+    if (idSheet !== 'ID1' || estado !== 'ALISTAMIENTO_ACTIVO') return;
+
+    const handleCargueDataChange = async (e) => {
+      console.log('🔥 Cambio detectado en datos de cargue, verificando productos...');
+
+      const resultado = await verificarProductosListos();
+      setProductosValidados(resultado.listos);
+      setProductosPendientes(resultado.pendientes);
+
+      console.log(`⚡ Verificación inmediata - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
+    };
+
+    // Escuchar evento personalizado de cambios en cargue
+    window.addEventListener('cargueDataChanged', handleCargueDataChange);
+
+    return () => {
+      window.removeEventListener('cargueDataChanged', handleCargueDataChange);
     };
   }, [dia, fechaSeleccionada, idSheet, estado]);
 
@@ -800,6 +821,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         `estado_despacho_${dia}_${fechaAUsar}`,
         `produccion_congelada_${dia}_${fechaAUsar}`,
         `produccion_${dia}_${fechaAUsar}`,
+
         // 🚀 CORREGIDO: Limpiar conceptos específicos por ID
         `conceptos_pagos_${dia}_ID1_${fechaAUsar}`,
         `conceptos_pagos_${dia}_ID2_${fechaAUsar}`,
@@ -1031,17 +1053,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
   // Manejar finalizar (devoluciones, vencidas y guardado completo) - FUNCIÓN ORIGINAL - mantener para compatibilidad
   const manejarFinalizar = async () => {
-    console.log('🚀🚀🚀 BOTÓN FINALIZAR PRESIONADO 🚀🚀🚀');
+    console.log('🚀🚀🚀 BOTÓN DESPACHO PRESIONADO 🚀🚀🚀');
     console.log('⏰ Timestamp:', Date.now());
     console.log('📊 Productos validados disponibles:', productosValidados.length);
 
     setLoading(true);
 
     try {
-      console.log('🏁 INICIANDO FINALIZACIÓN COMPLETA');
-
-      const { simpleStorage } = await import('../../services/simpleStorage');
-
       // 🚀 CORREGIDO: Validar que fechaSeleccionada existe y no usar fallback a fecha actual
       if (!fechaSeleccionada) {
         console.error('❌ ERROR: fechaSeleccionada no está definida');
@@ -1050,9 +1068,63 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         return;
       }
 
-      const fechaAUsar = fechaSeleccionada; // ✅ Usar directamente fechaSeleccionada sin fallback
-      console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
+      const { simpleStorage } = await import('../../services/simpleStorage');
+      const fechaAUsar = fechaSeleccionada;
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+
+      // 🎯 RECOPILAR DATOS PARA CONFIRMACIÓN ANTES de procesar
+      let totalDevoluciones = 0;
+      let totalVencidas = 0;
+      let resumenDevoluciones = [];
+      let resumenVencidas = [];
+
+      // Recopilar datos de todos los IDs para mostrar en la confirmación
+      for (const id of idsVendedores) {
+        const key = `cargue_${dia}_${id}_${fechaAUsar}`;
+        const datos = await simpleStorage.getItem(key);
+
+        if (datos && datos.productos) {
+          for (const producto of datos.productos) {
+            if (producto.devoluciones > 0) {
+              totalDevoluciones += producto.devoluciones;
+              resumenDevoluciones.push(`${producto.producto}: ${producto.devoluciones} und (${id})`);
+            }
+            if (producto.vencidas > 0) {
+              totalVencidas += producto.vencidas;
+              resumenVencidas.push(`${producto.producto}: ${producto.vencidas} und (${id})`);
+            }
+          }
+        }
+      }
+
+      // 🚨 CONFIRMACIÓN ANTES de procesar devoluciones y vencidas
+      let mensaje = `🚚 ¿Confirmar Finalización de Jornada?\n\n`;
+
+      if (totalDevoluciones > 0) {
+        mensaje += `⬆️ DEVOLUCIONES (${totalDevoluciones} unidades):\n${resumenDevoluciones.join('\n')}\n\n`;
+      }
+
+      if (totalVencidas > 0) {
+        mensaje += `🗑️ VENCIDAS (${totalVencidas} unidades):\n${resumenVencidas.join('\n')}\n\n`;
+      }
+
+      if (totalDevoluciones === 0 && totalVencidas === 0) {
+        mensaje += `📋 No hay devoluciones ni vencidas para procesar\n\n`;
+      }
+
+      mensaje += `📊 Se guardarán todos los datos en la base de datos\n🧹 Se limpiará el localStorage\n\n¿Desea continuar?`;
+
+      // 🚨 CONFIRMACIÓN: Solo continuar si el usuario acepta
+      const confirmar = window.confirm(mensaje);
+
+      if (!confirmar) {
+        console.log('❌ Finalización cancelada por el usuario');
+        setLoading(false);
+        return; // Salir sin hacer nada
+      }
+
+      console.log('🏁 INICIANDO FINALIZACIÓN COMPLETA');
+      console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
 
       // VALIDACIÓN PREVIA: Verificar lotes vencidos
       console.log('🔍 VALIDACIÓN PREVIA: Verificando lotes vencidos...');
@@ -1065,11 +1137,49 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       console.log('✅ VALIDACIÓN COMPLETADA - Continuando con finalización...');
 
-      let totalDevoluciones = 0;
-      let totalVencidas = 0;
+      // Resetear contadores para el procesamiento real
+      totalDevoluciones = 0;
+      totalVencidas = 0;
 
-      // PASO 0: Inventario ya fue afectado en DESPACHO (según README)
-      console.log('📋 PASO 0: Inventario ya procesado en DESPACHO - continuando con devoluciones/vencidas...');
+      // 🚀 PASO 0: DESPACHO - Afectar inventario (ahora incluido en FINALIZAR)
+      console.log('🚚 PASO 0: DESPACHANDO - Afectando inventario...');
+
+      // Validar que todos los productos tengan V y D marcados
+      if (productosPendientes.length > 0) {
+        const listaPendientes = productosPendientes.map(p => {
+          const checksFaltantes = [];
+          if (!p.vendedor) checksFaltantes.push('V');
+          if (!p.despachador) checksFaltantes.push('D');
+          return `• ${p.nombre} (${p.totalCantidad} und) - Faltan: ${checksFaltantes.join(', ')}`;
+        }).join('\n');
+
+        alert(
+          `❌ NO SE PUEDE FINALIZAR\n\n` +
+          `Los siguientes productos tienen cantidades pero NO están completamente verificados:\n\n` +
+          `${listaPendientes}\n\n` +
+          `🔧 SOLUCIÓN: Marque los checkboxes V (Vendedor) y D (Despachador) faltantes.`
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Afectar inventario de productos validados
+      for (const producto of productosValidados) {
+        console.log(`🔥 DESPACHANDO: ${producto.nombre}`);
+        const productoId = producto.id || null;
+
+        if (productoId) {
+          console.log(`   - Producto ID: ${productoId}`);
+          console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
+
+          const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
+          console.log(`✅ DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
+        } else {
+          console.error(`❌ Producto ID NO encontrado para: ${producto.nombre}`);
+        }
+      }
+
+      console.log('✅ DESPACHO COMPLETADO - Continuando con devoluciones/vencidas...');
 
       // PASO 1: Procesar devoluciones y vencidas
       console.log('📦 PASO 1: Procesando devoluciones y vencidas...');
@@ -1303,43 +1413,91 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       case 'ALISTAMIENTO':
         return {
           texto: '📦 SUGERIDO',
-          variant: 'outline-secondary', // Gris suave con borde
-          disabled: loading, // Solo deshabilitar si está cargando
+          variant: 'outline-secondary',
+          disabled: loading,
           onClick: () => {
             // 🔒 Congelar producción al activar alistamiento
             congelarProduccion('ALISTAMIENTO ACTIVADO');
 
             setEstado('ALISTAMIENTO_ACTIVO');
-            localStorage.setItem(`estado_despacho_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO');
             localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO_ACTIVO');
+            console.log('📦 Cambiando a ALISTAMIENTO_ACTIVO');
           }
         };
       case 'ALISTAMIENTO_ACTIVO':
         return {
           texto: '📦 ALISTAMIENTO ACTIVO',
-          variant: 'dark', // Gris oscuro (activado)
-          disabled: listos.length === 0 || loading, // Validar productos listos
-          onClick: () => {
-            // 🔒 Congelar producción al cambiar a DESPACHO
-            congelarProduccion('DESPACHO INICIADO');
+          variant: 'dark',
+          disabled: listos.length === 0 || loading || pendientes.length > 0, // Deshabilitar si no hay productos listos O si hay pendientes
+          onClick: async () => {
+            setLoading(true);
 
-            setEstado('DESPACHO');
-            localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'DESPACHO');
-            console.log('🚚 Cambiando a DESPACHO');
+            try {
+              // 🎯 MOSTRAR CONFIRMACIÓN ANTES de descontar inventario
+              const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
+              const totalGeneral = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
+
+              let mensaje = `🚚 ¿Confirmar Despacho?\n\n${resumen}\n\n🎯 TOTAL A DESCONTAR DEL INVENTARIO: ${totalGeneral} unidades`;
+
+              if (productosPendientes.length > 0) {
+                const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
+                mensaje += `\n\n⚠️ PRODUCTOS NO DESPACHADOS: ${productosPendientes.length} productos (${totalPendientes} unidades)\n(Falta marcar checkboxes V y/o D)`;
+              }
+
+              mensaje += `\n\n¿Desea continuar con el despacho?`;
+
+              // 🚨 CONFIRMACIÓN: Solo continuar si el usuario acepta
+              const confirmar = window.confirm(mensaje);
+
+              if (!confirmar) {
+                console.log('❌ Despacho cancelado por el usuario');
+                setLoading(false);
+                return; // Salir sin hacer nada
+              }
+
+              // 🚀 PROCEDER CON EL DESPACHO: Afectar inventario
+              console.log('🚚 ALISTAMIENTO_ACTIVO → Afectando inventario...');
+
+              // Afectar inventario de productos validados
+              for (const producto of productosValidados) {
+                console.log(`🔥 PROCESANDO: ${producto.nombre}`);
+                const productoId = producto.id || null;
+
+                if (productoId) {
+                  console.log(`   - Producto ID: ${productoId}`);
+                  console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
+
+                  const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
+                  console.log(`✅ DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
+                } else {
+                  console.error(`❌ Producto ID NO encontrado para: ${producto.nombre}`);
+                }
+              }
+
+              // 🔒 Congelar producción al cambiar a FINALIZAR
+              congelarProduccion('INVENTARIO AFECTADO - SOLO LECTURA');
+
+              // Cambiar a FINALIZAR (ahora solo lectura)
+              setEstado('FINALIZAR');
+              localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'FINALIZAR');
+              console.log('✅ Inventario afectado → Cambiando a FINALIZAR (solo lectura)');
+
+              // 🎯 Mostrar confirmación del despacho realizado
+              alert(`✅ Despacho Completado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`);
+
+            } catch (error) {
+              console.error('❌ Error afectando inventario:', error);
+              alert(`❌ Error afectando inventario: ${error.message}`);
+            }
+
+            setLoading(false);
           }
-        };
-      case 'DESPACHO':
-        return {
-          texto: pendientes.length > 0 ? '🚚 DESPACHO (BLOQUEADO)' : '🚚 DESPACHO',
-          variant: pendientes.length > 0 ? 'warning' : 'primary',
-          disabled: loading || pendientes.length > 0, // Deshabilitar si hay pendientes
-          onClick: manejarDespacho
         };
       case 'FINALIZAR':
         return {
-          texto: '✅ FINALIZAR',
-          variant: 'success',
-          disabled: loading,
+          texto: '🚚 DESPACHO',
+          variant: 'primary',
+          disabled: loading || productosPendientes.length > 0, // Deshabilitar si hay pendientes
           onClick: manejarFinalizar
         };
       case 'COMPLETADO':
@@ -1381,7 +1539,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       {idSheet === 'ID1' && productosPendientes.length > 0 && (
         <div className="mt-2">
           <div className="alert alert-warning py-2 px-3" style={{ fontSize: '0.85em' }}>
-            <strong>⚠️ DESPACHO BLOQUEADO</strong><br />
+            <strong>⚠️ {estado === 'ALISTAMIENTO_ACTIVO' ? 'ALISTAMIENTO BLOQUEADO' : 'DESPACHO BLOQUEADO'}</strong><br />
             {productosPendientes.length} producto(s) con cantidad necesitan verificación completa (checkboxes V y D)
           </div>
         </div>

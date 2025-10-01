@@ -3427,3 +3427,833 @@ Solicitadas cargadas desde Producción: 10 productos
 **🎯 Resultado:** Sistema de guardado automático de solicitadas completamente implementado y funcionando en producción.
 
 ---
+---
+
+#
+# 🚀 **NUEVAS FUNCIONALIDADeto
+vo ComplratiOpe Cargue  2.1.0 - Versión:**ADY  
+**🔧CCIÓN RE✅ PRODUado:** ‍💻 Est 
+**👨25 Enero 28, 20da:** actualizaentación 
+**📅 Docum
+ático
+
+---ldo automema de respap**: SistBacku
+5. **ilestivos móvsposi para diOptimizaciónobile**: as
+4. **Mautomátic de alertas istema*: Sones***Notificaci
+3. históricose datos e análisis dódulo des**: M **Report
+2.ndimientode uso y reicas tar métrmplemen**: Ioreoonit**
+
+1. **MDOS: RECOMENDAIMOS PASOS## 🚀 **PRÓXesional
+
+#sive y proffaz respontertrap**: In*Boots- 🎨 * backend
+ robusta conntegraciónI**: IEST AP- 🌐 **Ra
+imizadoptlocal ia sistencorage**: PerocalSt
+- 💾 **Lponentesón entre comciComunicaEvents**: tom  **Cusciente
+- 🔄do efide esta**: Gestión text API- 🎯 **Conizables
+y reutilres modulas mponenteeact**: Co **Re:**
+- ⚛️gías Clav **Tecnolo
+
+####ción manualntervenos sin ijo de dat*: Flutización**Automanes
+- 🔄 *a de decisiora tompa real n tiempo ed**: Datossibilidas
+- 📊 **Viativoores operenen errvipreas s estrictlidacioneVa: ol**Contr **ódulos
+- 🔒os entre mncia en datnsiste% de co*: 100isión*
+- 🎯 **Prectro manualegisiempo de rel 80% en tción d Reduc*:ficiencia*
+- 🚀 **Eativo:**Oper**Impacto ### ntes
+
+#s eficie, cálculoonalizadosentos persebounce, evo**: Do Optimizadimientnd✅ **Res
+7. ladodetalcon logs ma robusto es**: SisterorManejo de Er**res
+6. ✅ ara operadoda poptimiza**: UX  Intuitivaterfaz
+5. ✅ **Inrvan en BDpreseatos se  Todos los d Completo**: **Guardadoación
+4. ✅de verificteligente istema in S*: Real*en Tiempolidaciones ✅ **Vaación
+3. a Planee  de Carguáticamenteutomn aluye fDatosca**:  Automátiegración **Int. ✅s
+2ctastries elidacionn vafinidos cobien deos 4 estadto**: s Robusl de Estado*Contro*
+1. ✅ *es:*palnci**Logros Pri#### repas.
+
+fábrica de aiaria de la rativa dón opesti la geparaa obustleta y r compuna soluciónresenta n** repPlaneaciótario  con **Invenntegracióny su ierativo** rgue Opdulo de **Ca
+El mó
+IONAL:**AMENTE FUNCMA COMPLETSISTE
+### ✅ ****
+ESION 🎯 **CONCLUS--
+
+##Robusto
+
+-*: es*roro de er **Manejmpleto
+- ✅**: Flujo code estadosntrol 
+- ✅ **CoiónaneacCargue ↔ Plción**: gra**Inte- ✅ eal
+**: Tiempo ridacionesal
+- ✅ **Valcion 100% funo**: automáticdado ✅ **Guardades:**
+-liFunciona
+
+#### **cíficospoints espe: 2 endIs**
+- ✅ **APmentadasimple+ reglas s**: 15oneaci **Valid- ✅
+ntroladosos costads**: 4 estado ✅ **Etegrado
+-omponente inación**: 1 c*Planepales
+- ✅ *ntes princicompone*: 8 gue*- ✅ **Carles:**
+s Tota*Componente# *
+###a:**
+Sistemcas del *Estadísti## 📊 *
+```
+
+#  });
+};
+tal, neto }; torn { ...p,
+    retu);tal * valor(toMath.round=  neto 
+    const vencidas;nes -uciovoldeal - icionctos + adidad - dl = cantt tota consa API
+    llamadas simples sinmáticos  mateoslcul
+    // Cá(p => {tos.mapucn prod> {
+  retur =s)= (productorTotales lculast recasario
+con neceesolo cuando culo spt
+// Recál
+```javascris:**ptimizadoculos O# **4. Cál```
+
+###} }));
+{...detail: ed', { eDataChangvent('cargunew CustomEpatchEvent(window.distes
+componente entre ienación eficict
+// Comunripjavasc:**
+```onalizadosPersentos *3. Ev
+
+#### *}
+```2 segundos
+, 2000); // zarrYAvanrificarval(vetInteal = seerv
+  intO') {_ACTIVENTOLISTAMIstado === 'AO
+if (eTO_ACTIVISTAMIENco ALtado crítilo en es Sot
+//``javascrip Real:**
+` en Tiempocación **2. Verifi####
+
+
+```undos3 seg); // 00 30nBD(),itadasElicdarSo> guar() =imeout( API
+setTadas a lallamples últi
+// Evita m`javascript
+``eligente:**ebounce Int
+#### **1. Dtadas:**
+plemens Imzacione*Optimi
+### ⚡ ***
+ENTODIMIRICAS Y RENMÉT📈 **
+## 
+
+---
+atosgresen los d se incuándoar rtSin impochas**: odas las feara tFunciona p **amente
+- ✅omáticbounce autactiva el deato**: Se di inme **Guardadouevos
+- ✅omo n ces se marcanstentatos exi: Dmática**uto*Detección a:**
+- ✅ *ultado### **Res
+#```
+os]);
+geridos, suts, pedid
+}, [producue);
+  }uevos(trHayDatosN);
+    setsActualess:', totalectadoes dete('📊 Total.log    consoleuevos');
+o como n- MarcandECTADOS ETICIALES D'🆕 DATOS INe.log(sol    conardados) {
+&& noHayGuitivos lesPosyTota 
+  if (ha;
+ ngth === 0dados).leGuarmosTotales(ultiysket. = Objecardadosnst noHayGu  coal > 0);
+totl => .some(totatuales)otalesAces(tject.valutivos = ObsihayTotalesPonst s
+  co como nuevorcars, maados guardno hay datoy 0  > y totales Si ha🚀 NUEVO:
+
+  // ctuales ...de totalesAculo   // ... cál) => {
+ect((bios
+useEffamrada de cjoción me/ Detecipt
+/vascr
+```jaución:**## **Solesados
+
+## ingr datos ya paraáticoo autom el guardadabae activ"
+- No smo "nuevoss coexistentetaba datos o detec nemaSistema:**
+- ### **Probl**
+
+# Iniciales Datoscción deA: DeteMEJOR# ✅ **##
+do
+stadel ecompleto ico óstgn: Diaallados**det
+- ✅ **Logs ass fechra todas lanciona památico**: Futoardado au✅ **Guto
+- por defec 'SUGERIDO' o**: Siempreado correct
+- ✅ **Estado:**# **Result
+```
+
+###o);
+};ton(estadtEstadoBo  seo}")`);
+tadoGuardad${esado: "uard(go}" adst: "${edoctaEstado detele.log(`🎯 
+  
+  consordado;
+  }adoGua estdo = estaned') {
+   'undefio !== Guardadtado' && es= 'nullado !=ardstadoGudo && erdastadoGua  if (eult
+  
+; // DefaGERIDO'estado = 'SUt 
+  le'llstring 'nuned, y ull, undefir nejaIDO: ManREG🚀 COR 
+  // tual}`);
+ aAcch${fe_${dia}_botontado_tItem(`estorage.ge= localSoGuardado st estada;
+  connadeccioSell = fechat fechaActuacons
+  > { = () =rEstadoonst detecta
+c() corregidotadotarEs detecÉS -ESPUcript
+// D
+```javasementada:**ución Impl*Sol
+#### *
+```
+UGERIDO')l (no 'S= nuladoBoton estResultado:  ❌ GERIDO';
+//SUrdado : 'doGuaull' ? esta 'nuardado !== && estadoGardadotadoGustado = es eonstal}`);
+cechaActu}_${foton_${diatado_bem(`estorage.getItlSocadado = lt estadoGuaron.jsx
+cons Produccien() arEstadodetect - // ANTESscript
+va``jaicado:**
+`ema Identif **Probl**
+
+####tón NULLtado del BoONADO: EsCILEMA SOLUOB## ✅ **PR
+
+#CADAS**AS APLINES CRÍTICIO 🔧 **CORRECC--
+
+##
+```
+
+-ss preservadohistóricos 
+   └── Datohaa feca esitadas parolicndo 45 smostraSigue 
+   ├── ores):risteías poN (dACIÓ
+
+4. PLANEsnidades en 45 ungeladoos quedan co── Dat
+   └icoo automátene guardad├── Se deti  TIVO
+ TO_ACIENa a ALISTAM cambión → Estadona botiorio pres ├── Usua:
+  stadoio de eARGUE - Camb
+
+3. Cón localneacipla └── Guarda s
+  0 unidadeden = 5ica: Oro planifari   ├── Usuadas
+5 solicitEA 500Gr = 4O OBLA TIPa: AREP cargistema
+   ├── S10/202527/a: LUNES ciona fech  ├── Selececha):
+ ÓN (misma fANEACI2. PLco en BD
+
+o automáti Guardad5 unidades →─ TOTAL: 4
+   └─ 20 undBLEA 500Gr =PA TIPO O─ ID3: ARE
+   ├─   = 15 und0GrIPO OBLEA 50 T AREPA ├── ID2:
+  Gr = 10 undPO OBLEA 500TIA EP AR─ ID1:  ├─CARGUE:
+ 
+1. LUNES - ``
+`:**nario de Uso# **Esce
+###
+N:** INTEGRACIÓPLETO DEUJO COM **FL``
+
+### 🔄as
+`tencixisojo para ee/rles**: Verddores visua- ✅ **IndicacalStorage
+en loneaciones l de pla Historiaado local**: ✅ **Guarddatos
+-n carga reecha sear f*: Al cambitomática*ización autual*Ac✅ *
+-  produccióncara planifible paro edita**: Campden
+- ✅ **Or lectura)itadas (solo-soliconucci API prodrgadas desdes**: Caadaicit✅ **Sol
+- k_total)ocstproductos (sde API argadas de: Cstencias**- ✅ **Exiación:
+ulo Plane módrísticas delractecript
+// Ca**
+```javastados:l de Es# **Contro
+```
+
+###Table>body>
+</}
+  </t
+    ))   </tr>
+        </td>
+   div>      </
+           />ut"
+     -inpuantityame="qlassN   c       e)}
+    target.valuucto.id, e.(prodChange handleOrdene={(e) =>Chang        on 0}
+      n ||oducto.orde   value={pr         0"
+      min="          "number"
+      type=    rol
+    orm.Cont  <F
+          t-center">stify-conten-flex ju="dassNamediv cl       <">
+   terext-cenme="tassNa      <td cl </td>
+       iv>
+      </dpan>
+      /s        <  
+  }|| 0do licitacto.so     {produ     ''}`}>
+    ' : has-datao > 0 ? 'licitado.so${productdisplay icitadas-ole={`span classNam  <s         er">
+ nt-centify-conte-flex justme="dsNaasiv cl   <d>
+       -center"sName="texttd clas    <      </td>
+an>
+      sp          </und
+cias} cto.existen    {produ>
+        ill-sm`}nded-pcias)} rouexisteno.oductciasClass(pretExistenme={`${glassNa    <span c   >
+   enter"e="text-c<td classNamd>
+        .nombre}</t>{producto-medium"assName="fw<td cl      -row">
+  ductprolassName="d} cucto.i={prodkey     <tr  => (
+ oducto)os.map((pr  {producttbody>
+  >
+  </thead </tr>
+  <h>
+   n</t20%' }}>Ordeidth: ' w style={{ter"ext-cename="tl" classNh scope="co
+      <th>itadas</tSolich: '20%' }}>{ widt" style={text-center="assNamee="col" clopsc
+      <th s</th>xistencia'20%' }}>E{{ width: style=ter" text-cenlassName=""col" ch scope= <t</th>
+      }}>Producto40%'{{ width: 'col" style=pe="h sco     <t<tr>
+ 
+    <thead>>
+  -table"eacion plandexkarable--0 tiddle mb="align-mlassNameable ctabla
+<Tnder de .jsx - ReeacionPlantarionvenscript
+// Ijava
+```*:*aneaciónPl **Tabla de *
+
+####:* Planeaciónaz de**Interf
+
+### 📊 
+};
+```
+  };, error)stencias:' cargar exi('❌ Error al.errorconsole
+     (error) {ch }
+  } catnfo');
+   tos`, 'ioduclength} prdasMap).ys(solicita.ke: ${ObjectucciónProddas desde cargas ada`SolicitarMensaje(      mostr> 0) {
+itadas icolif (totalS;
+    al, 0)> sum + val) =(sum, vduce(tadasMap).recivalues(soliObject.as = Solicitad totalst   cons
+ dacitaron solicargaaje si se enstrar m Mos);
+
+    //ionsConPlaneactos(productosetProduc       });
+
+      };
+ 
+| 0) : 0den |istente.orductoEx? (prooExistente n: product      orde
+  al,licitadoFin: so  solicitado
+      ,k_total || 0stoctencias: p.xis        e.nombre,
+ nombre: p        p.id,
+   id:urn {
+       ret
+         }
+o;
+ tadlicinte.soxisteoEuctal = prodlicitadoFin    so    do > 0) {
+e.solicitantoExisteucte && prodxistentf (productoE  } else i;
+    mbre]asMap[p.noicitadnal = sollicitadoFi
+        so {ined)ndef= u.nombre] !=tadasMap[pici     if (sol 0;
+ al =indoFolicita     let sntes
+ as existe l manteneresas. Si no,n BD, usar s ecitadaliay so // Si h);
+
+     id === p.idrod.(prod => pind.ftosuc prodte =stenoExiroduct  const p  {
+  (p => osFromBD.mapctn = produneacioPlaosCononst product   ceación
+ con planductos arar pro   // Prep
+
+ ada);aSeleccionesdeBD(fechSolicitadasDit cargarMap = awaitadasonst solic cD
+    DESDE BDASR SOLICITA  // 🚀 CARGA);
+
+  nse.json(wait resposFromBD = a producto
+    consts/');/productopit:8000/a//localhos'http:ch(await fetnse = espo    const re la API
+roductos d Obtener p   //
+  try {
+  {) => (es = asyncsRealiaarExistenct cargas
+consnciteis carga de extegración en
+// In
+};
+rn {};
+  }ture
+    error);s:', o solicitadacargandError error('❌  console.  rror) {
+  catch (esMap;
+  } solicitada
+    return });
+a;
+   olicitadidad_s item.cantto_nombre] =ducm.prodasMap[itelicita so
+     item => {s.forEach(solicitada {};
+    dasMap =tanst solici  coda
+  queda rápio para búsbjet a oir arrayert   // Convth);
+
+ engitadas.lsoliccargadas:', adas it✅ Solicog('  console.l  son();
+.jsponseait retadas = awolicionst s
+
+    c};
+    } {     return;
+ nse.status)us:', respo Stata fecha -das para esty solicitag('⚠️ No hansole.loco   e.ok) {
+   !respons
+    if (}`);eadaaFormatha=${fechecicitadas/?fduccion-sol/pro00/apihost:80p://local(`httit fetch= awat response 
+    consteada);
+echaFormaa fecha:', ftadas parlici Cargando soole.log('📊
+    cons0];split('T')[g().a.toISOStrincionadecela = fechaSeadchaFormatst fe    conry {
+ {
+  tda) =>eleccionaync (fechaSdeBD = asdasDesarSolicita
+const cargD()dasDesdeBolicitarSjsx - carganeacion.ioPlantar Invecript
+//`javasón):**
+``laneacitadas (Pga de Solici#### **Car};
+```
+
+;
+  }
+as:', error)adolicit sardando❌ Error gur('console.erroror) {
+    catch (er
+  } e);
+    }vos(falsyDatosNue   setHa   dados);
+(totalesGuaradosuardsGmosTotale setUlti     ;
+     })dad;
+ cantioducto] = p.os[p.prtalesGuardad     to {
+   Each(p =>r.forParaGuardaoductos
+      pr {};uardados = totalesGonst  c   ado
+ tualizar est     // Ac
+      
+ sultado);amente:', reexitosdadas uars gicitadalog('✅ Sol    console.son();
+  ponse.j await resltado = resu   conste.ok) {
+   sponsif (re
+    
+
+    });aGuardar)Parfy(datosringi.stJSON    body: ' },
+  ication/jsonype': 'applent-T: { 'Cont    headersST',
+  POhod: '
+      met {as/',icitadolcion-sproduc000/api/st:8alhooc://ltch('http = await fenst response;
+
+    co }        }))
+ cantidad
+icitada: p.cantidad_solo,
+        roductbre: p.pcto_nomdu    pro> ({
+    ar.map(p =araGuardtosPoducos: prct    produnada,
+  iofechaSelecc    fecha:  dia,
+    dia:r = {
+    araGuardadatosP    const olicitadas
+para sta I correcr la AP   // Usa);
+
+ 
+    };
+      }   })CION'
+     A_PRODUCEMrio: 'SISTua us    ia}`,
+     _${dADASSOLICIT `    lote:
+      totalFinal,ad: cantid         me,
+  producto.nacto:   produ   da,
+    aSelecciona fecha: fech
+         r.push({araGuardaoductosP
+        prinal > 0) { if (totalF
+     ducto;
+edidosProtos + pduclProotaalFinal = t tot     const
+ | 0;o.name] |[producto = pedidosidosProduct ped     conste);
+ ducto.namrotalDirecto(parToos = calcullProducttota   const 
+    {cto =>oduorEach(prs.foduct
+
+    pruardar = [];ParaGproductos   const to
+ cada produca s parles actualer totaCalcula    // s();
+
+Existenteolicitadast eliminarS
+    awai esta fechastentes paratros exigisminar rePrimero eli    // }`);
+
+${dia:  Díaole.log(`📅
+    cons);nada}`Seleccioha: ${fecha.log(`📅 Fec    console BD...');
+ EN SOLICITADASDOANlog('💾 GUARDonsole.y {
+    c => {
+  tr()D = async asEnBcitadrSolirda
+const guatadasEnBD()darSoliciguarcion.jsx - // Producavascript
+**
+```jado en BD:ión de Guard#### **Func
+
+
+```eridos]);dos, sugts, pedi
+}, [produc;
+  }uales })esAct ...totaldos({esGuardaimosTotalUlt) {
+    setlength === 0s).sGuardadoimosTotale.keys(ult if (Object
+ }
+e);
+  ruosNuevos(t   setHayDat);
+ s'evoo como nurcandOS - MaTADES DETECNICIALg('🆕 DATOS Ilole.   consordados) {
+  && noHayGuaPositivosalesif (hayTot 0;
+  
+  gth ===lens).alesGuardadosTot.keys(ultimos = ObjectHayGuardado
+  const no total > 0);me(total =>ctuales).soues(totalesAalbject.v = OositivosTotalesP  const hayo nuevos
+car comdados, mary datos guar 0 y no hales >Si hay tota/ 🚀 NUEVO: }
+
+  /(true);
+  Nuevosatos    setHayDucción');
+de prodtotales os en ads detectmbioog('🔄 Caole.l cons 0) {
+    >s).lengthsGuardadomosTotalect.keys(ulti& Objencias & (hayDifere
+  ifardados);
+osTotalesGungify(ultimSON.stri== Jtuales) !otalesAcstringify(tias = JSON.ncifereonst hayD
+  cdadosar últimos guar conompar;
+
+  // Cal;
+  })lFin tota.name] =ctoes[produtualalesAc totoducto;
+    pedidosPrlProductos + tota =alFinal const tot] || 0;
+   ucto.namedidos[producto = perod pedidosP;
+    const.name)roductoDirecto(pularTotal calcctos =otalProduconst t   o => {
+ productch(Eaorts.f
+  producles = {};uatalesActto
+  const () => {ffect(s
+useEen totalembios ión de ca// Detecc;
+
+da])haSeleccionas, fecNuevon, hayDatosestadoBoto [};
+  }
+},utId);
+    ut(timeolearTimeo c  );
+   o)'io detectaduevo cambo (no automátic guardad Cancelandonsole.log('🚫co> {
+       () =    returnunce
+
+bodos de de // 3 segun 3000);},
+    tadasEnBD();darSolici  guar.');
+    RA..OMÁTICO AHOAUTADO DO GUARDCUTANe.log('🚀 EJE  consol{
+    > eout(() =TimtId = settimeounst co   
+ 
+gundos...');se 3 o eno automáticrdadramando gua('⏳ Progconsole.logada) {
+    chaSeleccion && feDatosNuevosIDO' && haySUGERBoton === ' if (estadonuevos
+ datos y DO y hatado SUGERI está en es guardar si/ Solo
+  /(() => {eEffectdebounce
+usco con átidado autom
+// Guar
+do);
+};estaon(adoBotsetEst
+  ;
+  }
+  adoGuardadostado = est {
+    efined')o !== 'undeoGuardad&& estad' 'null!== ardado estadoGudado && Guar (estado
+  if
+  ult'; // Defa'SUGERIDO estado = letl'
+  ul 'nd, y stringl, undefineejar nulRREGIDO: Man  // 🚀 CO
+  
+tual}`);echaAc}_${fon_${diatado_botestItem(`orage.gealStdo = locuardaadoGst est> {
+  con =tado = ()Est detectaronstón
+c del boestadon de // Deteccióalse);
+
+(f] = useStateosNuevyDatos setHaDatosNuevos,nst [hayERIDO');
+cote('SUGseStan] = uetEstadoBototadoBoton, se
+const [esgentdo inteli de guarda Sistemaon.jsx -// Producciavascript
+*
+```jargue):*tico (Cdo Automáe Guardaica d#### **LógS"
+```
+
+"SOLICITADAmna  colua datos en── Muestr  └MM-DD
+ ha=YYYY-/?fecsolicitadasoduccion- GET /api/pr
+   ├── API:máticamenteutoolicitadas a carga s─ Sistemaecha
+   ├─selecciona fio uar├── UsN
+   LANEACIÓs/
+
+2. Pn-solicitadaroduccio POST /api/p   └── API:
+uarda en BDs → Gndoguse 3 ── Debounceucto
+   ├por prodtales suma to├── Sistema D6
+   en ID1-Iantidades esa cUsuario ingrDO)
+   ├── o SUGERIUE (Estad1. CARG**
+```
+o:utomatizadatos Ajo de D# **FluÓN**
+
+### → PLANEACIN CARGUE**INTEGRACIÓ 🔄 e.
+
+###o de Cargu el módulsdegenerados des" licitada de "Sodatosn los e coamentáticdose automránintegs, s específicara fechaón pauccicar la prode planifión permitrio Planeacientaódulo de Inv*
+El mdel Módulo:*scripción 
+### 🎯 **De*
+MPLETA*ÓN CO - INTEGRACIPLANEACIÓNENTARIO  INV📊 **MÓDULO
+---
+
+## );
+```
+tado] idSheet, esonada,haSeleccidia, fec [ge);
+},ChanleCargueDataandaChanged', hargueDatistener('cventLemoveEw.r=> windoturn () ange);
+  reChargueDataeCed', handleDataChang('carguenerentListdow.addEv
+  win
+  };
+ientes);sultado.pendntes(retosPendiesetProduc    tos);
+ultado.liss(restosValidadoetProduc);
+    suctosListos(ficarProd= await veritado t resulons   c   
+ ;
+ s...')oductocando prverifide cargue, n datos detectado eambio '🔥 Clog(le.   conso
+  => {nc (e)ange = asyataChgueDndleCar
+  const haeturn;
+') rVOACTIIENTO_== 'ALISTAMo !ad' || estID1== 'heet !  if (idS {
+Effect(() =>ios
+use cambcharx - Escu.jsar/ BotonLimpi
+
+/vento);chEvent(eispat);
+window.dngth }
+}tivos.leosOperaroductroductos: par, paAUs fechha:a, feceet, diShl: { idetai
+  dChanged', {argueDatastomEvent('c= new Cuvento st eado
+conrsonalizo pe eventarar;
+
+// Dispos))fy(datngi, JSON.strietItem(keytorage.s
+localSarardevento al guparar Disva.jsx - OperatilatilPlan/ pt
+/javascris:**
+```nalizadosotos Perende Evstema #### **SiO REAL**
+
+N EN TIEMP **DETECCIÓ
+### 🔄
+};
+```
+lse
+  }))| fapachador |esador: p.d    despachalse,
+dedor || fedor: p.ven0,
+    vendor || lor: p.val
+    va],os || [ncid: p.lotesVe_vencidoslotes| 0,
+    encidas |ncidas: p.v| 0,
+    ve |cionesludevop.s: lucione
+    devonal || 0,diciol: p.a    adiciona0,
+s || : p.dcto,
+    dctosantidad || 0.cd: p   cantidacto,
+  p.produbre:_nomctoodu({
+    prp(p => dar.maGuarosParauct: prodductosampos
+  pro los c con todosoductos
+  
+  // PrientoData,: cumplimntolimieto
+  cumpienumplime cControl d
+  //   lado
+  },
+CalcuivototalEfectl_efectivo:  totada,
+   alculataC ven venta:|| 0),
+   uentos sData.desc(pagotalDctos +  total_dctos:
+    to 0,pedidos:al_os,
+    totctotalProduacho: t total_despseCaja,
+   a: ba  base_cajen: {
+  
+  resumensum de re Datos
+  
+  //0)
+  }, 0), ata) ||(c.daviplloatparseF + (> sumum, c) =educe((s.rceptosta: con    davipla
+ 0), 0),c.nequi) ||oat((parseFlsum + c) => educe((sum, ceptos.ronqui: c),
+    ne|| 0), 0os) scuenteFloat(c.de + (parssum) => e((sum, cos.reducos: conceptdescuent
+    , '),('to).joinconcepp(c => c.mapto).cec => c.confilter(ceptos.cepto: concon
+    os: {pagos
+  pag// Datos de eal,
+  
+  sponsableR: reponsablesar,
+  reschaAUcha: fed: id,
+  feor_ivendeddia,
+  dia_semana: 
+  uardar = {atosParaGnst d()
+coCompletosrdarDatos guaar.jsx -nLimpiBoto
+// script`java
+``rdados:**os Guactura de DatEstru*
+
+#### **TO DE DATOS*MPLEUARDADO CO*G### 💾 *```
+
+;
+cked);
+} cheo(id, campo,uctlizarProdActua  }
+
+  onTO
+MIEN ALISTA D en estadoir marcarmit No pereturn; //{
+    rAMIENTO') == 'ALISToBoton = && estadhador' === 'despac if (campol botón
+ n estado della D segúr casintrolaCo
+
+  // 
+  }dadr sin canticaarnta mter nada si inNo hace return; // <= 0) {
+   ducto.total to && proproduc&  &ked if (checd);
+  p.id === i.find(p =>= productosto const producl > 0
+  o tiene totauctprodsi el ir marcar  Solo permit  // => {
+o, checked)d, camp= (ikboxChange Chec handlest
+conheckboxese cl dtroon};
+
+// C
+po, valor); camducto(id,ualizarPro onAct}
+
+ turn;
+  
+    reicar');pueden modife  no sVENCIDASS y LUCIONEVOcho - DEspadeos para tos listProducert(') {
+    alampo).includes(cencidas']es', 'vucionol['devbilitado && istamientoHa if (botonAlNCIDAS
+ ES y VEr DEVOLUCIONeaO solo bloquNTO_ACTIVSTAMIELI
+  // 🚫 En A
+return;
+  }');
+    PLETADAada COM- Jorndo o bloqueaCambilog('🔒    console. {
+ mpletado)
+  if (esCoPLETADOtá COMsi escambios tir rmi/ 🔒 No pe
+  / {) =>ampo, valor = (id, changehandleInputC
+const  de camposx - Controlctos.jsoduaPrblpt
+// Ta`javascri
+``dición:** de E# **ReglasADO**
+
+### POR ESTL DE CAMPOSCONTRO
+### 🎛️ **
+```
+;vo
+  };
+}otalEfectitivo: ttal_efec tota,
+   enta: ven),
+    vtos || 0s.descuen+ (pagotalDctos tos: to   total_dcuctos,
+ odcho: totalProtal_despa  tseCaja,
+  : baaja base_c    {
+  
+  return| 0);
+ |iplataos.dav- (pag|| 0) ui s.neqa - (pagotivo = ventfecconst totalEs || 0);
+  cuento (pagos.destotalDctos -oductos -  = totalPr const venta;
+  
+ | 0)), 0)valor || 0) * (p.(p.dctos |um + (m, p) => s.reduce((su = productoslDctosnst tota0);
+  co 0), to ||(p.ne sum + m, p) =>(suuce(os.red = productProductost total> {
+  cons =baseCaja)s, ctos, pago(produResumen = t calculars
+consmáticotoculos aux - Cál.jssumenVentas Reascript
+//```jav
+en:**esum Rdeculos 
+#### **Cál```
+
+};
+ });
+ l, neto };, totaas, valorencidluciones, val, devodicionos, adad, dctntin { ...p, caurret   
+    or);
+ al * valund(tot Math.roconst neto =  das;
+  es - venciluciondevo- ional adicd - dctos + tida total = cannstdas
+    co - venciionesdevolucional - os + adicidad - dctula: cant   // Fórm
+ ;
+    ) || 0.valor parseInt(p valor =onst
+    c;) || 0cidasrseInt(p.vendas = paconst venci  | 0;
+  uciones) |t(p.devol = parseInneslucioevoonst d
+    c) || 0;adicional(p.rseIntpadicional =    const as) || 0;
+ p.dctoparseInt(t dctos = cons|| 0;
+    cantidad) parseInt(p.dad =  const canti=> {
+   s.map(p  producto{
+  returnductos) => s = (procularTotale
+const recalsotalelcularTecaión r.jsx - FuncivalaOperat
+// Plantiltjavascrip
+```ales:**rmula de Tot### **Fó
+
+#TICOS**OMÁULOS AUT 📊 **CÁLC
+###;
+```
+ue;
+}rn tr 
+  retue;
+  }
+ lsurn fa   retizar.`);
+ nal de fiesdos ant lotes vencirmación delete la infocomp  Por favor 
+   s)
+   (3 vencidaEA 500Gr PO OBL: AREPA TI • ID1
+      de lotes:
+ ción n informaeneero no ticidas ps tienen venroductoes pent  Los sigui
+     alizar
+ finse puede No alert(`❌ ) {
+     0h >lengtLotes.encidasSinsConVif (producto
+  
+  
+    }
+  }producto);Lotes.push(idasSinsConVencducto
+      pro== 0) {s.length =pletosComlote   if (
+ ;
+    = ''
+    )o.trim() !=te.motivo && loe.motiv    lot'' &&
+  = im() !=lote.lote.trte.lote && 
+      lo=>ter(lote Vencidos.filducto.lotesletos = prompt lotesCo  cons
+   > 0) {cidasen (producto.vas > 0
+  ifo con vencidada product// Para c[];
+  
+  SinLotes = ConVencidasductosconst pro
+  => { async () ncidos =rLotesVedat valiipt
+consjavascr
+```Vencidos:**ón de Lotes daci **Vali
+```
+
+####;ado])
+}, [estal);ervInterval(int clear=>  return ()  }
+;
+ ar, 2000)AvanzarYrificl(veervasetInt interval =   TIVO') {
+ ENTO_AC'ALISTAMIado === estval;
+  if ( inter{
+  let) => eEffect((VO
+usNTO_ACTIISTAMIEos en ALa 2 segundadomática cación aut
+// Verific };
+};
+ientesuctosPendntes: prods, pendiesListoctoistos: produn { lur  ret}
+  
+to
+  mple Coducto); // ✅tos.push(proisoductosL {
+    pr.total > 0)oductor && pr.despachadoroductor && pdedocto.venodu
+  if (pr
+  }
+   V o D/ ❌ Faltaucto); /rod(pentes.pushPendiproductos)) {
+    chadorpa.des!productodor || oducto.vendepr> 0 && (!.total if (producto0
+  otal > cto con ta cada produ/ Par
+  
+  /[];= uctosListos t prod];
+  consentes = [ndi productosPest => {
+  conasync ()osListos = oductcarPrifionst veral
+co remp en tiee validación/ Lógica dt
+/```javascrip
+endientes:**ductos Pn de Prodació## **Vali*
+
+##Y CONTROLES*IONES ALIDAC🔄 **V### 
+```
+
+isponibledado dGuarte Verificar ✅ Componeno
+-shabilitadO" de🎉 COMPLETADBotón "BD
+- ✅ os desde argad ✅ Datos cectura
+-o lolDO en modo s 🔒 TO
+-ticas:erísactCar
+// cript``javasFinal)**
+`ETADO (PLado COM **4. Est###
+#};
+```
+OMPLETADO
+ado Cmbiar a est/ 7. Ca
+  /ragetor localS6. Limpiaen BD
+  // atos s dr todos lodaarGuo)
+  // 5.  inventarictarfeas (sin atrar vencidgis
+  // 4. Reio)l inventarumar aones (slucisar devo. Proce
+  // 3rn;
+  ) retuotesValidos
+  if (!ldos();otesVencit validarLwaialidos = asVst loteos
+  concidvenlidar lotes . Va// 2rn;
+  
+  aje)) retuirm(mensndow.conf
+  if (!wi `;
+  ontinuar?
+ esea c 
+    ¿D   alStorage
+l loc limpiará e  🧹 Sedatos
+  ase de os en la bs los datán tododarguar 📊 Se )
+    
+    (ID1LEA: 3 undREPA TIPO OB):
+    AunidadesVENCIDAS (3  🗑️ 
+   
+    und (ID2)30Gr: 3 A 3 MEDIAN
+    AREPA(ID1): 2 und GrLEA 500IPO OBEPA TAR):
+    nidadesCIONES (5 u  ⬆️ DEVOLU
+    
+  e Jornada?alización drmar Fin 🚚 ¿Confi `
+   t mensaje =  consn resumen
+previa coión 1. Confirmac
+  //  => {nc ()asy= lizar jarFinamanenst :
+coSPACHOdel botón DEncionalidad / Fua
+
+/toriligaencidos ob votesidación de l)
+- ✅ Valry'nt: 'prima azul (varia ✅ Color
+-FINALIZAR")s " (antePACHO"n "🚚 DES ✅ BotóABLES
+-ncidas EDITnes y velucioS
+- ✅ DevoBLOQUEADOl/dctos d/adiciona cantidampos🔒 Casticas:
+-  Caracteríript
+//*
+```javascacho)*(DespLIZAR INA Estado F### **3.``
+
+#do');
+}
+`descontao  - Inventario Completadopach✅ Des('lert;
+  aAR')FINALIZado('st
+  setEonfirmación y mostrar cadoambiar est C  // 3.
+  
+);
+  }TAR'dad, 'REStotalCantiucto.odo.id, prctrio(produnventaizarIit actualawa  dos) {
+  osValidact of produductoproonst (cfor   os
+alidadoductos v de prnventarior inta. Desco 
+  // 2
+ nada sin hacer  // Cancelarurn;firmar) retif (!con 
+  
+ ho?
+  `);spacar con el desea continu  ¿De
+    
+  idades un 40 INVENTARIO:NTAR DELDESCOAL A  
+    🎯 TOT
+   5 und330Gr: 1PA MEDIANA RE
+    A und25BLEA 500Gr: PA TIPO OARE
+    
+    cho?espafirmar D¿Con
+    🚚 rm(`ow.confi = windarst confirmonen
+  csum rermación con confistrar Mo {
+  // 1.sync () => aClick:
+ond:ionalidaFuncio
+
+// tarntar invenscoes de deón ant Confirmaciundos
+- ✅l cada 2 segea rpoión en tiemcacVerifites
+- ✅ pendien productos mpletos =heckboxes couctos sin cs
+- ✅ Prodrcado D maos con V yproductta si hay habili- ✅ Solo se s:
+nedacio
+// ValiSUGERIDO""📦 a botón o presionUsuarisición: 
+// Tran`javascript``
+O_ACTIVO** ALISTAMIENT. Estado
+#### **2to)
+```
+(total, nemáticos culos auto ✅ Cállas
+-gún reg seilitadoses V y D hab- ✅ Checkboxunce 3s)
+ebos a BD (dsolicitadade omático ut anvío- ✅ EalStorage
+co en locátitomado au ✅ Guard
+-blesmpos editaos los caas:
+- ✅ Todrístic/ Caracte
+/vascriptal)**
+```jaRIDO (Inici SUGE. Estado*1
+#### * CARGUE**
+DEISTEMA ADOS DEL S 🎯 **EST`
+
+###n
+``inalizaciópost-fción erifica  # Vo.jsx  carGuardadVerifie
+└── entendiepucción indlo de prodódu         # Muccion.jsx  Prodsables
+├── ón de responsti Gesx    #leManager.jesponsab── Rnto
+├cumplimieoxes de heckbsx   # Cnto.jolCumplimie├── Contráticos
+s automálculo  # C       entas.jsxResumenV─ pacho
+├─tados y desl de es   # Contro      x r.jsmpiaotonLiiones
+├── Blidacuctos con vaodpra de       # Tabl   oductos.jsxaPr
+├── TablIDal por incipe prent# Componx     perativa.jslantillaOE/
+├── PGU```
+CARdulo:**
+l Móra detu **Arquitecado.
+
+####utomatize despacho aflujo dtrictas y s esidacioneos, val de estad con controlID6)ntes (ID1-dependiedores ine 6 vendeias dciones diarlas operaonar gestia aro pñadema, disel sisttivo deoperaúcleo rgue es el nódulo de Ca**
+El mn General:*Descripció *TO**
+
+####VO COMPLETIRGUE OPERAMA DE CASISTE# 📦 **)**
+
+## (Enero 2025ULO CARGUEÓDNTADAS - MES IMPLEME

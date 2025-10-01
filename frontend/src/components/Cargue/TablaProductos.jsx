@@ -6,6 +6,16 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
   const [estadoBoton, setEstadoBoton] = useState('ALISTAMIENTO');
   const [esCompletado, setEsCompletado] = useState(false);
 
+  // 🎯 Calcular si todos los productos con cantidad están listos (V y D marcados)
+  const todosListosParaDespacho = () => {
+    const productosConCantidad = productos.filter(p => (p.cantidad || 0) > 0);
+    if (productosConCantidad.length === 0) return false;
+
+    return productosConCantidad.every(p => p.vendedor && p.despachador);
+  };
+
+  const botonAlistamientoHabilitado = estadoBoton === 'ALISTAMIENTO_ACTIVO' && todosListosParaDespacho();
+
   // Actualizar estado del botón en tiempo real
   useEffect(() => {
     const actualizarEstado = () => {
@@ -27,9 +37,9 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
       return;
     }
 
-    // 🚫 NUEVA VALIDACIÓN: Bloquear campos específicos en estado DESPACHO
-    if (estadoBoton === 'DESPACHO' && ['dctos', 'adicional', 'devoluciones', 'vencidas'].includes(campo)) {
-      alert('Despacho pendiente');
+    // 🚫 VALIDACIÓN: En ALISTAMIENTO_ACTIVO solo bloquear DEVOLUCIONES y VENCIDAS (afectan inventario hacia arriba)
+    if (botonAlistamientoHabilitado && ['devoluciones', 'vencidas'].includes(campo)) {
+      alert('Productos listos para despacho - DEVOLUCIONES y VENCIDAS no se pueden modificar');
       return;
     }
 
@@ -152,8 +162,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
-                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado}
+                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td>
@@ -164,8 +174,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
-                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado}
+                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td>
@@ -176,8 +186,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
-                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || botonAlistamientoHabilitado}
+                  style={(esCompletado || botonAlistamientoHabilitado) ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td>
@@ -188,8 +198,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado || estadoBoton === 'DESPACHO'}
-                  style={(esCompletado || estadoBoton === 'DESPACHO') ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || botonAlistamientoHabilitado}
+                  style={(esCompletado || botonAlistamientoHabilitado) ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                 />
               </td>
               <td colSpan="2" style={{ position: 'relative', width: '120px', padding: '4px' }}>

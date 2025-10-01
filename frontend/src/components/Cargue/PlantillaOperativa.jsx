@@ -26,6 +26,33 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         return "RESPONSABLE";
     });
 
+    // 🧮 Función para recalcular totales correctamente
+    const recalcularTotales = (productos) => {
+        return productos.map(p => {
+            const cantidad = parseInt(p.cantidad) || 0;
+            const dctos = parseInt(p.dctos) || 0;
+            const adicional = parseInt(p.adicional) || 0;
+            const devoluciones = parseInt(p.devoluciones) || 0;
+            const vencidas = parseInt(p.vencidas) || 0;
+            const valor = parseInt(p.valor) || 0;
+
+            const total = cantidad - dctos + adicional - devoluciones - vencidas;
+            const neto = Math.round(total * valor);
+
+            return {
+                ...p,
+                cantidad,
+                dctos,
+                adicional,
+                devoluciones,
+                vencidas,
+                valor,
+                total,
+                neto
+            };
+        });
+    };
+
     // 🔍 DEBUG: Monitorear cambios en nombreResponsable
     useEffect(() => {
         console.log(`🎯 CAMBIO EN nombreResponsable para ${idSheet}: "${nombreResponsable}"`);
@@ -124,7 +151,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 const datos = JSON.parse(datosLocalString);
                 if (datos && datos.productos && datos.productos.length > 0) {
                     console.log(`⚡ INIT ${idSheet} - Carga inmediata desde localStorage:`, datos.productos.length, 'productos');
-                    return datos.productos.map(p => ({
+                    const productosBase = datos.productos.map(p => ({
                         id: p.id || `temp_${Math.random()}`,
                         producto: p.producto,
                         cantidad: p.cantidad || 0,
@@ -139,6 +166,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         vendedor: p.vendedor || false,
                         despachador: p.despachador || false
                     }));
+
+                    // 🧮 Recalcular totales para asegurar consistencia
+                    return recalcularTotales(productosBase);
                 }
             }
 
@@ -381,7 +411,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     }
 
                     // Usar los datos exactamente como están guardados, sin mapeo de contexto
-                    const productosDirectos = datos.productos.map(productoGuardado => ({
+                    const productosBase = datos.productos.map(productoGuardado => ({
                         id: productoGuardado.id || `temp_${Math.random()}`,
                         producto: productoGuardado.producto,
                         cantidad: productoGuardado.cantidad || 0,
@@ -396,6 +426,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         vendedor: productoGuardado.vendedor || false,
                         despachador: productoGuardado.despachador || false
                     }));
+
+                    // 🧮 Recalcular totales para asegurar consistencia
+                    const productosDirectos = recalcularTotales(productosBase);
 
                     console.log(`✅ ${idSheet} - Carga directa completada:`, productosDirectos.length, 'productos');
                     console.log(`📋 ${idSheet} - Productos cargados:`, productosDirectos.slice(0, 3).map(p => p.producto));
@@ -455,9 +488,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     };
                 });
 
+                // 🧮 Recalcular totales para asegurar consistencia
+                const productosConDatosRecalculados = recalcularTotales(productosConDatos);
+
                 console.log(`✅ ${idSheet} - Datos cargados correctamente desde localStorage`);
-                console.log(`🔄 ${idSheet} - Estableciendo productos:`, productosConDatos.filter(p => p.cantidad > 0).map(p => `${p.producto}: ${p.cantidad}`));
-                setProductosOperativos(productosConDatos);
+                console.log(`🔄 ${idSheet} - Estableciendo productos:`, productosConDatosRecalculados.filter(p => p.cantidad > 0).map(p => `${p.producto}: ${p.cantidad}`));
+                setProductosOperativos(productosConDatosRecalculados);
                 return;
             }
 
@@ -624,8 +660,22 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                     // Calcular total automáticamente solo para campos numéricos (no para texto o checkboxes)
                     if (campo !== 'vendedor' && campo !== 'despachador' && campo !== 'lotesVencidos') {
-                        updated.total = updated.cantidad - updated.dctos + updated.adicional - updated.devoluciones - updated.vencidas;
-                        updated.neto = Math.round(updated.total * updated.valor);
+                        // Asegurar que todos los valores sean números válidos
+                        const cantidad = parseInt(updated.cantidad) || 0;
+                        const dctos = parseInt(updated.dctos) || 0;
+                        const adicional = parseInt(updated.adicional) || 0;
+                        const devoluciones = parseInt(updated.devoluciones) || 0;
+                        const vencidas = parseInt(updated.vencidas) || 0;
+                        const valor = parseInt(updated.valor) || 0;
+
+                        updated.total = cantidad - dctos + adicional - devoluciones - vencidas;
+                        updated.neto = Math.round(updated.total * valor);
+
+                        console.log(`🧮 Cálculo total para ${updated.producto}:`, {
+                            cantidad, dctos, adicional, devoluciones, vencidas,
+                            formula: `${cantidad} - ${dctos} + ${adicional} - ${devoluciones} - ${vencidas}`,
+                            total: updated.total
+                        });
 
                         // ✅ INVENTARIO: Afectar solo campos permitidos cuando el botón está en FINALIZAR
                         if (estadoBoton === 'FINALIZAR' && (campo === 'cantidad' || campo === 'adicional' || campo === 'dctos')) {
@@ -742,6 +792,13 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     console.error(`❌ Error verificando datos guardados:`, error);
                 }
             }
+
+            // 🔥 DISPARAR EVENTO: Notificar que los datos de cargue han cambiado
+            const evento = new CustomEvent('cargueDataChanged', {
+                detail: { idSheet, dia, fecha: fechaAUsar, productos: productosOperativos.length }
+            });
+            window.dispatchEvent(evento);
+            console.log(`🔔 Evento cargueDataChanged disparado para ${idSheet}`);
         }
     }, [productosOperativos, idSheet, dia, fechaSeleccionada]);
 

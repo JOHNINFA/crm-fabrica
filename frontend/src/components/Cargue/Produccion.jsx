@@ -298,8 +298,17 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
     const detectarEstado = () => {
       const fechaActual = fechaSeleccionada;
       const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`);
-      const estado = estadoGuardado && estadoGuardado !== 'null' ? estadoGuardado : 'SUGERIDO';
-      console.log(`🎯 Estado detectado: ${estado} (guardado: ${estadoGuardado})`);
+
+      // 🚀 CORREGIDO: Manejar null, undefined, y string 'null'
+      let estado = 'SUGERIDO'; // Default
+
+      if (estadoGuardado && estadoGuardado !== 'null' && estadoGuardado !== 'undefined') {
+        estado = estadoGuardado;
+      }
+
+      console.log(`🎯 Estado detectado: "${estado}" (guardado: "${estadoGuardado}")`);
+      console.log(`📅 Clave localStorage: estado_boton_${dia}_${fechaActual}`);
+
       setEstadoBoton(estado);
     };
 
@@ -342,6 +351,9 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   const guardarSolicitadasEnBD = async () => {
     try {
       console.log('💾 GUARDANDO SOLICITADAS EN BD...');
+      console.log(`📅 Fecha: ${fechaSeleccionada}`);
+      console.log(`📅 Día: ${dia}`);
+      console.log(`🕐 Timestamp: ${new Date().toISOString()}`);
 
       // Primero eliminar registros existentes para esta fecha
       await eliminarSolicitadasExistentes();
@@ -426,6 +438,16 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       setHayDatosNuevos(true);
     }
 
+    // 🚀 NUEVO: Si hay totales > 0 y no hay datos guardados, marcar como nuevos
+    const hayTotalesPositivos = Object.values(totalesActuales).some(total => total > 0);
+    const noHayGuardados = Object.keys(ultimosTotalesGuardados).length === 0;
+
+    if (hayTotalesPositivos && noHayGuardados) {
+      console.log('🆕 DATOS INICIALES DETECTADOS - Marcando como nuevos');
+      console.log('📊 Totales detectados:', totalesActuales);
+      setHayDatosNuevos(true);
+    }
+
     // Guardar referencia inicial si no existe
     if (Object.keys(ultimosTotalesGuardados).length === 0) {
       setUltimosTotalesGuardados({ ...totalesActuales });
@@ -435,11 +457,20 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
 
   // 🚀 Guardado automático inteligente con debounce
   useEffect(() => {
+    // 🔍 DEBUG: Mostrar estado actual para diagnóstico
+    console.log('🔍 DEBUG GUARDADO AUTOMÁTICO:');
+    console.log(`   - Estado botón: "${estadoBoton}"`);
+    console.log(`   - Hay datos nuevos: ${hayDatosNuevos}`);
+    console.log(`   - Fecha seleccionada: ${fechaSeleccionada}`);
+    console.log(`   - Día: ${dia}`);
+
     // Solo guardar si está en estado SUGERIDO y hay datos nuevos
     if (estadoBoton === 'SUGERIDO' && hayDatosNuevos && fechaSeleccionada) {
       console.log('⏳ Programando guardado automático en 3 segundos...');
+      console.log(`📅 Guardará para fecha: ${fechaSeleccionada} (día: ${dia})`);
 
       const timeoutId = setTimeout(() => {
+        console.log('🚀 EJECUTANDO GUARDADO AUTOMÁTICO AHORA...');
         guardarSolicitadasEnBD();
       }, 3000); // 3 segundos de debounce
 
@@ -447,6 +478,11 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
         console.log('🚫 Cancelando guardado automático (nuevo cambio detectado)');
         clearTimeout(timeoutId);
       };
+    } else {
+      console.log('❌ NO SE GUARDARÁ - Condiciones no cumplidas:');
+      if (estadoBoton !== 'SUGERIDO') console.log(`   - Estado incorrecto: "${estadoBoton}" (necesita "SUGERIDO")`);
+      if (!hayDatosNuevos) console.log('   - No hay datos nuevos');
+      if (!fechaSeleccionada) console.log('   - No hay fecha seleccionada');
     }
   }, [estadoBoton, hayDatosNuevos, fechaSeleccionada]);
 
@@ -526,6 +562,8 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
           <strong>❄️ PRODUCCIÓN CONGELADA</strong> - Los datos están bloqueados durante el proceso de alistamiento y despacho.
         </div>
       )}
+
+
       <Row>
         <Col md={7}>
           <Table bordered responsive className="tabla-produccion">

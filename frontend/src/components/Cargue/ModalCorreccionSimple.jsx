@@ -36,7 +36,14 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
                     const productoEnDatos = datos.productos.find(p => p.id === productoEditado.id);
                     if (productoEnDatos && productoEditado.cantidadOriginal !== productoEditado.cantidadNueva) {
                         productoEnDatos.cantidad = productoEditado.cantidadNueva;
-                        productoEnDatos.total = productoEditado.cantidadNueva - (productoEnDatos.dctos || 0) + (productoEnDatos.adicional || 0) - (productoEnDatos.devoluciones || 0) - (productoEnDatos.vencidas || 0);
+                        // Asegurar que todos los valores sean números válidos
+                        const cantidad = parseInt(productoEditado.cantidadNueva) || 0;
+                        const dctos = parseInt(productoEnDatos.dctos) || 0;
+                        const adicional = parseInt(productoEnDatos.adicional) || 0;
+                        const devoluciones = parseInt(productoEnDatos.devoluciones) || 0;
+                        const vencidas = parseInt(productoEnDatos.vencidas) || 0;
+
+                        productoEnDatos.total = cantidad - dctos + adicional - devoluciones - vencidas;
                         productoEnDatos.neto = Math.round(productoEnDatos.total * productoEnDatos.valor);
 
                         console.log(`✅ Actualizado: ${productoEditado.nombre} - ${productoEditado.cantidadOriginal} → ${productoEditado.cantidadNueva}`);
