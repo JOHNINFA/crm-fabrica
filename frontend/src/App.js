@@ -15,6 +15,7 @@ import ListaPreciosScreen from './pages/ListaPreciosScreen';
 import MaestroListaPreciosScreen from './pages/MaestroListaPreciosScreen';
 import InformeListaPreciosScreen from './pages/InformeListaPreciosScreen';
 import VendedoresScreen from './pages/VendedoresScreen';
+import CajaScreen from './pages/CajaScreen';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="/editar-lista-precios/:id" element={<ListaPreciosScreen />} />
           <Route path="/informe-lista-precios" element={<InformeListaPreciosScreen />} />
           <Route path="/vendedores" element={<VendedoresScreen />} />
+          <Route path="/caja" element={<CajaScreen />} />
         </Routes>
       </div>
     </Router>

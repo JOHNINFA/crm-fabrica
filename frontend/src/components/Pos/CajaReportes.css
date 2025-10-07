@@ -1,0 +1,216 @@
+/* CajaReportes.css */
+
+.caja-reportes-modal .modal-dialog {
+    max-width: 1400px;
+}
+
+/* Gráficos de barras CSS */
+.chart-container {
+    padding: 1rem 0;
+}
+
+.chart-bar-container {
+    margin-bottom: 1rem;
+}
+
+.chart-bar-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: #495057;
+    text-transform: capitalize;
+}
+
+.chart-bar-wrapper {
+    position: relative;
+    background-color: #e9ecef;
+    border-radius: 0.375rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.chart-bar {
+    height: 100%;
+    border-radius: 0.375rem;
+    transition: width 0.8s ease-in-out;
+    min-width: 2px;
+}
+
+.chart-bar-value {
+    position: absolute;
+    right: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+    z-index: 2;
+}
+
+/* Estadísticas */
+.stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Header del reporte */
+.header {
+    text-align: center;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+.header h2 {
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.header p {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+/* Tabs personalizados */
+.nav-tabs .nav-link {
+    border: 1px solid transparent;
+    border-radius: 0.375rem 0.375rem 0 0;
+    color: #495057;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+    background-color: #f8f9fa;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+    color: #495057;
+}
+
+/* Tablas mejoradas */
+.table th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table-striped>tbody>tr:nth-of-type(odd)>td {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.total-row {
+    background-color: #e9ecef !important;
+    font-weight: 600;
+}
+
+/* Cards mejoradas */
+.card {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.card-header h5 {
+    margin-bottom: 0;
+    color: #495057;
+}
+
+/* Badges personalizados */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Animaciones */
+.chart-bar {
+    animation: growBar 1s ease-out;
+}
+
+@keyframes growBar {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: var(--final-width);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .caja-reportes-modal .modal-dialog {
+        max-width: 95%;
+        margin: 1rem;
+    }
+
+    .stats-container {
+        gap: 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .chart-bar-value {
+        font-size: 0.7rem;
+    }
+}
+
+/* Estilos para impresión */
+@media print {
+
+    .modal-header,
+    .modal-footer,
+    .nav-tabs,
+    .no-print {
+        display: none !important;
+    }
+
+    .modal-body {
+        padding: 0 !important;
+    }
+
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+
+    .table {
+        font-size: 0.8rem;
+    }
+
+    .chart-container {
+        display: none;
+    }
+}
