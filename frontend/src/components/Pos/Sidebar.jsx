@@ -14,17 +14,17 @@ export default function Sidebar({ onWidthChange }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
   const [showInformesSubmenu, setShowInformesSubmenu] = useState(false);
-  
+
   const shouldShowText = isExpanded || isHovered;
   const sidebarWidth = shouldShowText ? 210 : 60;
-  
+
   // Estilo para los elementos del menú
   const getMenuItemStyle = () => ({
     whiteSpace: 'nowrap',
     paddingLeft: shouldShowText ? '12px' : '18px',  // Más padding a la izquierda cuando está colapsado
     paddingRight: shouldShowText ? '12px' : '8px'
   });
-  
+
   React.useEffect(() => {
     if (onWidthChange) {
       onWidthChange(sidebarWidth);
@@ -50,32 +50,42 @@ export default function Sidebar({ onWidthChange }) {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="w-100 d-flex align-items-center justify-content-center border-bottom" style={{ height: '44px', paddingTop: '6px', paddingBottom: '6px', backgroundColor: '#ffffff' }}>
-          <img 
-            src={logo} 
-            alt="Logo" 
-            style={{ 
+          <img
+            src={logo}
+            alt="Logo"
+            style={{
               height: shouldShowText ? '36px' : '32px',
               width: 'auto',
               transition: 'height 0.3s ease'
-            }} 
+            }}
           />
         </div>
 
         <div className="w-100 flex-grow-1" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
           <ul className="nav flex-column w-100 mt-3">
             {/* Inicio primero */}
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={() => navigate('/')}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>home</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Inicio</span>}
             </li>
-            
+
+            {/* Cajero - NUEVO */}
+            <li
+              className="nav-item sidebar-item py-2"
+              onClick={() => navigate('/cajero')}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person</span>
+              {shouldShowText && <span style={{ fontSize: '14px' }}>Cajero</span>}
+            </li>
+
             {/* Productos con Modal */}
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={openProductsModal}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
@@ -83,8 +93,8 @@ export default function Sidebar({ onWidthChange }) {
               {shouldShowText && <span style={{ fontSize: '14px' }}>Productos</span>}
             </li>
             {/* Lista de precios con submenu */}
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={() => {
                 setShowPreciosSubmenu(!showPreciosSubmenu);
                 if (!showPreciosSubmenu) setIsExpanded(true);
@@ -99,20 +109,20 @@ export default function Sidebar({ onWidthChange }) {
                 </span>
               )}
             </li>
-            
+
             {/* Submenu de Lista de precios */}
             {showPreciosSubmenu && isExpanded && (
               <>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => navigate('/lista-precios')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
                   <span>Lista de precios</span>
                 </li>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => navigate('/informe-lista-precios')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
@@ -139,8 +149,8 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>balance</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Inventarios</span>}
             </li>
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={() => {
                 setShowInformesSubmenu(!showInformesSubmenu);
                 if (!showInformesSubmenu) setIsExpanded(true);
@@ -155,52 +165,52 @@ export default function Sidebar({ onWidthChange }) {
                 </span>
               )}
             </li>
-            
+
             {/* Submenu de Informes */}
             {showInformesSubmenu && isExpanded && (
               <>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => console.log('Venta x rutas')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
                   <span>Venta x rutas</span>
                 </li>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => console.log('Venta TAT vs remisiones por ruta')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
                   <span>Venta TAT vs remisiones por ruta</span>
                 </li>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => console.log('Cantidad de unidades vendidas')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
                   <span>Cantidad de unidades vendidas</span>
                 </li>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => console.log('Cantidad total de devoluciones')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
                   <span>Cantidad total de devoluciones</span>
                 </li>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => console.log('Ganancia x utilidades total')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
                   <span>Ganancia x utilidades total</span>
                 </li>
-                <li 
-                  className="nav-item sidebar-item py-1" 
+                <li
+                  className="nav-item sidebar-item py-1"
                   onClick={() => console.log('Historial de clientes ventas y devoluciones')}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
@@ -209,20 +219,21 @@ export default function Sidebar({ onWidthChange }) {
                 </li>
               </>
             )}
+
             <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Pedidos</span>}
             </li>
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={() => navigate('/clientes')}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Clientes</span>}
             </li>
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={() => navigate('/vendedores')}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
@@ -241,8 +252,8 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>calculate</span>
               {shouldShowText && <span style={{ fontSize: '14px' }}>Contabilidad</span>}
             </li>
-            <li 
-              className="nav-item sidebar-item py-2" 
+            <li
+              className="nav-item sidebar-item py-2"
               onClick={() => consultarTablaProducto()}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
@@ -251,7 +262,7 @@ export default function Sidebar({ onWidthChange }) {
             </li>
           </ul>
         </div>
-        
+
         <div className="flex-grow-1"></div>
       </nav>
 

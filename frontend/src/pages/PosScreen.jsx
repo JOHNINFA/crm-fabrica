@@ -16,20 +16,30 @@
 import React, { useState, useEffect } from "react";
 import { ModalProvider } from "../context/ModalContext";
 import { ProductProvider } from "../context/ProductContext";
+import { CajeroProvider, useCajero } from "../context/CajeroContext";
 import Sidebar from "../components/Pos/Sidebar"
 import Topbar from "../components/Pos/Topbar";
-import TabsActions from "../components/Pos/TabsActions";
 import ProductList from "../components/Pos/ProductList";
 import Cart from "../components/Pos/Cart";
 import ConsumerForm from "../components/Pos/ConsumerForm";
 
 import ImageSyncButton from "../components/common/ImageSyncButton";
 
-export default function PosScreen() {
-  const [selectedTab, setSelectedTab] = useState("Remisión");
+// Componente interno que usa el CajeroContext
+function PosScreenContent() {
+  const { cajeroLogueado, isAuthenticated } = useCajero();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Función para obtener fecha local en formato YYYY-MM-DD
+  const getFechaLocal = () => {
+    const hoy = new Date();
+    const year = hoy.getFullYear();
+    const month = String(hoy.getMonth() + 1).padStart(2, '0');
+    const day = String(hoy.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [date, setDate] = useState(getFechaLocal);
   const [sellers, setSellers] = useState(["jose", "maria", "luis"]);
   const [seller, setSeller] = useState("jose");
 
@@ -39,6 +49,17 @@ export default function PosScreen() {
     setSellers(allSellers);
     setSeller("jose");
   }, []);
+
+  // Actualizar vendedor cuando se loguea un cajero
+  useEffect(() => {
+    if (isAuthenticated && cajeroLogueado) {
+      console.log('🔄 Cajero logueado, actualizando vendedor:', cajeroLogueado.nombre);
+      setSeller(cajeroLogueado.nombre);
+    } else {
+      // Si no hay cajero logueado, usar vendedor por defecto
+      setSeller("jose");
+    }
+  }, [isAuthenticated, cajeroLogueado]);
   const [client, setClient] = useState("CONSUMIDOR FINAL");
   const [priceList, setPriceList] = useState("CLIENTES");
   const [imp, setImp] = useState(0);
@@ -87,16 +108,15 @@ export default function PosScreen() {
           <Sidebar onWidthChange={setSidebarWidth} />
           <div
             className="flex-grow-1 offset"
-            style={{ 
-              marginLeft: sidebarWidth, 
-              minHeight: "100vh", 
+            style={{
+              marginLeft: sidebarWidth,
+              minHeight: "100vh",
               background: "#f7f7fa",
               transition: 'margin-left 0.3s ease'
             }}
           >
             <Topbar />
             <main style={{ padding: "20px 24px 0px 24px" }}>
-              <TabsActions selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
               <div className="row">
                 <div className="col-lg-7 mb-4">
                   <ProductList
@@ -134,8 +154,6 @@ export default function PosScreen() {
                       client={client}
                       clearCart={clearCart}
                     />
-                 
-                 
                   </div>
                 </div>
               </div>
@@ -144,5 +162,14 @@ export default function PosScreen() {
         </div>
       </ModalProvider>
     </ProductProvider>
+  );
+}
+
+// Componente principal que provee el CajeroContext
+export default function PosScreen() {
+  return (
+    <CajeroProvider>
+      <PosScreenContent />
+    </CajeroProvider>
   );
 }

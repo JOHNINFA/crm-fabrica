@@ -723,3 +723,429 @@ class ProduccionSolicitadaViewSet(viewsets.ViewSet):
         serializer = ProduccionSolicitadaSerializer(queryset, many=True)
         
         return Response(serializer.data)
+
+# ========================================
+# VISTAS PARA SISTEMA POS - CAJEROS
+# ========================================
+
+from .models import Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja
+from .serializers import (
+    SucursalSerializer, CajeroSerializer, TurnoSerializer, 
+    VentaCajeroSerializer, CajeroLoginSerializer, TurnoResumenSerializer,
+    ArqueoCajaSerializer
+)
+from django.utils import timezone
+from django.db.models import Q, Sum, Count
+
+class SucursalViewSet(viewsets.ModelViewSet):
+    """API para gestionar sucursales"""
+    queryset = Sucursal.objects.all()
+    serializer_class = SucursalSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Sucursal.objects.all()
+        activo = self.request.query_params.get('activo', None)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+        return queryset.order_by('nombre')
+    
+    @action(detail=False, methods=['get'])
+    def activas(self, request):
+        """Obtener solo sucursales activas"""
+        sucursales = Sucursal.objects.filter(activo=True).order_by('nombre')
+        serializer = self.get_serializer(sucursales, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def principal(self, request):
+        """Obtener sucursal principal"""
+        try:
+            sucursal = Sucursal.objects.filter(es_principal=True, activo=True).first()
+            if not sucursal:
+                # Si no hay principal, tomar la primera activa
+                sucursal = Sucursal.objects.filter(activo=True).first()
+            
+            if sucursal:
+                serializer = self.get_serializer(sucursal)
+                return Response(serializer.data)
+            else:
+                return Response({'error': 'No hay sucursales disponibles'}, 
+                              status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CajeroViewSet(viewsets.ModelViewSet):
+    """API para gestionar cajeros"""
+    queryset = Cajero.objects.all()
+    serializer_class = CajeroSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Cajero.objects.select_related('sucursal').all()
+        
+        # Filtros
+        sucursal_id = self.request.query_params.get('sucursal_id', None)
+        activo = self.request.query_params.get('activo', None)
+        
+        if sucursal_id:
+            queryset = queryset.filter(sucursal_id=sucursal_id)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset.order_by('sucursal__nombre', 'nombre')
+    
+    @action(detail=False, methods=['post'])
+    def authenticate(self, request):
+        """Autenticar cajero"""
+        serializer = CajeroLoginSerializer(data=request.data)
+        if serializer.is_valid():
+            cajero = serializer.validated_data['cajero']
+            
+            # Serializar datos del cajero
+            cajero_data = CajeroSerializer(cajero).data
+            
+            return Response({
+                'success': True,
+                'message': 'Autenticación exitosa',
+                'cajero': cajero_data
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': 'Credenciales inválidas',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'])
+    def activos_por_sucursal(self, request):
+        """Obtener cajeros activos por sucursal"""
+        sucursal_id = request.query_params.get('sucursal_id')
+        if not sucursal_id:
+            return Response({'error': 'sucursal_id es requerido'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        cajeros = Cajero.objects.filter(
+            sucursal_id=sucursal_id, 
+            activo=True
+        ).order_by('nombre')
+        
+        serializer = self.get_serializer(cajeros, many=True)
+        return Response(serializer.data)
+
+class TurnoViewSet(viewsets.ModelViewSet):
+    """API para gestionar turnos de cajeros"""
+    queryset = Turno.objects.all()
+    serializer_class = TurnoSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Turno.objects.select_related('cajero', 'sucursal').all()
+        
+        # Filtros
+        cajero_id = self.request.query_params.get('cajero_id', None)
+        sucursal_id = self.request.query_params.get('sucursal_id', None)
+        estado = self.request.query_params.get('estado', None)
+        fecha_desde = self.request.query_params.get('fecha_desde', None)
+        fecha_hasta = self.request.query_params.get('fecha_hasta', None)
+        
+        if cajero_id:
+            queryset = queryset.filter(cajero_id=cajero_id)
+        if sucursal_id:
+            queryset = queryset.filter(sucursal_id=sucursal_id)
+        if estado:
+            queryset = queryset.filter(estado=estado)
+        if fecha_desde:
+            queryset = queryset.filter(fecha_inicio__gte=fecha_desde)
+        if fecha_hasta:
+            queryset = queryset.filter(fecha_inicio__lte=fecha_hasta)
+            
+        return queryset.order_by('-fecha_inicio')
+    
+    @action(detail=False, methods=['post'])
+    def iniciar_turno(self, request):
+        """Iniciar nuevo turno para un cajero"""
+        cajero_id = request.data.get('cajero_id')
+        sucursal_id = request.data.get('sucursal_id')
+        base_inicial = request.data.get('base_inicial', 0)
+        notas_apertura = request.data.get('notas_apertura', '')
+        
+        if not cajero_id or not sucursal_id:
+            return Response({
+                'error': 'cajero_id y sucursal_id son requeridos'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Verificar que no haya turno activo
+            turno_activo = Turno.objects.filter(
+                cajero_id=cajero_id,
+                estado='ACTIVO'
+            ).first()
+            
+            if turno_activo:
+                return Response({
+                    'error': 'El cajero ya tiene un turno activo',
+                    'turno_activo': TurnoSerializer(turno_activo).data
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Crear nuevo turno
+            turno = Turno.objects.create(
+                cajero_id=cajero_id,
+                sucursal_id=sucursal_id,
+                base_inicial=base_inicial,
+                notas_apertura=notas_apertura,
+                estado='ACTIVO'
+            )
+            
+            serializer = self.get_serializer(turno)
+            return Response({
+                'success': True,
+                'message': 'Turno iniciado exitosamente',
+                'turno': serializer.data
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error iniciando turno: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
+    def cerrar_turno(self, request, pk=None):
+        """Cerrar turno específico"""
+        turno = self.get_object()
+        
+        if turno.estado != 'ACTIVO':
+            return Response({
+                'error': 'Solo se pueden cerrar turnos activos'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        arqueo_final = request.data.get('arqueo_final', 0)
+        notas_cierre = request.data.get('notas_cierre', '')
+        
+        try:
+            turno.cerrar_turno(arqueo_final, notas_cierre)
+            
+            serializer = self.get_serializer(turno)
+            return Response({
+                'success': True,
+                'message': 'Turno cerrado exitosamente',
+                'turno': serializer.data
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error cerrando turno: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'])
+    def turno_activo(self, request):
+        """Obtener turno activo de un cajero"""
+        cajero_id = request.query_params.get('cajero_id')
+        if not cajero_id:
+            return Response({'error': 'cajero_id es requerido'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        turno = Turno.objects.filter(
+            cajero_id=cajero_id,
+            estado='ACTIVO'
+        ).first()
+        
+        if turno:
+            serializer = self.get_serializer(turno)
+            return Response(serializer.data)
+        else:
+            return Response({'message': 'No hay turno activo'}, 
+                          status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=False, methods=['get'])
+    def resumen_turnos(self, request):
+        """Obtener resumen de turnos con filtros"""
+        queryset = self.get_queryset()
+        
+        # Usar serializer resumido
+        serializer = TurnoResumenSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def estadisticas(self, request):
+        """Obtener estadísticas de turnos"""
+        fecha_desde = request.query_params.get('fecha_desde')
+        fecha_hasta = request.query_params.get('fecha_hasta')
+        sucursal_id = request.query_params.get('sucursal_id')
+        
+        queryset = Turno.objects.all()
+        
+        if fecha_desde:
+            queryset = queryset.filter(fecha_inicio__gte=fecha_desde)
+        if fecha_hasta:
+            queryset = queryset.filter(fecha_inicio__lte=fecha_hasta)
+        if sucursal_id:
+            queryset = queryset.filter(sucursal_id=sucursal_id)
+        
+        stats = queryset.aggregate(
+            total_turnos=Count('id'),
+            total_ventas=Sum('total_ventas'),
+            total_transacciones=Sum('numero_transacciones'),
+            turnos_activos=Count('id', filter=Q(estado='ACTIVO')),
+            turnos_cerrados=Count('id', filter=Q(estado='CERRADO'))
+        )
+        
+        return Response(stats)
+
+class VentaCajeroViewSet(viewsets.ModelViewSet):
+    """API para ventas con información de cajero"""
+    queryset = VentaCajero.objects.all()
+    serializer_class = VentaCajeroSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = VentaCajero.objects.select_related(
+            'venta', 'cajero', 'turno', 'sucursal'
+        ).all()
+        
+        # Filtros
+        cajero_id = self.request.query_params.get('cajero_id', None)
+        turno_id = self.request.query_params.get('turno_id', None)
+        sucursal_id = self.request.query_params.get('sucursal_id', None)
+        
+        if cajero_id:
+            queryset = queryset.filter(cajero_id=cajero_id)
+        if turno_id:
+            queryset = queryset.filter(turno_id=turno_id)
+        if sucursal_id:
+            queryset = queryset.filter(sucursal_id=sucursal_id)
+            
+        return queryset.order_by('-venta__fecha')
+    
+    @action(detail=False, methods=['get'])
+    def por_turno(self, request):
+        """Obtener ventas de un turno específico"""
+        turno_id = request.query_params.get('turno_id')
+        if not turno_id:
+            return Response({'error': 'turno_id es requerido'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        ventas = self.get_queryset().filter(turno_id=turno_id)
+        serializer = self.get_serializer(ventas, many=True)
+        
+        # Calcular totales
+        total_ventas = sum(v.venta.total for v in ventas)
+        total_transacciones = ventas.count()
+        
+        return Response({
+            'ventas': serializer.data,
+            'resumen': {
+                'total_ventas': total_ventas,
+                'total_transacciones': total_transacciones
+            }
+        })
+
+class ArqueoCajaViewSet(viewsets.ModelViewSet):
+    """API para arqueos de caja"""
+    queryset = ArqueoCaja.objects.all()
+    serializer_class = ArqueoCajaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ArqueoCaja.objects.select_related('cajero_logueado', 'sucursal', 'turno').all()
+        
+        # Filtros
+        fecha = self.request.query_params.get('fecha', None)
+        fecha_inicio = self.request.query_params.get('fecha_inicio', None)
+        fecha_fin = self.request.query_params.get('fecha_fin', None)
+        cajero = self.request.query_params.get('cajero', None)
+        estado = self.request.query_params.get('estado', None)
+        sucursal_id = self.request.query_params.get('sucursal_id', None)
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if fecha_inicio:
+            queryset = queryset.filter(fecha__gte=fecha_inicio)
+        if fecha_fin:
+            queryset = queryset.filter(fecha__lte=fecha_fin)
+        if cajero:
+            queryset = queryset.filter(cajero__icontains=cajero)
+        if estado:
+            queryset = queryset.filter(estado=estado)
+        if sucursal_id:
+            queryset = queryset.filter(sucursal_id=sucursal_id)
+            
+        return queryset.order_by('-fecha', '-fecha_creacion')
+    
+    def create(self, request, *args, **kwargs):
+        """Crear arqueo con validaciones"""
+        try:
+            # Validar que no exista un arqueo para la misma fecha, cajero y banco
+            fecha = request.data.get('fecha')
+            cajero = request.data.get('cajero')
+            banco = request.data.get('banco', 'Caja General')
+            
+            arqueo_existente = ArqueoCaja.objects.filter(
+                fecha=fecha,
+                cajero=cajero,
+                banco=banco
+            ).first()
+            
+            if arqueo_existente:
+                return Response({
+                    'error': f'Ya existe un arqueo para {cajero} en {banco} el {fecha}',
+                    'arqueo_existente': ArqueoCajaSerializer(arqueo_existente).data
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Crear el arqueo
+            response = super().create(request, *args, **kwargs)
+            
+            if response.status_code == 201:
+                return Response({
+                    'success': True,
+                    'message': 'Arqueo de caja guardado exitosamente',
+                    'arqueo': response.data
+                })
+            
+            return response
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error al guardar arqueo: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'])
+    def resumen_por_fecha(self, request):
+        """Obtener resumen de arqueos por fecha"""
+        fecha = request.query_params.get('fecha')
+        if not fecha:
+            return Response({'error': 'Fecha es requerida'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        arqueos = self.get_queryset().filter(fecha=fecha)
+        
+        resumen = {
+            'fecha': fecha,
+            'total_arqueos': arqueos.count(),
+            'total_sistema': sum(a.total_sistema for a in arqueos),
+            'total_caja': sum(a.total_caja for a in arqueos),
+            'total_diferencia': sum(a.total_diferencia for a in arqueos),
+            'arqueos_por_estado': {
+                estado[0]: arqueos.filter(estado=estado[0]).count()
+                for estado in ArqueoCaja.ESTADOS_CHOICES
+            }
+        }
+        
+        return Response(resumen)
+    
+    @action(detail=False, methods=['get'])
+    def por_cajero(self, request):
+        """Obtener arqueos de un cajero específico"""
+        cajero = request.query_params.get('cajero')
+        if not cajero:
+            return Response({'error': 'Cajero es requerido'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        arqueos = self.get_queryset().filter(cajero__icontains=cajero)
+        serializer = self.get_serializer(arqueos, many=True)
+        
+        return Response({
+            'cajero': cajero,
+            'total_arqueos': arqueos.count(),
+            'arqueos': serializer.data
+        })

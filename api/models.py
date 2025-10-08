@@ -141,6 +141,7 @@ class Venta(models.Model):
         ('PAGADO', 'Pagado'),
         ('PENDIENTE', 'Pendiente'),
         ('CANCELADO', 'Cancelado'),
+        ('ANULADA', 'Anulada'),
     ]
     
     METODO_PAGO_CHOICES = [
@@ -825,3 +826,242 @@ class ProduccionSolicitada(models.Model):
     
     def __str__(self):
         return f"{self.dia} - {self.fecha} - {self.producto_nombre}: {self.cantidad_solicitada}"
+
+# ========================================
+# MODELOS PARA SISTEMA POS - CAJEROS
+# ========================================
+
+class Sucursal(models.Model):
+    """Modelo para sucursales/puntos de venta"""
+    nombre = models.CharField(max_length=100, unique=True)
+    direccion = models.TextField(blank=True, null=True)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    ciudad = models.CharField(max_length=100, blank=True, null=True)
+    departamento = models.CharField(max_length=100, blank=True, null=True)
+    codigo_postal = models.CharField(max_length=10, blank=True, null=True)
+    
+    # Configuración
+    activo = models.BooleanField(default=True)
+    es_principal = models.BooleanField(default=False)
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Sucursal'
+        verbose_name_plural = 'Sucursales'
+        ordering = ['nombre']
+    
+    def save(self, *args, **kwargs):
+        # Solo una sucursal puede ser principal
+        if self.es_principal:
+            Sucursal.objects.filter(es_principal=True).update(es_principal=False)
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.nombre} {'(Principal)' if self.es_principal else ''}"
+
+class Cajero(models.Model):
+    """Modelo para cajeros del sistema POS"""
+    ROLES_CHOICES = [
+        ('CAJERO', 'Cajero'),
+        ('SUPERVISOR', 'Supervisor'),
+        ('ADMINISTRADOR', 'Administrador'),
+    ]
+    
+    nombre = models.CharField(max_length=100)
+    email = models.EmailField(blank=True, null=True)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
+    password = models.CharField(max_length=255)  # Hash de la contraseña
+    
+    # Relaciones
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='cajeros')
+    
+    # Configuración
+    rol = models.CharField(max_length=20, choices=ROLES_CHOICES, default='CAJERO')
+    activo = models.BooleanField(default=True)
+    puede_hacer_descuentos = models.BooleanField(default=False)
+    limite_descuento = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # Porcentaje
+    puede_anular_ventas = models.BooleanField(default=False)
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    ultimo_login = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = 'Cajero'
+        verbose_name_plural = 'Cajeros'
+        unique_together = ('nombre', 'sucursal')
+        ordering = ['sucursal', 'nombre']
+    
+    def __str__(self):
+        return f"{self.nombre} - {self.sucursal.nombre} ({self.rol})"
+
+class Turno(models.Model):
+    """Modelo para turnos de cajeros"""
+    ESTADOS_CHOICES = [
+        ('ACTIVO', 'Activo'),
+        ('CERRADO', 'Cerrado'),
+        ('SUSPENDIDO', 'Suspendido'),
+    ]
+    
+    # Relaciones
+    cajero = models.ForeignKey(Cajero, on_delete=models.CASCADE, related_name='turnos')
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='turnos')
+    
+    # Información del turno
+    fecha_inicio = models.DateTimeField(default=timezone.now)
+    fecha_fin = models.DateTimeField(null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS_CHOICES, default='ACTIVO')
+    
+    # Arqueo de caja
+    base_inicial = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    arqueo_final = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    diferencia = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Totales calculados
+    total_ventas = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_tarjeta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_otros = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    numero_transacciones = models.IntegerField(default=0)
+    
+    # Notas
+    notas_apertura = models.TextField(blank=True, null=True)
+    notas_cierre = models.TextField(blank=True, null=True)
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Turno'
+        verbose_name_plural = 'Turnos'
+        ordering = ['-fecha_inicio']
+    
+    def save(self, *args, **kwargs):
+        # Calcular diferencia en arqueo
+        if self.arqueo_final and self.base_inicial:
+            esperado = self.base_inicial + self.total_efectivo
+            self.diferencia = self.arqueo_final - esperado
+        super().save(*args, **kwargs)
+    
+    def cerrar_turno(self, arqueo_final, notas_cierre=None):
+        """Método para cerrar el turno"""
+        self.fecha_fin = timezone.now()
+        self.estado = 'CERRADO'
+        self.arqueo_final = arqueo_final
+        self.notas_cierre = notas_cierre
+        
+        # Calcular totales desde las ventas
+        ventas_turno = Venta.objects.filter(
+            fecha__gte=self.fecha_inicio,
+            fecha__lte=self.fecha_fin
+        )
+        
+        self.total_ventas = sum(v.total for v in ventas_turno)
+        self.total_efectivo = sum(v.total for v in ventas_turno if v.metodo_pago == 'EFECTIVO')
+        self.total_tarjeta = sum(v.total for v in ventas_turno if v.metodo_pago == 'TARJETA')
+        self.total_otros = sum(v.total for v in ventas_turno if v.metodo_pago not in ['EFECTIVO', 'TARJETA'])
+        self.numero_transacciones = ventas_turno.count()
+        
+        self.save()
+    
+    def duracion(self):
+        """Calcular duración del turno"""
+        if self.fecha_fin:
+            return self.fecha_fin - self.fecha_inicio
+        return timezone.now() - self.fecha_inicio
+    
+    def __str__(self):
+        estado_emoji = {'ACTIVO': '🟢', 'CERRADO': '🔴', 'SUSPENDIDO': '🟡'}
+        return f"{estado_emoji.get(self.estado, '')} {self.cajero.nombre} - {self.fecha_inicio.strftime('%Y-%m-%d %H:%M')}"
+
+class VentaCajero(models.Model):
+    """Extensión del modelo Venta para incluir información del cajero"""
+    venta = models.OneToOneField(Venta, on_delete=models.CASCADE, related_name='info_cajero')
+    cajero = models.ForeignKey(Cajero, on_delete=models.CASCADE, related_name='ventas_realizadas')
+    turno = models.ForeignKey(Turno, on_delete=models.CASCADE, related_name='ventas', null=True, blank=True)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='ventas_sucursal')
+    
+    # Información adicional
+    terminal = models.CharField(max_length=50, default='POS-001')
+    numero_transaccion = models.CharField(max_length=100, blank=True, null=True)
+    
+    class Meta:
+        verbose_name = 'Venta Cajero'
+        verbose_name_plural = 'Ventas Cajero'
+    
+    def __str__(self):
+        return f"Venta #{self.venta.numero_factura} - {self.cajero.nombre}"
+
+class ArqueoCaja(models.Model):
+    """Modelo para arqueos de caja"""
+    ESTADOS_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('COMPLETADO', 'Completado'),
+        ('REVISADO', 'Revisado'),
+    ]
+    
+    # Información básica
+    fecha = models.DateField()
+    cajero = models.CharField(max_length=100)
+    banco = models.CharField(max_length=100, default='Caja General')
+    
+    # Valores del sistema (calculados)
+    valores_sistema = models.JSONField(default=dict)
+    total_sistema = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Valores físicos de caja (ingresados por cajero)
+    valores_caja = models.JSONField(default=dict)
+    total_caja = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Diferencias calculadas
+    diferencias = models.JSONField(default=dict)
+    total_diferencia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Información adicional
+    observaciones = models.TextField(blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS_CHOICES, default='COMPLETADO')
+    
+    # Relaciones opcionales con cajero logueado
+    cajero_logueado = models.ForeignKey(Cajero, on_delete=models.SET_NULL, null=True, blank=True, related_name='arqueos')
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.SET_NULL, null=True, blank=True, related_name='arqueos')
+    turno = models.ForeignKey(Turno, on_delete=models.SET_NULL, null=True, blank=True, related_name='arqueos')
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Arqueo de Caja'
+        verbose_name_plural = 'Arqueos de Caja'
+        ordering = ['-fecha', '-fecha_creacion']
+        unique_together = ('fecha', 'cajero', 'banco')
+    
+    def save(self, *args, **kwargs):
+        # Calcular totales automáticamente
+        if isinstance(self.valores_sistema, dict):
+            self.total_sistema = sum(float(v) for v in self.valores_sistema.values())
+        if isinstance(self.valores_caja, dict):
+            self.total_caja = sum(float(v) for v in self.valores_caja.values())
+        
+        self.total_diferencia = self.total_caja - self.total_sistema
+        
+        # Calcular diferencias por método
+        if isinstance(self.valores_sistema, dict) and isinstance(self.valores_caja, dict):
+            diferencias = {}
+            for metodo in self.valores_sistema.keys():
+                sistema = float(self.valores_sistema.get(metodo, 0))
+                caja = float(self.valores_caja.get(metodo, 0))
+                diferencias[metodo] = caja - sistema
+            self.diferencias = diferencias
+        
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        estado_emoji = {'PENDIENTE': '⏳', 'COMPLETADO': '✅', 'REVISADO': '🔍'}
+        return f"{estado_emoji.get(self.estado, '')} {self.fecha} - {self.cajero} - {self.banco}"

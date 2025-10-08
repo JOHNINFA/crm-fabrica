@@ -16,6 +16,9 @@ import MaestroListaPreciosScreen from './pages/MaestroListaPreciosScreen';
 import InformeListaPreciosScreen from './pages/InformeListaPreciosScreen';
 import VendedoresScreen from './pages/VendedoresScreen';
 import CajaScreen from './pages/CajaScreen';
+import CajeroScreen from './pages/CajeroScreen';
+import SucursalesScreen from './pages/SucursalesScreen';
+import CajerosScreen from './pages/CajerosScreen';
 
 function App() {
   return (
@@ -39,6 +42,9 @@ function App() {
           <Route path="/informe-lista-precios" element={<InformeListaPreciosScreen />} />
           <Route path="/vendedores" element={<VendedoresScreen />} />
           <Route path="/caja" element={<CajaScreen />} />
+          <Route path="/cajero" element={<CajeroScreen />} />
+          <Route path="/sucursales" element={<SucursalesScreen />} />
+          <Route path="/cajeros" element={<CajerosScreen />} />
         </Routes>
       </div>
     </Router>

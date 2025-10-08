@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -266,3 +266,190 @@ class ProduccionSolicitadaSerializer(serializers.ModelSerializer):
             'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+# ========================================
+# SERIALIZERS PARA SISTEMA POS - CAJEROS
+# ========================================
+
+class SucursalSerializer(serializers.ModelSerializer):
+    """Serializer para sucursales"""
+    
+    class Meta:
+        model = Sucursal
+        fields = [
+            'id', 'nombre', 'direccion', 'telefono', 'email', 'ciudad', 
+            'departamento', 'codigo_postal', 'activo', 'es_principal',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+class CajeroSerializer(serializers.ModelSerializer):
+    """Serializer para cajeros"""
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
+    password = serializers.CharField(write_only=True)
+    
+    class Meta:
+        model = Cajero
+        fields = [
+            'id', 'nombre', 'email', 'telefono', 'password', 'sucursal', 
+            'sucursal_nombre', 'rol', 'activo', 'puede_hacer_descuentos',
+            'limite_descuento', 'puede_anular_ventas', 'fecha_creacion',
+            'fecha_actualizacion', 'ultimo_login'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion', 'ultimo_login')
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+    
+    def create(self, validated_data):
+        """Crear cajero con contraseña hasheada"""
+        import hashlib
+        password = validated_data.pop('password')
+        # Hash simple para desarrollo (en producción usar bcrypt)
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        validated_data['password'] = hashed_password
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        """Actualizar cajero, hashear contraseña si se proporciona"""
+        if 'password' in validated_data:
+            import hashlib
+            password = validated_data.pop('password')
+            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            validated_data['password'] = hashed_password
+        return super().update(instance, validated_data)
+
+class TurnoSerializer(serializers.ModelSerializer):
+    """Serializer para turnos"""
+    cajero_nombre = serializers.ReadOnlyField(source='cajero.nombre')
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
+    duracion_horas = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Turno
+        fields = [
+            'id', 'cajero', 'cajero_nombre', 'sucursal', 'sucursal_nombre',
+            'fecha_inicio', 'fecha_fin', 'estado', 'base_inicial', 'arqueo_final',
+            'diferencia', 'total_ventas', 'total_efectivo', 'total_tarjeta',
+            'total_otros', 'numero_transacciones', 'notas_apertura', 'notas_cierre',
+            'duracion_horas', 'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('diferencia', 'total_ventas', 'total_efectivo', 
+                          'total_tarjeta', 'total_otros', 'numero_transacciones',
+                          'fecha_creacion', 'fecha_actualizacion')
+    
+    def get_duracion_horas(self, obj):
+        """Calcular duración en horas"""
+        duracion = obj.duracion()
+        return round(duracion.total_seconds() / 3600, 2)
+
+class VentaCajeroSerializer(serializers.ModelSerializer):
+    """Serializer para ventas con información de cajero"""
+    cajero_nombre = serializers.ReadOnlyField(source='cajero.nombre')
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
+    turno_id = serializers.ReadOnlyField(source='turno.id')
+    venta_info = VentaSerializer(source='venta', read_only=True)
+    
+    class Meta:
+        model = VentaCajero
+        fields = [
+            'id', 'venta', 'venta_info', 'cajero', 'cajero_nombre', 
+            'turno', 'turno_id', 'sucursal', 'sucursal_nombre',
+            'terminal', 'numero_transaccion'
+        ]
+
+# Serializer simplificado para autenticación
+class CajeroLoginSerializer(serializers.Serializer):
+    """Serializer para login de cajeros"""
+    nombre = serializers.CharField(max_length=100)
+    password = serializers.CharField(max_length=255)
+    sucursal_id = serializers.IntegerField(required=False)
+    
+    def validate(self, data):
+        """Validar credenciales de cajero"""
+        import hashlib
+        from django.utils import timezone
+        
+        nombre = data.get('nombre')
+        password = data.get('password')
+        sucursal_id = data.get('sucursal_id')
+        
+        # Hash de la contraseña
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        
+        # Buscar cajero
+        try:
+            cajero_query = Cajero.objects.filter(
+                nombre__iexact=nombre,
+                password=hashed_password,
+                activo=True
+            )
+            
+            if sucursal_id:
+                cajero_query = cajero_query.filter(sucursal_id=sucursal_id)
+            
+            cajero = cajero_query.first()
+            
+            if not cajero:
+                raise serializers.ValidationError("Credenciales inválidas")
+            
+            # Actualizar último login
+            cajero.ultimo_login = timezone.now()
+            cajero.save()
+            
+            data['cajero'] = cajero
+            return data
+            
+        except Exception as e:
+            raise serializers.ValidationError("Error en la autenticación")
+
+class TurnoResumenSerializer(serializers.ModelSerializer):
+    """Serializer resumido para turnos (para listados)"""
+    cajero_nombre = serializers.ReadOnlyField(source='cajero.nombre')
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
+    duracion_horas = serializers.SerializerMethodField()
+    estado_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Turno
+        fields = [
+            'id', 'cajero_nombre', 'sucursal_nombre', 'fecha_inicio', 
+            'fecha_fin', 'estado', 'estado_display', 'total_ventas', 
+            'numero_transacciones', 'duracion_horas'
+        ]
+    
+    def get_duracion_horas(self, obj):
+        duracion = obj.duracion()
+        return round(duracion.total_seconds() / 3600, 2)
+    
+    def get_estado_display(self, obj):
+        estado_map = {
+            'ACTIVO': '🟢 Activo',
+            'CERRADO': '🔴 Cerrado', 
+            'SUSPENDIDO': '🟡 Suspendido'
+        }
+        return estado_map.get(obj.estado, obj.estado)
+
+class ArqueoCajaSerializer(serializers.ModelSerializer):
+    """Serializer para arqueos de caja"""
+    cajero_logueado_nombre = serializers.ReadOnlyField(source='cajero_logueado.nombre')
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
+    turno_id = serializers.ReadOnlyField(source='turno.id')
+    
+    class Meta:
+        model = ArqueoCaja
+        fields = [
+            'id', 'fecha', 'cajero', 'banco', 'valores_sistema', 'total_sistema',
+            'valores_caja', 'total_caja', 'diferencias', 'total_diferencia',
+            'observaciones', 'estado', 'cajero_logueado', 'cajero_logueado_nombre',
+            'sucursal', 'sucursal_nombre', 'turno', 'turno_id',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('total_sistema', 'total_caja', 'diferencias', 
+                          'total_diferencia', 'fecha_creacion', 'fecha_actualizacion')
+    
+    def create(self, validated_data):
+        """Crear arqueo con relaciones automáticas si hay cajero logueado"""
+        # Aquí podrías agregar lógica para vincular automáticamente
+        # el cajero logueado, sucursal y turno activo
+        return super().create(validated_data)

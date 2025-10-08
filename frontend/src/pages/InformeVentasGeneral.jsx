@@ -25,7 +25,7 @@ const InformeVentasGeneral = () => {
     try {
       setLoading(true);
       const ventasData = await ventaService.getAll();
-      
+
       if (ventasData && !ventasData.error) {
         setVentas(ventasData);
         calcularMetricas(ventasData);
@@ -330,8 +330,8 @@ const InformeVentasGeneral = () => {
                         <tbody>
                           {transacciones.length > 0 ? (
                             transacciones.map((transaccion) => (
-                              <tr 
-                                key={transaccion.id} 
+                              <tr
+                                key={transaccion.id}
                                 onClick={() => mostrarDetalleVenta(transaccion.id)}
                                 style={{ cursor: 'pointer' }}
                                 className="table-row-hover"
@@ -341,7 +341,10 @@ const InformeVentasGeneral = () => {
                                 <td>{transaccion.facturas}</td>
                                 <td>{transaccion.fecha}</td>
                                 <td>
-                                  <Badge bg={transaccion.estado === 'PAGADO' ? 'success' : 'warning'}>
+                                  <Badge bg={
+                                    transaccion.estado === 'ANULADA' ? 'danger' :
+                                      transaccion.estado === 'PAGADO' ? 'success' : 'warning'
+                                  }>
                                     {transaccion.estado}
                                   </Badge>
                                 </td>
@@ -367,13 +370,13 @@ const InformeVentasGeneral = () => {
                       <Row>
                         <Col md={6}>
                           <small className="text-muted">
-                            <strong>Cantidad de Documentos:</strong> {transacciones.length}<br/>
+                            <strong>Cantidad de Documentos:</strong> {transacciones.length}<br />
                             <strong>Ticket Promedio:</strong> {formatCurrency(transacciones.length > 0 ? metricas.totalFacturado / transacciones.length : 0)}
                           </small>
                         </Col>
                         <Col md={6} className="text-end">
                           <small className="text-muted">
-                            <strong>T.Facturado:</strong> {formatCurrency(metricas.totalFacturado)}<br/>
+                            <strong>T.Facturado:</strong> {formatCurrency(metricas.totalFacturado)}<br />
                             <strong>T.Pagado:</strong> {formatCurrency(metricas.totalPagado)}
                           </small>
                         </Col>
@@ -405,8 +408,11 @@ const InformeVentasGeneral = () => {
                       <p><strong>Vendedor:</strong> {ventaSeleccionada.vendedor}</p>
                       <p><strong>Fecha:</strong> {new Date(ventaSeleccionada.fecha).toLocaleString('es-CO')}</p>
                       <p><strong>Método de Pago:</strong> {ventaSeleccionada.metodo_pago}</p>
-                      <p><strong>Estado:</strong> 
-                        <Badge bg={ventaSeleccionada.estado === 'PAGADO' ? 'success' : 'warning'} className="ms-2">
+                      <p><strong>Estado:</strong>
+                        <Badge bg={
+                          ventaSeleccionada.estado === 'ANULADA' ? 'danger' :
+                            ventaSeleccionada.estado === 'PAGADO' ? 'success' : 'warning'
+                        } className="ms-2">
                           {ventaSeleccionada.estado}
                         </Badge>
                       </p>

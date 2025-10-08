@@ -31,5 +31,6 @@
         "venv/lib/python3.10/site-packages/rest_framework/templates/rest_framework/docs/langs",
         "venv/lib64/python3.10/site-packages/rest_framework/templates/rest_framework/docs/langs"
     ],
-    "kiroAgent.configureMCP": "Disabled"
+    "kiroAgent.configureMCP": "Disabled",
+    "javascript.autoClosingTags": false
 }

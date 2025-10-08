@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ventaService } from '../../services/api';
 import './PaymentModal.css';
 
-const PaymentModal = ({ 
+const PaymentModal = ({
   show, onClose, cart, total, subtotal = 0, impuestos = 0, descuentos = 0,
-  seller = 'Sistema', client = 'CONSUMIDOR FINAL', clearCart = () => {}
+  seller = 'Sistema', client = 'CONSUMIDOR FINAL', clearCart = () => { }
 }) => {
   const safeTotal = typeof total === 'number' ? total : 0;
   const [entregado, setEntregado] = useState(safeTotal);
@@ -15,7 +15,7 @@ const PaymentModal = ({
   const [bodega, setBodega] = useState("Principal");
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [processing, setProcessing] = useState(false);
-  
+
   // Actualizar dinero entregado cuando cambia el total
   useEffect(() => {
     setEntregado(safeTotal);
@@ -27,17 +27,30 @@ const PaymentModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (cart.length === 0) {
       alert('El carrito está vacío');
       return;
     }
-    
+
     setProcessing(true);
-    
+
     try {
+      // Función para obtener fecha local
+      const getFechaLocal = () => {
+        const hoy = new Date();
+        const year = hoy.getFullYear();
+        const month = String(hoy.getMonth() + 1).padStart(2, '0');
+        const day = String(hoy.getDate()).padStart(2, '0');
+        const hour = String(hoy.getHours()).padStart(2, '0');
+        const minute = String(hoy.getMinutes()).padStart(2, '0');
+        const second = String(hoy.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+      };
+
       // Preparar datos de la venta
       const ventaData = {
+        fecha: getFechaLocal(), // Enviar fecha local explícitamente
         vendedor: seller,
         cliente: client,
         metodo_pago: metodoPago.toUpperCase(),
@@ -58,16 +71,16 @@ const PaymentModal = ({
           precio_unitario: item.price
         }))
       };
-      
+
       console.log('Procesando venta:', ventaData);
-      
+
       // Crear la venta
       const result = await ventaService.create(ventaData);
-      
+
       if (result && !result.error) {
         console.log('✅ Venta creada exitosamente:', result);
         alert(`¡Venta procesada exitosamente!\nFactura: ${result.numero_factura}\nTotal: $${safeTotal.toLocaleString()}`);
-        
+
         // Limpiar carrito y cerrar modal
         clearCart();
         onClose();
@@ -94,7 +107,7 @@ const PaymentModal = ({
     { id: 'Bonos', label: 'Bonos', icon: 'ticket-perforated' },
     { id: 'Otros', label: 'Otros', icon: 'three-dots' }
   ];
-  
+
   // Función para actualizar el dinero entregado al valor del total
   const setDineroExacto = () => {
     setEntregado(safeTotal);
@@ -106,13 +119,19 @@ const PaymentModal = ({
         {/* Header */}
         <div className="payment-modal-header">
           <h4>
-            Cliente: <strong>{client}</strong> | Fecha: <strong>{new Date().toISOString().split("T")[0]}</strong> | Vendedor: <strong>{seller}</strong>
+            Cliente: <strong>{client}</strong> | Fecha: <strong>{(() => {
+              const hoy = new Date();
+              const year = hoy.getFullYear();
+              const month = String(hoy.getMonth() + 1).padStart(2, '0');
+              const day = String(hoy.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            })()}</strong> | Vendedor: <strong>{seller}</strong>
           </h4>
           <button className="close-button" onClick={onClose} title="Eliminar">
             <i className="bi bi-trash"></i>
           </button>
         </div>
-        
+
         <div className="payment-modal-body">
           {/* Totales */}
           <div className="payment-summary">
@@ -158,9 +177,9 @@ const PaymentModal = ({
                       setEntregado(value ? Number(value) : 0);
                     }}
                   />
-                  <button 
-                    type="button" 
-                    className="exact-amount-btn" 
+                  <button
+                    type="button"
+                    className="exact-amount-btn"
                     onClick={setDineroExacto}
                     title="Establecer monto exacto"
                   >
@@ -192,10 +211,10 @@ const PaymentModal = ({
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Nota</label>
-                <textarea 
+                <textarea
                   className="form-control compact-textarea"
                   rows={2}
-                  value={nota} 
+                  value={nota}
                   onChange={(e) => setNota(e.target.value)}
                 />
               </div>
@@ -205,9 +224,9 @@ const PaymentModal = ({
             <div className="form-row compact-row">
               <div className="form-group">
                 <label className="form-label compact-label">Bancos</label>
-                <select 
+                <select
                   className="form-select compact-select"
-                  value={banco} 
+                  value={banco}
                   onChange={(e) => setBanco(e.target.value)}
                 >
                   <option>Caja General</option>
@@ -216,9 +235,9 @@ const PaymentModal = ({
               </div>
               <div className="form-group">
                 <label className="form-label compact-label">Centro de Costo <i className="bi bi-info-circle"></i></label>
-                <select 
+                <select
                   className="form-select compact-select"
-                  value={centroCosto} 
+                  value={centroCosto}
                   onChange={(e) => setCentroCosto(e.target.value)}
                 >
                   <option value="">Seleccionar...</option>
@@ -226,7 +245,7 @@ const PaymentModal = ({
                 </select>
               </div>
             </div>
-            
+
             {/* Fila con Resumen de Pagos, Impresión y Bodega */}
             <div className="form-row compact-row">
               <div className="form-group">
@@ -238,9 +257,9 @@ const PaymentModal = ({
               </div>
               <div className="form-group">
                 <label className="form-label compact-label">Impresión</label>
-                <select 
+                <select
                   className="form-select compact-select"
-                  value={impresion} 
+                  value={impresion}
                   onChange={(e) => setImpresion(e.target.value)}
                 >
                   <option>Ninguna</option>
@@ -250,9 +269,9 @@ const PaymentModal = ({
               </div>
               <div className="form-group">
                 <label className="form-label compact-label">Bodega</label>
-                <select 
+                <select
                   className="form-select compact-select"
-                  value={bodega} 
+                  value={bodega}
                   onChange={(e) => setBodega(e.target.value)}
                 >
                   <option>Principal</option>
@@ -262,14 +281,14 @@ const PaymentModal = ({
             </div>
           </div>
         </div>
-        
+
         {/* Botones */}
         <div className="payment-modal-footer">
           <button className="btn btn-outline-secondary" onClick={onClose}>
             <i className="bi bi-x-lg"></i> Cancelar
           </button>
-          <button 
-            className="btn btn-primary" 
+          <button
+            className="btn btn-primary"
             onClick={handleSubmit}
             disabled={processing || cart.length === 0}
           >

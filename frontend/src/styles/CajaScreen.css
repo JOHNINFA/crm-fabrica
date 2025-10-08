@@ -1095,3 +1095,46 @@ lineación vertical perfecta para todos los valores */
     margin: 0 !important;
     background: none !important;
 }
+
+/*
+ Estilos para centrar modales correctamente */
+.modal-centered-custom {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100vh !important;
+}
+
+.modal-centered-custom .modal-content {
+    margin: auto !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+}
+
+.modal-centered-custom .modal-dialog {
+    margin: 1.75rem auto !important;
+    display: flex !important;
+    align-items: center !important;
+    min-height: calc(100vh - 3.5rem) !important;
+}
+
+/* Asegurar que el modal se centre en todas las resoluciones */
+@media (min-width: 576px) {
+    .modal-centered-custom .modal-dialog {
+        max-width: 90% !important;
+        margin: 1.75rem auto !important;
+    }
+}
+
+@media (min-width: 992px) {
+    .modal-centered-custom .modal-dialog {
+        max-width: 80% !important;
+    }
+}
+
+/* Scroll interno para el contenido del modal */
+.modal-centered-custom .modal-body {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    padding: 1.5rem !important;
+}

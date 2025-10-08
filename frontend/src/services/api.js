@@ -470,13 +470,48 @@ export const ventaService = {
       
       const url = `${API_URL}/ventas/?${queryParams.toString()}`;
       console.log('Intentando obtener ventas:', url);
-      const response = await fetch(url);
       
-      if (!response.ok) throw new Error(`Error al obtener ventas: ${response.status}`);
-      return await response.json();
+      // Intentar con API primero
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Ventas obtenidas desde API:', data.length);
+          return data;
+        }
+      } catch (apiError) {
+        console.warn('API no disponible para obtener ventas:', apiError);
+      }
+
+      // Fallback: usar localStorage
+      console.log('🔄 Usando localStorage para obtener ventas...');
+      const ventasGuardadas = localStorage.getItem('ventas_pos');
+      
+      if (ventasGuardadas) {
+        let ventas = JSON.parse(ventasGuardadas);
+        
+        // Verificar ventas anuladas y actualizar estados
+        const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
+        if (ventasAnuladas.length > 0) {
+          console.log('🔍 Aplicando estados de ventas anuladas:', ventasAnuladas);
+          ventas = ventas.map(venta => {
+            if (ventasAnuladas.includes(venta.id)) {
+              return { ...venta, estado: 'ANULADA' };
+            }
+            return venta;
+          });
+        }
+        
+        console.log('✅ Ventas obtenidas desde localStorage:', ventas.length);
+        return ventas;
+      } else {
+        console.log('ℹ️ No hay ventas en localStorage');
+        return [];
+      }
+      
     } catch (error) {
       console.error('Error en getAll ventas:', error);
-      return handleApiError(error);
+      return [];
     }
   },
 
@@ -507,13 +542,148 @@ export const ventaService = {
   // Obtener una venta por ID
   getById: async (id) => {
     try {
-      console.log('Intentando obtener venta por ID:', id);
-      const response = await fetch(`${API_URL}/ventas/${id}/`);
-      if (!response.ok) throw new Error(`Error al obtener venta: ${response.status}`);
-      return await response.json();
+      console.log('🔍 Intentando obtener venta por ID:', id);
+      
+      // Intentar con API primero
+      try {
+        const response = await fetch(`${API_URL}/ventas/${id}/`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Venta obtenida desde API:', data);
+          console.log('📦 Detalles en API:', data.detalles);
+          return data;
+        } else {
+          console.log('⚠️ API response not ok:', response.status);
+        }
+      } catch (apiError) {
+        console.warn('⚠️ API no disponible para obtener venta por ID:', apiError);
+      }
+
+      // Fallback: buscar en localStorage
+      console.log('🔄 Buscando venta en localStorage...');
+      const ventasGuardadas = localStorage.getItem('ventas_pos');
+      console.log('📋 Ventas en localStorage:', ventasGuardadas ? 'Encontradas' : 'No encontradas');
+      
+      if (ventasGuardadas) {
+        const ventas = JSON.parse(ventasGuardadas);
+        console.log('📋 Total ventas en localStorage:', ventas.length);
+        let venta = ventas.find(v => v.id === parseInt(id));
+        
+        if (venta) {
+          // Verificar si está anulada
+          const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
+          if (ventasAnuladas.includes(parseInt(id))) {
+            venta = { ...venta, estado: 'ANULADA' };
+            console.log('🔍 Venta marcada como ANULADA');
+          }
+          
+          console.log('✅ Venta encontrada en localStorage:', venta);
+          console.log('📦 Detalles en localStorage:', venta.detalles);
+          return venta;
+        } else {
+          console.log('❌ Venta no encontrada en localStorage con ID:', id);
+          console.log('📋 IDs disponibles:', ventas.map(v => v.id));
+        }
+      }
+      
+      throw new Error('Venta no encontrada en API ni localStorage');
+      
     } catch (error) {
-      console.error('Error en getById venta:', error);
-      return handleApiError(error);
+      console.error('❌ Error en getById venta:', error);
+      return { error: true, message: error.message };
     }
   },
+
+  // Anular una venta
+  anularVenta: async (id) => {
+    try {
+      console.log('Intentando anular venta:', id);
+      
+      // Intentar con API primero - usando PATCH para actualizar el estado
+      try {
+        console.log('🔄 Intentando PATCH a:', `${API_URL}/ventas/${id}/`);
+        const patchData = {
+          estado: 'ANULADA'
+        };
+        console.log('📤 Datos a enviar:', patchData);
+        
+        const response = await fetch(`${API_URL}/ventas/${id}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(patchData)
+        });
+
+        console.log('📥 Respuesta PATCH:', response.status, response.statusText);
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Venta anulada exitosamente con API (PATCH):', result);
+          console.log('🔍 Estado en respuesta:', result.estado);
+          return { 
+            success: true, 
+            message: 'Venta anulada exitosamente en base de datos',
+            venta: result
+          };
+        } else {
+          const errorText = await response.text();
+          console.log('⚠️ Error en PATCH:', response.status, response.statusText, errorText);
+        }
+      } catch (apiError) {
+        console.error('❌ Error en PATCH:', apiError);
+      }
+
+      // Intentar con el endpoint específico de anulación
+      try {
+        const response = await fetch(`${API_URL}/ventas/${id}/anular/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            motivo: 'Anulada desde POS',
+            devolver_inventario: true
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Venta anulada exitosamente con API (POST anular):', result);
+          return result;
+        } else {
+          console.log('⚠️ Endpoint /anular/ no disponible:', response.status);
+        }
+      } catch (apiError) {
+        console.warn('Endpoint /anular/ no disponible:', apiError);
+      }
+
+      // Fallback: marcar como anulada localmente (temporal hasta que API esté disponible)
+      console.log('⚠️ API no disponible, usando fallback local temporal');
+      console.log('🔍 ID de venta a anular:', id);
+      
+      // Crear lista de ventas anuladas para persistir el estado
+      const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
+      if (!ventasAnuladas.includes(parseInt(id))) {
+        ventasAnuladas.push(parseInt(id));
+        localStorage.setItem('ventas_anuladas', JSON.stringify(ventasAnuladas));
+        console.log('✅ Venta marcada como anulada localmente:', id);
+      }
+      
+      return { 
+        success: true, 
+        message: 'Venta anulada exitosamente (pendiente sincronización con base de datos)',
+        venta: { id: parseInt(id), estado: 'ANULADA' }
+      };
+      
+    } catch (error) {
+      console.error('Error en anularVenta:', error);
+      return { 
+        error: true, 
+        message: error.message || 'Error al anular la venta'
+      };
+    }
+  },
+
+
 };
