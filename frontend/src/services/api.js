@@ -687,3 +687,242 @@ export const ventaService = {
 
 
 };
+
+// Servicios para Remisiones
+export const remisionService = {
+  // Obtener todas las remisiones
+  getAll: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key]) queryParams.append(key, params[key]);
+      });
+      
+      const url = `${API_URL}/remisiones/?${queryParams.toString()}`;
+      console.log('Intentando obtener remisiones:', url);
+      
+      // Intentar con API primero
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Remisiones obtenidas desde API:', data.length);
+          return data;
+        }
+      } catch (apiError) {
+        console.warn('API no disponible para obtener remisiones:', apiError);
+      }
+
+      // Fallback: usar localStorage
+      console.log('🔄 Usando localStorage para obtener remisiones...');
+      const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
+      
+      if (remisionesGuardadas) {
+        let remisiones = JSON.parse(remisionesGuardadas);
+        
+        // Verificar remisiones anuladas y actualizar estados
+        const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
+        if (remisionesAnuladas.length > 0) {
+          console.log('🔍 Aplicando estados de remisiones anuladas:', remisionesAnuladas);
+          remisiones = remisiones.map(remision => {
+            if (remisionesAnuladas.includes(remision.id)) {
+              return { ...remision, estado: 'ANULADA' };
+            }
+            return remision;
+          });
+        }
+        
+        console.log('✅ Remisiones obtenidas desde localStorage:', remisiones.length);
+        return remisiones;
+      } else {
+        console.log('ℹ️ No hay remisiones en localStorage');
+        return [];
+      }
+      
+    } catch (error) {
+      console.error('Error en getAll remisiones:', error);
+      return [];
+    }
+  },
+
+  // Crear una nueva remisión
+  create: async (remisionData) => {
+    try {
+      console.log('Intentando crear remisión:', remisionData);
+      
+      // Intentar con API primero
+      try {
+        const response = await fetch(`${API_URL}/remisiones/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(remisionData),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Remisión creada exitosamente en API:', result);
+          return result;
+        } else {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Error al crear remisión: ${response.status}`);
+        }
+      } catch (apiError) {
+        console.warn('API no disponible, guardando en localStorage:', apiError);
+        
+        // Fallback: guardar en localStorage
+        const remisionesGuardadas = JSON.parse(localStorage.getItem('remisiones_sistema') || '[]');
+        
+        // Generar ID único y número de remisión
+        const nuevoId = Date.now();
+        const numeroRemision = `REM-${String(nuevoId).slice(-6)}`;
+        
+        const nuevaRemision = {
+          id: nuevoId,
+          numero_remision: numeroRemision,
+          ...remisionData,
+          fecha_creacion: new Date().toISOString()
+        };
+        
+        remisionesGuardadas.push(nuevaRemision);
+        localStorage.setItem('remisiones_sistema', JSON.stringify(remisionesGuardadas));
+        
+        console.log('✅ Remisión guardada en localStorage:', nuevaRemision);
+        return nuevaRemision;
+      }
+    } catch (error) {
+      console.error('Error en create remisión:', error);
+      return handleApiError(error);
+    }
+  },
+
+  // Obtener una remisión por ID
+  getById: async (id) => {
+    try {
+      console.log('🔍 Intentando obtener remisión por ID:', id);
+      
+      // Intentar con API primero
+      try {
+        const response = await fetch(`${API_URL}/remisiones/${id}/`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Remisión obtenida desde API:', data);
+          return data;
+        } else {
+          console.log('⚠️ API response not ok:', response.status);
+        }
+      } catch (apiError) {
+        console.warn('⚠️ API no disponible para obtener remisión por ID:', apiError);
+      }
+
+      // Fallback: buscar en localStorage
+      console.log('🔄 Buscando remisión en localStorage...');
+      const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
+      
+      if (remisionesGuardadas) {
+        const remisiones = JSON.parse(remisionesGuardadas);
+        let remision = remisiones.find(r => r.id === parseInt(id));
+        
+        if (remision) {
+          // Verificar si está anulada
+          const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
+          if (remisionesAnuladas.includes(parseInt(id))) {
+            remision = { ...remision, estado: 'ANULADA' };
+          }
+          
+          console.log('✅ Remisión encontrada en localStorage:', remision);
+          return remision;
+        } else {
+          console.log('❌ Remisión no encontrada en localStorage con ID:', id);
+        }
+      }
+      
+      throw new Error('Remisión no encontrada en API ni localStorage');
+      
+    } catch (error) {
+      console.error('❌ Error en getById remisión:', error);
+      return { error: true, message: error.message };
+    }
+  },
+
+  // Anular una remisión
+  anularRemision: async (id) => {
+    try {
+      console.log('Intentando anular remisión:', id);
+      
+      // Intentar con API primero
+      try {
+        const response = await fetch(`${API_URL}/remisiones/${id}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ estado: 'ANULADA' })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Remisión anulada exitosamente con API:', result);
+          return { 
+            success: true, 
+            message: 'Remisión anulada exitosamente en base de datos',
+            remision: result
+          };
+        }
+      } catch (apiError) {
+        console.warn('API no disponible para anular remisión:', apiError);
+      }
+
+      // Fallback: marcar como anulada localmente
+      console.log('⚠️ API no disponible, usando fallback local temporal');
+      
+      const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
+      if (!remisionesAnuladas.includes(parseInt(id))) {
+        remisionesAnuladas.push(parseInt(id));
+        localStorage.setItem('remisiones_anuladas', JSON.stringify(remisionesAnuladas));
+        console.log('✅ Remisión marcada como anulada localmente:', id);
+      }
+      
+      return { 
+        success: true, 
+        message: 'Remisión anulada exitosamente (pendiente sincronización con base de datos)',
+        remision: { id: parseInt(id), estado: 'ANULADA' }
+      };
+      
+    } catch (error) {
+      console.error('Error en anularRemision:', error);
+      return { 
+        error: true, 
+        message: error.message || 'Error al anular la remisión'
+      };
+    }
+  },
+
+  // Actualizar estado de remisión
+  updateEstado: async (id, nuevoEstado) => {
+    try {
+      console.log('Actualizando estado de remisión:', id, 'a', nuevoEstado);
+      
+      const response = await fetch(`${API_URL}/remisiones/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Estado de remisión actualizado:', result);
+        return result;
+      } else {
+        throw new Error(`Error al actualizar estado: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error en updateEstado remisión:', error);
+      return handleApiError(error);
+    }
+  }
+};

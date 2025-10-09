@@ -261,6 +261,13 @@ class Cliente(models.Model):
     sucursal = models.CharField(max_length=100, default='Todas')
     medio_pago_defecto = models.CharField(max_length=50, blank=True, null=True)
     nota = models.TextField(blank=True, null=True)
+    tipo_lista_precio = models.CharField(max_length=100, blank=True, null=True)
+    vendedor_asignado = models.CharField(max_length=100, blank=True, null=True)
+    centro_costo = models.CharField(max_length=100, blank=True, null=True)
+    dia_entrega = models.CharField(max_length=20, blank=True, null=True)
+    notificar_cartera = models.BooleanField(default=False)
+    notificar_rotacion = models.BooleanField(default=False)
+    cliente_predeterminado = models.BooleanField(default=False)
     
     # Saldos y crédito
     permite_venta_credito = models.BooleanField(default=False)
@@ -372,6 +379,7 @@ class CargueID1(models.Model):
     # ===== METADATOS =====
     usuario = models.CharField(max_length=100, default='Sistema')
     responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    ruta = models.CharField(max_length=100, default='', blank=True)  # Campo ruta para vendedor
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
@@ -452,6 +460,7 @@ class CargueID2(models.Model):
     # ===== METADATOS =====
     usuario = models.CharField(max_length=100, default='Sistema')
     responsable = models.CharField(max_length=100, default='RESPONSABLE', blank=True)  # ✅ Campo responsable agregado
+    ruta = models.CharField(max_length=100, default='', blank=True)  # Campo ruta para vendedor
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
@@ -1065,3 +1074,86 @@ class ArqueoCaja(models.Model):
     def __str__(self):
         estado_emoji = {'PENDIENTE': '⏳', 'COMPLETADO': '✅', 'REVISADO': '🔍'}
         return f"{estado_emoji.get(self.estado, '')} {self.fecha} - {self.cajero} - {self.banco}"
+
+class Remision(models.Model):
+    """Modelo para remisiones de productos"""
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('EN_TRANSITO', 'En Tránsito'),
+        ('ENTREGADA', 'Entregada'),
+        ('ANULADA', 'Anulada'),
+    ]
+    
+    TIPO_REMISION_CHOICES = [
+        ('ENTREGA', 'Entrega'),
+        ('TRASLADO', 'Traslado'),
+        ('DEVOLUCION', 'Devolución'),
+        ('MUESTRA', 'Muestra'),
+    ]
+    
+    # Información básica
+    numero_remision = models.CharField(max_length=50, unique=True)
+    fecha = models.DateTimeField(default=timezone.now)
+    vendedor = models.CharField(max_length=100)
+    destinatario = models.CharField(max_length=255)
+    
+    # Información de entrega
+    direccion_entrega = models.TextField()
+    telefono_contacto = models.CharField(max_length=20, blank=True, null=True)
+    fecha_entrega = models.DateField(null=True, blank=True)
+    
+    # Clasificación
+    tipo_remision = models.CharField(max_length=20, choices=TIPO_REMISION_CHOICES, default='ENTREGA')
+    transportadora = models.CharField(max_length=100, default='Propia')
+    
+    # Totales
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    impuestos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Estado y control
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
+    nota = models.TextField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generar número de remisión automáticamente si no existe
+        if not self.numero_remision:
+            # Obtener el último número
+            ultima_remision = Remision.objects.filter(
+                numero_remision__startswith='REM-'
+            ).order_by('-id').first()
+            
+            if ultima_remision:
+                try:
+                    ultimo_numero = int(ultima_remision.numero_remision.split('-')[1])
+                    nuevo_numero = ultimo_numero + 1
+                except (ValueError, IndexError):
+                    nuevo_numero = 1
+            else:
+                nuevo_numero = 1
+            
+            self.numero_remision = f'REM-{nuevo_numero:06d}'
+        
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.numero_remision} - {self.destinatario} - ${self.total}"
+
+class DetalleRemision(models.Model):
+    """Modelo para detalles de productos en remisiones"""
+    remision = models.ForeignKey(Remision, on_delete=models.CASCADE, related_name='detalles')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    def save(self, *args, **kwargs):
+        # Calcular subtotal automáticamente
+        self.subtotal = self.cantidad * self.precio_unitario
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.producto.nombre} x{self.cantidad} - ${self.subtotal}"

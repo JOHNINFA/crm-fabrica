@@ -166,15 +166,15 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
     return (
         <Modal show={show} onHide={onHide} centered size="md" backdrop="static" className="login-cajero-modal">
-            <Modal.Header closeButton>
-                <Modal.Title>
-                    <span className="material-icons me-2" style={{ verticalAlign: 'middle' }}>
+            <Modal.Header closeButton style={{padding: '0.75rem 1rem'}}>
+                <Modal.Title style={{fontSize: '1.1rem'}}>
+                    <span className="material-icons me-2" style={{ verticalAlign: 'middle', fontSize: '1.2rem' }}>
                         login
                     </span>
                     Login de Cajero
                 </Modal.Title>
             </Modal.Header>
-            <Modal.Body>
+            <Modal.Body style={{maxHeight: '140vh', overflowY: 'auto'}}>
                 {sucursalActiva && (
                     <div className="sucursal-info">
                         <small className="text-muted">Sucursal:</small>

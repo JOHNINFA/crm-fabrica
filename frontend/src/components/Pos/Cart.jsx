@@ -2,19 +2,19 @@ import React, { useState } from "react";
 import "./Cart.css";
 import PaymentModal from "./PaymentModal";
 
-export default function Cart({ 
-  cart = [], 
-  removeProduct = () => {}, 
-  changeQty = () => {}, 
-  subtotal = 0, 
-  imp = 0, 
-  desc = 0, 
-  total = 0, 
-  setImp = () => {}, 
-  setDesc = () => {},
+export default function Cart({
+  cart = [],
+  removeProduct = () => { },
+  changeQty = () => { },
+  subtotal = 0,
+  imp = 0,
+  desc = 0,
+  total = 0,
+  setImp = () => { },
+  setDesc = () => { },
   seller = 'Sistema',
   client = 'CONSUMIDOR FINAL',
-  clearCart = () => {}
+  clearCart = () => { }
 }) {
   const [nota, setNota] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -39,7 +39,7 @@ export default function Cart({
         </div>
         <div className="cart-item-controls">
           <div className="quantity-control">
-            <button 
+            <button
               onClick={() => changeQty(item.id, -1)}
               disabled={item.qty <= 1}
               className="qty-btn"
@@ -53,7 +53,7 @@ export default function Cart({
               onChange={(e) => changeQty(item.id, parseInt(e.target.value) - item.qty || 0)}
               onClick={(e) => e.target.select()}
             />
-            <button 
+            <button
               onClick={() => changeQty(item.id, 1)}
               className="qty-btn"
             >
@@ -74,9 +74,9 @@ export default function Cart({
       <span className="summary-label">{label}</span>
       <span className="summary-value">
         {isInput ? (
-          <input 
-            type="number" 
-            value={value} 
+          <input
+            type="number"
+            value={value}
             onChange={(e) => onChange(Number(e.target.value))}
             onClick={(e) => e.target.select()}
             className="summary-input"
@@ -90,19 +90,6 @@ export default function Cart({
 
   return (
     <div className="cart-container">
-      {/* Header */}
-      <div className="cart-header">
-        <h5>Carrito de Compras</h5>
-        <div className="cart-header-actions">
-          <button title="Limpiar carrito">
-            <i className="bi bi-trash"></i>
-          </button>
-          <button title="Opciones">
-            <i className="bi bi-three-dots-vertical"></i>
-          </button>
-        </div>
-      </div>
-
       {/* Body */}
       <div className="cart-body">
         {cart.length > 0 ? (
@@ -137,16 +124,16 @@ export default function Cart({
           />
         </div>
 
-        <button 
-          className="checkout-button"
+        <button
+          className="checkout-button pos-checkout-btn"
           onClick={() => setShowPaymentModal(true)}
         >
           Realizar Factura
         </button>
       </div>
-      
+
       {/* Modal de pago */}
-      <PaymentModal 
+      <PaymentModal
         show={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         cart={cart}

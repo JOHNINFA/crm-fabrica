@@ -15,6 +15,7 @@ const PaymentModal = ({
   const [bodega, setBodega] = useState("Principal");
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [processing, setProcessing] = useState(false);
+  const [showNotaModal, setShowNotaModal] = useState(false);
 
   // Actualizar dinero entregado cuando cambia el total
   useEffect(() => {
@@ -207,18 +208,52 @@ const PaymentModal = ({
               </div>
             </div>
 
-            {/* Nota */}
+            {/* Botón de Nota */}
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Nota</label>
-                <textarea
-                  className="form-control compact-textarea"
-                  rows={2}
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value)}
-                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-nota"
+                  onClick={() => setShowNotaModal(true)}
+                  style={{ width: '100%', fontSize: '16px', padding: '7px 14px' }}
+                >
+                  <i className="bi bi-pencil-square"></i> Nota
+                </button>
               </div>
             </div>
+
+            {/* Modal de Nota */}
+            {showNotaModal && (
+              <div className="nota-modal-overlay" onClick={() => setShowNotaModal(false)}>
+                <div className="nota-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="nota-modal-header">
+                    <h5>Nota de la Venta</h5>
+                    <button className="close-button" onClick={() => setShowNotaModal(false)}>
+                      <i className="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                  <div className="nota-modal-body">
+                    <textarea
+                      className="form-control nota-textarea"
+                      rows={6}
+                      value={nota}
+                      onChange={(e) => setNota(e.target.value)}
+                      placeholder="Escribe una nota para esta venta..."
+                      autoFocus
+                      style={{ minHeight: '120px', fontSize: '14px' }}
+                    />
+                  </div>
+                  <div className="nota-modal-footer">
+                    <button className="btn btn-outline-secondary" onClick={() => setShowNotaModal(false)}>
+                      <i className="bi bi-x-lg"></i> Cancelar
+                    </button>
+                    <button className="btn btn-primary" onClick={() => setShowNotaModal(false)}>
+                      <i className="bi bi-check-lg"></i> Guardar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Fila con Bancos y Centro de Costo */}
             <div className="form-row compact-row">
@@ -288,7 +323,7 @@ const PaymentModal = ({
             <i className="bi bi-x-lg"></i> Cancelar
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary pos-payment-confirm-btn"
             onClick={handleSubmit}
             disabled={processing || cart.length === 0}
           >

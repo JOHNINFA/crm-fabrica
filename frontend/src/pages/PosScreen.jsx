@@ -104,7 +104,7 @@ function PosScreenContent() {
   return (
     <ProductProvider>
       <ModalProvider>
-        <div className="d-flex">
+        <div className="d-flex pos-screen">
           <Sidebar onWidthChange={setSidebarWidth} />
           <div
             className="flex-grow-1 offset"

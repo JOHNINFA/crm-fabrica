@@ -15,16 +15,53 @@ const VendedoresScreen = () => {
   const idsDisponibles = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
   useEffect(() => {
-    // Cargar vendedores del localStorage
-    const vendedoresGuardados = localStorage.getItem('vendedores');
-    if (vendedoresGuardados) {
-      setVendedores(JSON.parse(vendedoresGuardados));
-    }
+    cargarVendedores();
   }, []);
 
-  const guardarVendedores = (nuevosVendedores) => {
-    localStorage.setItem('vendedores', JSON.stringify(nuevosVendedores));
-    setVendedores(nuevosVendedores);
+  const cargarVendedores = async () => {
+    try {
+      // Cargar vendedores desde la API de Cargue
+      const promesas = idsDisponibles.map(async (id) => {
+        try {
+          const response = await fetch(`http://localhost:8000/api/vendedores/obtener_responsable/?id_vendedor=${id}`);
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              id: id,
+              nombre: data.responsable || 'RESPONSABLE',
+              idVendedor: id,
+              ruta: data.ruta || 'Sin ruta',
+              fechaCreacion: data.fecha_creacion || new Date().toISOString()
+            };
+          }
+          // Si falla la API, crear vendedor por defecto
+          return {
+            id: id,
+            nombre: 'RESPONSABLE',
+            idVendedor: id,
+            ruta: 'Sin ruta',
+            fechaCreacion: new Date().toISOString()
+          };
+        } catch (error) {
+          console.error(`Error cargando ${id}:`, error);
+          // Si hay error, crear vendedor por defecto
+          return {
+            id: id,
+            nombre: 'RESPONSABLE',
+            idVendedor: id,
+            ruta: 'Sin ruta',
+            fechaCreacion: new Date().toISOString()
+          };
+        }
+      });
+
+      const resultados = await Promise.all(promesas);
+      // Mostrar TODOS los vendedores, incluso los que tienen RESPONSABLE
+      setVendedores(resultados);
+      console.log('✅ Vendedores cargados:', resultados);
+    } catch (error) {
+      console.error('Error cargando vendedores:', error);
+    }
   };
 
   const abrirModal = (vendedor = null) => {
@@ -90,34 +127,71 @@ const VendedoresScreen = () => {
     return true;
   };
 
-  const guardarVendedor = () => {
+  const guardarVendedor = async () => {
     if (!validarFormulario()) return;
 
-    const nuevoVendedor = {
-      id: editingVendedor ? editingVendedor.id : Date.now(),
-      nombre: formData.nombre.trim(),
-      idVendedor: formData.idVendedor,
-      ruta: formData.ruta.trim(),
-      fechaCreacion: editingVendedor ? editingVendedor.fechaCreacion : new Date().toISOString()
-    };
+    try {
+      console.log('📤 Enviando datos:', {
+        id_vendedor: formData.idVendedor,
+        responsable: formData.nombre.trim(),
+        ruta: formData.ruta.trim()
+      });
 
-    let nuevosVendedores;
-    if (editingVendedor) {
-      nuevosVendedores = vendedores.map(v => 
-        v.id === editingVendedor.id ? nuevoVendedor : v
-      );
-    } else {
-      nuevosVendedores = [...vendedores, nuevoVendedor];
+      // Guardar en la API de Cargue
+      const response = await fetch('http://localhost:8000/api/vendedores/actualizar_responsable/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id_vendedor: formData.idVendedor,
+          responsable: formData.nombre.trim(),
+          ruta: formData.ruta.trim()
+        })
+      });
+
+      const data = await response.json();
+      console.log('📥 Respuesta del servidor:', data);
+
+      if (response.ok) {
+        console.log('✅ Vendedor guardado exitosamente');
+        await cargarVendedores(); // Recargar lista
+        cerrarModal();
+      } else {
+        console.error('❌ Error del servidor:', data);
+        setError(data.error || 'Error guardando el vendedor');
+      }
+    } catch (error) {
+      console.error('❌ Error guardando vendedor:', error);
+      setError('Error de conexión: ' + error.message);
     }
-
-    guardarVendedores(nuevosVendedores);
-    cerrarModal();
   };
 
-  const eliminarVendedor = (id) => {
-    if (window.confirm('¿Está seguro de eliminar este vendedor?')) {
-      const nuevosVendedores = vendedores.filter(v => v.id !== id);
-      guardarVendedores(nuevosVendedores);
+  const eliminarVendedor = async (idVendedor) => {
+    if (window.confirm('¿Está seguro de eliminar este vendedor? Esto lo restablecerá a "RESPONSABLE"')) {
+      try {
+        const response = await fetch('http://localhost:8000/api/vendedores/actualizar_responsable/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id_vendedor: idVendedor,
+            responsable: 'RESPONSABLE',
+            ruta: ''
+          })
+        });
+
+        if (response.ok) {
+          console.log('✅ Vendedor eliminado');
+          await cargarVendedores();
+        } else {
+          alert('Error eliminando el vendedor');
+        }
+      } catch (error) {
+        console.error('Error eliminando vendedor:', error);
+        alert('Error de conexión');
+      }
     }
   };
 
@@ -181,7 +255,7 @@ const VendedoresScreen = () => {
                       <Button
                         variant="outline-danger"
                         size="sm"
-                        onClick={() => eliminarVendedor(vendedor.id)}
+                        onClick={() => eliminarVendedor(vendedor.idVendedor)}
                       >
                         Eliminar
                       </Button>

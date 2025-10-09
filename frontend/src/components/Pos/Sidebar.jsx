@@ -73,15 +73,7 @@ export default function Sidebar({ onWidthChange }) {
               {shouldShowText && <span style={{ fontSize: '14px' }}>Inicio</span>}
             </li>
 
-            {/* Cajero - NUEVO */}
-            <li
-              className="nav-item sidebar-item py-2"
-              onClick={() => navigate('/cajero')}
-              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-            >
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person</span>
-              {shouldShowText && <span style={{ fontSize: '14px' }}>Cajero</span>}
-            </li>
+
 
             {/* Productos con Modal */}
             <li

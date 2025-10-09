@@ -28,7 +28,7 @@ export default function MainMenu() {
           <h3>Cargue</h3>
           <p>Registra la producción y devoluciones de los vendedores.</p>
         </div>
-        <div onClick={() => navigate("/pedidos")} className="menu-card">
+        <div onClick={() => navigate("/remisiones")} className="menu-card">
           <i className="bi bi-file-text"></i>
           <h3>Remisiones</h3>
           <p>Crea y administra las guías de remisión.</p>

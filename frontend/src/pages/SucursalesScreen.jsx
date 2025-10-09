@@ -12,8 +12,10 @@ const SucursalesScreen = () => {
 
     // Estados del modal
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [editando, setEditando] = useState(false);
     const [sucursalEditando, setSucursalEditando] = useState(null);
+    const [sucursalAEliminar, setSucursalAEliminar] = useState(null);
 
     // Estados del formulario
     const [formData, setFormData] = useState({
@@ -151,6 +153,41 @@ const SucursalesScreen = () => {
         }
     };
 
+    // Abrir modal de confirmación para eliminar
+    const handleEliminarSucursal = (sucursal) => {
+        if (!sucursal || !sucursal.id) {
+            setError('Error: Sucursal inválida seleccionada');
+            return;
+        }
+        setSucursalAEliminar(sucursal);
+        setShowDeleteModal(true);
+    };
+
+    // Confirmar eliminación de sucursal
+    const confirmarEliminarSucursal = async () => {
+        if (!sucursalAEliminar) return;
+
+        setLoading(true);
+        try {
+            await sucursalService.delete(sucursalAEliminar.id);
+            setSuccess(`Sucursal "${sucursalAEliminar.nombre}" eliminada exitosamente`);
+            setShowDeleteModal(false);
+            setSucursalAEliminar(null);
+            await cargarSucursales();
+        } catch (error) {
+            console.error('Error eliminando sucursal:', error);
+            setError('Error al eliminar la sucursal');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Cancelar eliminación
+    const cancelarEliminarSucursal = () => {
+        setShowDeleteModal(false);
+        setSucursalAEliminar(null);
+    };
+
     return (
         <div className="sucursales-screen" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
             {/* Header */}
@@ -238,7 +275,7 @@ const SucursalesScreen = () => {
                                         <th>Teléfono</th>
                                         <th>Estado</th>
                                         <th>Fecha Creación</th>
-                                        <th width="150">Acciones</th>
+                                        <th width="180">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -274,6 +311,14 @@ const SucursalesScreen = () => {
                                                         title={sucursal.activo ? 'Desactivar' : 'Activar'}
                                                     >
                                                         <i className={`bi ${sucursal.activo ? 'bi-pause' : 'bi-play'}`}></i>
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline-danger"
+                                                        size="sm"
+                                                        onClick={() => handleEliminarSucursal(sucursal)}
+                                                        title="Eliminar"
+                                                    >
+                                                        <i className="bi bi-trash"></i>
                                                     </Button>
                                                 </div>
                                             </td>
@@ -389,6 +434,95 @@ const SucursalesScreen = () => {
                         </Button>
                     </Modal.Footer>
                 </Form>
+            </Modal>
+
+            {/* Modal de confirmación para eliminar sucursal */}
+            <Modal show={showDeleteModal} onHide={cancelarEliminarSucursal} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="text-danger">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        Eliminar Sucursal
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div className="text-center mb-3">
+                        <i className="bi bi-building-x" style={{ fontSize: '3rem', color: '#dc3545' }}></i>
+                    </div>
+
+                    <p className="text-center mb-3">
+                        ¿Está seguro que desea eliminar la sucursal?
+                    </p>
+
+                    {sucursalAEliminar && (
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Nombre:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        {sucursalAEliminar.nombre}
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Dirección:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        {sucursalAEliminar.direccion || 'N/A'}
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Teléfono:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        {sucursalAEliminar.telefono || 'N/A'}
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Estado:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        <Badge bg={sucursalAEliminar.activo ? 'success' : 'secondary'}>
+                                            {sucursalAEliminar.activo ? 'Activa' : 'Inactiva'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="alert alert-warning mt-3">
+                        <div className="d-flex align-items-center">
+                            <i className="bi bi-info-circle me-2"></i>
+                            <div>
+                                <strong>Advertencia:</strong> Esta acción desactivará la sucursal permanentemente.
+                                Los cajeros asociados a esta sucursal no podrán iniciar sesión, pero se mantendrá
+                                el historial de transacciones.
+                            </div>
+                        </div>
+                    </div>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={cancelarEliminarSucursal} disabled={loading}>
+                        <i className="bi bi-x-lg me-1"></i>
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={confirmarEliminarSucursal}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <Spinner animation="border" size="sm" className="me-1" />
+                        ) : (
+                            <i className="bi bi-trash me-1"></i>
+                        )}
+                        Eliminar Sucursal
+                    </Button>
+                </Modal.Footer>
             </Modal>
         </div>
     );

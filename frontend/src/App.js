@@ -1,14 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
+import { UsuariosProvider } from './context/UsuariosContext';
 
 import MainMenu from './pages/MainMenu';
 import PosScreen from './pages/PosScreen';
+import RemisionesScreen from './pages/RemisionesScreen';
 import PedidosScreen from './pages/PedidosScreen';
+import PedidosDiaScreen from './pages/PedidosDiaScreen';
 import InventarioScreen from './pages/InventarioScreen';
 import SelectorDia from './pages/SelectorDia';
 import MenuSheets from './components/Cargue/MenuSheets';
 import InformeVentasGeneral from './pages/InformeVentasGeneral';
+import InformeRemisionesScreen from './pages/InformeRemisionesScreen';
 import ClientesScreen from './pages/ClientesScreen';
 import ListaClientesScreen from './pages/ListaClientesScreen';
 import ListaPreciosScreen from './pages/ListaPreciosScreen';
@@ -19,19 +23,24 @@ import CajaScreen from './pages/CajaScreen';
 import CajeroScreen from './pages/CajeroScreen';
 import SucursalesScreen from './pages/SucursalesScreen';
 import CajerosScreen from './pages/CajerosScreen';
+import OtrosScreen from './pages/OtrosScreen';
 
 function App() {
   return (
-    <Router>
-      <div className="App">
+    <UsuariosProvider>
+      <Router>
+        <div className="App">
         <Routes>
           <Route path="/" element={<MainMenu />} />
           <Route path="/pos" element={<PosScreen />} />
+          <Route path="/remisiones" element={<RemisionesScreen />} />
           <Route path="/pedidos" element={<PedidosScreen />} />
+          <Route path="/pedidos/:dia" element={<PedidosDiaScreen />} />
           <Route path="/inventario" element={<InventarioScreen />} />
           <Route path="/cargue" element={<SelectorDia />} />
           <Route path="/cargue/:dia" element={<MenuSheets />} />
           <Route path="/informes/general" element={<InformeVentasGeneral />} />
+          <Route path="/informes/remisiones" element={<InformeRemisionesScreen />} />
           <Route path="/clientes" element={<ListaClientesScreen />} />
           <Route path="/clientes/nuevo" element={<ClientesScreen />} />
           <Route path="/clientes/editar/:id" element={<ClientesScreen />} />
@@ -45,9 +54,11 @@ function App() {
           <Route path="/cajero" element={<CajeroScreen />} />
           <Route path="/sucursales" element={<SucursalesScreen />} />
           <Route path="/cajeros" element={<CajerosScreen />} />
-        </Routes>
-      </div>
-    </Router>
+          <Route path="/otros" element={<OtrosScreen />} />
+          </Routes>
+        </div>
+      </Router>
+    </UsuariosProvider>
   );
 }
 

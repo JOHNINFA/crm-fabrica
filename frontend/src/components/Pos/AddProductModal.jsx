@@ -106,10 +106,10 @@ const AddProductModal = () => {
   // Envío del formulario
   const handleSubmit = (e) => {
     e.preventDefault();
-    const productToSave = selectedProduct 
-      ? { ...formData, id: selectedProduct.id } 
+    const productToSave = selectedProduct
+      ? { ...formData, id: selectedProduct.id }
       : formData;
-    
+
     addProduct(productToSave);
     closeAddProductModal();
     resetForm();
@@ -152,7 +152,7 @@ const AddProductModal = () => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content add-product-modal">
         <div className="modal-header">
           <h4>{selectedProduct ? 'Editar Producto' : 'Agregar Producto'}</h4>
           <button className="close-button" onClick={closeAddProductModal}>×</button>
@@ -202,10 +202,10 @@ const AddProductModal = () => {
                     placeholder="Nueva categoría"
                   />
                   <button type="button" className="btn btn-primary" onClick={handleAddNewCategory}>
-                    <span className="material-icons" style={{fontSize: '16px'}}>add</span>
+                    <span className="material-icons" style={{ fontSize: '16px' }}>add</span>
                   </button>
                   <button type="button" className="btn btn-secondary" onClick={cancelNewCategory}>
-                    <span className="material-icons" style={{fontSize: '16px'}}>close</span>
+                    <span className="material-icons" style={{ fontSize: '16px' }}>close</span>
                   </button>
                 </div>
               ) : (
@@ -255,9 +255,9 @@ const AddProductModal = () => {
             <div className="row">
               {renderSelect("Impuestos", "impuesto", ["IVA(0%)", "IVA(5%)", "IVA(19%)"], "col-md-3")}
               {renderInput("Precio Compra", "precioCompra", "number", { colClass: "col-md-3" })}
-              {renderInput("% Utilidad", "utilidad", "number", { 
-                colClass: "col-md-3", 
-                placeholder: "Porcentaje de utilidad" 
+              {renderInput("% Utilidad", "utilidad", "number", {
+                colClass: "col-md-3",
+                placeholder: "Porcentaje de utilidad"
               })}
               {renderInput("Precio Venta + Imp", "precioVenta", "number", { colClass: "col-md-3" })}
             </div>

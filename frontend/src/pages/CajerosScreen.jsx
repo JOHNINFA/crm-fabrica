@@ -15,8 +15,10 @@ const CajerosScreen = () => {
 
     // Estados del modal
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [editando, setEditando] = useState(false);
     const [cajeroEditando, setCajeroEditando] = useState(null);
+    const [cajeroAEliminar, setCajeroAEliminar] = useState(null);
 
     // Estados del formulario
     const [formData, setFormData] = useState({
@@ -24,6 +26,11 @@ const CajerosScreen = () => {
         password: '',
         confirmarPassword: '',
         sucursal_id: '',
+        modulo_asignado: 'POS',
+        rol: 'CAJERO',
+        puede_hacer_descuentos: false,
+        limite_descuento: 0,
+        puede_anular_ventas: false,
         activo: true
     });
 
@@ -89,6 +96,11 @@ const CajerosScreen = () => {
             password: '',
             confirmarPassword: '',
             sucursal_id: sucursalSeleccionada,
+            modulo_asignado: 'POS',
+            rol: 'CAJERO',
+            puede_hacer_descuentos: false,
+            limite_descuento: 0,
+            puede_anular_ventas: false,
             activo: true
         });
         setEditando(false);
@@ -98,12 +110,23 @@ const CajerosScreen = () => {
 
     // Abrir modal para editar
     const handleEditarCajero = (cajero) => {
+        console.log('Editando cajero:', cajero);
+
+        // Validar que el cajero tenga las propiedades necesarias
+        if (!cajero || typeof cajero !== 'object') {
+            setError('Error: Cajero inválido seleccionado');
+            return;
+        }
+
+        // Obtener sucursal_id de forma segura
+        const sucursalId = cajero.sucursal_id || cajero.sucursal || '';
+
         setFormData({
-            nombre: cajero.nombre,
+            nombre: cajero.nombre || '',
             password: '',
             confirmarPassword: '',
-            sucursal_id: cajero.sucursal_id.toString(),
-            activo: cajero.activo
+            sucursal_id: sucursalId ? sucursalId.toString() : sucursalSeleccionada,
+            activo: cajero.activo !== undefined ? cajero.activo : true
         });
         setEditando(true);
         setCajeroEditando(cajero);
@@ -192,12 +215,20 @@ const CajerosScreen = () => {
 
     // Cambiar estado de cajero
     const handleCambiarEstado = async (cajero) => {
+        if (!cajero || !cajero.id) {
+            setError('Error: Cajero inválido seleccionado');
+            return;
+        }
+
         setLoading(true);
         try {
-            await cajeroService.update(cajero.id, {
-                ...cajero,
+            const datosActualizados = {
+                nombre: cajero.nombre,
+                sucursal_id: cajero.sucursal_id || cajero.sucursal,
                 activo: !cajero.activo
-            });
+            };
+
+            await cajeroService.update(cajero.id, datosActualizados);
             setSuccess(`Cajero ${cajero.activo ? 'desactivado' : 'activado'} exitosamente`);
             await cargarCajeros();
         } catch (error) {
@@ -208,10 +239,46 @@ const CajerosScreen = () => {
         }
     };
 
+    // Abrir modal de confirmación para eliminar
+    const handleEliminarCajero = (cajero) => {
+        if (!cajero || !cajero.id) {
+            setError('Error: Cajero inválido seleccionado');
+            return;
+        }
+        setCajeroAEliminar(cajero);
+        setShowDeleteModal(true);
+    };
+
+    // Confirmar eliminación de cajero
+    const confirmarEliminarCajero = async () => {
+        if (!cajeroAEliminar) return;
+
+        setLoading(true);
+        try {
+            await cajeroService.delete(cajeroAEliminar.id);
+            setSuccess(`Cajero "${cajeroAEliminar.nombre}" eliminado exitosamente`);
+            setShowDeleteModal(false);
+            setCajeroAEliminar(null);
+            await cargarCajeros();
+        } catch (error) {
+            console.error('Error eliminando cajero:', error);
+            setError('Error al eliminar el cajero');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Cancelar eliminación
+    const cancelarEliminarCajero = () => {
+        setShowDeleteModal(false);
+        setCajeroAEliminar(null);
+    };
+
     // Obtener nombre de sucursal
     const getNombreSucursal = (sucursalId) => {
-        const sucursal = sucursales.find(s => s.id === sucursalId);
-        return sucursal ? sucursal.nombre : 'N/A';
+        if (!sucursalId && sucursalId !== 0) return 'N/A';
+        const sucursal = sucursales.find(s => s.id === parseInt(sucursalId));
+        return sucursal ? sucursal.nombre : `ID: ${sucursalId}`;
     };
 
     return (
@@ -336,49 +403,71 @@ const CajerosScreen = () => {
                                             <th>Sucursal</th>
                                             <th>Estado</th>
                                             <th>Fecha Creación</th>
-                                            <th width="150">Acciones</th>
+                                            <th width="180">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {cajeros.map((cajero) => (
-                                            <tr key={cajero.id}>
-                                                <td>
-                                                    <div className="d-flex align-items-center">
-                                                        <i className="bi bi-person-circle me-2" style={{ fontSize: '1.5rem' }}></i>
-                                                        <strong>{cajero.nombre}</strong>
-                                                    </div>
-                                                </td>
-                                                <td>{getNombreSucursal(cajero.sucursal_id)}</td>
-                                                <td>
-                                                    <Badge bg={cajero.activo ? 'success' : 'secondary'}>
-                                                        {cajero.activo ? 'Activo' : 'Inactivo'}
-                                                    </Badge>
-                                                </td>
-                                                <td>
-                                                    {new Date(cajero.fecha_creacion).toLocaleDateString('es-ES')}
-                                                </td>
-                                                <td>
-                                                    <div className="d-flex gap-1">
-                                                        <Button
-                                                            variant="outline-primary"
-                                                            size="sm"
-                                                            onClick={() => handleEditarCajero(cajero)}
-                                                            title="Editar"
-                                                        >
-                                                            <i className="bi bi-pencil"></i>
-                                                        </Button>
-                                                        <Button
-                                                            variant={cajero.activo ? 'outline-warning' : 'outline-success'}
-                                                            size="sm"
-                                                            onClick={() => handleCambiarEstado(cajero)}
-                                                            title={cajero.activo ? 'Desactivar' : 'Activar'}
-                                                        >
-                                                            <i className={`bi ${cajero.activo ? 'bi-pause' : 'bi-play'}`}></i>
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {cajeros.map((cajero, index) => {
+                                            // Validar que el cajero sea válido
+                                            if (!cajero || typeof cajero !== 'object') {
+                                                console.warn(`Cajero inválido en índice ${index}:`, cajero);
+                                                return null;
+                                            }
+
+                                            return (
+                                                <tr key={cajero.id || index}>
+                                                    <td>
+                                                        <div className="d-flex align-items-center">
+                                                            <i className="bi bi-person-circle me-2" style={{ fontSize: '1.5rem' }}></i>
+                                                            <strong>{cajero.nombre || 'Sin nombre'}</strong>
+                                                        </div>
+                                                    </td>
+                                                    <td>{getNombreSucursal(cajero.sucursal_id || cajero.sucursal)}</td>
+                                                    <td>
+                                                        <Badge bg={cajero.activo ? 'success' : 'secondary'}>
+                                                            {cajero.activo ? 'Activo' : 'Inactivo'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td>
+                                                        {cajero.fecha_creacion
+                                                            ? new Date(cajero.fecha_creacion).toLocaleDateString('es-ES')
+                                                            : 'N/A'
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <div className="d-flex gap-1">
+                                                            <Button
+                                                                variant="outline-primary"
+                                                                size="sm"
+                                                                onClick={() => handleEditarCajero(cajero)}
+                                                                title="Editar"
+                                                                disabled={!cajero.id}
+                                                            >
+                                                                <i className="bi bi-pencil"></i>
+                                                            </Button>
+                                                            <Button
+                                                                variant={cajero.activo ? 'outline-warning' : 'outline-success'}
+                                                                size="sm"
+                                                                onClick={() => handleCambiarEstado(cajero)}
+                                                                title={cajero.activo ? 'Desactivar' : 'Activar'}
+                                                                disabled={!cajero.id}
+                                                            >
+                                                                <i className={`bi ${cajero.activo ? 'bi-pause' : 'bi-play'}`}></i>
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline-danger"
+                                                                size="sm"
+                                                                onClick={() => handleEliminarCajero(cajero)}
+                                                                title="Eliminar"
+                                                                disabled={!cajero.id}
+                                                            >
+                                                                <i className="bi bi-trash"></i>
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </Table>
                             ) : (
@@ -526,6 +615,86 @@ const CajerosScreen = () => {
                         </Button>
                     </Modal.Footer>
                 </Form>
+            </Modal>
+
+            {/* Modal de confirmación para eliminar cajero */}
+            <Modal show={showDeleteModal} onHide={cancelarEliminarCajero} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="text-danger">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        Eliminar Cajero
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div className="text-center mb-3">
+                        <i className="bi bi-person-x" style={{ fontSize: '3rem', color: '#dc3545' }}></i>
+                    </div>
+
+                    <p className="text-center mb-3">
+                        ¿Está seguro que desea eliminar el cajero?
+                    </p>
+
+                    {cajeroAEliminar && (
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Nombre:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        {cajeroAEliminar.nombre}
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Sucursal:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        {getNombreSucursal(cajeroAEliminar.sucursal_id || cajeroAEliminar.sucursal)}
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-sm-4">
+                                        <strong>Estado:</strong>
+                                    </div>
+                                    <div className="col-sm-8">
+                                        <Badge bg={cajeroAEliminar.activo ? 'success' : 'secondary'}>
+                                            {cajeroAEliminar.activo ? 'Activo' : 'Inactivo'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="alert alert-warning mt-3">
+                        <div className="d-flex align-items-center">
+                            <i className="bi bi-info-circle me-2"></i>
+                            <div>
+                                <strong>Nota:</strong> Esta acción desactivará el cajero permanentemente.
+                                El cajero no podrá iniciar sesión pero se mantendrá el historial de sus transacciones.
+                            </div>
+                        </div>
+                    </div>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={cancelarEliminarCajero} disabled={loading}>
+                        <i className="bi bi-x-lg me-1"></i>
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={confirmarEliminarCajero}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <Spinner animation="border" size="sm" className="me-1" />
+                        ) : (
+                            <i className="bi bi-trash me-1"></i>
+                        )}
+                        Eliminar Cajero
+                    </Button>
+                </Modal.Footer>
             </Modal>
         </div>
     );

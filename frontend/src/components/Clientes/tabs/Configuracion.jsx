@@ -1,6 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Configuracion = ({ clienteData, setClienteData }) => {
+  const [listaPrecios, setListaPrecios] = useState([]);
+  const [vendedores, setVendedores] = useState([]);
+
+  useEffect(() => {
+    cargarListaPrecios();
+    cargarVendedores();
+  }, []);
+
+  const cargarListaPrecios = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/lista-precios/?activo=true');
+      if (response.ok) {
+        const data = await response.json();
+        setListaPrecios(data);
+      }
+    } catch (error) {
+      console.error('Error cargando listas de precios:', error);
+    }
+  };
+
+  const cargarVendedores = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/vendedores/obtener_responsable/');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Vendedores cargados:', data);
+        setVendedores(data);
+      } else {
+        console.error('Error en respuesta:', response.status);
+      }
+    } catch (error) {
+      console.error('Error cargando vendedores:', error);
+    }
+  };
+
   const handleChange = (field, value) => {
     setClienteData(prev => ({ ...prev, [field]: value }));
   };
@@ -15,12 +50,12 @@ const Configuracion = ({ clienteData, setClienteData }) => {
           onChange={(e) => handleChange('tipo_lista_precio', e.target.value)}
         >
           <option value="">Seleccionar...</option>
-          <option value="GENERAL">General</option>
-          <option value="MAYORISTA">Mayorista</option>
-          <option value="VIP">VIP</option>
+          {listaPrecios.map(lista => (
+            <option key={lista.id} value={lista.nombre}>{lista.nombre}</option>
+          ))}
         </select>
       </div>
-      <div className="col-md-4">
+      <div className="col-md-3">
         <label className="form-label">Vendedor</label>
         <select 
           className="form-select"
@@ -28,12 +63,28 @@ const Configuracion = ({ clienteData, setClienteData }) => {
           onChange={(e) => handleChange('vendedor_asignado', e.target.value)}
         >
           <option value="">Ninguno</option>
-          <option value="jose">Jose</option>
-          <option value="maria">Maria</option>
-          <option value="luis">Luis</option>
+          {vendedores.map(vendedor => (
+            <option key={vendedor.id} value={vendedor.responsable}>{vendedor.responsable} ({vendedor.id})</option>
+          ))}
         </select>
       </div>
-      <div className="col-md-4">
+      <div className="col-md-3">
+        <label className="form-label">Día de Entrega</label>
+        <select 
+          className="form-select"
+          value={clienteData.dia_entrega || ''}
+          onChange={(e) => handleChange('dia_entrega', e.target.value)}
+        >
+          <option value="">Sin día</option>
+          <option value="LUNES">Lunes</option>
+          <option value="MARTES">Martes</option>
+          <option value="MIERCOLES">Miércoles</option>
+          <option value="JUEVES">Jueves</option>
+          <option value="VIERNES">Viernes</option>
+          <option value="SABADO">Sábado</option>
+        </select>
+      </div>
+      <div className="col-md-3">
         <label className="form-label">Centro de Costo</label>
         <select 
           className="form-select"

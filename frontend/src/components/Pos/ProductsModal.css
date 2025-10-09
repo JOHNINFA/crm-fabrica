@@ -6,10 +6,12 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: flex-start; /* Cambiado a flex-start para que el modal esté en la parte superior */
+  align-items: flex-start;
+  /* Cambiado a flex-start para que el modal esté en la parte superior */
   justify-content: center;
   z-index: 1000;
-  padding-top: 20px; /* Espacio en la parte superior */
+  padding-top: 20px;
+  /* Espacio en la parte superior */
 }
 
 .modal-content {
@@ -33,12 +35,16 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   width: 98vw;
   max-width: none;
-  height: 95vh; /* Altura fija como en Cuenti */
+  height: 95vh;
+  /* Altura fija como en Cuenti */
   max-height: none;
-  overflow: hidden; /* Ocultar desbordamiento */
-  padding: 0; /* Sin padding general */
+  overflow: hidden;
+  /* Ocultar desbordamiento */
+  padding: 0;
+  /* Sin padding general */
   display: flex;
-  flex-direction: column; /* Organizar contenido en columna */
+  flex-direction: column;
+  /* Organizar contenido en columna */
 }
 
 .modal-header {
@@ -181,7 +187,7 @@
   border-radius: 3px;
 }
 
-.btn-primary {
+.products-modal .btn-primary {
   background-color: #007bff;
   border-color: #007bff;
   color: white;
@@ -212,8 +218,14 @@
 }
 
 .btn-success {
-  background-color: #28a745;
-  border-color: #28a745;
+  background-color: #ffc600;
+  border-color: #ffc600;
+  color: #002149;
+}
+
+.btn-success:hover {
+  background-color: #002149;
+  border-color: #002149;
   color: white;
 }
 
@@ -221,7 +233,7 @@
   .actions-toolbar {
     flex-direction: column;
   }
-  
+
   .action-buttons {
     flex-wrap: wrap;
   }

@@ -6,7 +6,8 @@ from .views import (
     VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
     VendedorViewSet, ProduccionSolicitadaViewSet,
-    SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet
+    SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
+    RemisionViewSet, DetalleRemisionViewSet
 )
 
 router = DefaultRouter()
@@ -45,5 +46,9 @@ router.register(r'cajeros', CajeroViewSet, basename='cajero')
 router.register(r'turnos', TurnoViewSet, basename='turno')
 router.register(r'ventas-cajero', VentaCajeroViewSet, basename='venta-cajero')
 router.register(r'arqueo-caja', ArqueoCajaViewSet, basename='arqueo-caja')
+
+# ===== NUEVAS APIs PARA SISTEMA DE REMISIONES =====
+router.register(r'remisiones', RemisionViewSet, basename='remision')
+router.register(r'detalle-remisiones', DetalleRemisionViewSet, basename='detalle-remision')
 
 urlpatterns = router.urls

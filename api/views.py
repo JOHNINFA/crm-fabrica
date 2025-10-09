@@ -7,12 +7,12 @@ import os
 import base64
 import re
 import uuid
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Remision, DetalleRemision
 from .serializers import (
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, RemisionSerializer, DetalleRemisionSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -564,10 +564,11 @@ class VendedorViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'])
     def actualizar_responsable(self, request):
-        """Actualizar responsable de un vendedor específico"""
+        """Actualizar responsable y ruta de un vendedor específico"""
         try:
             id_vendedor = request.data.get('id_vendedor')
             responsable = request.data.get('responsable')
+            ruta = request.data.get('ruta', '')
             
             if not id_vendedor or not responsable:
                 return Response(
@@ -593,13 +594,18 @@ class VendedorViewSet(viewsets.ViewSet):
                 )
             
             # Actualizar todos los registros existentes de este vendedor
-            registros_actualizados = modelo.objects.filter(activo=True).update(responsable=responsable)
+            datos_actualizar = {'responsable': responsable}
+            if ruta:
+                datos_actualizar['ruta'] = ruta
+            
+            registros_actualizados = modelo.objects.filter(activo=True).update(**datos_actualizar)
             
             return Response({
                 'success': True,
-                'message': f'Responsable actualizado para {id_vendedor}',
+                'message': f'Responsable y ruta actualizados para {id_vendedor}',
                 'id_vendedor': id_vendedor,
                 'responsable': responsable,
+                'ruta': ruta,
                 'registros_actualizados': registros_actualizados
             })
             
@@ -611,15 +617,9 @@ class VendedorViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'])
     def obtener_responsable(self, request):
-        """Obtener responsable actual de un vendedor"""
+        """Obtener responsable y ruta actual de un vendedor o todos los vendedores"""
         try:
             id_vendedor = request.query_params.get('id_vendedor')
-            
-            if not id_vendedor:
-                return Response(
-                    {'error': 'id_vendedor es requerido'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             
             # Mapear ID de vendedor a modelo correspondiente
             modelos_vendedor = {
@@ -631,6 +631,32 @@ class VendedorViewSet(viewsets.ViewSet):
                 'ID6': CargueID6,
             }
             
+            # Si no se especifica id_vendedor, devolver todos
+            if not id_vendedor:
+                resultados = []
+                for id_v, modelo in modelos_vendedor.items():
+                    ultimo_registro = modelo.objects.filter(activo=True).order_by('-fecha_creacion').first()
+                    responsable = 'RESPONSABLE'
+                    ruta = 'Sin ruta'
+                    fecha_creacion = None
+                    
+                    if ultimo_registro:
+                        if ultimo_registro.responsable:
+                            responsable = ultimo_registro.responsable
+                        if hasattr(ultimo_registro, 'ruta') and ultimo_registro.ruta:
+                            ruta = ultimo_registro.ruta
+                        fecha_creacion = ultimo_registro.fecha_creacion
+                    
+                    resultados.append({
+                        'id': id_v,
+                        'responsable': responsable,
+                        'ruta': ruta,
+                        'fecha_creacion': fecha_creacion
+                    })
+                
+                return Response(resultados)
+            
+            # Si se especifica id_vendedor, devolver solo ese
             modelo = modelos_vendedor.get(id_vendedor)
             if not modelo:
                 return Response(
@@ -638,20 +664,27 @@ class VendedorViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Obtener el responsable del registro más reciente
+            # Obtener el responsable y ruta del registro más reciente
             ultimo_registro = modelo.objects.filter(activo=True).order_by('-fecha_creacion').first()
             
             responsable = 'RESPONSABLE'  # Valor por defecto
-            if ultimo_registro and ultimo_registro.responsable:
-                responsable = ultimo_registro.responsable
+            ruta = 'Sin ruta'  # Valor por defecto
+            
+            if ultimo_registro:
+                if ultimo_registro.responsable:
+                    responsable = ultimo_registro.responsable
+                if hasattr(ultimo_registro, 'ruta') and ultimo_registro.ruta:
+                    ruta = ultimo_registro.ruta
             
             return Response({
                 'success': True,
                 'id_vendedor': id_vendedor,
                 'responsable': responsable,
+                'ruta': ruta,
                 'results': [{
                     'id_vendedor': id_vendedor,
-                    'responsable': responsable
+                    'responsable': responsable,
+                    'ruta': ruta
                 }]
             })
             
@@ -1149,3 +1182,142 @@ class ArqueoCajaViewSet(viewsets.ModelViewSet):
             'total_arqueos': arqueos.count(),
             'arqueos': serializer.data
         })
+
+class RemisionViewSet(viewsets.ModelViewSet):
+    """API para gestionar remisiones"""
+    queryset = Remision.objects.all().order_by('-fecha_creacion')
+    serializer_class = RemisionSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Remision.objects.all().order_by('-fecha_creacion')
+        
+        # Filtros opcionales
+        destinatario = self.request.query_params.get('destinatario')
+        estado = self.request.query_params.get('estado')
+        fecha_desde = self.request.query_params.get('fecha_desde')
+        fecha_hasta = self.request.query_params.get('fecha_hasta')
+        transportadora = self.request.query_params.get('transportadora')
+        
+        if destinatario:
+            queryset = queryset.filter(destinatario__icontains=destinatario)
+        if estado:
+            queryset = queryset.filter(estado=estado.upper())
+        if fecha_desde:
+            queryset = queryset.filter(fecha__date__gte=fecha_desde)
+        if fecha_hasta:
+            queryset = queryset.filter(fecha__date__lte=fecha_hasta)
+        if transportadora:
+            queryset = queryset.filter(transportadora__icontains=transportadora)
+            
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Crear nueva remisión con detalles"""
+        try:
+            with transaction.atomic():
+                # Crear la remisión
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                remision = serializer.save()
+                
+                # Procesar detalles
+                detalles_data = request.data.get('detalles', [])
+                for detalle_data in detalles_data:
+                    DetalleRemision.objects.create(
+                        remision=remision,
+                        producto_id=detalle_data['producto'],
+                        cantidad=detalle_data['cantidad'],
+                        precio_unitario=detalle_data['precio_unitario']
+                    )
+                
+                # Actualizar inventario (opcional - descontar stock)
+                # for detalle_data in detalles_data:
+                #     producto = Producto.objects.get(id=detalle_data['producto'])
+                #     producto.stock_total -= detalle_data['cantidad']
+                #     producto.save()
+                
+                # Recargar con detalles
+                remision.refresh_from_db()
+                response_serializer = self.get_serializer(remision)
+                
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+                
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    @action(detail=True, methods=['patch'])
+    def cambiar_estado(self, request, pk=None):
+        """Cambiar estado de la remisión"""
+        remision = self.get_object()
+        nuevo_estado = request.data.get('estado')
+        
+        if nuevo_estado not in dict(Remision.ESTADO_CHOICES):
+            return Response(
+                {'error': 'Estado inválido'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        remision.estado = nuevo_estado
+        remision.save()
+        
+        serializer = self.get_serializer(remision)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def anular(self, request, pk=None):
+        """Anular remisión"""
+        remision = self.get_object()
+        
+        if remision.estado == 'ANULADA':
+            return Response(
+                {'error': 'La remisión ya está anulada'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Cambiar estado
+        remision.estado = 'ANULADA'
+        remision.nota = f"{remision.nota or ''}\nAnulada: {request.data.get('motivo', 'Sin motivo especificado')}"
+        remision.save()
+        
+        # Opcional: devolver productos al inventario
+        devolver_inventario = request.data.get('devolver_inventario', False)
+        if devolver_inventario:
+            for detalle in remision.detalles.all():
+                producto = detalle.producto
+                producto.stock_total += detalle.cantidad
+                producto.save()
+                
+                # Registrar movimiento
+                MovimientoInventario.objects.create(
+                    producto=producto,
+                    tipo='ENTRADA',
+                    cantidad=detalle.cantidad,
+                    usuario=request.user.username if request.user.is_authenticated else 'Sistema',
+                    nota=f'Devolución por anulación de remisión {remision.numero_remision}'
+                )
+        
+        serializer = self.get_serializer(remision)
+        return Response({
+            'success': True,
+            'message': 'Remisión anulada exitosamente',
+            'remision': serializer.data
+        })
+
+class DetalleRemisionViewSet(viewsets.ModelViewSet):
+    """API para detalles de remisiones"""
+    queryset = DetalleRemision.objects.all()
+    serializer_class = DetalleRemisionSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = DetalleRemision.objects.all()
+        remision_id = self.request.query_params.get('remision')
+        
+        if remision_id:
+            queryset = queryset.filter(remision_id=remision_id)
+            
+        return queryset

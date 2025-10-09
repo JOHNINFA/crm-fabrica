@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset Cajeros</title>
+</head>
+<body>
+    <h1>Resetear Cajeros</h1>
+    <button onclick="resetCajeros()">Resetear Cajeros</button>
+    <div id="result"></div>
+    
+    <script>
+        function resetCajeros() {
+            // Limpiar cajeros del localStorage
+            localStorage.removeItem('cajeros');
+            
+            document.getElementById('result').innerHTML = `
+                <p style="color: green;">✅ Cajeros reseteados exitosamente!</p>
+                <p>Ahora puedes hacer login con:</p>
+                <ul>
+                    <li><strong>Usuario:</strong> jose | <strong>Contraseña:</strong> 123456</li>
+                    <li><strong>Usuario:</strong> prueba1 | <strong>Contraseña:</strong> 123456</li>
+                    <li><strong>Usuario:</strong> maria | <strong>Contraseña:</strong> 123456</li>
+                    <li><strong>Usuario:</strong> carlos | <strong>Contraseña:</strong> 123456</li>
+                </ul>
+                <p><a href="/">Volver a la aplicación</a></p>
+            `;
+        }
+    </script>
+</body>
+</html>

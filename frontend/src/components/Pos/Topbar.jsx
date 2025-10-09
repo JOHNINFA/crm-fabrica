@@ -28,7 +28,7 @@ export default function Topbar() {
         <div className="d-flex align-items-center gap-2">
           <SyncButton />
 
-          <span className="material-icons mx-2 d-flex align-items-center text-success">
+          <span className="material-icons mx-2 d-flex align-items-center text-primary">
             wifi
           </span>
 
@@ -56,7 +56,7 @@ export default function Topbar() {
           {/* Información del cajero */}
           {isAuthenticated && cajeroLogueado ? (
             <div className="mx-2 d-flex align-items-center" style={{ fontSize: 15 }}>
-              <span className="material-icons me-2 text-success" style={{ fontSize: 24 }}>
+              <span className="material-icons me-2 text-primary" style={{ fontSize: 24 }}>
                 account_circle
               </span>
               <span className="fw-bold">{cajeroLogueado.nombre}</span>
@@ -66,7 +66,7 @@ export default function Topbar() {
               <span className="material-icons me-2 text-muted" style={{ fontSize: 24 }}>
                 person_outline
               </span>
-              <span className="text-muted">Sin cajero</span>
+              <span className="text-muted">Sin usuario</span>
             </div>
           )}
 

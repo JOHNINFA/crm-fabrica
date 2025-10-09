@@ -10,15 +10,17 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 1100;
-  padding: 20px;
+  padding: 10px;
 }
 
 .payment-modal {
   background: white;
   border-radius: 8px;
-  padding: 15px;
+  padding: 5px;
   width: 100%;
-  max-width: 800px;
+  max-width: 520px;
+  max-height: 98vh;
+  overflow-y: auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
@@ -27,10 +29,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  font-size: 14px;
+  margin-bottom: 2px;
+  font-size: 6px;
   font-weight: 500;
   color: #333;
+}
+
+.payment-modal-header strong {
+  font-size: 19px;
+  font-weight: 600;
 }
 
 .close-button {
@@ -54,7 +61,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 2px;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
   background-color: #e9ecef;
   padding: 1px;
   border-radius: 4px;
@@ -62,12 +69,10 @@
 
 .payment-summary-box {
   text-align: center;
-  padding: 8px 6px;
+  padding: 1px;
   color: white;
   font-weight: 500;
-  border-radius: 2px;
-  position: relative;
-  overflow: hidden;
+  border-radius: 6px;
 }
 
 .payment-summary-box.total,
@@ -78,48 +83,40 @@
 }
 
 .payment-summary-box div {
-  font-size: 10px;
-  margin-bottom: 2px;
+  font-size: 4px;
+  margin-bottom: 0px;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  opacity: 0.95;
   text-transform: uppercase;
+  line-height: 1;
 }
 
 .payment-summary-box strong {
-  font-size: 14px;
+  font-size: 7px;
   font-weight: bold;
-  display: block;
+  line-height: 1;
 }
 
 /* Métodos de pago - Nuevo estilo */
 .payment-methods {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  margin-bottom: 10px;
-  overflow-x: auto;
-  padding: 5px 0;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 2px;
 }
 
 .payment-method-btn {
   background-color: #f4f4f4;
   border: none;
-  border-radius: 9px;
-  padding: 6px 12px;
-  font-size: 13px;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 10px;
   font-weight: 400;
   color: #002149;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 2px;
   transition: all 0.2s;
-  min-width: auto;
-  white-space: nowrap;
-  border-bottom: 3px solid transparent;
-  margin: 0;
 }
 
 .payment-method-btn:hover {
@@ -132,7 +129,7 @@
 }
 
 .payment-method-btn i {
-  font-size: 13px;
+  font-size: 10px;
   color: #002149;
 }
 
@@ -142,19 +139,18 @@
 
 /* Formularios */
 .payment-form {
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 }
 
 .form-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 3px;
+  margin-bottom: 2px;
 }
 
 .compact-row {
-  gap: 6px;
-  margin-bottom: 5px;
+  gap: 3px;
+  margin-bottom: 2px;
 }
 
 .form-group {
@@ -163,36 +159,37 @@
 }
 
 .form-label {
-  font-size: 13px;
-  font-weight: 400;
-  margin-bottom: 3px;
-  color: #6c757d;
+  font-size: 9px;
+  font-weight: 500;
+  margin-bottom: 1px;
+  color: #333;
   display: block;
 }
 
 .compact-label {
-  font-size: 12px;
-  margin-bottom: 2px;
+  font-size: 9px;
+  font-weight: 500;
+  margin-bottom: 1px;
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
   width: 100%;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 14px;
-  height: auto;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  padding: 3px 5px;
+  font-size: 10px;
   background-color: white;
-  font-weight: 500;
   color: #495057;
 }
 
 .compact-select {
-  padding: 4px 8px;
-  font-size: 13px;
+  padding: 3px 5px;
+  font-size: 10px;
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus,
+.form-select:focus {
   border-color: #86b7fe;
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
@@ -231,58 +228,75 @@
 .money-input {
   text-align: right;
   background-color: white;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   color: #495057;
 }
 
 .compact-textarea {
-  min-height: 50px;
-  font-size: 13px;
+  min-height: 8px;
+  font-size: 10px;
+  resize: vertical;
+  display: none !important;
+}
+
+/* Ocultar el label de Nota */
+.form-label:has(+ .compact-textarea),
+label:has(+ textarea.compact-textarea) {
+  display: none !important;
+}
+
+/* Ocultar solo el textarea dentro del payment-modal-body, no en nota-modal */
+.payment-modal-body textarea.compact-textarea {
+  display: none !important;
+}
+
+/* Mostrar el textarea del modal de notas */
+.nota-modal textarea {
+  display: block !important;
 }
 
 /* Resumen de pagos */
 .payment-summary-detail {
-  padding: 8px;
+  padding: 2px;
   background-color: #f8f9fa;
   border: 1px solid #ced4da;
-  border-radius: 4px;
-  height: 100%;
+  border-radius: 3px;
+  min-height: 18px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .payment-method-amount {
-  color: #28a745;
+  color: #007bff;
   font-weight: bold;
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .payment-bank {
-  font-size: 12px;
+  font-size: 8px;
   color: #666;
 }
 
 /* Footer con botones */
 .payment-modal-footer {
   display: flex;
-  gap: 10px;
+  gap: 3px;
   justify-content: flex-end;
-  margin-top: 10px;
-  padding-top: 10px;
+  padding-top: 2px;
   border-top: 1px solid #e9ecef;
 }
 
 .btn {
-  padding: 6px 12px;
-  border-radius: 5px;
-  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 2px;
   transition: all 0.2s;
 }
 
@@ -290,15 +304,57 @@
   box-shadow: none;
 }
 
-.btn-primary {
-  background-color: #28a745;
-  border: 1px solid #28a745;
-  color: white;
+/* Botón principal del PaymentModal - Tema amarillo POS */
+.payment-modal-overlay .payment-modal .btn-primary {
+  background-color: #ffc600 !important;
+  border: 1px solid #ffc600 !important;
+  color: #002149 !important;
 }
 
-.btn-primary:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
+.payment-modal-overlay .payment-modal .btn-primary:hover {
+  background-color: #002149 !important;
+  border-color: #002149 !important;
+  color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .btn-primary:focus {
+  background-color: #ffc600 !important;
+  border-color: #ffc600 !important;
+  color: #002149 !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 198, 0, 0.25) !important;
+}
+
+/* Clase específica para el botón de confirmar pago - POS - Máxima especificidad */
+.payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn {
+  background-color: #ffc600 !important;
+  border: 1px solid #ffc600 !important;
+  color: #002149 !important;
+}
+
+.payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:hover {
+  background-color: #002149 !important;
+  border-color: #002149 !important;
+  color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:focus {
+  background-color: #ffc600 !important;
+  border-color: #ffc600 !important;
+  color: #002149 !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 198, 0, 0.25) !important;
+}
+
+.payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:disabled {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+  opacity: 0.65 !important;
+}
+
+.payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:active {
+  background-color: #002149 !important;
+  border-color: #002149 !important;
+  color: white !important;
 }
 
 .btn-outline-secondary {
@@ -326,4 +382,154 @@
   .payment-methods {
     justify-content: flex-start;
   }
+}
+
+/ * Sobrescribir Bootstrap específicamente para POS PaymentModal */ .payment-modal-overlay .payment-modal .btn-primary,
+.payment-modal-overlay .payment-modal button.btn-primary,
+.payment-modal-overlay .payment-modal .btn.btn-primary {
+  background-color: #ffc600 !important;
+  background-image: none !important;
+  border-color: #ffc600 !important;
+  color: #002149 !important;
+}
+
+.payment-modal-overlay .payment-modal .btn-primary:hover,
+.payment-modal-overlay .payment-modal button.btn-primary:hover,
+.payment-modal-overlay .payment-modal .btn.btn-primary:hover {
+  background-color: #002149 !important;
+  background-image: none !important;
+  border-color: #002149 !important;
+  color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .btn-primary:focus,
+.payment-modal-overlay .payment-modal button.btn-primary:focus,
+.payment-modal-overlay .payment-modal .btn.btn-primary:focus {
+  background-color: #ffc600 !important;
+  background-image: none !important;
+  border-color: #ffc600 !important;
+  color: #002149 !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 198, 0, 0.25) !important;
+}
+
+.payment-modal-overlay .payment-modal .btn-primary:active,
+.payment-modal-overlay .payment-modal button.btn-primary:active,
+.payment-modal-overlay .payment-modal .btn.btn-primary:active {
+  background-color: #002149 !important;
+  background-image: none !important;
+  border-color: #002149 !important;
+  color: white !important;
+}
+
+/ * Estilos específicos para POS - Totales en azul */ .pos-screen .payment-summary-box.total,
+.pos-screen .payment-summary-box.pending,
+.pos-screen .payment-summary-box.change {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%) !important;
+  border: 1px solid #357abd !important;
+  color: white !important;
+}
+
+/*
+ Estilos específicos para POS - Botones de métodos de pago */
+.pos-screen .payment-method-btn.active {
+  background-color: #6c757d !important;
+  color: white !important;
+}
+
+.pos-screen .payment-method-btn i {
+  font-size: 13px;
+  color: #002149 !important;
+}
+
+.pos-screen .payment-method-btn.active i {
+  color: white !important;
+}
+
+/* Estilo 
+específico para POS - Color del monto de pago */
+.pos-screen .payment-method-amount {
+  color: #007bff !important;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+
+/* Modal de Nota */
+.nota-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.nota-modal {
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.nota-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.nota-modal-header h5 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.nota-modal-body {
+  margin-bottom: 15px;
+}
+
+.nota-modal-body textarea {
+  width: 100%;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.nota-modal-body textarea:focus {
+  border-color: #86b7fe;
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.nota-modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-nota {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.btn-nota:hover {
+  background-color: #f8f9fa !important;
+  color: inherit !important;
+  border-color: #ced4da !important;
+  box-shadow: none !important;
+  transform: none !important;
 }

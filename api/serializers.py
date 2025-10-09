@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja
+from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, Remision, DetalleRemision
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -109,7 +109,9 @@ class ClienteSerializer(serializers.ModelSerializer):
             'primer_apellido', 'segundo_apellido', 'telefono_1', 'movil', 'email_1',
             'contacto', 'telefono_contacto', 'pais', 'departamento', 'ciudad',
             'direccion', 'zona_barrio', 'tipo_contacto', 'sucursal', 'medio_pago_defecto',
-            'nota', 'permite_venta_credito', 'cupo_endeudamiento', 'dias_vencimiento_cartera',
+            'nota', 'tipo_lista_precio', 'vendedor_asignado', 'centro_costo', 'dia_entrega',
+            'notificar_cartera', 'notificar_rotacion', 'cliente_predeterminado',
+            'permite_venta_credito', 'cupo_endeudamiento', 'dias_vencimiento_cartera',
             'activo', 'fecha_registro', 'fecha_creacion'
         ]
         read_only_fields = ('fecha_creacion',)
@@ -453,3 +455,48 @@ class ArqueoCajaSerializer(serializers.ModelSerializer):
         # Aquí podrías agregar lógica para vincular automáticamente
         # el cajero logueado, sucursal y turno activo
         return super().create(validated_data)
+
+class DetalleRemisionSerializer(serializers.ModelSerializer):
+    """Serializer para detalles de remisión"""
+    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+    
+    class Meta:
+        model = DetalleRemision
+        fields = [
+            'id', 'producto', 'producto_nombre', 'cantidad', 
+            'precio_unitario', 'subtotal'
+        ]
+        read_only_fields = ('subtotal',)
+
+class RemisionSerializer(serializers.ModelSerializer):
+    """Serializer para remisiones"""
+    detalles = DetalleRemisionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Remision
+        fields = [
+            'id', 'numero_remision', 'fecha', 'vendedor', 'destinatario',
+            'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
+            'tipo_remision', 'transportadora', 'subtotal', 'impuestos',
+            'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
+            'fecha_actualizacion', 'detalles'
+        ]
+        read_only_fields = ('numero_remision', 'fecha_creacion', 'fecha_actualizacion')
+    
+    def create(self, validated_data):
+        # Extraer detalles si vienen en los datos
+        detalles_data = self.context['request'].data.get('detalles', [])
+        
+        # Crear la remisión
+        remision = Remision.objects.create(**validated_data)
+        
+        # Crear los detalles
+        for detalle_data in detalles_data:
+            DetalleRemision.objects.create(
+                remision=remision,
+                producto_id=detalle_data['producto'],
+                cantidad=detalle_data['cantidad'],
+                precio_unitario=detalle_data['precio_unitario']
+            )
+        
+        return remision

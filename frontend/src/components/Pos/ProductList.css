@@ -76,3 +76,28 @@
   border-color: #007bff !important;
   box-shadow: none !important;
 }
+
+/* Est
+ilos específicos para POS - Tema Azul */
+.pos-screen .category-button.active {
+  border-color: #007bff !important;
+  background-color: #e8f4ff !important;
+  color: #007bff !important;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+.pos-screen .category-button.active .material-icons {
+  color: #007bff !important;
+}
+
+.pos-screen .category-button:hover {
+  border-color: #007bff !important;
+  background-color: #f8f9fa !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.pos-screen .category-button.active span.category-name {
+  color: #007bff !important;
+}

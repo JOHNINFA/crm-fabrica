@@ -1,0 +1,6 @@
+ÚLTIMA SESIÓN: 2025-01-08
+TRABAJANDO EN: Sistema usuarios y sucursales en módulo "Otros"
+CAMBIO: cajeros → usuarios
+PRÓXIMO: Crear gestión sucursales en OtrosScreen
+ARCHIVOS CLAVE: OtrosScreen.jsx, CajeroContext.jsx, models.py
+ESTADO: Revisamos código actual, definimos estructura
