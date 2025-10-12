@@ -4,25 +4,25 @@ import { remisionService } from '../services/api';
 import { ModalProvider } from '../context/ModalContext';
 import { ProductProvider } from '../context/ProductContext';
 import { CajeroRemisionesProvider } from '../context/CajeroRemisionesContext';
-import Sidebar from '../components/Remisiones/Sidebar';
-import Topbar from '../components/Remisiones/Topbar';
+import Sidebar from '../components/Pedidos/Sidebar';
+import Topbar from '../components/Pedidos/Topbar';
 
-function InformeRemisionesContent() {
-    const [remisiones, setRemisiones] = useState([]);
+function InformePedidosContent() {
+    const [pedidos, setPedidos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(210);
 
     useEffect(() => {
-        cargarRemisiones();
+        cargarPedidos();
     }, []);
 
-    const cargarRemisiones = async () => {
+    const cargarPedidos = async () => {
         try {
             const data = await remisionService.getAll();
-            console.log('📋 Remisiones cargadas:', data);
-            setRemisiones(data || []);
+            console.log('📋 Pedidos cargados:', data);
+            setPedidos(data || []);
         } catch (error) {
-            console.error('Error cargando remisiones:', error);
+            console.error('Error cargando pedidos:', error);
         } finally {
             setLoading(false);
         }
@@ -101,31 +101,31 @@ function InformeRemisionesContent() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {remisiones.length > 0 ? (
-                                                            remisiones.map((remision) => (
-                                                                <tr key={remision.id} className="table-row-hover" style={{ cursor: 'pointer' }}>
-                                                                    <td><strong>{remision.numero_remision}</strong></td>
-                                                                    <td>{formatFecha(remision.fecha)}</td>
-                                                                    <td>{remision.destinatario}</td>
-                                                                    <td>{remision.vendedor}</td>
-                                                                    <td>{remision.direccion_entrega || '-'}</td>
-                                                                    <td>{remision.telefono_contacto || '-'}</td>
-                                                                    <td>{formatFecha(remision.fecha_entrega)}</td>
+                                                        {pedidos.length > 0 ? (
+                                                            pedidos.map((pedido) => (
+                                                                <tr key={pedido.id} className="table-row-hover" style={{ cursor: 'pointer' }}>
+                                                                    <td><strong>{pedido.numero_pedido}</strong></td>
+                                                                    <td>{formatFecha(pedido.fecha)}</td>
+                                                                    <td>{pedido.destinatario}</td>
+                                                                    <td>{pedido.vendedor}</td>
+                                                                    <td>{pedido.direccion_entrega || '-'}</td>
+                                                                    <td>{pedido.telefono_contacto || '-'}</td>
+                                                                    <td>{formatFecha(pedido.fecha_entrega)}</td>
                                                                     <td>
                                                                         <Badge bg="info">
-                                                                            {remision.tipo_remision}
+                                                                            {pedido.tipo_pedido}
                                                                         </Badge>
                                                                     </td>
                                                                     <td>
                                                                         <Badge bg={
-                                                                            remision.estado === 'PENDIENTE' ? 'warning' :
-                                                                            remision.estado === 'ENTREGADO' ? 'success' :
+                                                                            pedido.estado === 'PENDIENTE' ? 'warning' :
+                                                                            pedido.estado === 'ENTREGADO' ? 'success' :
                                                                             'secondary'
                                                                         }>
-                                                                            {remision.estado}
+                                                                            {pedido.estado}
                                                                         </Badge>
                                                                     </td>
-                                                                    <td><strong>{formatCurrency(remision.total)}</strong></td>
+                                                                    <td><strong>{formatCurrency(pedido.total)}</strong></td>
                                                                 </tr>
                                                             ))
                                                         ) : (
@@ -142,12 +142,12 @@ function InformeRemisionesContent() {
                                                 <Row>
                                                     <Col md={6}>
                                                         <small className="text-muted">
-                                                            <strong>Cantidad de Pedidos:</strong> {remisiones.length}
+                                                            <strong>Cantidad de Pedidos:</strong> {pedidos.length}
                                                         </small>
                                                     </Col>
                                                     <Col md={6} className="text-end">
                                                         <small className="text-muted">
-                                                            <strong>Total:</strong> {formatCurrency(remisiones.reduce((sum, r) => sum + (r.total || 0), 0))}
+                                                            <strong>Total:</strong> {formatCurrency(pedidos.reduce((sum, r) => sum + (r.total || 0), 0))}
                                                         </small>
                                                     </Col>
                                                 </Row>
@@ -164,12 +164,12 @@ function InformeRemisionesContent() {
     );
 }
 
-export default function InformeRemisionesScreen() {
+export default function InformePedidosScreen() {
     return (
         <CajeroRemisionesProvider>
             <ProductProvider>
                 <ModalProvider>
-                    <InformeRemisionesContent />
+                    <InformePedidosContent />
                 </ModalProvider>
             </ProductProvider>
         </CajeroRemisionesProvider>

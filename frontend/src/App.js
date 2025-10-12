@@ -5,14 +5,14 @@ import { UsuariosProvider } from './context/UsuariosContext';
 
 import MainMenu from './pages/MainMenu';
 import PosScreen from './pages/PosScreen';
-import RemisionesScreen from './pages/RemisionesScreen';
 import PedidosScreen from './pages/PedidosScreen';
+import SelectorDiasPedidosScreen from './pages/SelectorDiasPedidosScreen';
 import PedidosDiaScreen from './pages/PedidosDiaScreen';
 import InventarioScreen from './pages/InventarioScreen';
 import SelectorDia from './pages/SelectorDia';
 import MenuSheets from './components/Cargue/MenuSheets';
 import InformeVentasGeneral from './pages/InformeVentasGeneral';
-import InformeRemisionesScreen from './pages/InformeRemisionesScreen';
+import InformePedidosScreen from './pages/InformePedidosScreen';
 import ClientesScreen from './pages/ClientesScreen';
 import ListaClientesScreen from './pages/ListaClientesScreen';
 import ListaPreciosScreen from './pages/ListaPreciosScreen';
@@ -33,14 +33,14 @@ function App() {
         <Routes>
           <Route path="/" element={<MainMenu />} />
           <Route path="/pos" element={<PosScreen />} />
-          <Route path="/remisiones" element={<RemisionesScreen />} />
-          <Route path="/pedidos" element={<PedidosScreen />} />
+          <Route path="/remisiones" element={<PedidosScreen />} />
+          <Route path="/pedidos" element={<SelectorDiasPedidosScreen />} />
           <Route path="/pedidos/:dia" element={<PedidosDiaScreen />} />
           <Route path="/inventario" element={<InventarioScreen />} />
           <Route path="/cargue" element={<SelectorDia />} />
           <Route path="/cargue/:dia" element={<MenuSheets />} />
           <Route path="/informes/general" element={<InformeVentasGeneral />} />
-          <Route path="/informes/remisiones" element={<InformeRemisionesScreen />} />
+          <Route path="/informes/pedidos" element={<InformePedidosScreen />} />
           <Route path="/clientes" element={<ListaClientesScreen />} />
           <Route path="/clientes/nuevo" element={<ClientesScreen />} />
           <Route path="/clientes/editar/:id" element={<ClientesScreen />} />

@@ -27,7 +27,7 @@ const ProductsModal = () => {
         <div className="modal-overlay">
             <div className="products-modal">
                 <div className="modal-header">
-                    <h4>Productos - Remisiones</h4>
+                    <h4>Productos - Pedidos</h4>
                     <button className="close-button" onClick={closeProductsModal}>×</button>
                 </div>
 

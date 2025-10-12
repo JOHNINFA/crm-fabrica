@@ -31,6 +31,27 @@ export const VendedoresProvider = ({ children }) => {
     ID6: 'RESPONSABLE'
   });
 
+  // Cargar responsables desde BD al iniciar
+  React.useEffect(() => {
+    const cargarTodosResponsables = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/vendedores/obtener_responsable/');
+        if (response.ok) {
+          const data = await response.json();
+          const responsablesMap = {};
+          data.forEach(item => {
+            responsablesMap[item.id] = item.responsable;
+          });
+          setResponsables(prev => ({ ...prev, ...responsablesMap }));
+          console.log('✅ Responsables cargados desde BD:', responsablesMap);
+        }
+      } catch (error) {
+        console.error('❌ Error cargando responsables:', error);
+      }
+    };
+    cargarTodosResponsables();
+  }, []);
+
   // Actualizar datos de un vendedor específico
   const actualizarDatosVendedor = (idVendedor, productos) => {
     console.log(`\n🔄 ACTUALIZANDO ${idVendedor}:`);
@@ -70,6 +91,11 @@ export const VendedoresProvider = ({ children }) => {
         setResponsables(prev => ({
           ...prev,
           [idVendedor]: nuevoResponsable
+        }));
+
+        // Disparar evento para que otros componentes se enteren
+        window.dispatchEvent(new CustomEvent('responsableActualizado', {
+          detail: { idSheet: idVendedor, nuevoNombre: nuevoResponsable }
         }));
 
         return { success: true, data };

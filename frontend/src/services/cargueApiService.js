@@ -337,11 +337,22 @@ export const cargueHybridService = {
   guardarDatos: async (dia, idSheet, fecha, productos) => {
     const key = `cargue_${dia}_${idSheet}_${fecha}`;
     
+    // Obtener responsable desde localStorage
+    const datosExistentes = localStorage.getItem(key);
+    let responsable = 'RESPONSABLE';
+    if (datosExistentes) {
+      try {
+        const parsed = JSON.parse(datosExistentes);
+        responsable = parsed.responsable || 'RESPONSABLE';
+      } catch (e) {}
+    }
+    
     // 1. Guardar inmediatamente en localStorage
     const datos = {
       dia,
       idSheet,
       fecha,
+      responsable,
       productos,
       timestamp: Date.now(),
       sincronizado: false
@@ -351,20 +362,42 @@ export const cargueHybridService = {
     console.log(`💾 HYBRID: Datos guardados en localStorage`);
     
     // 2. Programar sincronización con servidor (debounce de 3 segundos)
-    if (window.cargueApiTimeout) {
-      clearTimeout(window.cargueApiTimeout);
+    const timeoutKey = `cargueApiTimeout_${idSheet}_${dia}_${fecha}`;
+    if (window[timeoutKey]) {
+      clearTimeout(window[timeoutKey]);
     }
     
-    window.cargueApiTimeout = setTimeout(async () => {
-      console.log(`📤 HYBRID: Iniciando sincronización con servidor...`);
+    window[timeoutKey] = setTimeout(async () => {
+      console.log(`📤 HYBRID: Iniciando sincronización con servidor para ${idSheet}...`);
       
-      const resultado = await cargueApiService.sincronizarDatosAlServidor(dia, idSheet, fecha, productos);
+      // Usar el servicio de cargue para guardar en las tablas api_cargueidX
+      const { cargueService } = await import('./cargueService');
+      
+      const datosParaGuardar = {
+        dia_semana: dia.toUpperCase(),
+        fecha: fecha,
+        vendedor_id: idSheet,
+        responsable: responsable,
+        productos: productos.map(p => ({
+          producto_nombre: p.producto,
+          cantidad: p.cantidad || 0,
+          dctos: p.dctos || 0,
+          adicional: p.adicional || 0,
+          devoluciones: p.devoluciones || 0,
+          vencidas: p.vencidas || 0,
+          valor: p.valor || 0,
+          vendedor: p.vendedor || false,
+          despachador: p.despachador || false,
+          lotes_vencidos: p.lotesVencidos || []
+        }))
+      };
+      
+      const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
       
       if (resultado.success) {
-        // Marcar como sincronizado
         datos.sincronizado = true;
         localStorage.setItem(key, JSON.stringify(datos));
-        console.log(`✅ HYBRID: Datos sincronizados con servidor`);
+        console.log(`✅ HYBRID: Datos sincronizados con servidor (${resultado.count} productos)`);
       } else {
         console.error(`❌ HYBRID: Error sincronizando con servidor:`, resultado.message);
       }
@@ -380,7 +413,7 @@ export const cargueHybridService = {
 // ===== CONFIGURACIÓN DE ACTIVACIÓN =====
 export const cargueApiConfig = {
   // 🚀 ACTIVAR/DESACTIVAR INTEGRACIÓN CON API
-  USAR_API: false, // ⚠️ CAMBIAR A true CUANDO SE QUIERA ACTIVAR
+  USAR_API: true, // ✅ ACTIVADO - Sincronización automática con debounce
   
   // 🚀 CONFIGURACIÓN DE TIMEOUTS
   TIMEOUT_CONEXION: 5000, // 5 segundos

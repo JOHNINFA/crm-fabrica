@@ -4,10 +4,11 @@
   background-color: transparent !important;
   box-shadow: none !important;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   color: #1e293b;
-  width: 70px;
-  padding: 0.375rem 0.5rem;
+  width: 60px;
+  padding: 0.25rem 0.5rem;
+  font-weight: 500;
 }
 
 .borderless-input:focus {

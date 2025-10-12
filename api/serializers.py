@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, Remision, DetalleRemision
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, Remision, DetalleRemision
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -469,19 +469,21 @@ class DetalleRemisionSerializer(serializers.ModelSerializer):
         read_only_fields = ('subtotal',)
 
 class RemisionSerializer(serializers.ModelSerializer):
-    """Serializer para remisiones"""
+    """Serializer para pedidos"""
     detalles = DetalleRemisionSerializer(many=True, read_only=True)
+    numero_pedido = serializers.CharField(source='numero_remision', read_only=True)
+    tipo_pedido = serializers.CharField(source='tipo_remision', required=False)
     
     class Meta:
         model = Remision
         fields = [
-            'id', 'numero_remision', 'fecha', 'vendedor', 'destinatario',
+            'id', 'numero_remision', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
-            'tipo_remision', 'transportadora', 'subtotal', 'impuestos',
+            'tipo_remision', 'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
             'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
             'fecha_actualizacion', 'detalles'
         ]
-        read_only_fields = ('numero_remision', 'fecha_creacion', 'fecha_actualizacion')
+        read_only_fields = ('numero_remision', 'numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
     
     def create(self, validated_data):
         # Extraer detalles si vienen en los datos
@@ -500,3 +502,7 @@ class RemisionSerializer(serializers.ModelSerializer):
             )
         
         return remision
+class PlaneacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Planeacion
+        fields = '__all__'

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
 
 export default function PedidosDiaScreen() {
   const { dia } = useParams();
@@ -11,11 +12,23 @@ export default function PedidosDiaScreen() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pedidosRealizados, setPedidosRealizados] = useState({});
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     cargarClientes();
     cargarPedidos();
   }, [dia, fechaSeleccionada]);
+
+  // Recargar pedidos cuando la ventana recupera el foco
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Ventana recuperó el foco, recargando pedidos...');
+      cargarPedidos();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fechaSeleccionada]);
 
   const cargarClientes = async () => {
     try {
@@ -38,19 +51,36 @@ export default function PedidosDiaScreen() {
 
   const cargarPedidos = async () => {
     try {
-      // Cargar remisiones del día para verificar qué clientes ya tienen pedido
-      const response = await fetch(`http://localhost:8000/api/remisiones/?fecha_desde=${fechaSeleccionada}&fecha_hasta=${fechaSeleccionada}`);
+      // Cargar TODAS las pedidos y filtrar por fecha de entrega
+      const response = await fetch(`http://localhost:8000/api/pedidos/`);
       if (response.ok) {
-        const remisiones = await response.json();
-        // Crear un mapa de clientes que ya tienen pedido
-        const pedidos = {};
-        remisiones.forEach(remision => {
-          pedidos[remision.destinatario] = true;
+        const pedidos = await response.json();
+        console.log('📦 Todas las pedidos:', pedidos);
+        console.log('📅 Fecha seleccionada:', fechaSeleccionada);
+        
+        // Filtrar por fecha de entrega que coincida con la fecha seleccionada
+        const pedidosFiltradas = pedidos.filter(r => r.fecha_entrega === fechaSeleccionada);
+        console.log('✅ Pedidos filtradas:', pedidosFiltradas);
+        
+        // Crear un mapa de clientes que ya tienen pedido con los datos completos
+        const pedidosMap = {};
+        pedidosFiltradas.forEach(remision => {
+          console.log(`  Mapeando: "${remision.destinatario}" -> Pedido ${remision.numero_pedido || remision.numero_remision}`);
+          pedidosMap[remision.destinatario] = remision;
         });
-        setPedidosRealizados(pedidos);
+        console.log('🗺️ Mapa de pedidos:', pedidosMap);
+        setPedidosRealizados(pedidosMap);
       }
     } catch (error) {
       console.error('Error cargando pedidos:', error);
+    }
+  };
+
+  const verDetallePedido = (cliente) => {
+    const pedido = pedidosRealizados[cliente.nombre_completo];
+    if (pedido) {
+      setPedidoSeleccionado(pedido);
+      setShowModal(true);
     }
   };
 
@@ -109,43 +139,49 @@ export default function PedidosDiaScreen() {
             <p className="mb-0 mt-2">No hay clientes asignados para {dia}</p>
           </div>
         ) : (
-          <div className="row g-3">
+          <div className="row g-2">
             {clientes.map((cliente) => (
-              <div key={cliente.id} className="col-md-6 col-lg-4">
-                <div className="card shadow-sm h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">{cliente.nombre_completo}</h5>
-                    <p className="card-text mb-1">
-                      <small className="text-muted">
-                        <span className="material-icons" style={{ fontSize: '14px', verticalAlign: 'middle' }}>location_on</span>
-                        {cliente.direccion || 'Sin dirección'}
-                      </small>
-                    </p>
-                    <p className="card-text mb-1">
-                      <small className="text-muted">
-                        <span className="material-icons" style={{ fontSize: '14px', verticalAlign: 'middle' }}>badge</span>
-                        {cliente.vendedor_asignado || 'Sin vendedor'}
-                      </small>
-                    </p>
-                    <p className="card-text mb-1">
-                      <small className="text-muted">
-                        <span className="material-icons" style={{ fontSize: '14px', verticalAlign: 'middle' }}>attach_money</span>
-                        {cliente.tipo_lista_precio || 'Sin lista de precios'}
-                      </small>
-                    </p>
-                    {pedidosRealizados[cliente.nombre_completo] ? (
+              <div key={cliente.id} className="col-6 col-sm-4 col-md-3 col-lg-2" style={{ maxWidth: '180px' }}>
+                <div className="card shadow-sm h-100" style={{ borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                  <div className="card-body" style={{ padding: '12px' }}>
+                    <h6 className="card-title" style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#333' }}>{cliente.nombre_completo}</h6>
+                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>
+                      <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
+                        <span className="material-icons" style={{ fontSize: '12px', marginRight: '4px' }}>location_on</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cliente.direccion || 'Sin dirección'}</span>
+                      </div>
+                      <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
+                        <span className="material-icons" style={{ fontSize: '12px', marginRight: '4px' }}>badge</span>
+                        <span>{cliente.vendedor_asignado || 'Sin vendedor'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span className="material-icons" style={{ fontSize: '12px', marginRight: '4px' }}>attach_money</span>
+                        <span>{cliente.tipo_lista_precio || 'Sin lista'}</span>
+                      </div>
+                    </div>
+                    {(() => {
+                      const tienePedido = pedidosRealizados[cliente.nombre_completo];
+                      if (tienePedido) {
+                        console.log(`✅ Cliente "${cliente.nombre_completo}" tiene pedido`);
+                      } else {
+                        console.log(`❌ Cliente "${cliente.nombre_completo}" NO tiene pedido. Pedidos disponibles:`, Object.keys(pedidosRealizados));
+                      }
+                      return tienePedido;
+                    })() ? (
                       <button
-                        className="btn btn-success btn-sm w-100 mt-2"
-                        disabled
+                        className="btn btn-success w-100"
+                        onClick={() => verDetallePedido(cliente)}
+                        style={{ fontSize: '12px', padding: '6px 8px', fontWeight: '500' }}
                       >
-                        <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>check_circle</span>
+                        <span className="material-icons" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>check_circle</span>
                         Realizado
                       </button>
                     ) : (
                       <button
-                        className="btn btn-primary btn-sm w-100 mt-2"
+                        className="btn btn-primary w-100"
+                        style={{ fontSize: '12px', padding: '6px 8px', fontWeight: '500' }}
                         onClick={() => {
-                          // Navegar a remisiones con datos del cliente precargados
+                          // Navegar a pedidos con datos del cliente precargados
                           const clienteData = encodeURIComponent(JSON.stringify({
                             nombre: cliente.nombre_completo,
                             direccion: cliente.direccion,
@@ -158,7 +194,7 @@ export default function PedidosDiaScreen() {
                           navigate(`/remisiones?cliente=${clienteData}`);
                         }}
                       >
-                        <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>add_shopping_cart</span>
+                        <span className="material-icons" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>add_shopping_cart</span>
                         Crear Pedido
                       </button>
                     )}
@@ -169,6 +205,13 @@ export default function PedidosDiaScreen() {
           </div>
         )}
       </div>
+
+      {/* Modal de detalle de pedido */}
+      <ModalDetallePedido
+        show={showModal}
+        onClose={() => setShowModal(false)}
+        pedido={pedidoSeleccionado}
+      />
     </div>
   );
 }

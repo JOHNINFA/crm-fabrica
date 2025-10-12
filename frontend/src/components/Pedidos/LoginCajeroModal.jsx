@@ -108,18 +108,18 @@ const LoginCajeroModal = ({ show, onHide }) => {
     };
 
     // Función temporal de debug para REMISIONES
-    const handleDebugRemisiones = async () => {
+    const handleDebugPedidos = async () => {
         setError('');
         setSuccess('');
 
         try {
-            console.log('🔧 Ejecutando debug de REMISIONES...');
-            const resultado = await cajeroService.debugCajeroRemisiones();
+            console.log('🔧 Ejecutando debug de PEDIDOS...');
+            const resultado = await cajeroService.debugCajeroPedidos();
 
             console.log('Resultado del debug:', resultado);
 
             if (resultado.success) {
-                setSuccess(resultado.message || '✅ Cajero REMISIONES corregido. Intenta hacer login ahora.');
+                setSuccess(resultado.message || '✅ Cajero PEDIDOS corregido. Intenta hacer login ahora.');
 
                 // Recargar cajeros disponibles
                 setTimeout(() => {
@@ -193,7 +193,7 @@ const LoginCajeroModal = ({ show, onHide }) => {
                     <span className="material-icons me-2" style={{ verticalAlign: 'middle', fontSize: '1.2rem' }}>
                         login
                     </span>
-                    Login de Cajero - Remisiones
+                    Login de Cajero - Pedidos
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body style={{maxHeight: '140vh', overflowY: 'auto'}}>

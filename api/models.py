@@ -1076,7 +1076,13 @@ class ArqueoCaja(models.Model):
         return f"{estado_emoji.get(self.estado, '')} {self.fecha} - {self.cajero} - {self.banco}"
 
 class Remision(models.Model):
-    """Modelo para remisiones de productos"""
+    """Modelo para pedidos de productos"""
+    
+    class Meta:
+        db_table = 'api_pedido'
+        verbose_name = 'Pedido'
+        verbose_name_plural = 'Pedidos'
+    
     ESTADO_CHOICES = [
         ('PENDIENTE', 'Pendiente'),
         ('EN_TRANSITO', 'En Tránsito'),
@@ -1084,7 +1090,7 @@ class Remision(models.Model):
         ('ANULADA', 'Anulada'),
     ]
     
-    TIPO_REMISION_CHOICES = [
+    TIPO_PEDIDO_CHOICES = [
         ('ENTREGA', 'Entrega'),
         ('TRASLADO', 'Traslado'),
         ('DEVOLUCION', 'Devolución'),
@@ -1092,7 +1098,7 @@ class Remision(models.Model):
     ]
     
     # Información básica
-    numero_remision = models.CharField(max_length=50, unique=True)
+    numero_remision = models.CharField(max_length=50, unique=True, verbose_name='Número de Pedido')
     fecha = models.DateTimeField(default=timezone.now)
     vendedor = models.CharField(max_length=100)
     destinatario = models.CharField(max_length=255)
@@ -1103,7 +1109,7 @@ class Remision(models.Model):
     fecha_entrega = models.DateField(null=True, blank=True)
     
     # Clasificación
-    tipo_remision = models.CharField(max_length=20, choices=TIPO_REMISION_CHOICES, default='ENTREGA')
+    tipo_remision = models.CharField(max_length=20, choices=TIPO_PEDIDO_CHOICES, default='ENTREGA', verbose_name='Tipo de Pedido')
     transportadora = models.CharField(max_length=100, default='Propia')
     
     # Totales
@@ -1119,11 +1125,11 @@ class Remision(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):
-        # Generar número de remisión automáticamente si no existe
+        # Generar número de pedido automáticamente si no existe
         if not self.numero_remision:
             # Obtener el último número
             ultima_remision = Remision.objects.filter(
-                numero_remision__startswith='REM-'
+                numero_remision__startswith='PED-'
             ).order_by('-id').first()
             
             if ultima_remision:
@@ -1135,7 +1141,7 @@ class Remision(models.Model):
             else:
                 nuevo_numero = 1
             
-            self.numero_remision = f'REM-{nuevo_numero:06d}'
+            self.numero_remision = f'PED-{nuevo_numero:06d}'
         
         super().save(*args, **kwargs)
     
@@ -1143,8 +1149,14 @@ class Remision(models.Model):
         return f"{self.numero_remision} - {self.destinatario} - ${self.total}"
 
 class DetalleRemision(models.Model):
-    """Modelo para detalles de productos en remisiones"""
-    remision = models.ForeignKey(Remision, on_delete=models.CASCADE, related_name='detalles')
+    """Modelo para detalles de productos en pedidos"""
+    
+    class Meta:
+        db_table = 'api_detallepedido'
+        verbose_name = 'Detalle de Pedido'
+        verbose_name_plural = 'Detalles de Pedidos'
+    
+    remision = models.ForeignKey(Remision, on_delete=models.CASCADE, related_name='detalles', verbose_name='Pedido')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -1157,3 +1169,36 @@ class DetalleRemision(models.Model):
     
     def __str__(self):
         return f"{self.producto.nombre} x{self.cantidad} - ${self.subtotal}"
+
+
+class Planeacion(models.Model):
+    """Modelo para planeación de producción por fecha"""
+    
+    # Identificación
+    fecha = models.DateField()
+    producto_nombre = models.CharField(max_length=255)
+    
+    # Datos de planeación
+    existencias = models.IntegerField(default=0)
+    solicitadas = models.IntegerField(default=0)
+    pedidos = models.IntegerField(default=0)
+    total = models.IntegerField(default=0)
+    orden = models.IntegerField(default=0)
+    ia = models.IntegerField(default=0)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('fecha', 'producto_nombre')
+        ordering = ['fecha', 'producto_nombre']
+    
+    def save(self, *args, **kwargs):
+        # Calcular total automáticamente
+        self.total = self.solicitadas + self.pedidos
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.fecha} - {self.producto_nombre} - Total: {self.total}"

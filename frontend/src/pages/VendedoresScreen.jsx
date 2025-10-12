@@ -16,6 +16,18 @@ const VendedoresScreen = () => {
 
   useEffect(() => {
     cargarVendedores();
+    
+    // Escuchar cambios de responsables desde Cargue
+    const handleResponsableUpdate = () => {
+      console.log('🔄 Responsable actualizado, recargando vendedores...');
+      cargarVendedores();
+    };
+    
+    window.addEventListener('responsableActualizado', handleResponsableUpdate);
+    
+    return () => {
+      window.removeEventListener('responsableActualizado', handleResponsableUpdate);
+    };
   }, []);
 
   const cargarVendedores = async () => {

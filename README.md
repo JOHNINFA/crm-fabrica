@@ -3,6 +3,7 @@
 ## 📋 ¿Qué es este proyecto?
 Un sistema completo para gestionar una fábrica de arepas que incluye:
 - **POS (Punto de Venta)** - Para vender productos
+- **Pedidos** - Sistema de gestión de pedidos por cliente y fecha de entrega
 - **Inventario** - Para controlar existencias y producción
 - **Kardex** - Para ver movimientos de productos
 - **Cargue** - Sistema operativo para control diario de vendedores y producción
@@ -18,8 +19,9 @@ Un sistema completo para gestionar una fábrica de arepas que incluye:
          │                       │                       │
     ┌────▼────┐             ┌────▼────┐             ┌────▼────┐
     │   POS   │             │   API   │             │ Tablas  │
-    │Inventario│             │REST API │             │Productos│
-    │ Kardex  │             │Endpoints│             │ Lotes   │
+    │ Pedidos │             │REST API │             │Productos│
+    │Inventario│             │Endpoints│             │ Pedidos │
+    │ Kardex  │             │         │             │ Lotes   │
     │ Cargue  │             │         │             │Categorías│
     └─────────┘             └─────────┘             │ Cargue  │
                                                     └─────────┘
@@ -207,7 +209,12 @@ Usuario ingresa producción → Se registra en BD → Se actualiza stock → Se 
 Cualquier movimiento → Se registra automáticamente → Se muestra en historial
 ```
 
-### 4. 🏭 Flujo del Cargue (Sistema Operativo)
+### 4. 📦 Flujo de Pedidos
+```
+Selección de día → Cliente → Productos → Generar pedido → Se registra en BD → Aparece en Planeación
+```
+
+### 5. 🏭 Flujo del Cargue (Sistema Operativo)
 ```
 Selección de día → Elección de vendedor (ID1-ID6) → Registro operativo → Control de producción
 ```
@@ -260,6 +267,13 @@ npm start
 - ✅ Historial completo de movimientos
 - ✅ Filtros por fecha y producto
 - ✅ Saldos actualizados automáticamente
+
+### 📦 Pedidos
+- ✅ Gestión de pedidos por cliente
+- ✅ Asignación de fecha de entrega
+- ✅ Integración con Planeación de Inventario
+- ✅ Informe general de pedidos
+- ✅ Filtrado por día de la semana
 
 ### 🔄 Sincronización
 - ✅ Datos en tiempo real entre POS e Inventario

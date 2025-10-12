@@ -14,7 +14,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
         sucursalActiva = context.sucursalActiva;
         isAuthenticated = context.isAuthenticated;
     } catch (error) {
-        console.warn('Error accediendo al contexto de cajero en Remisiones:', error);
+        console.warn('Error accediendo al contexto de cajero en Pedidos:', error);
         cajeroLogueado = null;
         sucursalActiva = null;
         isAuthenticated = false;
@@ -145,7 +145,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                     </button>
                     <button
                         title="Limpiar"
-                        onClick={() => setClient("DESTINATARIO GENERAL")}
+                        onClick={() => setClient("")}
                     >
                         <span className="material-icons" style={{ fontSize: '16px' }}>clear</span>
                     </button>

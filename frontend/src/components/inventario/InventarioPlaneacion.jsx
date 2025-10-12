@@ -16,10 +16,68 @@ const InventarioPlaneacion = () => {
   const [planeacion, setPlaneacion] = useState([]);
   const [solicitadasCargadas, setSolicitadasCargadas] = useState(false);
 
+  // 🚀 Cargar pedidos desde BD y sumar por producto
+  const cargarPedidosDesdeBD = async (fechaSeleccionada) => {
+    try {
+      let fechaFormateada;
+      if (fechaSeleccionada instanceof Date) {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        fechaFormateada = `${year}-${month}-${day}`;
+      } else {
+        fechaFormateada = fechaSeleccionada;
+      }
+      console.log('📦 Cargando pedidos para fecha:', fechaFormateada);
+
+      const response = await fetch(`http://localhost:8000/api/pedidos/`);
+      if (!response.ok) {
+        console.log('⚠️ No se pudieron cargar pedidos');
+        return {};
+      }
+
+      const pedidos = await response.json();
+      console.log('✅ Pedidos cargados:', pedidos.length);
+
+      // Filtrar pedidos por fecha de entrega
+      const pedidosFecha = pedidos.filter(p => p.fecha_entrega === fechaFormateada);
+      console.log('📅 Pedidos para fecha seleccionada:', pedidosFecha.length);
+
+      // Sumar cantidades por producto
+      const pedidosMap = {};
+      for (const pedido of pedidosFecha) {
+        if (pedido.detalles && pedido.detalles.length > 0) {
+          for (const detalle of pedido.detalles) {
+            const nombreProducto = detalle.producto_nombre;
+            if (!pedidosMap[nombreProducto]) {
+              pedidosMap[nombreProducto] = 0;
+            }
+            pedidosMap[nombreProducto] += detalle.cantidad;
+          }
+        }
+      }
+
+      console.log('📊 Pedidos por producto:', pedidosMap);
+      return pedidosMap;
+    } catch (error) {
+      console.error('❌ Error cargando pedidos:', error);
+      return {};
+    }
+  };
+
   // 🚀 NUEVA FUNCIÓN: Cargar solicitadas desde BD
   const cargarSolicitadasDesdeBD = async (fechaSeleccionada) => {
     try {
-      const fechaFormateada = fechaSeleccionada.toISOString().split('T')[0];
+      // ✅ CORREGIDO: Asegurar formato correcto de fecha
+      let fechaFormateada;
+      if (fechaSeleccionada instanceof Date) {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        fechaFormateada = `${year}-${month}-${day}`;
+      } else {
+        fechaFormateada = fechaSeleccionada;
+      }
       console.log('📊 Cargando solicitadas para fecha:', fechaFormateada);
 
       const response = await fetch(`http://localhost:8000/api/produccion-solicitadas/?fecha=${fechaFormateada}`);
@@ -52,6 +110,29 @@ const InventarioPlaneacion = () => {
       console.log('🔄 EJECUTANDO cargarExistenciasReales...', new Date().toLocaleTimeString());
       console.log('📊 Productos actuales antes de cargar:', productos.length);
 
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      // 🚀 CARGAR PLANEACIÓN GUARDADA DESDE BD
+      const planeacionResponse = await fetch(`http://localhost:8000/api/planeacion/?fecha=${fechaFormateada}`);
+      let planeacionMap = {};
+      
+      if (planeacionResponse.ok) {
+        const planeacionData = await planeacionResponse.json();
+        console.log('✅ Planeación cargada desde BD:', planeacionData.length, 'productos');
+        planeacionData.forEach(item => {
+          planeacionMap[item.producto_nombre] = {
+            existencias: item.existencias,
+            solicitadas: item.solicitadas,
+            pedidos: item.pedidos,
+            orden: item.orden,
+            ia: item.ia
+          };
+        });
+      }
+
       // Obtener productos directamente de la API
       const response = await fetch('http://localhost:8000/api/productos/');
       if (!response.ok) throw new Error('Error al obtener productos');
@@ -59,20 +140,38 @@ const InventarioPlaneacion = () => {
       const productosFromBD = await response.json();
       console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
 
-      // 🚀 CARGAR SOLICITADAS DESDE BD
-      const solicitadasMap = await cargarSolicitadasDesdeBD(fechaSeleccionada);
+      // 🚀 CARGAR SOLICITADAS Y PEDIDOS DESDE BD (si no hay planeación guardada)
+      const solicitadasMap = Object.keys(planeacionMap).length === 0 
+        ? await cargarSolicitadasDesdeBD(fechaSeleccionada)
+        : {};
+      
+      const pedidosMap = await cargarPedidosDesdeBD(fechaSeleccionada);
 
       // Preparar productos con planeación
       const productosConPlaneacion = productosFromBD.map(p => {
         const productoExistente = productos.find(prod => prod.id === p.id);
+        const planeacionGuardada = planeacionMap[p.nombre];
 
-        // Si hay solicitadas en BD, usar esas. Si no, mantener las existentes
+        // Prioridad: 1) Planeación guardada, 2) Solicitadas, 3) Existentes
+        if (planeacionGuardada) {
+          console.log(`💾 Cargando planeación guardada para ${p.nombre}`);
+          return {
+            id: p.id,
+            nombre: p.nombre,
+            existencias: p.stock_total || 0,
+            solicitado: planeacionGuardada.solicitadas,
+            pedidos: planeacionGuardada.pedidos,
+            orden: planeacionGuardada.orden,
+            ia: planeacionGuardada.ia
+          };
+        }
+
+        // Si no hay planeación, usar solicitadas
         let solicitadoFinal = 0;
         if (solicitadasMap[p.nombre] !== undefined) {
           solicitadoFinal = solicitadasMap[p.nombre];
         } else if (productoExistente && productoExistente.solicitado > 0) {
-          solicitadoFinal = productoExistente.solicitado; // Preservar existentes
-          console.log(`🔄 Preservando solicitadas para ${p.nombre}: ${solicitadoFinal}`);
+          solicitadoFinal = productoExistente.solicitado;
         }
 
         return {
@@ -80,7 +179,9 @@ const InventarioPlaneacion = () => {
           nombre: p.nombre,
           existencias: p.stock_total || 0,
           solicitado: solicitadoFinal,
-          orden: productoExistente ? (productoExistente.orden || 0) : 0
+          pedidos: pedidosMap[p.nombre] || 0,
+          orden: productoExistente ? (productoExistente.orden || 0) : 0,
+          ia: productoExistente ? (productoExistente.ia || 0) : 0
         };
       });
 
@@ -143,16 +244,14 @@ const InventarioPlaneacion = () => {
     setProductos(nuevosProductos);
   };
 
-  // Effects
-  useEffect(() => {
-    // Solo cargar al montar el componente
-    cargarExistenciasReales();
-  }, []); // Sin dependencias para evitar recargas
-
-  // Actualizar datos SOLO cuando cambia la fecha
+  // Effects - Solo un useEffect para evitar doble carga
   useEffect(() => {
     if (fechaSeleccionada) {
-      console.log('📅 Fecha cambió, recargando datos...');
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+      console.log('📅 Cargando datos para fecha:', fechaFormateada);
       cargarExistenciasReales();
     }
   }, [fechaSeleccionada]);
@@ -160,36 +259,44 @@ const InventarioPlaneacion = () => {
   // const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad); // No editable
   const handleOrdenChange = (id, cantidad) => updateProducto(id, 'orden', cantidad);
 
-  const handleGuardarPlaneacion = () => {
-    const productosConPlaneacion = productos.filter(p => p.solicitado > 0 || p.orden > 0);
+  const handleGuardarPlaneacion = async () => {
+    try {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
 
-    if (productosConPlaneacion.length === 0) {
-      mostrarMensaje('No hay cantidades planeadas para registrar', 'warning');
-      return;
+      // Guardar cada producto en la BD
+      for (const producto of productos) {
+        const datosPlaneacion = {
+          fecha: fechaFormateada,
+          producto_nombre: producto.nombre,
+          existencias: producto.existencias || 0,
+          solicitadas: producto.solicitado || 0,
+          pedidos: producto.pedidos || 0,
+          total: (producto.solicitado || 0) + (producto.pedidos || 0),
+          orden: producto.orden || 0,
+          ia: producto.ia || 0,
+          usuario: 'Sistema'
+        };
+
+        const response = await fetch('http://localhost:8000/api/planeacion/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datosPlaneacion)
+        });
+
+        if (!response.ok) {
+          console.error(`Error guardando ${producto.nombre}`);
+        }
+      }
+
+      mostrarMensaje('Planeación guardada correctamente en BD', 'success');
+      
+    } catch (error) {
+      console.error('Error guardando planeación:', error);
+      mostrarMensaje('Error al guardar planeación', 'danger');
     }
-
-    const nuevaPlaneacion = {
-      id: Date.now(),
-      fecha: fechaSeleccionada.toLocaleDateString('es-ES'),
-      productos: productosConPlaneacion.map(p => ({
-        id: p.id,
-        nombre: p.nombre,
-        solicitado: p.solicitado,
-        orden: p.orden
-      }))
-    };
-
-    setPlaneacion([nuevaPlaneacion, ...planeacion]);
-
-    // Resetear cantidades
-    const productosReseteados = productos.map(producto => ({
-      ...producto,
-      solicitado: 0,
-      orden: 0
-    }));
-    setProductos(productosReseteados);
-
-    mostrarMensaje('Planeación guardada correctamente', 'success');
   };
 
   const handleDateSelect = (date) => setFechaSeleccionada(date);
@@ -240,14 +347,19 @@ const InventarioPlaneacion = () => {
             <Table className="align-middle mb-0 table-kardex planeacion-table">
               <thead>
                 <tr>
-                  <th scope="col" style={{ width: '40%' }}>Producto</th>
-                  <th scope="col" className="text-center" style={{ width: '20%' }}>Existencias</th>
-                  <th scope="col" className="text-center" style={{ width: '20%' }}>Solicitadas</th>
-                  <th scope="col" className="text-center" style={{ width: '20%' }}>Orden</th>
+                  <th scope="col" style={{ width: '30%' }}>Producto</th>
+                  <th scope="col" className="text-center" style={{ width: '10%' }}>Existencias</th>
+                  <th scope="col" className="text-center" style={{ width: '10%' }}>Solicitadas</th>
+                  <th scope="col" className="text-center" style={{ width: '10%' }}>Pedidos</th>
+                  <th scope="col" className="text-center" style={{ width: '10%' }}>Total</th>
+                  <th scope="col" className="text-center" style={{ width: '10%' }}>Orden</th>
+                  <th scope="col" className="text-center" style={{ width: '10%' }}>IA</th>
                 </tr>
               </thead>
               <tbody>
-                {productos.map((producto) => (
+                {productos.map((producto) => {
+                  const total = (producto.solicitado || 0) + (producto.pedidos || 0);
+                  return (
                   <tr key={producto.id} className="product-row">
                     <td className="fw-medium" style={{ color: '#1e293b' }}>{producto.nombre}</td>
                     <td className="text-center">
@@ -264,21 +376,43 @@ const InventarioPlaneacion = () => {
                     </td>
                     <td className="text-center">
                       <div className="d-flex justify-content-center">
-                        <Form.Control
+                        <span className={`solicitadas-display ${(producto.pedidos || 0) > 0 ? 'has-data' : ''}`}>
+                          {producto.pedidos || 0}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="text-center">
+                      <div className="d-flex justify-content-center">
+                        <span className={`solicitadas-display ${total > 0 ? 'has-data' : ''}`} style={{ fontWeight: '600' }}>
+                          {total}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="text-center">
+                      <div className="d-flex justify-content-center">
+                        <input
                           type="number"
                           min="0"
                           value={producto.orden || 0}
                           onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
-                          className="quantity-input"
-                          aria-label={`Orden de ${producto.nombre}`}
+                          className="solicitadas-display"
+                          style={{ cursor: 'text', maxWidth: '60px' }}
                         />
                       </div>
                     </td>
+                    <td className="text-center">
+                      <div className="d-flex justify-content-center">
+                        <span className={`solicitadas-display ${(producto.ia || 0) > 0 ? 'has-data' : ''}`}>
+                          {producto.ia || 0}
+                        </span>
+                      </div>
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {productos.length === 0 && (
                   <tr>
-                    <td colSpan="4" className="text-center py-4">
+                    <td colSpan="7" className="text-center py-4">
                       <p className="text-muted">No hay productos disponibles</p>
                     </td>
                   </tr>

@@ -73,10 +73,10 @@ export default function Sidebar({ onWidthChange }) {
                             {shouldShowText && <span style={{ fontSize: '14px' }}>Inicio</span>}
                         </li>
 
-                        {/* Remisiones - ACTIVO */}
+                        {/* Pedidos - ACTIVO */}
                         <li className="nav-item sidebar-item py-2 active" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>file_copy</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Remisiones</span>}
+                            {shouldShowText && <span style={{ fontSize: '14px' }}>Pedidos</span>}
                         </li>
 
 
@@ -165,11 +165,11 @@ export default function Sidebar({ onWidthChange }) {
                             <>
                                 <li
                                     className="nav-item sidebar-item py-1"
-                                    onClick={() => navigate('/informes/remisiones')}
+                                    onClick={() => navigate('/informes/pedidos')}
                                     style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                                 >
                                     <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Remisiones por ruta</span>
+                                    <span>Pedidos por ruta</span>
                                 </li>
                                 <li
                                     className="nav-item sidebar-item py-1"
@@ -177,7 +177,7 @@ export default function Sidebar({ onWidthChange }) {
                                     style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                                 >
                                     <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Remisiones por transportadora</span>
+                                    <span>Pedidos por transportadora</span>
                                 </li>
                                 <li
                                     className="nav-item sidebar-item py-1"
@@ -189,11 +189,11 @@ export default function Sidebar({ onWidthChange }) {
                                 </li>
                                 <li
                                     className="nav-item sidebar-item py-1"
-                                    onClick={() => navigate('/informes/devoluciones-remision')}
+                                    onClick={() => navigate('/informes/devoluciones-pedido')}
                                     style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                                 >
                                     <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Devoluciones de remisión</span>
+                                    <span>Devoluciones de pedido</span>
                                 </li>
                             </>
                         )}
@@ -204,7 +204,7 @@ export default function Sidebar({ onWidthChange }) {
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Pedidos</span>}
+                            {shouldShowText && <span style={{ fontSize: '14px' }}>Gestión de Pedidos</span>}
                         </li>
                         <li
                             className="nav-item sidebar-item py-2"

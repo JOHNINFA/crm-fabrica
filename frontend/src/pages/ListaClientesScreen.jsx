@@ -51,9 +51,9 @@ const ListaClientesScreen = () => {
                 </Button>
                 <Button 
                   variant="outline-secondary"
-                  onClick={() => navigate('/pos')}
+                  onClick={() => navigate('/remisiones')}
                 >
-                  Regresar al POS
+                  Regresar a Pedidos
                 </Button>
               </div>
             </div>

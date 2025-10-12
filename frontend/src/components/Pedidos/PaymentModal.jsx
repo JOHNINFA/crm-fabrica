@@ -4,7 +4,7 @@ import './PaymentModal.css';
 
 const PaymentModal = ({
     show, onClose, cart, total, subtotal = 0, impuestos = 0, descuentos = 0,
-    seller = 'Sistema', client = 'CONSUMIDOR FINAL', clientData = null, clearCart = () => { }
+    seller = 'Sistema', client = 'CONSUMIDOR FINAL', clientData = null, clearCart = () => { }, resetForm = () => { }
 }) => {
     const safeTotal = typeof total === 'number' ? total : 0;
     const [destinatario, setDestinatario] = useState(client);
@@ -12,9 +12,14 @@ const PaymentModal = ({
     const [telefonoContacto, setTelefonoContacto] = useState("");
     const [fechaEntrega, setFechaEntrega] = useState("");
     const [nota, setNota] = useState("");
-    const [tipoRemision, setTipoRemision] = useState("ENTREGA");
+    const [tipoPedido, setTipoRemision] = useState("ENTREGA");
     const [transportadora, setTransportadora] = useState("Propia");
     const [processing, setProcessing] = useState(false);
+
+    // Actualizar destinatario cuando cambia el prop client
+    useEffect(() => {
+        setDestinatario(client);
+    }, [client]);
 
     // Inicializar fecha de entrega y datos del cliente
     useEffect(() => {
@@ -68,15 +73,15 @@ const PaymentModal = ({
                 return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
             };
 
-            // Preparar datos de la remisión
-            const remisionData = {
+            // Preparar datos del pedido
+            const pedidoData = {
                 fecha: getFechaLocal(),
                 vendedor: seller,
                 destinatario: destinatario,
                 direccion_entrega: direccionEntrega,
                 telefono_contacto: telefonoContacto,
                 fecha_entrega: fechaEntrega,
-                tipo_remision: tipoRemision,
+                tipo_remision: tipoPedido,
                 transportadora: transportadora,
                 subtotal: subtotal,
                 impuestos: impuestos,
@@ -87,21 +92,23 @@ const PaymentModal = ({
                 detalles: cart.map(item => ({
                     producto: item.id,
                     cantidad: item.qty,
-                    precio_unitario: item.price
+                    precio_unitario: parseFloat(item.price)
                 }))
             };
 
-            console.log('Procesando remisión:', remisionData);
+            console.log('Procesando pedido:', pedidoData);
+            console.log('Detalles del carrito:', cart);
+            console.log('Detalles a enviar:', pedidoData.detalles);
 
             // Crear la remisión
-            const result = await remisionService.create(remisionData);
+            const result = await remisionService.create(pedidoData);
 
             if (result && !result.error) {
                 console.log('✅ Remisión creada exitosamente:', result);
-                alert(`¡Remisión generada exitosamente!\nNúmero: ${result.numero_remision}\nDestinatario: ${destinatario}\nTotal: ${safeTotal.toLocaleString()}`);
+                alert(`¡Pedido generado exitosamente!\nNúmero: ${result.numero_pedido}\nDestinatario: ${destinatario}\nTotal: ${safeTotal.toLocaleString()}`);
 
-                // Limpiar carrito y cerrar modal
-                clearCart();
+                // Resetear formulario completo y cerrar modal
+                resetForm();
                 onClose();
             } else {
                 console.error('❌ Error al crear remisión:', result);
@@ -116,7 +123,7 @@ const PaymentModal = ({
     };
 
     // Tipos de remisión
-    const tiposRemision = [
+    const tiposPedido = [
         { id: 'ENTREGA', label: 'Entrega', icon: 'truck' },
         { id: 'TRASLADO', label: 'Traslado', icon: 'arrow-left-right' },
         { id: 'DEVOLUCION', label: 'Devolución', icon: 'arrow-return-left' },
@@ -146,7 +153,7 @@ const PaymentModal = ({
                     {/* Totales */}
                     <div className="payment-summary">
                         <div className="payment-summary-box total">
-                            <div>TOTAL REMISIÓN</div>
+                            <div>TOTAL PEDIDO</div>
                             <strong>📦 ${safeTotal.toLocaleString()}</strong>
                         </div>
                         <div className="payment-summary-box pending">
@@ -161,10 +168,10 @@ const PaymentModal = ({
 
                     {/* Tipos de Remisión */}
                     <div className="payment-methods">
-                        {tiposRemision.map((tipo) => (
+                        {tiposPedido.map((tipo) => (
                             <button
                                 key={tipo.id}
-                                className={`payment-method-btn ${tipoRemision === tipo.id ? 'active' : ''}`}
+                                className={`payment-method-btn ${tipoPedido === tipo.id ? 'active' : ''}`}
                                 onClick={() => setTipoRemision(tipo.id)}
                             >
                                 <i className={`bi bi-${tipo.icon}`}></i> {tipo.label}
@@ -251,10 +258,10 @@ const PaymentModal = ({
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label compact-label">Tipo de Remisión</label>
+                                <label className="form-label compact-label">Tipo de Pedido</label>
                                 <select
                                     className="form-select compact-select"
-                                    value={tipoRemision}
+                                    value={tipoPedido}
                                     onChange={(e) => setTipoRemision(e.target.value)}
                                 >
                                     <option value="ENTREGA">Entrega</option>
@@ -284,7 +291,7 @@ const PaymentModal = ({
                         <i className="bi bi-x-lg"></i> Cancelar
                     </button>
                     <button
-                        className="btn btn-primary remisiones-payment-confirm-btn"
+                        className="btn btn-primary pedidos-payment-confirm-btn"
                         onClick={handleSubmit}
                         disabled={processing || cart.length === 0}
                     >

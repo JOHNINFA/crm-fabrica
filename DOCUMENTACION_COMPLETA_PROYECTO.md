@@ -28,10 +28,9 @@
 ### ¿Qué es este sistema?
 Sistema CRM completo para gestión de una fábrica de arepas que incluye:
 - **POS**: Punto de venta con facturación y control de cajeros
-- **Remisiones**: Sistema de generación de remisiones sin afectar inventario
-- **Pedidos**: Gestión de pedidos por día de entrega y cliente
+- **Pedidos**: Sistema de gestión de pedidos por cliente, día y fecha de entrega con integración a Planeación
 - **Cargue**: Control operativo de 6 vendedores independientes (ID1-ID6)
-- **Inventario**: Control de stock, producción y movimientos
+- **Inventario**: Control de stock, producción y movimientos con Planeación integrada
 - **Clientes**: Gestión de clientes con listas de precios
 - **Caja**: Arqueo de caja y control de turnos
 
@@ -41,7 +40,8 @@ Sistema CRM completo para gestión de una fábrica de arepas que incluye:
 - ✅ Gestión de 6 vendedores independientes
 - ✅ Sistema de cajeros con turnos y arqueos
 - ✅ Listas de precios personalizadas
-- ✅ Remisiones y pedidos separados de ventas
+- ✅ Sistema de pedidos con integración a Planeación de Inventario
+- ✅ Pedidos agrupados por día de entrega y cliente
 - ✅ Sincronización frontend-backend
 - ✅ Interfaz moderna con React y Bootstrap
 
@@ -469,3 +469,642 @@ if settings.DEBUG:
 ---
 
 *Continúa en la siguiente sección...*
+
+
+---
+
+## MÓDULO PEDIDOS - DOCUMENTACIÓN COMPLETA
+
+### Descripción General
+El módulo de Pedidos permite gestionar pedidos de clientes organizados por día de entrega y fecha específica. Los pedidos se integran automáticamente con el módulo de Planeación de Inventario para facilitar la producción.
+
+### Características Principales
+- ✅ Gestión de pedidos por cliente y fecha de entrega
+- ✅ Integración con módulo de Clientes (precarga de datos)
+- ✅ Selector de días de la semana (Lunes-Sábado)
+- ✅ Vista de clientes por día con estado de pedido
+- ✅ Modal de creación de pedidos con datos del cliente
+- ✅ Integración automática con Planeación de Inventario
+- ✅ Informe general de pedidos con filtros
+- ✅ API REST completa con endpoints `/api/pedidos/`
+
+### Flujo de Trabajo
+
+#### 1. Selección de Día
+```
+Usuario → Gestión de Pedidos → Selector de Días → Selecciona día (ej: SABADO)
+```
+
+#### 2. Vista de Clientes del Día
+```
+Sistema carga clientes con dia_entrega = SABADO
+Muestra tarjetas con:
+- Nombre del cliente
+- Dirección
+- Vendedor asignado
+- Lista de precios
+- Botón "Crear Pedido" o "Realizado" (si ya tiene pedido)
+```
+
+#### 3. Creación de Pedido
+```
+Usuario hace clic en "Crear Pedido"
+→ Navega a formulario con datos precargados del cliente
+→ Selecciona productos y cantidades
+→ Genera pedido
+→ Se guarda en BD con fecha_entrega seleccionada
+```
+
+#### 4. Integración con Planeación
+```
+Pedido guardado → Planeación carga pedidos por fecha
+→ Suma cantidades por producto
+→ Muestra en columna "Pedidos"
+→ Total = Solicitadas + Pedidos
+```
+
+### Estructura de Base de Datos
+
+#### Tabla: api_pedido (antes api_remision)
+```sql
+CREATE TABLE api_pedido (
+    id SERIAL PRIMARY KEY,
+    numero_remision VARCHAR(50) UNIQUE NOT NULL,  -- Formato: PED-000001
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    vendedor VARCHAR(100) NOT NULL,
+    destinatario VARCHAR(255) NOT NULL,
+    direccion_entrega TEXT NOT NULL,
+    telefono_contacto VARCHAR(20),
+    fecha_entrega DATE NOT NULL,  -- Fecha de entrega del pedido
+    tipo_remision VARCHAR(20) DEFAULT 'ENTREGA',
+    transportadora VARCHAR(100) DEFAULT 'Propia',
+    subtotal DECIMAL(10,2) DEFAULT 0,
+    impuestos DECIMAL(10,2) DEFAULT 0,
+    descuentos DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) DEFAULT 0,
+    estado VARCHAR(20) DEFAULT 'PENDIENTE',
+    nota TEXT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Tabla: api_detallepedido (antes api_detalleremision)
+```sql
+CREATE TABLE api_detallepedido (
+    id SERIAL PRIMARY KEY,
+    remision_id INTEGER REFERENCES api_pedido(id) ON DELETE CASCADE,
+    producto_id INTEGER REFERENCES api_producto(id),
+    cantidad INTEGER NOT NULL,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED
+);
+```
+
+### API Endpoints
+
+#### GET /api/pedidos/
+Obtiene todos los pedidos
+
+**Respuesta:**
+```json
+[
+  {
+    "id": 1,
+    "numero_remision": "PED-000001",
+    "numero_pedido": "PED-000001",
+    "fecha": "2025-01-10T14:30:00",
+    "vendedor": "Carlos",
+    "destinatario": "Prueba5",
+    "direccion_entrega": "Cll135 45-89",
+    "telefono_contacto": "85623447",
+    "fecha_entrega": "2025-10-11",
+    "tipo_remision": "ENTREGA",
+    "tipo_pedido": "ENTREGA",
+    "transportadora": "Propia",
+    "subtotal": 5200.00,
+    "impuestos": 0.00,
+    "descuentos": 0.00,
+    "total": 5200.00,
+    "estado": "PENDIENTE",
+    "nota": "",
+    "detalles": [
+      {
+        "id": 1,
+        "producto": 1,
+        "producto_nombre": "AREPA TIPO OBLEA 500Gr",
+        "cantidad": 1,
+        "precio_unitario": 2700.00,
+        "subtotal": 2700.00
+      },
+      {
+        "id": 2,
+        "producto": 2,
+        "producto_nombre": "AREPA MEDIANA 330Gr",
+        "cantidad": 1,
+        "precio_unitario": 2500.00,
+        "subtotal": 2500.00
+      }
+    ]
+  }
+]
+```
+
+#### POST /api/pedidos/
+Crea un nuevo pedido
+
+**Request Body:**
+```json
+{
+  "fecha": "2025-01-10T14:30:00",
+  "vendedor": "Carlos",
+  "destinatario": "PRUEBA4",
+  "direccion_entrega": "Calle 123",
+  "telefono_contacto": "3001234567",
+  "fecha_entrega": "2025-10-11",
+  "tipo_remision": "ENTREGA",
+  "transportadora": "Propia",
+  "subtotal": 5400.00,
+  "impuestos": 0.00,
+  "descuentos": 0.00,
+  "total": 5400.00,
+  "estado": "PENDIENTE",
+  "nota": "",
+  "detalles": [
+    {
+      "producto": 1,
+      "cantidad": 2,
+      "precio_unitario": 2700.00
+    }
+  ]
+}
+```
+
+**Respuesta:**
+```json
+{
+  "id": 2,
+  "numero_remision": "PED-000002",
+  "numero_pedido": "PED-000002",
+  "fecha": "2025-01-10T14:30:00",
+  "vendedor": "Carlos",
+  "destinatario": "PRUEBA4",
+  "total": 5400.00,
+  "estado": "PENDIENTE"
+}
+```
+
+### Componentes Frontend
+
+#### 1. SelectorDiasPedidosScreen.jsx
+**Ubicación:** `frontend/src/pages/SelectorDiasPedidosScreen.jsx`
+
+**Función:** Muestra selector de días de la semana para gestión de pedidos
+
+**Características:**
+- Botones para cada día (LUNES-SABADO)
+- Navegación a `/pedidos/:dia`
+- Botón de regreso
+
+#### 2. PedidosDiaScreen.jsx
+**Ubicación:** `frontend/src/pages/PedidosDiaScreen.jsx`
+
+**Función:** Muestra clientes del día seleccionado con estado de pedidos
+
+**Características:**
+- Carga clientes filtrados por `dia_entrega`
+- Selector de fecha para filtrar pedidos
+- Tarjetas de clientes con información resumida
+- Botón "Crear Pedido" o "Realizado" según estado
+- Modal de detalle de pedido al hacer clic en "Realizado"
+- Recarga automática al recuperar foco de ventana
+
+**Código clave:**
+```javascript
+const cargarPedidos = async () => {
+  const response = await fetch(`http://localhost:8000/api/pedidos/`);
+  const pedidos = await response.json();
+  
+  // Filtrar por fecha de entrega
+  const pedidosFiltradas = pedidos.filter(r => r.fecha_entrega === fechaSeleccionada);
+  
+  // Crear mapa de pedidos por cliente
+  const pedidosMap = {};
+  pedidosFiltradas.forEach(pedido => {
+    pedidosMap[pedido.destinatario] = pedido;
+  });
+  
+  setPedidosRealizados(pedidosMap);
+};
+```
+
+#### 3. PedidosScreen.jsx (antes PedidosRemisionesScreen)
+**Ubicación:** `frontend/src/pages/PedidosScreen.jsx`
+
+**Función:** Formulario principal para crear pedidos
+
+**Características:**
+- Recibe datos del cliente por URL params
+- Precarga: nombre, dirección, vendedor, lista de precios, fecha
+- Lista de productos con precios según lista del cliente
+- Carrito de productos
+- Modal de confirmación con todos los datos
+- Reseteo de formulario después de crear pedido
+
+#### 4. PaymentModal.jsx
+**Ubicación:** `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+**Función:** Modal de confirmación y creación de pedido
+
+**Características:**
+- Muestra resumen del pedido
+- Formulario de datos de entrega
+- Selector de tipo de pedido (Entrega, Traslado, Devolución, Muestra)
+- Selector de transportadora
+- Validación de campos requeridos
+- Conversión de precios a números con `parseFloat()`
+- Llamada a API para crear pedido
+
+**Código clave:**
+```javascript
+const pedidoData = {
+  fecha: getFechaLocal(),
+  vendedor: seller,
+  destinatario: destinatario,
+  direccion_entrega: direccionEntrega,
+  telefono_contacto: telefonoContacto,
+  fecha_entrega: fechaEntrega,
+  tipo_remision: tipoPedido,
+  transportadora: transportadora,
+  subtotal: subtotal,
+  impuestos: impuestos,
+  descuentos: descuentos,
+  total: safeTotal,
+  estado: 'PENDIENTE',
+  nota: nota,
+  detalles: cart.map(item => ({
+    producto: item.id,
+    cantidad: item.qty,
+    precio_unitario: parseFloat(item.price)  // Importante: convertir a número
+  }))
+};
+
+const result = await remisionService.create(pedidoData);
+```
+
+#### 5. ModalDetallePedido.jsx
+**Ubicación:** `frontend/src/components/Pedidos/ModalDetallePedido.jsx`
+
+**Función:** Modal para ver detalles de un pedido existente
+
+**Características:**
+- Muestra información del cliente
+- Lista de productos con cantidades y precios
+- Total del pedido
+- Estado del pedido
+
+#### 6. InformePedidosScreen.jsx
+**Ubicación:** `frontend/src/pages/InformePedidosScreen.jsx`
+
+**Función:** Informe general de todos los pedidos
+
+**Características:**
+- Tabla con todos los pedidos
+- Columnas: N° Pedido, Fecha, Destinatario, Vendedor, Dirección, Teléfono, Fecha Entrega, Tipo, Estado, Total
+- Totales al pie de página
+- Badges de colores según estado
+
+### Integración con Planeación
+
+#### InventarioPlaneacion.jsx
+**Ubicación:** `frontend/src/components/inventario/InventarioPlaneacion.jsx`
+
+**Función:** Carga pedidos y muestra cantidades en columna "Pedidos"
+
+**Código clave:**
+```javascript
+const cargarPedidosDesdeBD = async (fechaSeleccionada) => {
+  const response = await fetch(`http://localhost:8000/api/pedidos/`);
+  const pedidos = await response.json();
+  
+  // Filtrar por fecha de entrega
+  const pedidosFecha = pedidos.filter(p => p.fecha_entrega === fechaFormateada);
+  
+  // Sumar cantidades por producto
+  const pedidosMap = {};
+  for (const pedido of pedidosFecha) {
+    if (pedido.detalles && pedido.detalles.length > 0) {
+      for (const detalle of pedido.detalles) {
+        const nombreProducto = detalle.producto_nombre;
+        if (!pedidosMap[nombreProducto]) {
+          pedidosMap[nombreProducto] = 0;
+        }
+        pedidosMap[nombreProducto] += detalle.cantidad;
+      }
+    }
+  }
+  
+  return pedidosMap;
+};
+```
+
+**Resultado en Planeación:**
+```
+Producto              | Existencias | Solicitadas | Pedidos | Total
+---------------------|-------------|-------------|---------|-------
+AREPA TIPO OBLEA     |     50      |      10     |    4    |   14
+AREPA MEDIANA        |     30      |       8     |    4    |   12
+AREPA TIPO PINCHO    |     20      |       5     |    2    |    7
+```
+
+### Servicios API Frontend
+
+#### remisionService (api.js)
+**Ubicación:** `frontend/src/services/api.js`
+
+```javascript
+export const remisionService = {
+  // Obtener todos los pedidos
+  getAll: async (params = {}) => {
+    const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
+    const response = await fetch(url);
+    return await response.json();
+  },
+
+  // Crear nuevo pedido
+  create: async (pedidoData) => {
+    const response = await fetch(`${API_URL}/pedidos/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pedidoData),
+    });
+    return await response.json();
+  },
+
+  // Obtener pedido por ID
+  getById: async (id) => {
+    const response = await fetch(`${API_URL}/pedidos/${id}/`);
+    return await response.json();
+  },
+
+  // Actualizar estado de pedido
+  updateEstado: async (id, nuevoEstado) => {
+    const response = await fetch(`${API_URL}/pedidos/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: nuevoEstado })
+    });
+    return await response.json();
+  }
+};
+```
+
+### Backend - Serializers
+
+#### RemisionSerializer
+**Ubicación:** `api/serializers.py`
+
+```python
+class RemisionSerializer(serializers.ModelSerializer):
+    """Serializer para pedidos"""
+    detalles = DetalleRemisionSerializer(many=True, read_only=True)
+    numero_pedido = serializers.CharField(source='numero_remision', read_only=True)
+    tipo_pedido = serializers.CharField(source='tipo_remision', required=False)
+    
+    class Meta:
+        model = Remision
+        fields = [
+            'id', 'numero_remision', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
+            'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
+            'tipo_remision', 'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
+            'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
+            'fecha_actualizacion', 'detalles'
+        ]
+        read_only_fields = ('numero_remision', 'numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
+    
+    def create(self, validated_data):
+        # Extraer detalles del request
+        detalles_data = self.context['request'].data.get('detalles', [])
+        
+        # Crear el pedido
+        remision = Remision.objects.create(**validated_data)
+        
+        # Crear los detalles
+        for detalle_data in detalles_data:
+            DetalleRemision.objects.create(
+                remision=remision,
+                producto_id=detalle_data['producto'],
+                cantidad=detalle_data['cantidad'],
+                precio_unitario=detalle_data['precio_unitario']
+            )
+        
+        return remision
+```
+
+### Backend - Views
+
+#### RemisionViewSet
+**Ubicación:** `api/views.py`
+
+```python
+class RemisionViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestión de pedidos"""
+    queryset = Remision.objects.all().order_by('-fecha_creacion')
+    serializer_class = RemisionSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """Crear nuevo pedido con detalles"""
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+```
+
+### Rutas Backend
+
+#### api/urls.py
+```python
+from rest_framework.routers import DefaultRouter
+from .views import RemisionViewSet, DetalleRemisionViewSet
+
+router = DefaultRouter()
+
+# Rutas de pedidos (ambas apuntan al mismo ViewSet para compatibilidad)
+router.register(r'pedidos', RemisionViewSet, basename='pedido')
+router.register(r'remisiones', RemisionViewSet, basename='remision')
+router.register(r'detalle-pedidos', DetalleRemisionViewSet, basename='detalle-pedido')
+router.register(r'detalle-remisiones', DetalleRemisionViewSet, basename='detalle-remision')
+
+urlpatterns = router.urls
+```
+
+### Migraciones
+
+#### Renombrar tablas (Migration 0030)
+```python
+from django.db import migrations
+
+class Migration(migrations.Migration):
+    dependencies = [
+        ('api', '0029_previous_migration'),
+    ]
+
+    operations = [
+        migrations.AlterModelTable(
+            name='remision',
+            table='api_pedido',
+        ),
+        migrations.AlterModelTable(
+            name='detalleremision',
+            table='api_detallepedido',
+        ),
+    ]
+```
+
+### Casos de Uso
+
+#### Caso 1: Crear Pedido para Cliente del Sábado
+```
+1. Usuario va a "Gestión de Pedidos"
+2. Selecciona día "SABADO"
+3. Sistema muestra clientes con dia_entrega = "SABADO"
+4. Usuario hace clic en "Crear Pedido" para cliente "Prueba5"
+5. Sistema navega a formulario con datos precargados:
+   - Destinatario: Prueba5
+   - Dirección: Cll135 45-89
+   - Vendedor: Carlos
+   - Lista de precios: CLIENTES
+   - Fecha de entrega: 2025-10-11
+6. Usuario selecciona productos:
+   - AREPA TIPO OBLEA: 2 unidades
+   - AREPA MEDIANA: 2 unidades
+7. Usuario hace clic en "Generar Pedido"
+8. Sistema muestra modal de confirmación
+9. Usuario confirma
+10. Sistema crea pedido en BD
+11. Sistema muestra alert con número de pedido: PED-000003
+12. Sistema resetea formulario
+```
+
+#### Caso 2: Ver Pedidos en Planeación
+```
+1. Usuario va a "Inventario" → "Planeación"
+2. Selecciona fecha: 2025-10-11
+3. Sistema carga pedidos con fecha_entrega = 2025-10-11
+4. Sistema suma cantidades por producto:
+   - AREPA TIPO OBLEA: 4 unidades (de 2 pedidos)
+   - AREPA MEDIANA: 4 unidades (de 2 pedidos)
+   - AREPA TIPO PINCHO: 2 unidades (de 1 pedido)
+5. Sistema muestra en columna "Pedidos"
+6. Columna "Total" = Solicitadas + Pedidos
+```
+
+#### Caso 3: Ver Detalle de Pedido Realizado
+```
+1. Usuario va a "Gestión de Pedidos" → "SABADO"
+2. Sistema muestra clientes con botón "Realizado" (verde)
+3. Usuario hace clic en "Realizado" para cliente "Prueba5"
+4. Sistema abre modal con:
+   - Número de pedido: PED-000001
+   - Cliente: Prueba5
+   - Dirección: Cll135 45-89
+   - Teléfono: 85623447
+   - Fecha de entrega: 10/10/2025
+   - Productos:
+     * AREPA TIPO OBLEA: 1 x $2,700 = $2,700
+     * AREPA MEDIANA: 1 x $2,500 = $2,500
+   - Total: $5,200
+```
+
+### Solución de Problemas Comunes
+
+#### Problema 1: Precio se duplica como texto
+**Error:** `"2700.002700.00": el valor debe ser un número decimal`
+
+**Causa:** El precio se está enviando como string concatenado
+
+**Solución:** Usar `parseFloat()` en el PaymentModal
+```javascript
+detalles: cart.map(item => ({
+  producto: item.id,
+  cantidad: item.qty,
+  precio_unitario: parseFloat(item.price)  // Convertir a número
+}))
+```
+
+#### Problema 2: Pedidos no aparecen en Planeación
+**Causa:** La fecha de entrega no coincide con la fecha seleccionada
+
+**Solución:** Verificar formato de fecha (YYYY-MM-DD)
+```javascript
+// Correcto
+fecha_entrega: "2025-10-11"
+
+// Incorrecto
+fecha_entrega: "11/10/2025"
+```
+
+#### Problema 3: Botón "Realizado" no aparece
+**Causa:** El nombre del cliente no coincide exactamente
+
+**Solución:** Verificar que `pedido.destinatario === cliente.nombre_completo`
+```javascript
+// En PedidosDiaScreen.jsx
+const pedidosMap = {};
+pedidosFiltradas.forEach(pedido => {
+  pedidosMap[pedido.destinatario] = pedido;  // Usar destinatario como clave
+});
+
+// Verificar coincidencia
+{pedidosRealizados[cliente.nombre_completo] ? (
+  <button>Realizado</button>
+) : (
+  <button>Crear Pedido</button>
+)}
+```
+
+### Mejoras Futuras
+
+1. **Edición de Pedidos**
+   - Permitir editar pedidos existentes
+   - Cambiar cantidades de productos
+   - Actualizar fecha de entrega
+
+2. **Estados de Pedido**
+   - PENDIENTE → EN PREPARACIÓN → LISTO → ENTREGADO
+   - Flujo de trabajo con cambios de estado
+   - Notificaciones por estado
+
+3. **Impresión de Pedidos**
+   - Generar PDF con detalles del pedido
+   - Formato de remisión imprimible
+   - Código QR para tracking
+
+4. **Integración con Cargue**
+   - Cargar pedidos del día en tablas de vendedores
+   - Sumar cantidades de pedidos a producción solicitada
+   - Control de entrega de pedidos
+
+5. **Notificaciones**
+   - Email al cliente cuando se crea el pedido
+   - SMS de confirmación
+   - Recordatorio un día antes de la entrega
+
+6. **Reportes Avanzados**
+   - Pedidos por cliente
+   - Pedidos por producto
+   - Análisis de tendencias
+   - Productos más pedidos
+
+### Conclusión
+
+El módulo de Pedidos está completamente funcional e integrado con:
+- ✅ Módulo de Clientes (precarga de datos)
+- ✅ Módulo de Planeación (suma de cantidades)
+- ✅ Base de datos PostgreSQL
+- ✅ API REST con endpoints `/api/pedidos/`
+- ✅ Frontend React con componentes modulares
+
+**Próximo paso:** Integrar pedidos en el módulo de Cargue para control operativo diario.
+

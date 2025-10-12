@@ -26,7 +26,7 @@ export default function Topbar() {
                     <span className="material-icons me-2 text-success" style={{ fontSize: '24px' }}>
                         file_copy
                     </span>
-                    <h5 className="mb-0 text-success fw-bold">Sistema de Remisiones</h5>
+                    <h5 className="mb-0 text-success fw-bold">Sistema de Pedidos</h5>
                 </div>
 
                 {/* Controles del topbar */}

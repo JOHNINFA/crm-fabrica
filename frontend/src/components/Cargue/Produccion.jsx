@@ -377,7 +377,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
         }
       });
 
-      // 🚀 CORREGIDO: Usar la API correcta para solicitadas
+      // ✅ Guardar para la MISMA fecha seleccionada
       const datosParaGuardar = {
         dia: dia,
         fecha: fechaSeleccionada,

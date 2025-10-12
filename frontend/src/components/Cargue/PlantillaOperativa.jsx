@@ -3,6 +3,7 @@ import { useProducts } from '../../context/ProductContext';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
 import { responsableStorage } from '../../utils/responsableStorage';
+import { cargueHybridService, cargueApiConfig } from '../../services/cargueApiService';
 import TablaProductos from './TablaProductos';
 import ResumenVentas from './ResumenVentas';
 import BotonLimpiar from './BotonLimpiar';
@@ -753,47 +754,40 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     };
 
-    // ✅ GUARDADO AUTOMÁTICO: Cuando cambian los productos operativos
+    // ✅ GUARDADO AUTOMÁTICO CON DEBOUNCE: Cuando cambian los productos operativos
     useEffect(() => {
         if (productosOperativos.length === 0 && products.length > 0) {
             console.log(`🤔 Omitiendo actualización/guardado para ${idSheet} porque productosOperativos está vacío.`);
             return;
         }
 
-        // Solo actualizar y guardar si hay productos operativos para procesar.
         if (productosOperativos.length > 0) {
-            // Actualizar contexto y localStorage
             actualizarDatosVendedor(idSheet, productosOperativos);
             console.log(`✅ Datos actualizados para ${idSheet} en contexto.`);
 
             const fechaAUsar = fechaSeleccionada;
-            const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
-            const datos = {
-                dia,
-                idSheet,
-                fecha: fechaAUsar,
-                responsable: nombreResponsable,  // ✅ Incluir responsable en los datos guardados
-                productos: productosOperativos,
-                timestamp: Date.now(),
-                sincronizado: false
-            };
-
-            localStorage.setItem(key, JSON.stringify(datos));
-            console.log(`💾 Guardado en localStorage (${key}).`);
-            console.log(`👤 Responsable guardado en localStorage: "${nombreResponsable}"`);
-
-            // 🚀 NUEVO: Verificar que el responsable se guardó correctamente
-            const verificacion = localStorage.getItem(key);
-            if (verificacion) {
-                try {
-                    const datosVerificados = JSON.parse(verificacion);
-                    console.log(`✅ Verificación - Responsable en localStorage: "${datosVerificados.responsable}"`);
-                } catch (error) {
-                    console.error(`❌ Error verificando datos guardados:`, error);
-                }
+            
+            // 🚀 USAR SERVICIO HÍBRIDO CON DEBOUNCE
+            if (cargueApiConfig.USAR_API) {
+                console.log(`🚀 Usando servicio híbrido con debounce para ${idSheet}`);
+                cargueHybridService.guardarDatos(dia, idSheet, fechaAUsar, productosOperativos);
+            } else {
+                // Fallback a localStorage directo si API está desactivada
+                const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
+                const datos = {
+                    dia,
+                    idSheet,
+                    fecha: fechaAUsar,
+                    responsable: nombreResponsable,
+                    productos: productosOperativos,
+                    timestamp: Date.now(),
+                    sincronizado: false
+                };
+                localStorage.setItem(key, JSON.stringify(datos));
+                console.log(`💾 Guardado en localStorage (${key}).`);
             }
 
-            // 🔥 DISPARAR EVENTO: Notificar que los datos de cargue han cambiado
+            // 🔥 DISPARAR EVENTO
             const evento = new CustomEvent('cargueDataChanged', {
                 detail: { idSheet, dia, fecha: fechaAUsar, productos: productosOperativos.length }
             });

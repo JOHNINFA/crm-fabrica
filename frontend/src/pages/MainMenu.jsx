@@ -30,8 +30,8 @@ export default function MainMenu() {
         </div>
         <div onClick={() => navigate("/remisiones")} className="menu-card">
           <i className="bi bi-file-text"></i>
-          <h3>Remisiones</h3>
-          <p>Crea y administra las guías de remisión.</p>
+          <h3>Pedidos</h3>
+          <p>Crea y administra los pedidos de clientes.</p>
         </div>
         <div onClick={() => navigate("/trazabilidad")} className="menu-card">
           <i className="bi bi-diagram-3"></i>

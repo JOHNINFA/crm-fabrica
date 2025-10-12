@@ -59,7 +59,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                     </button>
                     {showReportMenu && (
                         <ul className="dropdown-menu show" style={{ position: 'absolute', inset: '0px auto auto 0px', margin: '0px', transform: 'translate(0px, 40px)' }}>
-                            <li><button className="dropdown-item" onClick={() => { setShowReportMenu(false); navigate('/informes/remisiones'); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Pedidos General</button></li>
+                            <li><button className="dropdown-item" onClick={() => { setShowReportMenu(false); navigate('/informes/pedidos'); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Pedidos General</button></li>
                             <li><button className="dropdown-item" onClick={() => { console.log('Informe por destinatario'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe por Destinatario</button></li>
                             <li><button className="dropdown-item" onClick={() => { console.log('Informe por transportadora'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe por Transportadora</button></li>
                             <li><button className="dropdown-item" onClick={() => { console.log('Informe por vendedor'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe por Vendedor</button></li>
@@ -70,8 +70,8 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                     className="btn btn-light border top-button"
                     style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }}
                     type="button"
-                    onClick={() => navigate('/remisiones/historial')}
-                    title="Historial de Remisiones"
+                    onClick={() => navigate('/pedidos/historial')}
+                    title="Historial de Pedidos"
                 >
                     <i className="bi bi-file-text me-1"></i>
                     Historial

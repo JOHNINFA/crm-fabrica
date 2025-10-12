@@ -281,28 +281,34 @@
     }
 }
 
-/* Es
-tilos específicos para el botón de REMISIONES */
-.remisiones-checkout-btn {
+/* Estilos específicos para el botón de PEDIDOS */
+.pedidos-checkout-btn {
+    width: 100%;
+    padding: 12px;
     background-color: #28a745 !important;
     color: white !important;
     border: 1px solid #28a745 !important;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.remisiones-checkout-btn:hover {
+.pedidos-checkout-btn:hover {
     background-color: #218838 !important;
     color: white !important;
     border-color: #1e7e34 !important;
 }
 
-.remisiones-checkout-btn:focus {
+.pedidos-checkout-btn:focus {
     background-color: #28a745 !important;
     color: white !important;
     border-color: #28a745 !important;
     box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
 }
 
-.remisiones-checkout-btn:active {
+.pedidos-checkout-btn:active {
     background-color: #1e7e34 !important;
     color: white !important;
     border-color: #1c7430 !important;

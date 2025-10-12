@@ -15,7 +15,8 @@ export default function Cart({
     seller = 'Sistema',
     client = 'CONSUMIDOR FINAL',
     clientData = null,
-    clearCart = () => { }
+    clearCart = () => { },
+    resetForm = () => { }
 }) {
     const [nota, setNota] = useState("");
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -93,7 +94,7 @@ export default function Cart({
         <div className="cart-container">
             {/* Header */}
             <div className="cart-header">
-                <h5>Carrito de Remisiones</h5>
+                <h5>Carrito de Pedidos</h5>
                 <div className="cart-header-actions">
                     <button title="Limpiar carrito">
                         <i className="bi bi-trash"></i>
@@ -139,7 +140,7 @@ export default function Cart({
                 </div>
 
                 <button
-                    className="checkout-button remisiones-checkout-btn"
+                    className="checkout-button pedidos-checkout-btn"
                     onClick={() => setShowPaymentModal(true)}
                 >
                     Generar Pedido
@@ -159,6 +160,7 @@ export default function Cart({
                 client={client}
                 clientData={clientData}
                 clearCart={clearCart}
+                resetForm={resetForm}
             />
         </div>
     );

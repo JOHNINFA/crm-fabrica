@@ -2,8 +2,12 @@
 
 /* Estilos para filas y celdas de tabla en planeación */
 .table-kardex.planeacion-table td {
-  padding: 0.2rem 0.4rem;
+  padding: 0.2rem 0.75rem;
   vertical-align: middle;
+}
+
+.table-kardex.planeacion-table th {
+  padding: 0.5rem 0.75rem;
 }
 
 .table-kardex.planeacion-table tr {
@@ -124,7 +128,7 @@ NUEVOS ESTILOS PARA SOLICITADAS CARGADAS DESDE BD */
   background-color: transparent;
   color: #1e293b;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.5;
   transition: none;

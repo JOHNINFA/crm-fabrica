@@ -698,23 +698,23 @@ export const remisionService = {
         if (params[key]) queryParams.append(key, params[key]);
       });
       
-      const url = `${API_URL}/remisiones/?${queryParams.toString()}`;
-      console.log('Intentando obtener remisiones:', url);
+      const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
+      console.log('Intentando obtener pedidos:', url);
       
       // Intentar con API primero
       try {
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Remisiones obtenidas desde API:', data.length);
+          console.log('✅ Pedidos obtenidos desde API:', data.length);
           return data;
         }
       } catch (apiError) {
-        console.warn('API no disponible para obtener remisiones:', apiError);
+        console.warn('API no disponible para obtener pedidos:', apiError);
       }
 
       // Fallback: usar localStorage
-      console.log('🔄 Usando localStorage para obtener remisiones...');
+      console.log('🔄 Usando localStorage para obtener pedidos...');
       const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
       
       if (remisionesGuardadas) {
@@ -732,27 +732,27 @@ export const remisionService = {
           });
         }
         
-        console.log('✅ Remisiones obtenidas desde localStorage:', remisiones.length);
+        console.log('✅ Pedidos obtenidos desde localStorage:', remisiones.length);
         return remisiones;
       } else {
-        console.log('ℹ️ No hay remisiones en localStorage');
+        console.log('ℹ️ No hay pedidos en localStorage');
         return [];
       }
       
     } catch (error) {
-      console.error('Error en getAll remisiones:', error);
+      console.error('Error en getAll pedidos:', error);
       return [];
     }
   },
 
-  // Crear una nueva remisión
+  // Crear un nuevo pedido
   create: async (remisionData) => {
     try {
-      console.log('Intentando crear remisión:', remisionData);
+      console.log('Intentando crear pedido:', remisionData);
       
       // Intentar con API primero
       try {
-        const response = await fetch(`${API_URL}/remisiones/`, {
+        const response = await fetch(`${API_URL}/pedidos/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -762,12 +762,12 @@ export const remisionService = {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Remisión creada exitosamente en API:', result);
+          console.log('✅ Pedido creado exitosamente en API:', result);
           return result;
         } else {
           const errorText = await response.text();
           console.error('Error response:', errorText);
-          throw new Error(`Error al crear remisión: ${response.status}`);
+          throw new Error(`Error al crear pedido: ${response.status}`);
         }
       } catch (apiError) {
         console.warn('API no disponible, guardando en localStorage:', apiError);
@@ -805,7 +805,7 @@ export const remisionService = {
       
       // Intentar con API primero
       try {
-        const response = await fetch(`${API_URL}/remisiones/${id}/`);
+        const response = await fetch(`${API_URL}/pedidos/${id}/`);
         if (response.ok) {
           const data = await response.json();
           console.log('✅ Remisión obtenida desde API:', data);
@@ -854,7 +854,7 @@ export const remisionService = {
       
       // Intentar con API primero
       try {
-        const response = await fetch(`${API_URL}/remisiones/${id}/`, {
+        const response = await fetch(`${API_URL}/pedidos/${id}/`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -905,7 +905,7 @@ export const remisionService = {
     try {
       console.log('Actualizando estado de remisión:', id, 'a', nuevoEstado);
       
-      const response = await fetch(`${API_URL}/remisiones/${id}/`, {
+      const response = await fetch(`${API_URL}/pedidos/${id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

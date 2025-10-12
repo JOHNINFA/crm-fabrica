@@ -5,7 +5,7 @@ from .views import (
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
     VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
-    VendedorViewSet, ProduccionSolicitadaViewSet,
+    VendedorViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     RemisionViewSet, DetalleRemisionViewSet
 )
@@ -39,6 +39,7 @@ router.register(r'vendedores', VendedorViewSet, basename='vendedor')
 
 # ===== API PARA PRODUCCIÓN SOLICITADA =====
 router.register(r'produccion-solicitadas', ProduccionSolicitadaViewSet, basename='produccion-solicitada')
+router.register(r'planeacion', PlaneacionViewSet, basename='planeacion')
 
 # ===== NUEVAS APIs PARA SISTEMA POS - CAJEROS =====
 router.register(r'sucursales', SucursalViewSet, basename='sucursal')
@@ -47,8 +48,10 @@ router.register(r'turnos', TurnoViewSet, basename='turno')
 router.register(r'ventas-cajero', VentaCajeroViewSet, basename='venta-cajero')
 router.register(r'arqueo-caja', ArqueoCajaViewSet, basename='arqueo-caja')
 
-# ===== NUEVAS APIs PARA SISTEMA DE REMISIONES =====
-router.register(r'remisiones', RemisionViewSet, basename='remision')
-router.register(r'detalle-remisiones', DetalleRemisionViewSet, basename='detalle-remision')
+# ===== NUEVAS APIs PARA SISTEMA DE PEDIDOS =====
+router.register(r'pedidos', RemisionViewSet, basename='pedido')
+router.register(r'remisiones', RemisionViewSet, basename='remision')  # Mantener compatibilidad
+router.register(r'detalle-pedidos', DetalleRemisionViewSet, basename='detalle-pedido')
+router.register(r'detalle-remisiones', DetalleRemisionViewSet, basename='detalle-remision')  # Mantener compatibilidad
 
 urlpatterns = router.urls
