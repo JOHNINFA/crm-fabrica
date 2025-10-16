@@ -17,7 +17,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ModalProvider } from "../context/ModalContext";
 import { ProductProvider } from "../context/ProductContext";
-import { CajeroRemisionesProvider, useCajeroRemisiones } from "../context/CajeroRemisionesContext";
+import { CajeroPedidosProvider, useCajeroPedidos } from "../context/CajeroPedidosContext";
 import Sidebar from "../components/Pedidos/Sidebar"
 import Topbar from "../components/Pedidos/Topbar";
 import ProductList from "../components/Pedidos/ProductList";
@@ -26,9 +26,9 @@ import ConsumerForm from "../components/Pedidos/ConsumerForm";
 
 import ImageSyncButton from "../components/common/ImageSyncButton";
 
-// Componente interno que usa el CajeroRemisionesContext
-function RemisionesScreenContent() {
-    const { cajeroLogueado, isAuthenticated } = useCajeroRemisiones();
+// Componente interno que usa el CajeroPedidosContext
+function PedidosScreenContent() {
+    const { cajeroLogueado, isAuthenticated } = useCajeroPedidos();
     const [searchParams] = useSearchParams();
     const [search, setSearch] = useState("");
     const [cart, setCart] = useState([]);
@@ -104,6 +104,7 @@ function RemisionesScreenContent() {
         setSeller("PEDIDOS");
         setPriceList("CLIENTES");
         setDate(getFechaLocal());
+        setClientData(null);
         clearCart();
     };
 
@@ -189,6 +190,7 @@ function RemisionesScreenContent() {
                                             clientData={clientData}
                                             clearCart={clearCart}
                                             resetForm={resetForm}
+                                            date={date}
                                         />
                                     </div>
                                 </div>
@@ -201,11 +203,11 @@ function RemisionesScreenContent() {
     );
 }
 
-// Componente principal que provee el CajeroRemisionesContext
+// Componente principal que provee el CajeroPedidosContext
 export default function PedidosScreen() {
     return (
-        <CajeroRemisionesProvider>
-            <RemisionesScreenContent />
-        </CajeroRemisionesProvider>
+        <CajeroPedidosProvider>
+            <PedidosScreenContent />
+        </CajeroPedidosProvider>
     );
 }

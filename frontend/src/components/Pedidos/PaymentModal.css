@@ -245,11 +245,11 @@
 
 /* Resumen de productos */
 .payment-summary-detail {
-    padding: 8px;
+    padding: 6px 8px;
     background-color: #f8f9fa;
     border: 1px solid #ced4da;
     border-radius: 4px;
-    height: 100%;
+    height: auto;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -258,11 +258,17 @@
 .remisiones-screen .payment-method-amount {
     color: #28a745;
     font-weight: bold;
-    font-size: 13px;
+    font-size: 19px;
+}
+
+.payment-method-amount {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 19px;
 }
 
 .payment-bank {
-    font-size: 12px;
+    font-size: 14px;
     color: #666;
 }
 
@@ -271,9 +277,9 @@
     display: flex;
     gap: 10px;
     justify-content: flex-end;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #e9ecef;
+    margin-top: -5px;
+    padding-top: 5px;
+    border-top: none;
 }
 
 .btn {

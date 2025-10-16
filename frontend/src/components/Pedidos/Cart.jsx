@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Cart.css";
 import PaymentModal from "./PaymentModal";
 
@@ -16,10 +17,13 @@ export default function Cart({
     client = 'CONSUMIDOR FINAL',
     clientData = null,
     clearCart = () => { },
-    resetForm = () => { }
+    resetForm = () => { },
+    date = null
 }) {
+    const navigate = useNavigate();
     const [nota, setNota] = useState("");
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [volverGestion, setVolverGestion] = useState(false);
 
     // Formatear moneda
     const formatCurrency = (amount) => `${(amount || 0).toLocaleString('es-CO')}`;
@@ -139,6 +143,21 @@ export default function Cart({
                     />
                 </div>
 
+                {/* Toggle para volver a gestión */}
+                <div className="d-flex align-items-center justify-content-between mb-2" style={{ fontSize: '12px' }}>
+                    <span style={{ color: '#666' }}>Volver a gestión del día</span>
+                    <div className="form-check form-switch">
+                        <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="volverGestionSwitch"
+                            checked={volverGestion}
+                            onChange={(e) => setVolverGestion(e.target.checked)}
+                            style={{ cursor: 'pointer' }}
+                        />
+                    </div>
+                </div>
+
                 <button
                     className="checkout-button pedidos-checkout-btn"
                     onClick={() => setShowPaymentModal(true)}
@@ -161,6 +180,9 @@ export default function Cart({
                 clientData={clientData}
                 clearCart={clearCart}
                 resetForm={resetForm}
+                volverGestion={volverGestion}
+                date={date}
+                navigate={navigate}
             />
         </div>
     );

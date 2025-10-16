@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, Remision, DetalleRemision
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, Pedido, DetallePedido, Vendedor
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -456,53 +456,59 @@ class ArqueoCajaSerializer(serializers.ModelSerializer):
         # el cajero logueado, sucursal y turno activo
         return super().create(validated_data)
 
-class DetalleRemisionSerializer(serializers.ModelSerializer):
-    """Serializer para detalles de remisión"""
+class DetallePedidoSerializer(serializers.ModelSerializer):
+    """Serializer para detalles de pedido"""
     producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
     
     class Meta:
-        model = DetalleRemision
+        model = DetallePedido
         fields = [
             'id', 'producto', 'producto_nombre', 'cantidad', 
             'precio_unitario', 'subtotal'
         ]
         read_only_fields = ('subtotal',)
 
-class RemisionSerializer(serializers.ModelSerializer):
+class PedidoSerializer(serializers.ModelSerializer):
     """Serializer para pedidos"""
-    detalles = DetalleRemisionSerializer(many=True, read_only=True)
-    numero_pedido = serializers.CharField(source='numero_remision', read_only=True)
-    tipo_pedido = serializers.CharField(source='tipo_remision', required=False)
+    detalles = DetallePedidoSerializer(many=True, read_only=True)
     
     class Meta:
-        model = Remision
+        model = Pedido
         fields = [
-            'id', 'numero_remision', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
+            'id', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
-            'tipo_remision', 'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
+            'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
             'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
             'fecha_actualizacion', 'detalles'
         ]
-        read_only_fields = ('numero_remision', 'numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
+        read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
     
     def create(self, validated_data):
         # Extraer detalles si vienen en los datos
         detalles_data = self.context['request'].data.get('detalles', [])
         
-        # Crear la remisión
-        remision = Remision.objects.create(**validated_data)
+        # Crear el pedido
+        pedido = Pedido.objects.create(**validated_data)
         
         # Crear los detalles
         for detalle_data in detalles_data:
-            DetalleRemision.objects.create(
-                remision=remision,
+            DetallePedido.objects.create(
+                pedido=pedido,
                 producto_id=detalle_data['producto'],
                 cantidad=detalle_data['cantidad'],
                 precio_unitario=detalle_data['precio_unitario']
             )
         
-        return remision
+        return pedido
 class PlaneacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Planeacion
         fields = '__all__'
+
+
+class VendedorSerializer(serializers.ModelSerializer):
+    """Serializer para vendedores"""
+    class Meta:
+        model = Vendedor
+        fields = ['id_vendedor', 'nombre', 'ruta', 'activo', 'fecha_creacion', 'fecha_actualizacion']
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')

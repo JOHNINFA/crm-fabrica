@@ -7,13 +7,13 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Remision, DetalleRemision
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, RemisionSerializer, DetalleRemisionSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -1197,14 +1197,14 @@ class ArqueoCajaViewSet(viewsets.ModelViewSet):
             'arqueos': serializer.data
         })
 
-class RemisionViewSet(viewsets.ModelViewSet):
+class PedidoViewSet(viewsets.ModelViewSet):
     """API para gestionar pedidos"""
-    queryset = Remision.objects.all().order_by('-fecha_creacion')
-    serializer_class = RemisionSerializer
+    queryset = Pedido.objects.all().order_by('-fecha_creacion')
+    serializer_class = PedidoSerializer
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = Remision.objects.all().order_by('-fecha_creacion')
+        queryset = Pedido.objects.all().order_by('-fecha_creacion')
         
         # Filtros opcionales
         destinatario = self.request.query_params.get('destinatario')
@@ -1230,14 +1230,14 @@ class RemisionViewSet(viewsets.ModelViewSet):
         """Crear nuevo pedido con detalles"""
         try:
             with transaction.atomic():
-                # Crear la remisión (el serializer ya crea los detalles)
+                # Crear el pedido (el serializer ya crea los detalles)
                 serializer = self.get_serializer(data=request.data, context={'request': request})
                 serializer.is_valid(raise_exception=True)
-                remision = serializer.save()
+                pedido = serializer.save()
                 
                 # Recargar con detalles
-                remision.refresh_from_db()
-                response_serializer = self.get_serializer(remision)
+                pedido.refresh_from_db()
+                response_serializer = self.get_serializer(pedido)
                 
                 return Response(response_serializer.data, status=status.HTTP_201_CREATED)
                 
@@ -1250,41 +1250,41 @@ class RemisionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'])
     def cambiar_estado(self, request, pk=None):
         """Cambiar estado del pedido"""
-        remision = self.get_object()
+        pedido = self.get_object()
         nuevo_estado = request.data.get('estado')
         
-        if nuevo_estado not in dict(Remision.ESTADO_CHOICES):
+        if nuevo_estado not in dict(Pedido.ESTADO_CHOICES):
             return Response(
                 {'error': 'Estado inválido'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        remision.estado = nuevo_estado
-        remision.save()
+        pedido.estado = nuevo_estado
+        pedido.save()
         
-        serializer = self.get_serializer(remision)
+        serializer = self.get_serializer(pedido)
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def anular(self, request, pk=None):
         """Anular pedido"""
-        remision = self.get_object()
+        pedido = self.get_object()
         
-        if remision.estado == 'ANULADA':
+        if pedido.estado == 'ANULADA':
             return Response(
                 {'error': 'El pedido ya está anulado'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Cambiar estado
-        remision.estado = 'ANULADA'
-        remision.nota = f"{remision.nota or ''}\nAnulada: {request.data.get('motivo', 'Sin motivo especificado')}"
-        remision.save()
+        pedido.estado = 'ANULADA'
+        pedido.nota = f"{pedido.nota or ''}\nAnulada: {request.data.get('motivo', 'Sin motivo especificado')}"
+        pedido.save()
         
         # Opcional: devolver productos al inventario
         devolver_inventario = request.data.get('devolver_inventario', False)
         if devolver_inventario:
-            for detalle in remision.detalles.all():
+            for detalle in pedido.detalles.all():
                 producto = detalle.producto
                 producto.stock_total += detalle.cantidad
                 producto.save()
@@ -1295,28 +1295,31 @@ class RemisionViewSet(viewsets.ModelViewSet):
                     tipo='ENTRADA',
                     cantidad=detalle.cantidad,
                     usuario=request.user.username if request.user.is_authenticated else 'Sistema',
-                    nota=f'Devolución por anulación de pedido {remision.numero_remision}'
+                    nota=f'Devolución por anulación de pedido {pedido.numero_pedido}'
                 )
         
-        serializer = self.get_serializer(remision)
+        serializer = self.get_serializer(pedido)
         return Response({
             'success': True,
             'message': 'Pedido anulado exitosamente',
             'pedido': serializer.data
         })
 
-class DetalleRemisionViewSet(viewsets.ModelViewSet):
+class DetallePedidoViewSet(viewsets.ModelViewSet):
     """API para detalles de pedidos"""
-    queryset = DetalleRemision.objects.all()
-    serializer_class = DetalleRemisionSerializer
+    queryset = DetallePedido.objects.all()
+    serializer_class = DetallePedidoSerializer
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = DetalleRemision.objects.all()
-        remision_id = self.request.query_params.get('remision')
+        queryset = DetallePedido.objects.all()
+        pedido_id = self.request.query_params.get('pedido')
+        remision_id = self.request.query_params.get('remision')  # Compatibilidad
         
-        if remision_id:
-            queryset = queryset.filter(remision_id=remision_id)
+        if pedido_id:
+            queryset = queryset.filter(pedido_id=pedido_id)
+        elif remision_id:
+            queryset = queryset.filter(pedido_id=remision_id)
             
         return queryset
 class PlaneacionViewSet(viewsets.ModelViewSet):
@@ -1330,3 +1333,59 @@ class PlaneacionViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         return queryset.order_by('producto_nombre')
+
+
+class VendedorViewSet(viewsets.ModelViewSet):
+    """API para gestionar vendedores"""
+    queryset = Vendedor.objects.all()
+    serializer_class = VendedorSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id_vendedor'  # Usar id_vendedor en lugar de pk
+    
+    def get_queryset(self):
+        """Filtrar vendedores por parámetros"""
+        queryset = Vendedor.objects.all()
+        id_vendedor = self.request.query_params.get('id_vendedor', None)
+        activo = self.request.query_params.get('activo', None)
+        
+        if id_vendedor:
+            queryset = queryset.filter(id_vendedor=id_vendedor)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset.order_by('id_vendedor')
+    
+    @action(detail=False, methods=['post'])
+    def actualizar_responsable(self, request):
+        """Actualizar nombre del responsable/vendedor"""
+        try:
+            id_vendedor = request.data.get('id_vendedor')
+            responsable = request.data.get('responsable')
+            
+            if not id_vendedor or not responsable:
+                return Response(
+                    {'error': 'id_vendedor y responsable son requeridos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Actualizar o crear vendedor
+            vendedor, created = Vendedor.objects.update_or_create(
+                id_vendedor=id_vendedor,
+                defaults={'nombre': responsable}
+            )
+            
+            return Response({
+                'success': True,
+                'vendedor': {
+                    'id_vendedor': vendedor.id_vendedor,
+                    'nombre': vendedor.nombre,
+                    'ruta': vendedor.ruta
+                },
+                'message': f'Responsable {"creado" if created else "actualizado"} exitosamente'
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

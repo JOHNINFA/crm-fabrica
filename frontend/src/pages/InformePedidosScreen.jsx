@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Badge } from 'react-bootstrap';
-import { remisionService } from '../services/api';
+import { pedidoService } from '../services/api';
 import { ModalProvider } from '../context/ModalContext';
 import { ProductProvider } from '../context/ProductContext';
-import { CajeroRemisionesProvider } from '../context/CajeroRemisionesContext';
+import { CajeroPedidosProvider } from '../context/CajeroPedidosContext';
 import Sidebar from '../components/Pedidos/Sidebar';
 import Topbar from '../components/Pedidos/Topbar';
 
@@ -18,7 +18,7 @@ function InformePedidosContent() {
 
     const cargarPedidos = async () => {
         try {
-            const data = await remisionService.getAll();
+            const data = await pedidoService.getAll();
             console.log('📋 Pedidos cargados:', data);
             setPedidos(data || []);
         } catch (error) {
@@ -30,6 +30,11 @@ function InformePedidosContent() {
 
     const formatFecha = (fecha) => {
         if (!fecha) return '-';
+        // Si la fecha viene en formato YYYY-MM-DD, parsearla directamente sin conversión de zona horaria
+        if (typeof fecha === 'string' && fecha.includes('-')) {
+            const [year, month, day] = fecha.split('T')[0].split('-');
+            return `${day}/${month}/${year}`;
+        }
         const date = new Date(fecha);
         return date.toLocaleDateString('es-CO');
     };
@@ -119,8 +124,8 @@ function InformePedidosContent() {
                                                                     <td>
                                                                         <Badge bg={
                                                                             pedido.estado === 'PENDIENTE' ? 'warning' :
-                                                                            pedido.estado === 'ENTREGADO' ? 'success' :
-                                                                            'secondary'
+                                                                                pedido.estado === 'ENTREGADO' ? 'success' :
+                                                                                    'secondary'
                                                                         }>
                                                                             {pedido.estado}
                                                                         </Badge>
@@ -147,7 +152,7 @@ function InformePedidosContent() {
                                                     </Col>
                                                     <Col md={6} className="text-end">
                                                         <small className="text-muted">
-                                                            <strong>Total:</strong> {formatCurrency(pedidos.reduce((sum, r) => sum + (r.total || 0), 0))}
+                                                            <strong>Total:</strong> {formatCurrency(pedidos.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0))}
                                                         </small>
                                                     </Col>
                                                 </Row>
@@ -166,12 +171,12 @@ function InformePedidosContent() {
 
 export default function InformePedidosScreen() {
     return (
-        <CajeroRemisionesProvider>
+        <CajeroPedidosProvider>
             <ProductProvider>
                 <ModalProvider>
                     <InformePedidosContent />
                 </ModalProvider>
             </ProductProvider>
-        </CajeroRemisionesProvider>
+        </CajeroPedidosProvider>
     );
 }

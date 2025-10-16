@@ -14,18 +14,12 @@ export const sync = {
         return inventoryProduct ? { ...posProduct, stock: inventoryProduct.existencias } : posProduct;
       });
       
-      // Ordenar productos en un orden específico
-      const ordenProductos = {
-        'AREPA TIPO OBLEA 500GR': 1,
-        'AREPA MEDIANA 330GR': 2,
-        'AREPA TIPO PINCHO 330GR': 3,
-        'AREPA QUESO CORRIENTE 450GR': 4
-      };
-      
+      // 🚀 CORREGIDO: Ordenar productos por ID de la BD (orden natural)
       updatedProducts.sort((a, b) => {
-        const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
-        const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
-        return ordenA - ordenB;
+        // Ordenar por ID numérico
+        const idA = parseInt(a.id) || 999999;
+        const idB = parseInt(b.id) || 999999;
+        return idA - idB;
       });
       
       const hasChanges = updatedProducts.some((product, index) => 
@@ -52,18 +46,12 @@ export const sync = {
           .map(mappers.toFrontend);
         
         if (formattedProducts.length > 0) {
-          // Ordenar productos en un orden específico
-          const ordenProductos = {
-            'AREPA TIPO OBLEA 500GR': 1,
-            'AREPA MEDIANA 330GR': 2,
-            'AREPA TIPO PINCHO 330GR': 3,
-            'AREPA QUESO CORRIENTE 450GR': 4
-          };
-          
+          // 🚀 CORREGIDO: Ordenar productos por ID de la BD (orden natural)
           formattedProducts.sort((a, b) => {
-            const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
-            const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
-            return ordenA - ordenB;
+            // Ordenar por ID numérico
+            const idA = parseInt(a.id) || 999999;
+            const idB = parseInt(b.id) || 999999;
+            return idA - idB;
           });
           
           setProducts(formattedProducts);

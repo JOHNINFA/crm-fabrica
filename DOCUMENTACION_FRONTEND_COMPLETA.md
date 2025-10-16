@@ -686,3 +686,243 @@ export default function Cart({
 ---
 
 *Continúa en INSTRUCCIONES_INSTALACION.md*
+
+
+---
+
+## ACTUALIZACIONES RECIENTES - MÓDULO DE PEDIDOS
+
+### Fecha: 15/10/2025
+
+#### 1. Corrección de Zona Horaria en Fechas
+
+**Problema:** Las fechas de los pedidos se guardaban con un día de diferencia debido a la conversión de zona horaria UTC.
+
+**Solución Implementada:**
+
+**Frontend - PaymentModal.jsx:**
+```javascript
+// Antes: Enviaba fecha con hora (causaba problemas de zona horaria)
+const getFechaLocal = () => {
+    const hoy = new Date();
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+};
+
+// Después: Envía solo la fecha sin hora
+const getFechaLocal = () => {
+    const hoy = new Date();
+    const year = hoy.getFullYear();
+    const month = String(hoy.getMonth() + 1).padStart(2, '0');
+    const day = String(hoy.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+```
+
+**Frontend - InformePedidosScreen.jsx:**
+```javascript
+// Parseo directo de fecha sin conversión de zona horaria
+const formatFecha = (fecha) => {
+    if (!fecha) return '-';
+    if (typeof fecha === 'string' && fecha.includes('-')) {
+        const [year, month, day] = fecha.split('T')[0].split('-');
+        return `${day}/${month}/${year}`;
+    }
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-CO');
+};
+```
+
+**Archivos Modificados:**
+- `frontend/src/components/Pedidos/PaymentModal.jsx`
+- `frontend/src/pages/InformePedidosScreen.jsx`
+
+---
+
+#### 2. Corrección de Suma de Totales en Informe
+
+**Problema:** El total en el informe de pedidos concatenaba valores en lugar de sumarlos.
+
+**Solución:**
+```javascript
+// Antes
+pedidos.reduce((sum, r) => sum + (r.total || 0), 0)
+
+// Después: Convierte string a número antes de sumar
+pedidos.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0)
+```
+
+**Archivo Modificado:**
+- `frontend/src/pages/InformePedidosScreen.jsx`
+
+---
+
+#### 3. Ajustes de UI en Modal de Pedidos
+
+**Cambios Realizados:**
+
+1. **Tamaño de texto del resumen:**
+   - Aumentado de 13px a 19px para mejor visibilidad
+   - Aplicado a la clase `.payment-method-amount`
+
+2. **Espaciado del footer:**
+   - Reducido margin-top y padding-top
+   - Eliminado border-top para diseño más limpio
+
+3. **Altura del contenedor de resumen:**
+   - Cambiado de `height: 100%` a `height: auto`
+   - Reducido padding para optimizar espacio
+
+**Archivo Modificado:**
+- `frontend/src/components/Pedidos/PaymentModal.css`
+
+---
+
+#### 4. Integración con Planeación de Producción
+
+**Funcionalidad:** Los pedidos ahora se reflejan automáticamente en la planeación de producción.
+
+**Flujo de Trabajo:**
+1. Se crea un pedido con fecha de entrega
+2. El pedido se guarda en la BD con sus detalles
+3. Al abrir Planeación → seleccionar fecha, se cargan automáticamente:
+   - Cantidades solicitadas (desde Cargue)
+   - Cantidades de pedidos (suma de todos los pedidos para esa fecha)
+4. La columna "PEDIDOS" muestra la suma de unidades por producto
+
+**Función de Carga:**
+```javascript
+const cargarPedidosDesdeBD = async (fechaSeleccionada) => {
+    const response = await fetch(`http://localhost:8000/api/pedidos/`);
+    const pedidos = await response.json();
+    
+    // Filtrar por fecha de entrega
+    const pedidosFecha = pedidos.filter(p => p.fecha_entrega === fechaFormateada);
+    
+    // Sumar cantidades por producto
+    const pedidosMap = {};
+    for (const pedido of pedidosFecha) {
+        if (pedido.detalles && pedido.detalles.length > 0) {
+            for (const detalle of pedido.detalles) {
+                const nombreProducto = detalle.producto_nombre;
+                if (!pedidosMap[nombreProducto]) {
+                    pedidosMap[nombreProducto] = 0;
+                }
+                pedidosMap[nombreProducto] += detalle.cantidad;
+            }
+        }
+    }
+    return pedidosMap;
+};
+```
+
+**Archivos Modificados:**
+- `frontend/src/components/inventario/InventarioPlaneacion.jsx`
+
+---
+
+#### 5. Toggle "Volver a Gestión del Día"
+
+**Funcionalidad:** Botón deslizante (toggle switch) en el carrito que permite volver automáticamente a la gestión de pedidos del día después de crear un pedido.
+
+**Comportamiento:**
+- **Toggle OFF (por defecto):** Después de crear el pedido, resetea el formulario (limpia carrito, vuelve a valores por defecto)
+- **Toggle ON:** Después de crear el pedido exitosamente, redirige automáticamente a la gestión de pedidos del día/fecha que se estaba trabajando
+
+**Implementación:**
+
+**Cart.jsx:**
+```javascript
+const [volverGestion, setVolverGestion] = useState(false);
+
+// Toggle en el footer del carrito
+<div className="d-flex align-items-center justify-content-between mb-2">
+    <span style={{ color: '#666' }}>Volver a gestión del día</span>
+    <div className="form-check form-switch">
+        <input
+            className="form-check-input"
+            type="checkbox"
+            checked={volverGestion}
+            onChange={(e) => setVolverGestion(e.target.checked)}
+        />
+    </div>
+</div>
+```
+
+**PaymentModal.jsx:**
+```javascript
+// Después de crear el pedido exitosamente
+if (volverGestion && date && navigate) {
+    const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    const fechaObj = new Date(date + 'T00:00:00');
+    const dia = diasSemana[fechaObj.getDay()];
+    navigate(`/pedidos/${dia}?fecha=${date}`);
+}
+```
+
+**Archivos Modificados:**
+- `frontend/src/components/Pedidos/Cart.jsx`
+- `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+**Ruta de Navegación:**
+- Formato: `/pedidos/SABADO?fecha=2025-10-11`
+- Lleva directamente a la pantalla de gestión de pedidos del día con la fecha seleccionada
+
+---
+
+#### 6. Reset Completo del Formulario
+
+**Problema:** Después de crear un pedido, algunos datos del cliente permanecían en el formulario.
+
+**Solución:**
+
+**PedidosScreen.jsx:**
+```javascript
+const resetForm = () => {
+    setClient("DESTINATARIO GENERAL");
+    setSeller("PEDIDOS");
+    setPriceList("CLIENTES");
+    setDate(getFechaLocal());
+    setClientData(null);  // ← Agregado para limpiar datos del cliente
+    clearCart();
+};
+```
+
+**PaymentModal.jsx:**
+```javascript
+// Reset de todos los estados del modal
+setDestinatario("DESTINATARIO GENERAL");
+setDireccionEntrega("");
+setTelefonoContacto("");
+const mañana = new Date();
+mañana.setDate(mañana.getDate() + 1);
+setFechaEntrega(mañana.toISOString().split('T')[0]);
+setNota("");
+setTipoRemision("ENTREGA");
+setTransportadora("Propia");
+```
+
+**Archivos Modificados:**
+- `frontend/src/pages/PedidosScreen.jsx`
+- `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+---
+
+### Resumen de Mejoras
+
+✅ **Corrección de fechas:** Eliminados problemas de zona horaria
+✅ **Cálculos correctos:** Suma de totales funciona correctamente
+✅ **UI mejorada:** Mejor visibilidad y espaciado en modales
+✅ **Integración con planeación:** Los pedidos se reflejan automáticamente
+✅ **Flujo de trabajo optimizado:** Toggle para volver rápidamente a gestión del día
+✅ **Reset completo:** Formulario se limpia correctamente después de cada pedido
+
+---
+
+### Próximas Mejoras Sugeridas
+
+- [ ] Agregar validación de stock antes de crear pedido
+- [ ] Implementar notificaciones toast en lugar de alerts
+- [ ] Agregar filtros avanzados en el informe de pedidos
+- [ ] Exportar informe de pedidos a Excel/PDF
+- [ ] Agregar historial de cambios de estado de pedidos
+

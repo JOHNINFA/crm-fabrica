@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Alert, Spinner, Dropdown } from 'react-bootstrap';
-import { useCajeroRemisiones } from '../../context/CajeroRemisionesContext';
+import { useCajeroPedidos } from '../../context/CajeroPedidosContext';
 import { cajeroService } from '../../services/cajeroService';
 import './LoginCajeroModal.css';
 
@@ -13,7 +13,7 @@ const LoginCajeroModal = ({ show, onHide }) => {
         cajeroLogueado,
         sucursalActiva,
         loading
-    } = useCajeroRemisiones();
+    } = useCajeroPedidos();
 
     // Estados del formulario
     const [cajeroSeleccionado, setCajeroSeleccionado] = useState('');
@@ -107,7 +107,7 @@ const LoginCajeroModal = ({ show, onHide }) => {
         }
     };
 
-    // Función temporal de debug para REMISIONES
+    // Función temporal de debug para PEDIDOS
     const handleDebugPedidos = async () => {
         setError('');
         setSuccess('');
@@ -188,15 +188,15 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
     return (
         <Modal show={show} onHide={onHide} centered size="md" backdrop="static" className="login-cajero-modal">
-            <Modal.Header closeButton style={{padding: '0.75rem 1rem'}}>
-                <Modal.Title style={{fontSize: '1.1rem'}}>
+            <Modal.Header closeButton style={{ padding: '0.75rem 1rem' }}>
+                <Modal.Title style={{ fontSize: '1.1rem' }}>
                     <span className="material-icons me-2" style={{ verticalAlign: 'middle', fontSize: '1.2rem' }}>
                         login
                     </span>
                     Login de Cajero - Pedidos
                 </Modal.Title>
             </Modal.Header>
-            <Modal.Body style={{maxHeight: '140vh', overflowY: 'auto'}}>
+            <Modal.Body style={{ maxHeight: '140vh', overflowY: 'auto' }}>
                 {sucursalActiva && (
                     <div className="sucursal-info">
                         <small className="text-muted">Sucursal:</small>

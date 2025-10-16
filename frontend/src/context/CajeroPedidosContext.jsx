@@ -2,12 +2,12 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { cajeroService } from '../services/cajeroService';
 import { sucursalService } from '../services/sucursalService';
 
-const CajeroRemisionesContext = createContext();
+const CajeroPedidosContext = createContext();
 
-export const useCajeroRemisiones = () => {
-    const context = useContext(CajeroRemisionesContext);
+export const useCajeroPedidos = () => {
+    const context = useContext(CajeroPedidosContext);
     if (!context) {
-        console.error('useCajeroRemisiones debe ser usado dentro de un CajeroRemisionesProvider');
+        console.error('useCajeroPedidos debe ser usado dentro de un CajeroPedidosProvider');
         // Retornar valores por defecto en lugar de lanzar error
         return {
             cajeroLogueado: null,
@@ -30,7 +30,7 @@ export const useCajeroRemisiones = () => {
     return context;
 };
 
-export const CajeroRemisionesProvider = ({ children }) => {
+export const CajeroPedidosProvider = ({ children }) => {
     // Estados principales
     const [cajeroLogueado, setCajeroLogueado] = useState(null);
     const [sucursalActiva, setSucursalActiva] = useState(null);
@@ -38,12 +38,12 @@ export const CajeroRemisionesProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // Claves específicas para Remisiones
+    // Claves específicas para Pedidos
     const STORAGE_KEYS = {
-        cajero: 'cajero_remisiones_logueado',
-        turno: 'turno_remisiones_activo',
-        sucursal: 'sucursal_remisiones_activa',
-        saldoInicial: 'saldo_inicial_remisiones_turno'
+        cajero: 'cajero_pedidos_logueado',
+        turno: 'turno_pedidos_activo',
+        sucursal: 'sucursal_pedidos_activa',
+        saldoInicial: 'saldo_inicial_pedidos_turno'
     };
 
     // Cargar datos persistidos al iniciar
@@ -285,8 +285,8 @@ export const CajeroRemisionesProvider = ({ children }) => {
     };
 
     return (
-        <CajeroRemisionesContext.Provider value={contextValue}>
+        <CajeroPedidosContext.Provider value={contextValue}>
             {children}
-        </CajeroRemisionesContext.Provider>
+        </CajeroPedidosContext.Provider>
     );
 };

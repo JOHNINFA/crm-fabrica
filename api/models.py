@@ -1075,7 +1075,7 @@ class ArqueoCaja(models.Model):
         estado_emoji = {'PENDIENTE': '⏳', 'COMPLETADO': '✅', 'REVISADO': '🔍'}
         return f"{estado_emoji.get(self.estado, '')} {self.fecha} - {self.cajero} - {self.banco}"
 
-class Remision(models.Model):
+class Pedido(models.Model):
     """Modelo para pedidos de productos"""
     
     class Meta:
@@ -1098,7 +1098,7 @@ class Remision(models.Model):
     ]
     
     # Información básica
-    numero_remision = models.CharField(max_length=50, unique=True, verbose_name='Número de Pedido')
+    numero_pedido = models.CharField(max_length=50, unique=True, verbose_name='Número de Pedido', db_column='numero_remision')
     fecha = models.DateTimeField(default=timezone.now)
     vendedor = models.CharField(max_length=100)
     destinatario = models.CharField(max_length=255)
@@ -1109,7 +1109,7 @@ class Remision(models.Model):
     fecha_entrega = models.DateField(null=True, blank=True)
     
     # Clasificación
-    tipo_remision = models.CharField(max_length=20, choices=TIPO_PEDIDO_CHOICES, default='ENTREGA', verbose_name='Tipo de Pedido')
+    tipo_pedido = models.CharField(max_length=20, choices=TIPO_PEDIDO_CHOICES, default='ENTREGA', verbose_name='Tipo de Pedido', db_column='tipo_remision')
     transportadora = models.CharField(max_length=100, default='Propia')
     
     # Totales
@@ -1126,29 +1126,29 @@ class Remision(models.Model):
     
     def save(self, *args, **kwargs):
         # Generar número de pedido automáticamente si no existe
-        if not self.numero_remision:
+        if not self.numero_pedido:
             # Obtener el último número
-            ultima_remision = Remision.objects.filter(
-                numero_remision__startswith='PED-'
+            ultimo_pedido = Pedido.objects.filter(
+                numero_pedido__startswith='PED-'
             ).order_by('-id').first()
             
-            if ultima_remision:
+            if ultimo_pedido:
                 try:
-                    ultimo_numero = int(ultima_remision.numero_remision.split('-')[1])
+                    ultimo_numero = int(ultimo_pedido.numero_pedido.split('-')[1])
                     nuevo_numero = ultimo_numero + 1
                 except (ValueError, IndexError):
                     nuevo_numero = 1
             else:
                 nuevo_numero = 1
             
-            self.numero_remision = f'PED-{nuevo_numero:06d}'
+            self.numero_pedido = f'PED-{nuevo_numero:06d}'
         
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.numero_remision} - {self.destinatario} - ${self.total}"
+        return f"{self.numero_pedido} - {self.destinatario} - ${self.total}"
 
-class DetalleRemision(models.Model):
+class DetallePedido(models.Model):
     """Modelo para detalles de productos en pedidos"""
     
     class Meta:
@@ -1156,7 +1156,7 @@ class DetalleRemision(models.Model):
         verbose_name = 'Detalle de Pedido'
         verbose_name_plural = 'Detalles de Pedidos'
     
-    remision = models.ForeignKey(Remision, on_delete=models.CASCADE, related_name='detalles', verbose_name='Pedido')
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='detalles', verbose_name='Pedido')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -1202,3 +1202,21 @@ class Planeacion(models.Model):
     
     def __str__(self):
         return f"{self.fecha} - {self.producto_nombre} - Total: {self.total}"
+
+
+class Vendedor(models.Model):
+    """Modelo para gestionar vendedores y sus nombres"""
+    id_vendedor = models.CharField(max_length=10, unique=True, primary_key=True)  # ID1, ID2, etc.
+    nombre = models.CharField(max_length=100)
+    ruta = models.CharField(max_length=100, blank=True, null=True)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.id_vendedor} - {self.nombre}"
+    
+    class Meta:
+        verbose_name = "Vendedor"
+        verbose_name_plural = "Vendedores"
+        ordering = ['id_vendedor']

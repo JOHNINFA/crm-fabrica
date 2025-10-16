@@ -688,9 +688,9 @@ export const ventaService = {
 
 };
 
-// Servicios para Remisiones
-export const remisionService = {
-  // Obtener todas las remisiones
+// Servicios para Pedidos
+export const pedidoService = {
+  // Obtener todos los pedidos
   getAll: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams();
@@ -715,25 +715,25 @@ export const remisionService = {
 
       // Fallback: usar localStorage
       console.log('🔄 Usando localStorage para obtener pedidos...');
-      const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
+      const pedidosGuardados = localStorage.getItem('pedidos_sistema');
       
-      if (remisionesGuardadas) {
-        let remisiones = JSON.parse(remisionesGuardadas);
+      if (pedidosGuardados) {
+        let pedidos = JSON.parse(pedidosGuardados);
         
-        // Verificar remisiones anuladas y actualizar estados
-        const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
-        if (remisionesAnuladas.length > 0) {
-          console.log('🔍 Aplicando estados de remisiones anuladas:', remisionesAnuladas);
-          remisiones = remisiones.map(remision => {
-            if (remisionesAnuladas.includes(remision.id)) {
-              return { ...remision, estado: 'ANULADA' };
+        // Verificar pedidos anulados y actualizar estados
+        const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
+        if (pedidosAnulados.length > 0) {
+          console.log('🔍 Aplicando estados de pedidos anulados:', pedidosAnulados);
+          pedidos = pedidos.map(pedido => {
+            if (pedidosAnulados.includes(pedido.id)) {
+              return { ...pedido, estado: 'ANULADA' };
             }
-            return remision;
+            return pedido;
           });
         }
         
-        console.log('✅ Pedidos obtenidos desde localStorage:', remisiones.length);
-        return remisiones;
+        console.log('✅ Pedidos obtenidos desde localStorage:', pedidos.length);
+        return pedidos;
       } else {
         console.log('ℹ️ No hay pedidos en localStorage');
         return [];
@@ -773,27 +773,27 @@ export const remisionService = {
         console.warn('API no disponible, guardando en localStorage:', apiError);
         
         // Fallback: guardar en localStorage
-        const remisionesGuardadas = JSON.parse(localStorage.getItem('remisiones_sistema') || '[]');
+        const pedidosGuardados = JSON.parse(localStorage.getItem('pedidos_sistema') || '[]');
         
-        // Generar ID único y número de remisión
+        // Generar ID único y número de pedido
         const nuevoId = Date.now();
-        const numeroRemision = `REM-${String(nuevoId).slice(-6)}`;
+        const numeroPedido = `PED-${String(nuevoId).slice(-6)}`;
         
-        const nuevaRemision = {
+        const nuevoPedido = {
           id: nuevoId,
-          numero_remision: numeroRemision,
+          numero_pedido: numeroPedido,
           ...remisionData,
           fecha_creacion: new Date().toISOString()
         };
         
-        remisionesGuardadas.push(nuevaRemision);
-        localStorage.setItem('remisiones_sistema', JSON.stringify(remisionesGuardadas));
+        pedidosGuardados.push(nuevoPedido);
+        localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosGuardados));
         
-        console.log('✅ Remisión guardada en localStorage:', nuevaRemision);
-        return nuevaRemision;
+        console.log('✅ Pedido guardado en localStorage:', nuevoPedido);
+        return nuevoPedido;
       }
     } catch (error) {
-      console.error('Error en create remisión:', error);
+      console.error('Error en create pedido:', error);
       return handleApiError(error);
     }
   },
@@ -926,3 +926,4 @@ export const remisionService = {
     }
   }
 };
+

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { remisionService } from '../../services/api';
+import { pedidoService } from '../../services/api';
 import './PaymentModal.css';
 
 const PaymentModal = ({
     show, onClose, cart, total, subtotal = 0, impuestos = 0, descuentos = 0,
-    seller = 'Sistema', client = 'CONSUMIDOR FINAL', clientData = null, clearCart = () => { }, resetForm = () => { }
+    seller = 'Sistema', client = 'CONSUMIDOR FINAL', clientData = null, clearCart = () => { }, resetForm = () => { },
+    volverGestion = false, date = null, navigate = null
 }) => {
     const safeTotal = typeof total === 'number' ? total : 0;
     const [destinatario, setDestinatario] = useState(client);
@@ -61,16 +62,13 @@ const PaymentModal = ({
         setProcessing(true);
 
         try {
-            // Función para obtener fecha local
+            // Función para obtener fecha local (solo fecha, sin hora para evitar problemas de zona horaria)
             const getFechaLocal = () => {
                 const hoy = new Date();
                 const year = hoy.getFullYear();
                 const month = String(hoy.getMonth() + 1).padStart(2, '0');
                 const day = String(hoy.getDate()).padStart(2, '0');
-                const hour = String(hoy.getHours()).padStart(2, '0');
-                const minute = String(hoy.getMinutes()).padStart(2, '0');
-                const second = String(hoy.getSeconds()).padStart(2, '0');
-                return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+                return `${year}-${month}-${day}`;
             };
 
             // Preparar datos del pedido
@@ -100,23 +98,42 @@ const PaymentModal = ({
             console.log('Detalles del carrito:', cart);
             console.log('Detalles a enviar:', pedidoData.detalles);
 
-            // Crear la remisión
-            const result = await remisionService.create(pedidoData);
+            // Crear el pedido
+            const result = await pedidoService.create(pedidoData);
 
             if (result && !result.error) {
-                console.log('✅ Remisión creada exitosamente:', result);
+                console.log('✅ Pedido creado exitosamente:', result);
                 alert(`¡Pedido generado exitosamente!\nNúmero: ${result.numero_pedido}\nDestinatario: ${destinatario}\nTotal: ${safeTotal.toLocaleString()}`);
+
+                // Resetear estados del modal
+                setDestinatario("DESTINATARIO GENERAL");
+                setDireccionEntrega("");
+                setTelefonoContacto("");
+                const mañana = new Date();
+                mañana.setDate(mañana.getDate() + 1);
+                setFechaEntrega(mañana.toISOString().split('T')[0]);
+                setNota("");
+                setTipoRemision("ENTREGA");
+                setTransportadora("Propia");
 
                 // Resetear formulario completo y cerrar modal
                 resetForm();
                 onClose();
+
+                // Si el toggle está activado, navegar a gestión del día
+                if (volverGestion && date && navigate) {
+                    const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+                    const fechaObj = new Date(date + 'T00:00:00');
+                    const dia = diasSemana[fechaObj.getDay()];
+                    navigate(`/pedidos/${dia}?fecha=${date}`);
+                }
             } else {
-                console.error('❌ Error al crear remisión:', result);
-                alert('Error al generar la remisión. Intente nuevamente.');
+                console.error('❌ Error al crear pedido:', result);
+                alert('Error al generar el pedido. Intente nuevamente.');
             }
         } catch (error) {
-            console.error('❌ Error al procesar remisión:', error);
-            alert('Error al generar la remisión. Intente nuevamente.');
+            console.error('❌ Error al procesar pedido:', error);
+            alert('Error al generar el pedido. Intente nuevamente.');
         } finally {
             setProcessing(false);
         }

@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import "./ConsumerForm.css";
 import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
-import { useCajeroRemisiones } from "../../context/CajeroRemisionesContext";
+import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
 
 export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers, priceList, setPriceList }) {
     // Manejo seguro del contexto
     let cajeroLogueado, sucursalActiva, isAuthenticated;
 
     try {
-        const context = useCajeroRemisiones();
+        const context = useCajeroPedidos();
         cajeroLogueado = context.cajeroLogueado;
         sucursalActiva = context.sucursalActiva;
         isAuthenticated = context.isAuthenticated;

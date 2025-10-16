@@ -1,4 +1,4 @@
-// src/components/Remisiones/Sidebar.jsx
+// src/components/Pedidos/Sidebar.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useModalContext } from '../../context/ModalContext';

@@ -46,9 +46,11 @@ const InventarioPlaneacion = () => {
       // Sumar cantidades por producto
       const pedidosMap = {};
       for (const pedido of pedidosFecha) {
+        console.log(`🔍 Procesando pedido ${pedido.numero_pedido}:`, pedido.detalles?.length || 0, 'detalles');
         if (pedido.detalles && pedido.detalles.length > 0) {
           for (const detalle of pedido.detalles) {
             const nombreProducto = detalle.producto_nombre;
+            console.log(`  ➕ Sumando: ${nombreProducto} = ${detalle.cantidad}`);
             if (!pedidosMap[nombreProducto]) {
               pedidosMap[nombreProducto] = 0;
             }
@@ -57,7 +59,8 @@ const InventarioPlaneacion = () => {
         }
       }
 
-      console.log('📊 Pedidos por producto:', pedidosMap);
+      console.log('📊 Pedidos por producto (FINAL):', pedidosMap);
+      console.log('📊 Claves en pedidosMap:', Object.keys(pedidosMap));
       return pedidosMap;
     } catch (error) {
       console.error('❌ Error cargando pedidos:', error);
@@ -118,7 +121,7 @@ const InventarioPlaneacion = () => {
       // 🚀 CARGAR PLANEACIÓN GUARDADA DESDE BD
       const planeacionResponse = await fetch(`http://localhost:8000/api/planeacion/?fecha=${fechaFormateada}`);
       let planeacionMap = {};
-      
+
       if (planeacionResponse.ok) {
         const planeacionData = await planeacionResponse.json();
         console.log('✅ Planeación cargada desde BD:', planeacionData.length, 'productos');
@@ -141,10 +144,10 @@ const InventarioPlaneacion = () => {
       console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
 
       // 🚀 CARGAR SOLICITADAS Y PEDIDOS DESDE BD (si no hay planeación guardada)
-      const solicitadasMap = Object.keys(planeacionMap).length === 0 
+      const solicitadasMap = Object.keys(planeacionMap).length === 0
         ? await cargarSolicitadasDesdeBD(fechaSeleccionada)
         : {};
-      
+
       const pedidosMap = await cargarPedidosDesdeBD(fechaSeleccionada);
 
       // Preparar productos con planeación
@@ -174,12 +177,16 @@ const InventarioPlaneacion = () => {
           solicitadoFinal = productoExistente.solicitado;
         }
 
+        const pedidosProducto = pedidosMap[p.nombre] || 0;
+        if (pedidosProducto > 0) {
+          console.log(`✅ Producto ${p.nombre} tiene ${pedidosProducto} pedidos`);
+        }
         return {
           id: p.id,
           nombre: p.nombre,
           existencias: p.stock_total || 0,
           solicitado: solicitadoFinal,
-          pedidos: pedidosMap[p.nombre] || 0,
+          pedidos: pedidosProducto,
           orden: productoExistente ? (productoExistente.orden || 0) : 0,
           ia: productoExistente ? (productoExistente.ia || 0) : 0
         };
@@ -292,7 +299,7 @@ const InventarioPlaneacion = () => {
       }
 
       mostrarMensaje('Planeación guardada correctamente en BD', 'success');
-      
+
     } catch (error) {
       console.error('Error guardando planeación:', error);
       mostrarMensaje('Error al guardar planeación', 'danger');
@@ -360,54 +367,54 @@ const InventarioPlaneacion = () => {
                 {productos.map((producto) => {
                   const total = (producto.solicitado || 0) + (producto.pedidos || 0);
                   return (
-                  <tr key={producto.id} className="product-row">
-                    <td className="fw-medium" style={{ color: '#1e293b' }}>{producto.nombre}</td>
-                    <td className="text-center">
-                      <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
-                        {producto.existencias} und
-                      </span>
-                    </td>
-                    <td className="text-center">
-                      <div className="d-flex justify-content-center">
-                        <span className={`solicitadas-display ${producto.solicitado > 0 ? 'has-data' : ''}`}>
-                          {producto.solicitado || 0}
+                    <tr key={producto.id} className="product-row">
+                      <td className="fw-medium" style={{ color: '#1e293b' }}>{producto.nombre}</td>
+                      <td className="text-center">
+                        <span className={`${getExistenciasClass(producto.existencias)} rounded-pill-sm`}>
+                          {producto.existencias} und
                         </span>
-                      </div>
-                    </td>
-                    <td className="text-center">
-                      <div className="d-flex justify-content-center">
-                        <span className={`solicitadas-display ${(producto.pedidos || 0) > 0 ? 'has-data' : ''}`}>
-                          {producto.pedidos || 0}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="text-center">
-                      <div className="d-flex justify-content-center">
-                        <span className={`solicitadas-display ${total > 0 ? 'has-data' : ''}`} style={{ fontWeight: '600' }}>
-                          {total}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="text-center">
-                      <div className="d-flex justify-content-center">
-                        <input
-                          type="number"
-                          min="0"
-                          value={producto.orden || 0}
-                          onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
-                          className="solicitadas-display"
-                          style={{ cursor: 'text', maxWidth: '60px' }}
-                        />
-                      </div>
-                    </td>
-                    <td className="text-center">
-                      <div className="d-flex justify-content-center">
-                        <span className={`solicitadas-display ${(producto.ia || 0) > 0 ? 'has-data' : ''}`}>
-                          {producto.ia || 0}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="text-center">
+                        <div className="d-flex justify-content-center">
+                          <span className={`solicitadas-display ${producto.solicitado > 0 ? 'has-data' : ''}`}>
+                            {producto.solicitado || 0}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-center">
+                        <div className="d-flex justify-content-center">
+                          <span className={`solicitadas-display ${(producto.pedidos || 0) > 0 ? 'has-data' : ''}`}>
+                            {producto.pedidos || 0}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-center">
+                        <div className="d-flex justify-content-center">
+                          <span className={`solicitadas-display ${total > 0 ? 'has-data' : ''}`} style={{ fontWeight: '600' }}>
+                            {total}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-center">
+                        <div className="d-flex justify-content-center">
+                          <input
+                            type="number"
+                            min="0"
+                            value={producto.orden || 0}
+                            onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
+                            className="solicitadas-display"
+                            style={{ cursor: 'text', maxWidth: '60px' }}
+                          />
+                        </div>
+                      </td>
+                      <td className="text-center">
+                        <div className="d-flex justify-content-center">
+                          <span className={`solicitadas-display ${(producto.ia || 0) > 0 ? 'has-data' : ''}`}>
+                            {producto.ia || 0}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
                 {productos.length === 0 && (

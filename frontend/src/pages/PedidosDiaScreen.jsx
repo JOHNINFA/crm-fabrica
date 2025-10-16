@@ -57,15 +57,15 @@ export default function PedidosDiaScreen() {
         const pedidos = await response.json();
         console.log('📦 Todas las pedidos:', pedidos);
         console.log('📅 Fecha seleccionada:', fechaSeleccionada);
-        
+
         // Filtrar por fecha de entrega que coincida con la fecha seleccionada
         const pedidosFiltradas = pedidos.filter(r => r.fecha_entrega === fechaSeleccionada);
         console.log('✅ Pedidos filtradas:', pedidosFiltradas);
-        
+
         // Crear un mapa de clientes que ya tienen pedido con los datos completos
         const pedidosMap = {};
         pedidosFiltradas.forEach(remision => {
-          console.log(`  Mapeando: "${remision.destinatario}" -> Pedido ${remision.numero_pedido || remision.numero_remision}`);
+          console.log(`  Mapeando: "${remision.destinatario}" -> Pedido ${remision.numero_pedido}`);
           pedidosMap[remision.destinatario] = remision;
         });
         console.log('🗺️ Mapa de pedidos:', pedidosMap);

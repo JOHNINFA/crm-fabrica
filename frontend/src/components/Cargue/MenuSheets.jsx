@@ -211,28 +211,32 @@ export default function MenuSheets() {
       // Establecer estado inicial inmediatamente
       setDatosIds(nuevosIds);
 
-      // 🚀 OPTIMIZADO: Una sola llamada para todos los IDs
+      // 🚀 CORREGIDO: Cargar todos los vendedores desde la BD
       try {
-        console.log('🔍 Cargando todos los responsables en una sola llamada...');
+        console.log('🔍 Cargando todos los responsables desde BD...');
 
-        // Hacer todas las llamadas en paralelo
-        const promesas = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'].map(async (idVendedor) => {
-          try {
-            const response = await fetch(`http://localhost:8000/api/vendedores/obtener_responsable/?id_vendedor=${idVendedor}`);
-            if (response.ok) {
-              const data = await response.json();
-              return { id: idVendedor, responsable: data.responsable || 'RESPONSABLE' };
-            }
-            return { id: idVendedor, responsable: 'RESPONSABLE' };
-          } catch (error) {
-            console.error(`❌ Error para ${idVendedor}:`, error);
-            return { id: idVendedor, responsable: 'RESPONSABLE' };
-          }
-        });
+        const response = await fetch('http://localhost:8000/api/vendedores/');
+        let resultados = [];
 
-        // Esperar todas las respuestas
-        const resultados = await Promise.all(promesas);
-        console.log('📡 Resultados de todas las APIs:', resultados);
+        if (response.ok) {
+          const vendedoresDB = await response.json();
+          console.log('📡 Vendedores desde BD:', vendedoresDB);
+
+          // Mapear los vendedores a resultados
+          resultados = vendedoresDB.map(v => ({
+            id: v.id_vendedor,
+            responsable: v.nombre
+          }));
+
+          console.log('📡 Resultados mapeados:', resultados);
+        } else {
+          console.error('❌ Error cargando vendedores desde BD');
+          // Usar valores por defecto
+          resultados = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'].map(id => ({
+            id: id,
+            responsable: 'RESPONSABLE'
+          }));
+        }
 
         // Actualizar solo si hay cambios
         let hayChangios = false;

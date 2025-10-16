@@ -54,7 +54,7 @@ export const UsuariosProvider = ({ children }) => {
     const actualizarUsuario = async (id, datosUsuario) => {
         try {
             const usuarioActualizado = await cajeroService.update(id, datosUsuario);
-            setUsuarios(prev => 
+            setUsuarios(prev =>
                 prev.map(u => u.id === id ? usuarioActualizado : u)
             );
             return { success: true, usuario: usuarioActualizado };
@@ -94,12 +94,12 @@ export const UsuariosProvider = ({ children }) => {
             if (modulo === 'POS') {
                 // Para POS: cajeros que pueden vender (rol CAJERO o que tengan permisos de venta)
                 return usuario.activo && (
-                    usuario.rol === 'CAJERO' || 
-                    usuario.rol === 'SUPERVISOR' || 
+                    usuario.rol === 'CAJERO' ||
+                    usuario.rol === 'SUPERVISOR' ||
                     usuario.rol === 'ADMINISTRADOR'
                 );
-            } else if (modulo === 'REMISIONES') {
-                // Para Remisiones: cualquier usuario activo (no necesariamente vendedor)
+            } else if (modulo === 'PEDIDOS') {
+                // Para Pedidos: cualquier usuario activo (no necesariamente vendedor)
                 return usuario.activo;
             }
             return false;

@@ -23,7 +23,8 @@ const Configuracion = ({ clienteData, setClienteData }) => {
 
   const cargarVendedores = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/vendedores/obtener_responsable/');
+      // 🚀 CORREGIDO: Usar el endpoint correcto de vendedores
+      const response = await fetch('http://localhost:8000/api/vendedores/');
       if (response.ok) {
         const data = await response.json();
         console.log('Vendedores cargados:', data);
@@ -44,7 +45,7 @@ const Configuracion = ({ clienteData, setClienteData }) => {
     <div className="row g-3">
       <div className="col-md-4">
         <label className="form-label">Tipo Lista Precio</label>
-        <select 
+        <select
           className="form-select"
           value={clienteData.tipo_lista_precio || ''}
           onChange={(e) => handleChange('tipo_lista_precio', e.target.value)}
@@ -57,20 +58,22 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       </div>
       <div className="col-md-3">
         <label className="form-label">Vendedor</label>
-        <select 
+        <select
           className="form-select"
           value={clienteData.vendedor_asignado || ''}
           onChange={(e) => handleChange('vendedor_asignado', e.target.value)}
         >
           <option value="">Ninguno</option>
           {vendedores.map(vendedor => (
-            <option key={vendedor.id} value={vendedor.responsable}>{vendedor.responsable} ({vendedor.id})</option>
+            <option key={vendedor.id_vendedor} value={vendedor.nombre}>
+              {vendedor.nombre} ({vendedor.id_vendedor})
+            </option>
           ))}
         </select>
       </div>
       <div className="col-md-3">
         <label className="form-label">Día de Entrega</label>
-        <select 
+        <select
           className="form-select"
           value={clienteData.dia_entrega || ''}
           onChange={(e) => handleChange('dia_entrega', e.target.value)}
@@ -86,7 +89,7 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       </div>
       <div className="col-md-3">
         <label className="form-label">Centro de Costo</label>
-        <select 
+        <select
           className="form-select"
           value={clienteData.centro_costo || ''}
           onChange={(e) => handleChange('centro_costo', e.target.value)}
@@ -98,8 +101,8 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       </div>
       <div className="col-12">
         <label className="form-label">Nota</label>
-        <textarea 
-          className="form-control" 
+        <textarea
+          className="form-control"
           rows="3"
           value={clienteData.nota}
           onChange={(e) => handleChange('nota', e.target.value)}
@@ -107,9 +110,9 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       </div>
       <div className="col-12">
         <div className="form-check">
-          <input 
-            className="form-check-input" 
-            type="checkbox" 
+          <input
+            className="form-check-input"
+            type="checkbox"
             id="notificarCartera"
             checked={clienteData.notificar_cartera || false}
             onChange={(e) => handleChange('notificar_cartera', e.target.checked)}
@@ -121,9 +124,9 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       </div>
       <div className="col-12">
         <div className="form-check">
-          <input 
-            className="form-check-input" 
-            type="checkbox" 
+          <input
+            className="form-check-input"
+            type="checkbox"
             id="notificarRotacion"
             checked={clienteData.notificar_rotacion || false}
             onChange={(e) => handleChange('notificar_rotacion', e.target.checked)}
@@ -135,9 +138,9 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       </div>
       <div className="col-12">
         <div className="form-check">
-          <input 
-            className="form-check-input" 
-            type="checkbox" 
+          <input
+            className="form-check-input"
+            type="checkbox"
             id="clientePredeterminado"
             checked={clienteData.cliente_predeterminado || false}
             onChange={(e) => handleChange('cliente_predeterminado', e.target.checked)}

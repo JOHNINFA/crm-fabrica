@@ -189,6 +189,75 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         totalEfectivo: 0,
     });
 
+    // 🚀 NUEVA FUNCIÓN: Cargar pedidos del vendedor
+    const cargarPedidosVendedor = async (fecha, idVendedor) => {
+        try {
+            console.log(`📦 Cargando pedidos para ${idVendedor} en fecha ${fecha}`);
+
+            // Formatear fecha a YYYY-MM-DD
+            let fechaFormateada;
+            if (fecha instanceof Date) {
+                const year = fecha.getFullYear();
+                const month = String(fecha.getMonth() + 1).padStart(2, '0');
+                const day = String(fecha.getDate()).padStart(2, '0');
+                fechaFormateada = `${year}-${month}-${day}`;
+            } else {
+                fechaFormateada = fecha;
+            }
+
+            // Cargar todos los pedidos
+            const response = await fetch('http://localhost:8000/api/pedidos/');
+            if (!response.ok) {
+                console.warn('⚠️ No se pudieron cargar pedidos');
+                return 0;
+            }
+
+            const pedidos = await response.json();
+            console.log(`✅ Pedidos cargados:`, pedidos.length);
+
+            // 🚀 NUEVO: Obtener el nombre del vendedor desde responsableStorage
+            const { responsableStorage } = await import('../../utils/responsableStorage');
+            const nombreVendedor = responsableStorage.get(idVendedor);
+            console.log(`📋 Nombre del vendedor ${idVendedor}: "${nombreVendedor}"`);
+
+            // Filtrar pedidos por fecha de entrega y vendedor
+            const pedidosFiltrados = pedidos.filter(pedido => {
+                const coincideFecha = pedido.fecha_entrega === fechaFormateada;
+
+                // 🚀 CORREGIDO: Buscar por nombre del vendedor desde responsableStorage
+                let coincideVendedor = false;
+                if (pedido.vendedor) {
+                    // Opción 1: El pedido tiene formato "Nombre (ID1)"
+                    if (pedido.vendedor.includes(`(${idVendedor})`)) {
+                        coincideVendedor = true;
+                    }
+                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable
+                    else if (nombreVendedor && pedido.vendedor.trim() === nombreVendedor.trim()) {
+                        coincideVendedor = true;
+                    }
+                }
+
+                if (coincideFecha && coincideVendedor) {
+                    console.log(`✅ Pedido encontrado:`, pedido.numero_pedido, pedido.vendedor, pedido.total);
+                }
+
+                return coincideFecha && coincideVendedor;
+            });
+
+            // Sumar el total de los pedidos
+            const totalPedidos = pedidosFiltrados.reduce((sum, pedido) => {
+                return sum + parseFloat(pedido.total || 0);
+            }, 0);
+
+            console.log(`💰 Total pedidos para ${idVendedor}: $${totalPedidos}`);
+            return totalPedidos;
+
+        } catch (error) {
+            console.error('❌ Error cargando pedidos:', error);
+            return 0;
+        }
+    };
+
     // 🚀 MEJORADA: Cargar datos desde la BD cuando está COMPLETADO
     const cargarDatosDesdeDB = async () => {
         try {
@@ -307,11 +376,13 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosDesdeDB.length} productos`);
                 setProductosOperativos(productosDesdeDB);
 
-                // 🚀 SIMPLIFICADO: Usar directamente los valores conocidos de BD (igual que el botón que funciona)
+                // 🚀 CORREGIDO: Calcular totalPedidos real desde la BD
                 const totalNeto = productosDesdeDB.reduce((sum, p) => sum + (p.neto || 0), 0);
+                const totalPedidosReal = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
+
                 const valoresForzados = {
                     totalDespacho: totalNeto,
-                    totalPedidos: 0,
+                    totalPedidos: totalPedidosReal,
                     totalDctos: 4000,
                     venta: 117000,
                     totalEfectivo: 96000,
@@ -383,10 +454,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     'AREPA TIPO OBLEA 500Gr',
                     'AREPA MEDIANA 330Gr',
                     'AREPA TIPO PINCHO 330Gr',
-                    'AREPA QUESO ESPECIAL GRANDE 600Gr',
-                    'AREPA CON QUESO CUADRADA 450Gr',
-                    'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
                     'AREPA QUESO CORRIENTE 450Gr',
+                    'AREPA QUESO ESPECIAL GRANDE 600Gr',
+                    'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
+                    'AREPA QUESO MINI X10',
+                    'AREPA CON QUESO CUADRADA 450Gr',
                     'AREPA BOYACENSE X 10',
                     'ALMOJABANA X 5 300Gr',
                     'AREPA SANTANDEREANA 450Gr',
@@ -396,8 +468,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
                     'AREPA DE CHOCLO CORRIENTE 300Gr',
                     'AREPA BOYACENSE X 5 450Gr',
-                    'ALMOJABANAS X 10 600Gr',
-                    'AREPA QUESO MINI X10'
+                    'ALMOJABANAS X 10 600Gr'
                 ];
 
                 // ✅ CARGA DIRECTA: Si no hay contexto válido, usar datos de localStorage tal como están
@@ -503,21 +574,21 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 'AREPA TIPO OBLEA 500Gr',
                 'AREPA MEDIANA 330Gr',
                 'AREPA TIPO PINCHO 330Gr',
-                'AREPA QUESO ESPECIAL GRANDE 600Gr',
-                'AREPA CON QUESO CUADRADA 450Gr',
-                'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
                 'AREPA QUESO CORRIENTE 450Gr',
+                'AREPA QUESO ESPECIAL GRANDE 600Gr',
+                'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
+                'AREPA QUESO MINI X10',
+                'AREPA CON QUESO CUADRADA 450Gr',
+                'AREPA DE CHOCLO CORRIENTE 300Gr',
+                'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
                 'AREPA BOYACENSE X 10',
                 'ALMOJABANA X 5 300Gr',
                 'AREPA SANTANDEREANA 450Gr',
                 'AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr',
                 'AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr',
                 'AREPA CON SEMILLA DE QUINUA 450Gr',
-                'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
-                'AREPA DE CHOCLO CORRIENTE 300Gr',
                 'AREPA BOYACENSE X 5 450Gr',
-                'ALMOJABANAS X 10 600Gr',
-                'AREPA QUESO MINI X10'
+                'ALMOJABANAS X 10 600Gr'
             ];
 
             const productosOrdenados = [...products].sort((a, b) => {
@@ -581,6 +652,23 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     }, []); // Solo al montar
 
+    // 🚀 NUEVO: Cargar pedidos del vendedor cuando cambia la fecha
+    useEffect(() => {
+        const cargarYActualizarPedidos = async () => {
+            const totalPedidos = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
+
+            // Actualizar solo el campo totalPedidos sin afectar otros valores
+            setDatosResumen(prev => ({
+                ...prev,
+                totalPedidos: totalPedidos
+            }));
+        };
+
+        if (fechaSeleccionada && idSheet) {
+            cargarYActualizarPedidos();
+        }
+    }, [fechaSeleccionada, idSheet]);
+
     // ✅ RECALCULAR RESUMEN: Cuando cambian los productos operativos (solo si NO está completado)
     useEffect(() => {
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
@@ -598,7 +686,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             const nuevosResumen = {
                 totalDespacho: totalNeto,
-                totalPedidos: 0,
+                totalPedidos: datosResumen.totalPedidos, // Mantener el valor de pedidos cargado
                 totalDctos: 0,
                 venta: totalNeto,
                 totalEfectivo: totalNeto,
@@ -766,7 +854,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             console.log(`✅ Datos actualizados para ${idSheet} en contexto.`);
 
             const fechaAUsar = fechaSeleccionada;
-            
+
             // 🚀 USAR SERVICIO HÍBRIDO CON DEBOUNCE
             if (cargueApiConfig.USAR_API) {
                 console.log(`🚀 Usando servicio híbrido con debounce para ${idSheet}`);

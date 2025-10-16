@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Button } from "react-bootstrap";
-import { useCajeroRemisiones } from "../../context/CajeroRemisionesContext";
+import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
 import SyncButton from "./SyncButton";
 import LoginCajeroModal from "./LoginCajeroModal";
 
 export default function Topbar() {
-    const { getTopbarInfo, isAuthenticated, cajeroLogueado } = useCajeroRemisiones();
+    const { getTopbarInfo, isAuthenticated, cajeroLogueado } = useCajeroPedidos();
     const [showLoginModal, setShowLoginModal] = useState(false);
 
     const topbarInfo = getTopbarInfo();

@@ -16,15 +16,15 @@ const VendedoresScreen = () => {
 
   useEffect(() => {
     cargarVendedores();
-    
+
     // Escuchar cambios de responsables desde Cargue
     const handleResponsableUpdate = () => {
       console.log('🔄 Responsable actualizado, recargando vendedores...');
       cargarVendedores();
     };
-    
+
     window.addEventListener('responsableActualizado', handleResponsableUpdate);
-    
+
     return () => {
       window.removeEventListener('responsableActualizado', handleResponsableUpdate);
     };
@@ -32,47 +32,47 @@ const VendedoresScreen = () => {
 
   const cargarVendedores = async () => {
     try {
-      // Cargar vendedores desde la API de Cargue
-      const promesas = idsDisponibles.map(async (id) => {
-        try {
-          const response = await fetch(`http://localhost:8000/api/vendedores/obtener_responsable/?id_vendedor=${id}`);
-          if (response.ok) {
-            const data = await response.json();
-            return {
-              id: id,
-              nombre: data.responsable || 'RESPONSABLE',
-              idVendedor: id,
-              ruta: data.ruta || 'Sin ruta',
-              fechaCreacion: data.fecha_creacion || new Date().toISOString()
-            };
-          }
-          // Si falla la API, crear vendedor por defecto
-          return {
-            id: id,
-            nombre: 'RESPONSABLE',
-            idVendedor: id,
-            ruta: 'Sin ruta',
-            fechaCreacion: new Date().toISOString()
-          };
-        } catch (error) {
-          console.error(`Error cargando ${id}:`, error);
-          // Si hay error, crear vendedor por defecto
-          return {
-            id: id,
-            nombre: 'RESPONSABLE',
-            idVendedor: id,
-            ruta: 'Sin ruta',
-            fechaCreacion: new Date().toISOString()
-          };
-        }
-      });
+      // 🚀 CORREGIDO: Cargar vendedores desde la API correcta
+      const response = await fetch('http://localhost:8000/api/vendedores/');
 
-      const resultados = await Promise.all(promesas);
-      // Mostrar TODOS los vendedores, incluso los que tienen RESPONSABLE
-      setVendedores(resultados);
-      console.log('✅ Vendedores cargados:', resultados);
+      if (response.ok) {
+        const vendedoresDB = await response.json();
+        console.log('✅ Vendedores desde BD:', vendedoresDB);
+
+        // Mapear los vendedores de la BD al formato esperado
+        const vendedoresFormateados = vendedoresDB.map(v => ({
+          id: v.id_vendedor,
+          nombre: v.nombre,
+          idVendedor: v.id_vendedor,
+          ruta: v.ruta || 'Sin ruta',
+          fechaCreacion: v.fecha_creacion
+        }));
+
+        setVendedores(vendedoresFormateados);
+        console.log('✅ Vendedores formateados:', vendedoresFormateados);
+      } else {
+        console.error('❌ Error cargando vendedores desde BD');
+        // Fallback: crear vendedores por defecto
+        const vendedoresPorDefecto = idsDisponibles.map(id => ({
+          id: id,
+          nombre: 'RESPONSABLE',
+          idVendedor: id,
+          ruta: 'Sin ruta',
+          fechaCreacion: new Date().toISOString()
+        }));
+        setVendedores(vendedoresPorDefecto);
+      }
     } catch (error) {
       console.error('Error cargando vendedores:', error);
+      // Fallback: crear vendedores por defecto
+      const vendedoresPorDefecto = idsDisponibles.map(id => ({
+        id: id,
+        nombre: 'RESPONSABLE',
+        idVendedor: id,
+        ruta: 'Sin ruta',
+        fechaCreacion: new Date().toISOString()
+      }));
+      setVendedores(vendedoresPorDefecto);
     }
   };
 
@@ -126,11 +126,11 @@ const VendedoresScreen = () => {
     }
 
     // Verificar si el ID ya está en uso (solo al crear o cambiar ID)
-    const idEnUso = vendedores.some(v => 
-      v.idVendedor === formData.idVendedor && 
+    const idEnUso = vendedores.some(v =>
+      v.idVendedor === formData.idVendedor &&
       (!editingVendedor || editingVendedor.id !== v.id)
     );
-    
+
     if (idEnUso) {
       setError(`El ${formData.idVendedor} ya está asignado a otro vendedor`);
       return false;
@@ -218,8 +218,8 @@ const VendedoresScreen = () => {
     <div className="container-fluid mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Vendedores</h2>
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           onClick={() => abrirModal()}
           style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
         >
@@ -289,7 +289,7 @@ const VendedoresScreen = () => {
         </Modal.Header>
         <Modal.Body>
           {error && <Alert variant="danger">{error}</Alert>}
-          
+
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Nombre *</Form.Label>
@@ -341,8 +341,8 @@ const VendedoresScreen = () => {
           <Button variant="secondary" onClick={cerrarModal}>
             Cancelar
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={guardarVendedor}
             style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
           >

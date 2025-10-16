@@ -43,6 +43,13 @@ const ClientesScreen = () => {
     sucursal: 'Todas',
     medio_pago_defecto: '',
     nota: '',
+    tipo_lista_precio: '',
+    vendedor_asignado: '',
+    centro_costo: '',
+    dia_entrega: '',
+    notificar_cartera: false,
+    notificar_rotacion: false,
+    cliente_predeterminado: false,
     permite_venta_credito: false,
     cupo_endeudamiento: 0,
     dias_vencimiento_cartera: 30,
@@ -120,6 +127,13 @@ const ClientesScreen = () => {
       sucursal: 'Todas',
       medio_pago_defecto: '',
       nota: '',
+      tipo_lista_precio: '',
+      vendedor_asignado: '',
+      centro_costo: '',
+      dia_entrega: '',
+      notificar_cartera: false,
+      notificar_rotacion: false,
+      cliente_predeterminado: false,
       permite_venta_credito: false,
       cupo_endeudamiento: 0,
       dias_vencimiento_cartera: 30,
@@ -168,48 +182,48 @@ const ClientesScreen = () => {
             {/* Navegación de Pestañas */}
             <Nav variant="tabs" className="mb-3">
               <Nav.Item>
-                <Nav.Link 
-                  active={activeTab === 'informacionBasica'} 
+                <Nav.Link
+                  active={activeTab === 'informacionBasica'}
                   onClick={() => setActiveTab('informacionBasica')}
                 >
                   <i className="bi bi-person-lines-fill me-2"></i>Información Básica
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link 
-                  active={activeTab === 'datosGeograficos'} 
+                <Nav.Link
+                  active={activeTab === 'datosGeograficos'}
                   onClick={() => setActiveTab('datosGeograficos')}
                 >
                   <i className="bi bi-geo-alt-fill me-2"></i>Datos Geográficos
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link 
-                  active={activeTab === 'detalles'} 
+                <Nav.Link
+                  active={activeTab === 'detalles'}
                   onClick={() => setActiveTab('detalles')}
                 >
                   <i className="bi bi-list-check me-2"></i>Detalles
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link 
-                  active={activeTab === 'configuracion'} 
+                <Nav.Link
+                  active={activeTab === 'configuracion'}
                   onClick={() => setActiveTab('configuracion')}
                 >
                   <i className="bi bi-gear-fill me-2"></i>Configuración
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link 
-                  active={activeTab === 'saldos'} 
+                <Nav.Link
+                  active={activeTab === 'saldos'}
                   onClick={() => setActiveTab('saldos')}
                 >
                   <i className="bi bi-currency-dollar me-2"></i>Saldos
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
-                <Nav.Link 
-                  active={activeTab === 'contactos'} 
+                <Nav.Link
+                  active={activeTab === 'contactos'}
                   onClick={() => setActiveTab('contactos')}
                 >
                   <i className="bi bi-person-rolodex me-2"></i>Contactos
@@ -223,16 +237,16 @@ const ClientesScreen = () => {
                 {renderTabContent()}
               </Card.Body>
             </Card>
-            
+
             {/* Botones de Acción */}
             <div className="mt-4 d-flex justify-content-between align-items-center">
               <div>
-                <Form.Check 
-                  type="checkbox" 
-                  id="activar" 
+                <Form.Check
+                  type="checkbox"
+                  id="activar"
                   label="Activar / Inactivar"
                   checked={clienteData.activo}
-                  onChange={(e) => setClienteData({...clienteData, activo: e.target.checked})}
+                  onChange={(e) => setClienteData({ ...clienteData, activo: e.target.checked })}
                   className="d-inline-block me-3"
                 />
               </div>
