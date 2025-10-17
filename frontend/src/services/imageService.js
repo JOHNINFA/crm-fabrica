@@ -4,7 +4,7 @@
  * Este servicio maneja la carga y sincronización de imágenes entre localStorage y el backend.
  */
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Convierte una URL de datos (base64) a un objeto File
 const dataURLtoFile = (dataUrl, filename) => {

@@ -1,7 +1,7 @@
 // 🚀 SERVICIO ADAPTADO - MANTIENE LA MISMA INTERFAZ CON NUEVOS ENDPOINTS
 // Migrado automáticamente para usar las nuevas tablas simplificadas
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Mapeo de IDs a endpoints nuevos
 const ENDPOINT_MAP = {
@@ -282,6 +282,7 @@ export const cargueService = {
             v: producto.vendedor || false,
             d: producto.despachador || false,
             lotes_vencidos: JSON.stringify(producto.lotes_vencidos || []),
+            lotes_produccion: JSON.stringify(datosParaGuardar.lotes_produccion || []), // 🚀 NUEVO: Lotes de producción del día
             
             // ✅ Datos de pagos (estructura corregida)
             ...(datosParaGuardar.pagos && {

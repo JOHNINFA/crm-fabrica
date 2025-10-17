@@ -515,12 +515,13 @@ Usuario hace clic en "Crear Pedido"
 → Se guarda en BD con fecha_entrega seleccionada
 ```
 
-#### 4. Integración con Planeación
+#### 4. Integración con Planeación y Cargue
 ```
-Pedido guardado → Planeación carga pedidos por fecha
-→ Suma cantidades por producto
-→ Muestra en columna "Pedidos"
-→ Total = Solicitadas + Pedidos
+Pedido guardado → Actualiza automáticamente:
+  1. Planeación: Suma cantidades en columna "Pedidos"
+  2. Cargue: Suma dinero en "Total Pedidos"
+→ Total Planeación = Solicitadas + Pedidos
+→ Total Efectivo Cargue = Venta - Total Pedidos
 ```
 
 ### Estructura de Base de Datos
@@ -747,6 +748,356 @@ const pedidoData = {
     cantidad: item.qty,
     precio_unitario: parseFloat(item.price)  // Importante: convertir a número
   }))
+};
+
+// Crear el pedido
+const result = await pedidoService.create(pedidoData);
+```
+
+---
+
+### LÓGICA DE BACKEND - CREACIÓN Y ANULACIÓN DE PEDIDOS
+
+#### 📝 Creación de Pedidos (PedidoSerializer.create)
+
+**Ubicación:** `api/serializers.py` - Líneas 487-575
+
+**Flujo completo:**
+
+```python
+def create(self, validated_data):
+    from django.db import transaction
+    
+    # Extraer detalles del request
+    detalles_data = self.context['request'].data.get('detalles', [])
+    
+    with transaction.atomic():
+        # 1️⃣ CREAR EL PEDIDO
+        pedido = Pedido.objects.create(**validated_data)
+        
+        # 2️⃣ CREAR LOS DETALLES
+        for detalle_data in detalles_data:
+            DetallePedido.objects.create(
+                pedido=pedido,
+                producto_id=detalle_data['producto'],
+                cantidad=detalle_data['cantidad'],
+                precio_unitario=detalle_data['precio_unitario']
+            )
+        
+        # 3️⃣ ACTUALIZAR PLANEACIÓN (si hay fecha_entrega)
+        if pedido.fecha_entrega:
+            for detalle_data in detalles_data:
+                producto = Producto.objects.get(id=detalle_data['producto'])
+                
+                # Buscar o crear registro en Planeación
+                planeacion, created = Planeacion.objects.get_or_create(
+                    fecha=pedido.fecha_entrega,
+                    producto_nombre=producto.nombre,
+                    defaults={
+                        'existencias': 0,
+                        'solicitadas': 0,
+                        'pedidos': 0,
+                        'orden': 0,
+                        'ia': 0,
+                        'usuario': 'Sistema'
+                    }
+                )
+                
+                # ✅ SUMAR la cantidad del pedido
+                planeacion.pedidos += detalle_data['cantidad']
+                planeacion.save()  # El total se calcula automáticamente
+        
+        # 4️⃣ ACTUALIZAR CARGUE (si hay fecha_entrega y vendedor)
+        if pedido.fecha_entrega and pedido.vendedor:
+            cargue_models = [CargueID1, CargueID2, CargueID3, 
+                           CargueID4, CargueID5, CargueID6]
+            
+            for CargueModel in cargue_models:
+                cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
+                
+                for cargue in cargues:
+                    # Verificar si el vendedor coincide con el responsable
+                    if pedido.vendedor.lower() in cargue.responsable.lower():
+                        # ✅ SUMAR al total_pedidos
+                        cargue.total_pedidos = float(cargue.total_pedidos or 0) + float(pedido.total)
+                        
+                        # Recalcular total_efectivo
+                        if cargue.venta and cargue.total_pedidos:
+                            cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                        
+                        cargue.save()
+                        break  # Solo actualizar un cargue por modelo
+    
+    return pedido
+```
+
+**Puntos clave:**
+- ✅ Usa transacciones atómicas para garantizar consistencia
+- ✅ Crea el pedido y sus detalles
+- ✅ Actualiza automáticamente Planeación (suma cantidades)
+- ✅ Actualiza automáticamente Cargue (suma dinero)
+- ✅ El modelo Planeacion recalcula `total = solicitadas + pedidos` automáticamente
+
+---
+
+#### 🔄 Anulación de Pedidos (PedidoViewSet.anular)
+
+**Ubicación:** `api/views.py` - Líneas 1270-1400
+
+**Endpoint:** `POST /api/pedidos/{id}/anular/`
+
+**Flujo completo:**
+
+```python
+@action(detail=True, methods=['post'])
+def anular(self, request, pk=None):
+    """Anular pedido y revertir en Planeación y Cargue"""
+    pedido = self.get_object()
+    
+    if pedido.estado == 'ANULADA':
+        return Response({'detail': 'El pedido ya está anulado'})
+    
+    with transaction.atomic():
+        # 1️⃣ CAMBIAR ESTADO DEL PEDIDO
+        estado_anterior = pedido.estado
+        pedido.estado = 'ANULADA'
+        motivo = request.data.get('motivo', 'Anulado desde gestión de pedidos')
+        pedido.nota = f"{pedido.nota or ''}\n[ANULADO] {motivo} - {timezone.now()}"
+        pedido.save()
+        
+        # 2️⃣ REVERTIR EN PLANEACIÓN
+        if pedido.fecha_entrega:
+            for detalle in pedido.detalles.all():
+                planeacion = Planeacion.objects.filter(
+                    fecha=pedido.fecha_entrega,
+                    producto_nombre=detalle.producto.nombre
+                ).first()
+                
+                if planeacion:
+                    # ✅ RESTAR la cantidad del pedido anulado
+                    planeacion.pedidos = max(0, planeacion.pedidos - detalle.cantidad)
+                    planeacion.save()  # El total se recalcula automáticamente
+        
+        # 3️⃣ REVERTIR EN CARGUE
+        if pedido.fecha_entrega and pedido.vendedor:
+            cargue_models = [
+                ('ID1', CargueID1), ('ID2', CargueID2), ('ID3', CargueID3),
+                ('ID4', CargueID4), ('ID5', CargueID5), ('ID6', CargueID6)
+            ]
+            
+            for id_cargue, CargueModel in cargue_models:
+                cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
+                
+                for cargue in cargues:
+                    if pedido.vendedor.lower() in cargue.responsable.lower():
+                        # ✅ RESTAR el total_pedidos (devolver el dinero)
+                        cargue.total_pedidos = max(0, float(cargue.total_pedidos or 0) - float(pedido.total))
+                        
+                        # Recalcular total_efectivo
+                        if cargue.venta and cargue.total_pedidos:
+                            cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                        
+                        cargue.save()
+                        break
+        
+        return Response({
+            'success': True,
+            'message': 'Pedido anulado exitosamente',
+            'pedido': serializer.data
+        })
+```
+
+**Puntos clave:**
+- ✅ Cambia el estado a 'ANULADA'
+- ✅ Revierte las cantidades en Planeación (resta)
+- ✅ Revierte el dinero en Cargue (resta)
+- ✅ Usa transacciones atómicas
+- ✅ Agrega nota con motivo y fecha de anulación
+
+---
+
+#### 🔍 Filtrado de Pedidos Anulados en Frontend
+
+**Problema resuelto:** Los pedidos anulados se estaban sumando en Planeación y Cargue
+
+**Solución implementada:**
+
+**1. En Planeación (InventarioPlaneacion.jsx):**
+```javascript
+// Filtrar pedidos por fecha de entrega Y excluir anulados
+const pedidosFecha = pedidos.filter(p => 
+  p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
+);
+```
+
+**2. En Cargue (PlantillaOperativa.jsx):**
+```javascript
+// Filtrar pedidos por fecha de entrega, vendedor Y excluir anulados
+const pedidosFiltrados = pedidos.filter(pedido => {
+  const coincideFecha = pedido.fecha_entrega === fechaFormateada;
+  const noAnulado = pedido.estado !== 'ANULADA';  // ✅ NUEVO
+  const coincideVendedor = /* lógica de coincidencia */;
+  
+  return coincideFecha && coincideVendedor && noAnulado;
+});
+```
+
+**Resultado:**
+- ✅ Planeación solo muestra cantidades de pedidos activos
+- ✅ Cargue solo suma dinero de pedidos activos
+- ✅ Los pedidos anulados no afectan los cálculos
+
+---
+
+### INTEGRACIÓN COMPLETA: PEDIDOS ↔ PLANEACIÓN ↔ CARGUE
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CREAR PEDIDO                             │
+│                                                             │
+│  Frontend (PaymentModal.jsx)                                │
+│    ↓                                                        │
+│  POST /api/pedidos/                                         │
+│    ↓                                                        │
+│  Backend (PedidoSerializer.create)                          │
+│    ├─→ 1. Crear Pedido en BD                               │
+│    ├─→ 2. Crear DetallePedido                              │
+│    ├─→ 3. Actualizar Planeación (suma cantidades)          │
+│    └─→ 4. Actualizar Cargue (suma dinero)                  │
+│                                                             │
+│  Resultado:                                                 │
+│    ✅ Pedido guardado con estado PENDIENTE                  │
+│    ✅ Planeación.pedidos += cantidad                        │
+│    ✅ Cargue.total_pedidos += total                         │
+│    ✅ Cargue.total_efectivo = venta - total_pedidos         │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    ANULAR PEDIDO                            │
+│                                                             │
+│  Frontend (PedidosDiaScreen.jsx)                            │
+│    ↓                                                        │
+│  POST /api/pedidos/{id}/anular/                             │
+│    ↓                                                        │
+│  Backend (PedidoViewSet.anular)                             │
+│    ├─→ 1. Cambiar estado a ANULADA                         │
+│    ├─→ 2. Revertir Planeación (resta cantidades)           │
+│    └─→ 3. Revertir Cargue (resta dinero)                   │
+│                                                             │
+│  Resultado:                                                 │
+│    ✅ Pedido.estado = 'ANULADA'                             │
+│    ✅ Planeación.pedidos -= cantidad                        │
+│    ✅ Cargue.total_pedidos -= total                         │
+│    ✅ Cargue.total_efectivo = venta - total_pedidos         │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                 VISUALIZACIÓN EN PLANEACIÓN                 │
+│                                                             │
+│  Frontend (InventarioPlaneacion.jsx)                        │
+│    ↓                                                        │
+│  GET /api/pedidos/?fecha_entrega={fecha}                    │
+│    ↓                                                        │
+│  Filtrar: estado !== 'ANULADA'  ← ✅ IMPORTANTE             │
+│    ↓                                                        │
+│  Sumar cantidades por producto                              │
+│    ↓                                                        │
+│  Mostrar en columna "Pedidos"                               │
+│                                                             │
+│  Total = Solicitadas + Pedidos                              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                  VISUALIZACIÓN EN CARGUE                    │
+│                                                             │
+│  Frontend (PlantillaOperativa.jsx)                          │
+│    ↓                                                        │
+│  GET /api/pedidos/?fecha_entrega={fecha}                    │
+│    ↓                                                        │
+│  Filtrar: estado !== 'ANULADA' + vendedor  ← ✅ IMPORTANTE  │
+│    ↓                                                        │
+│  Sumar totales por vendedor                                 │
+│    ↓                                                        │
+│  Mostrar en "TOTAL PEDIDOS"                                 │
+│                                                             │
+│  Total Efectivo = Venta - Total Pedidos                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### CASOS DE USO Y EJEMPLOS
+
+#### Caso 1: Crear Pedido Normal
+```
+1. Usuario selecciona SABADO en selector de días
+2. Sistema muestra clientes con dia_entrega = SABADO
+3. Usuario hace clic en "Crear Pedido" para PRUEBA3
+4. Sistema precarga datos del cliente
+5. Usuario agrega productos:
+   - AREPA TIPO OBLEA 500Gr x1 = $2,500
+   - AREPA MEDIANA 330Gr x1 = $2,000
+6. Usuario confirma pedido
+7. Sistema:
+   ✅ Crea PED-000011 con total $4,500
+   ✅ Suma en Planeación: AREPA TIPO OBLEA +1, AREPA MEDIANA +1
+   ✅ Suma en Cargue ID1 (Carlos): total_pedidos +$4,500
+```
+
+#### Caso 2: Anular Pedido
+```
+1. Usuario ve pedido PED-000011 en estado "Realizado"
+2. Usuario hace clic en botón "Anular"
+3. Sistema confirma anulación
+4. Sistema:
+   ✅ Cambia estado a ANULADA
+   ✅ Resta en Planeación: AREPA TIPO OBLEA -1, AREPA MEDIANA -1
+   ✅ Resta en Cargue ID1 (Carlos): total_pedidos -$4,500
+5. Usuario recarga página
+6. Sistema muestra pedido en estado "Pendiente" (porque está anulado)
+```
+
+#### Caso 3: Pedido Duplicado (Error Común)
+```
+Problema: Usuario crea 2 pedidos para el mismo cliente y fecha
+Resultado: Ambos se suman en Planeación y Cargue
+
+Solución: Validar en frontend antes de crear
+- Verificar si ya existe pedido activo para ese cliente y fecha
+- Mostrar advertencia si existe
+```
+
+---
+
+### TROUBLESHOOTING
+
+#### Problema: Pedidos anulados se siguen sumando
+**Causa:** Frontend no filtra por estado
+**Solución:** Agregar filtro `pedido.estado !== 'ANULADA'` en:
+- `InventarioPlaneacion.jsx` (línea ~48)
+- `PlantillaOperativa.jsx` (línea ~227)
+
+#### Problema: Total de pedidos duplicado en Cargue
+**Causa:** Múltiples registros de Cargue para la misma fecha
+**Solución:** El código ya tiene `break` para solo actualizar un registro por modelo
+
+#### Problema: Pedido no aparece en Planeación
+**Causa:** Fecha de entrega no coincide con fecha seleccionada
+**Solución:** Verificar que `pedido.fecha_entrega` sea igual a la fecha en Planeación
+
+#### Problema: Pedido no suma en Cargue
+**Causa:** Nombre del vendedor no coincide con responsable
+**Solución:** Verificar que `pedido.vendedor` contenga el nombre del responsable en Cargue
+
+---
+
+### MEJORAS FUTURAS
+
+1. **Validación de duplicados:** Evitar crear múltiples pedidos para el mismo cliente y fecha
+2. **Historial de anulaciones:** Guardar log de quién anuló y por qué
+3. **Notificaciones:** Alertar al vendedor cuando se crea/anula un pedido
+4. **Reportes:** Dashboard con estadísticas de pedidos por vendedor/fecha
+5. **Exportación:** Generar PDF/Excel de pedidos del día
 };
 
 const result = await remisionService.create(pedidoData);

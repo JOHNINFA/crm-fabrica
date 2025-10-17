@@ -391,3 +391,462 @@ class Remision(models.Model):
 ---
 
 *Continúa en DOCUMENTACION_FRONTEND_COMPLETA.md*
+
+
+---
+
+## SISTEMA DE GESTIÓN DE PEDIDOS
+
+### Descripción General
+Sistema completo para gestionar pedidos de clientes con integración automática a Planeación de Inventario y Cargue de Vendedores.
+
+### Modelos
+
+#### Pedido
+```python
+class Pedido(models.Model):
+    """Modelo para gestionar pedidos de clientes"""
+    
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('PAGADO', 'Pagado'),
+        ('CANCELADO', 'Cancelado'),
+        ('ANULADA', 'Anulada'),
+    ]
+    
+    TIPO_PEDIDO_CHOICES = [
+        ('ENTREGA', 'Entrega'),
+        ('TRASLADO', 'Traslado'),
+        ('DEVOLUCION', 'Devolución'),
+        ('MUESTRA', 'Muestra'),
+    ]
+    
+    # Información básica
+    numero_pedido = models.CharField(max_length=50, unique=True)  # PED-000001
+    fecha = models.DateTimeField(default=timezone.now)
+    vendedor = models.CharField(max_length=100)
+    destinatario = models.CharField(max_length=255)
+    
+    # Información de entrega
+    direccion_entrega = models.TextField()
+    telefono_contacto = models.CharField(max_length=20, blank=True, null=True)
+    fecha_entrega = models.DateField(null=True, blank=True)  # ← CLAVE para Planeación
+    
+    # Clasificación
+    tipo_pedido = models.CharField(max_length=20, choices=TIPO_PEDIDO_CHOICES, default='ENTREGA')
+    transportadora = models.CharField(max_length=100, default='Propia')
+    
+    # Totales
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    impuestos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Estado y control
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
+    nota = models.TextField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+```
+
+#### DetallePedido
+```python
+class DetallePedido(models.Model):
+    """Modelo para detalles de productos en pedidos"""
+    
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='detalles')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    def save(self, *args, **kwargs):
+        # Calcular subtotal automáticamente
+        self.subtotal = self.cantidad * self.precio_unitario
+        super().save(*args, **kwargs)
+```
+
+---
+
+### Serializers
+
+#### PedidoSerializer
+**Ubicación:** `api/serializers.py`
+
+**Función:** Serializa pedidos y maneja la lógica de creación con integración a Planeación y Cargue
+
+```python
+class PedidoSerializer(serializers.ModelSerializer):
+    """Serializer para pedidos con integración automática"""
+    detalles = DetallePedidoSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Pedido
+        fields = [
+            'id', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
+            'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
+            'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
+            'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
+            'fecha_actualizacion', 'detalles'
+        ]
+        read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
+    
+    def create(self, validated_data):
+        """
+        Crea un pedido y actualiza automáticamente:
+        1. Planeación: Suma cantidades en columna 'pedidos'
+        2. Cargue: Suma dinero en 'total_pedidos'
+        """
+        from django.db import transaction
+        
+        detalles_data = self.context['request'].data.get('detalles', [])
+        
+        with transaction.atomic():
+            # 1. Crear el pedido
+            pedido = Pedido.objects.create(**validated_data)
+            
+            # 2. Crear los detalles
+            for detalle_data in detalles_data:
+                DetallePedido.objects.create(
+                    pedido=pedido,
+                    producto_id=detalle_data['producto'],
+                    cantidad=detalle_data['cantidad'],
+                    precio_unitario=detalle_data['precio_unitario']
+                )
+            
+            # 3. Actualizar Planeación
+            if pedido.fecha_entrega:
+                from .models import Planeacion, Producto
+                
+                for detalle_data in detalles_data:
+                    producto = Producto.objects.get(id=detalle_data['producto'])
+                    
+                    planeacion, created = Planeacion.objects.get_or_create(
+                        fecha=pedido.fecha_entrega,
+                        producto_nombre=producto.nombre,
+                        defaults={
+                            'existencias': 0,
+                            'solicitadas': 0,
+                            'pedidos': 0,
+                            'orden': 0,
+                            'ia': 0,
+                            'usuario': 'Sistema'
+                        }
+                    )
+                    
+                    # ✅ SUMAR cantidad
+                    planeacion.pedidos += detalle_data['cantidad']
+                    planeacion.save()
+            
+            # 4. Actualizar Cargue
+            if pedido.fecha_entrega and pedido.vendedor:
+                from .models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
+                
+                cargue_models = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+                
+                for CargueModel in cargue_models:
+                    cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
+                    
+                    for cargue in cargues:
+                        if hasattr(cargue, 'responsable') and cargue.responsable:
+                            if pedido.vendedor.lower() in cargue.responsable.lower():
+                                # ✅ SUMAR dinero
+                                cargue.total_pedidos = float(cargue.total_pedidos or 0) + float(pedido.total)
+                                
+                                # Recalcular total_efectivo
+                                if hasattr(cargue, 'venta') and cargue.venta:
+                                    cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                                
+                                cargue.save()
+                                break
+        
+        return pedido
+```
+
+---
+
+### ViewSets
+
+#### PedidoViewSet
+**Ubicación:** `api/views.py`
+
+**Endpoints:**
+- `GET /api/pedidos/` - Listar todos los pedidos
+- `POST /api/pedidos/` - Crear nuevo pedido
+- `GET /api/pedidos/{id}/` - Obtener pedido específico
+- `PATCH /api/pedidos/{id}/` - Actualizar pedido
+- `DELETE /api/pedidos/{id}/` - Eliminar pedido
+- `POST /api/pedidos/{id}/anular/` - Anular pedido (custom action)
+
+```python
+class PedidoViewSet(viewsets.ModelViewSet):
+    """API para gestionar pedidos"""
+    queryset = Pedido.objects.all().order_by('-fecha_creacion')
+    serializer_class = PedidoSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        """Filtrar pedidos por parámetros"""
+        queryset = Pedido.objects.all().order_by('-fecha_creacion')
+        
+        # Filtros opcionales
+        destinatario = self.request.query_params.get('destinatario')
+        estado = self.request.query_params.get('estado')
+        fecha_desde = self.request.query_params.get('fecha_desde')
+        fecha_hasta = self.request.query_params.get('fecha_hasta')
+        transportadora = self.request.query_params.get('transportadora')
+        
+        if destinatario:
+            queryset = queryset.filter(destinatario__icontains=destinatario)
+        if estado:
+            queryset = queryset.filter(estado=estado.upper())
+        if fecha_desde:
+            queryset = queryset.filter(fecha__date__gte=fecha_desde)
+        if fecha_hasta:
+            queryset = queryset.filter(fecha__date__lte=fecha_hasta)
+        if transportadora:
+            queryset = queryset.filter(transportadora__icontains=transportadora)
+            
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def anular(self, request, pk=None):
+        """
+        Anular pedido y revertir cambios en Planeación y Cargue
+        
+        Proceso:
+        1. Cambiar estado a ANULADA
+        2. Restar cantidades en Planeación
+        3. Restar dinero en Cargue
+        4. Agregar nota con motivo y fecha
+        """
+        pedido = self.get_object()
+        
+        if pedido.estado == 'ANULADA':
+            return Response(
+                {'detail': 'El pedido ya está anulado'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            with transaction.atomic():
+                # 1. Cambiar estado
+                estado_anterior = pedido.estado
+                pedido.estado = 'ANULADA'
+                motivo = request.data.get('motivo', 'Anulado desde gestión de pedidos')
+                pedido.nota = f"{pedido.nota or ''}\n[ANULADO] Estado anterior: {estado_anterior} - {motivo} - {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+                pedido.save()
+                
+                # 2. Revertir en Planeación
+                if pedido.fecha_entrega:
+                    for detalle in pedido.detalles.all():
+                        planeacion = Planeacion.objects.filter(
+                            fecha=pedido.fecha_entrega,
+                            producto_nombre=detalle.producto.nombre
+                        ).first()
+                        
+                        if planeacion:
+                            # ✅ RESTAR cantidad
+                            planeacion.pedidos = max(0, planeacion.pedidos - detalle.cantidad)
+                            planeacion.save()
+                
+                # 3. Revertir en Cargue
+                if pedido.fecha_entrega and pedido.vendedor:
+                    cargue_models = [
+                        ('ID1', CargueID1), ('ID2', CargueID2), ('ID3', CargueID3),
+                        ('ID4', CargueID4), ('ID5', CargueID5), ('ID6', CargueID6)
+                    ]
+                    
+                    for id_cargue, CargueModel in cargue_models:
+                        cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
+                        
+                        for cargue in cargues:
+                            if hasattr(cargue, 'responsable') and cargue.responsable:
+                                if pedido.vendedor.lower() in cargue.responsable.lower():
+                                    # ✅ RESTAR dinero
+                                    cargue.total_pedidos = max(0, float(cargue.total_pedidos or 0) - float(pedido.total))
+                                    
+                                    # Recalcular total_efectivo
+                                    if hasattr(cargue, 'venta') and cargue.venta:
+                                        cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                                    
+                                    cargue.save()
+                                    break
+                
+                serializer = self.get_serializer(pedido)
+                return Response({
+                    'success': True,
+                    'message': 'Pedido anulado exitosamente',
+                    'pedido': serializer.data
+                })
+                
+        except Exception as e:
+            return Response(
+                {'detail': f'Error al anular pedido: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+```
+
+---
+
+### Integración con Planeación
+
+#### Modelo Planeacion
+```python
+class Planeacion(models.Model):
+    """Modelo para planeación de producción por fecha"""
+    
+    fecha = models.DateField()
+    producto_nombre = models.CharField(max_length=255)
+    
+    # Datos de planeación
+    existencias = models.IntegerField(default=0)
+    solicitadas = models.IntegerField(default=0)
+    pedidos = models.IntegerField(default=0)  # ← Se actualiza con pedidos
+    total = models.IntegerField(default=0)
+    orden = models.IntegerField(default=0)
+    ia = models.IntegerField(default=0)
+    
+    class Meta:
+        unique_together = ('fecha', 'producto_nombre')
+    
+    def save(self, *args, **kwargs):
+        # ✅ Calcular total automáticamente
+        self.total = self.solicitadas + self.pedidos
+        super().save(*args, **kwargs)
+```
+
+**Flujo:**
+1. Pedido se crea con `fecha_entrega = 2025-10-18`
+2. Serializer busca/crea registro en Planeacion para esa fecha y producto
+3. Suma cantidad en `planeacion.pedidos`
+4. Al guardar, `planeacion.total` se recalcula automáticamente
+
+---
+
+### Integración con Cargue
+
+#### Modelos CargueID1-ID6
+```python
+class CargueID1(models.Model):
+    """Modelo para cargue de vendedor ID1"""
+    
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    responsable = models.CharField(max_length=100, default='RESPONSABLE')
+    
+    # Resumen financiero
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # ← Se actualiza
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # ← Se recalcula
+```
+
+**Flujo:**
+1. Pedido se crea con `vendedor = "Carlos"` y `fecha_entrega = 2025-10-18`
+2. Serializer busca registros de Cargue para esa fecha
+3. Compara `pedido.vendedor` con `cargue.responsable`
+4. Si coincide, suma `pedido.total` a `cargue.total_pedidos`
+5. Recalcula `cargue.total_efectivo = venta - total_pedidos`
+
+---
+
+### Casos de Uso
+
+#### Crear Pedido
+```bash
+POST /api/pedidos/
+Content-Type: application/json
+
+{
+  "fecha": "2025-10-17T14:30:00",
+  "vendedor": "Carlos",
+  "destinatario": "PRUEBA3",
+  "direccion_entrega": "Cll 134 no18-20",
+  "telefono_contacto": "3001234567",
+  "fecha_entrega": "2025-10-18",
+  "tipo_pedido": "ENTREGA",
+  "transportadora": "Propia",
+  "subtotal": 4500.00,
+  "impuestos": 0.00,
+  "descuentos": 0.00,
+  "total": 4500.00,
+  "estado": "PENDIENTE",
+  "nota": "",
+  "detalles": [
+    {
+      "producto": 1,
+      "cantidad": 1,
+      "precio_unitario": 2500.00
+    },
+    {
+      "producto": 2,
+      "cantidad": 1,
+      "precio_unitario": 2000.00
+    }
+  ]
+}
+```
+
+**Resultado:**
+- ✅ Crea PED-000011
+- ✅ Planeación 2025-10-18: AREPA TIPO OBLEA +1, AREPA MEDIANA +1
+- ✅ Cargue ID1 (Carlos) 2025-10-18: total_pedidos +$4,500
+
+#### Anular Pedido
+```bash
+POST /api/pedidos/11/anular/
+Content-Type: application/json
+
+{
+  "motivo": "Cliente canceló el pedido"
+}
+```
+
+**Resultado:**
+- ✅ PED-000011.estado = 'ANULADA'
+- ✅ Planeación 2025-10-18: AREPA TIPO OBLEA -1, AREPA MEDIANA -1
+- ✅ Cargue ID1 (Carlos) 2025-10-18: total_pedidos -$4,500
+
+---
+
+### Consideraciones Importantes
+
+#### 1. Transacciones Atómicas
+Todas las operaciones usan `transaction.atomic()` para garantizar consistencia:
+- Si falla la actualización de Planeación, se revierte todo
+- Si falla la actualización de Cargue, se revierte todo
+
+#### 2. Filtrado de Pedidos Anulados
+El frontend DEBE filtrar pedidos anulados al calcular totales:
+```python
+pedidos_activos = pedidos.filter(estado__ne='ANULADA')
+```
+
+#### 3. Coincidencia de Vendedores
+La lógica busca coincidencia parcial (case-insensitive):
+```python
+if pedido.vendedor.lower() in cargue.responsable.lower():
+```
+
+#### 4. Cálculo Automático de Totales
+- `Planeacion.total` se calcula automáticamente en `save()`
+- `Cargue.total_efectivo` se calcula manualmente después de actualizar `total_pedidos`
+
+---
+
+### Troubleshooting
+
+#### Problema: Pedidos anulados se siguen sumando
+**Solución:** Verificar que el frontend filtre por `estado !== 'ANULADA'`
+
+#### Problema: Total duplicado en Cargue
+**Solución:** Verificar que solo haya un registro de Cargue por fecha y vendedor
+
+#### Problema: Pedido no aparece en Planeación
+**Solución:** Verificar que `fecha_entrega` coincida con la fecha seleccionada
+
+#### Problema: Pedido no suma en Cargue
+**Solución:** Verificar que `vendedor` coincida con `responsable` en Cargue

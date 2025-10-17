@@ -1,9 +1,10 @@
 // Servicio optimizado para llamadas API con caché inteligente
 import { apiCache, cachedFetch } from './apiCache';
+import { API_BASE_URL } from '../config/api';
 
 class OptimizedApiService {
   constructor() {
-    this.baseUrl = 'http://localhost:8000/api';
+    this.baseUrl = API_BASE_URL;
     this.requestQueue = new Map(); // Para evitar llamadas duplicadas
     this.batchQueue = new Map();   // Para agrupar llamadas similares
     this.batchTimeout = 100;       // 100ms para agrupar llamadas

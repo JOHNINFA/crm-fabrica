@@ -142,5 +142,30 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React en desarrollo
     "http://localhost:19006", # React Native con Expo, por ejemplo
+    "https://casteless-floodless-clement.ngrok-free.dev",  # ngrok
+    "https://crm-frontend.loca.lt",  # localtunnel frontend
+    "https://crm-backend.loca.lt",  # localtunnel backend
+    "https://08caf7062a800a3b0ef90c12356c97df.serveo.net",  # serveo backend current
+    "https://7e2df673004ea9662b956964d08a71ba.serveo.net",  # serveo frontend
+    "https://006cf2b77b37b2a1d5e40ee484d0d8ed.serveo.net",  # serveo frontend old
+    "https://eab2deebe213b9852ec8afe871145467.serveo.net",  # serveo backend old
+    "https://304e7bc66be9f18ca48e31a1d760746c.serveo.net",  # serveo frontend new
+    "https://a6b00d01111f194c2178501e3ee82d44.serveo.net",  # serveo backend new
+]
+
+# Permitir credenciales en CORS
+CORS_ALLOW_CREDENTIALS = True
+
+# Headers adicionales para ngrok, localtunnel y serveo
+CSRF_TRUSTED_ORIGINS = [
+    "https://casteless-floodless-clement.ngrok-free.dev",
+    "https://crm-backend.loca.lt",
+    "https://crm-frontend.loca.lt",
+    "https://08caf7062a800a3b0ef90c12356c97df.serveo.net",
+    "https://7e2df673004ea9662b956964d08a71ba.serveo.net",
+    "https://006cf2b77b37b2a1d5e40ee484d0d8ed.serveo.net",
+    "https://eab2deebe213b9852ec8afe871145467.serveo.net",
+    "https://304e7bc66be9f18ca48e31a1d760746c.serveo.net",
+    "https://a6b00d01111f194c2178501e3ee82d44.serveo.net",
 ]
 

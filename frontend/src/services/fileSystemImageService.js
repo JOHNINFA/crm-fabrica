@@ -5,7 +5,7 @@
  * a través del backend.
  */
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Guardar una imagen en el sistema de archivos
 const saveImageToFileSystem = async (imageData, productId, productName) => {

@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 import os
 import base64
 import re
@@ -1267,43 +1268,144 @@ class PedidoViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def anular(self, request, pk=None):
-        """Anular pedido"""
+        """Anular pedido y revertir en Planeación y Cargue"""
         pedido = self.get_object()
         
         if pedido.estado == 'ANULADA':
             return Response(
-                {'error': 'El pedido ya está anulado'}, 
+                {'detail': 'El pedido ya está anulado'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Cambiar estado
-        pedido.estado = 'ANULADA'
-        pedido.nota = f"{pedido.nota or ''}\nAnulada: {request.data.get('motivo', 'Sin motivo especificado')}"
-        pedido.save()
-        
-        # Opcional: devolver productos al inventario
-        devolver_inventario = request.data.get('devolver_inventario', False)
-        if devolver_inventario:
-            for detalle in pedido.detalles.all():
-                producto = detalle.producto
-                producto.stock_total += detalle.cantidad
-                producto.save()
+        try:
+            with transaction.atomic():
+                print(f"\n{'='*60}")
+                print(f"🔄 ANULANDO PEDIDO #{pedido.numero_pedido}")
+                print(f"{'='*60}")
+                print(f"📋 Destinatario: {pedido.destinatario}")
+                print(f"💰 Total: ${pedido.total}")
+                print(f"📅 Fecha entrega: {pedido.fecha_entrega}")
+                print(f"👤 Vendedor: {pedido.vendedor}")
+                print(f"📦 Detalles: {pedido.detalles.count()} productos")
                 
-                # Registrar movimiento
-                MovimientoInventario.objects.create(
-                    producto=producto,
-                    tipo='ENTRADA',
-                    cantidad=detalle.cantidad,
-                    usuario=request.user.username if request.user.is_authenticated else 'Sistema',
-                    nota=f'Devolución por anulación de pedido {pedido.numero_pedido}'
-                )
-        
-        serializer = self.get_serializer(pedido)
-        return Response({
-            'success': True,
-            'message': 'Pedido anulado exitosamente',
-            'pedido': serializer.data
-        })
+                # 1. Cambiar estado del pedido
+                estado_anterior = pedido.estado
+                pedido.estado = 'ANULADA'
+                motivo = request.data.get('motivo', 'Anulado desde gestión de pedidos')
+                pedido.nota = f"{pedido.nota or ''}\n[ANULADO] Estado anterior: {estado_anterior} - {motivo} - {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+                pedido.save()
+                print(f"✅ Estado cambiado de {estado_anterior} a ANULADA")
+                
+                # 2. Revertir en Planeación (solo si existe fecha_entrega)
+                if pedido.fecha_entrega:
+                    print(f"\n📊 REVIRTIENDO EN PLANEACIÓN")
+                    print(f"{'='*60}")
+                    
+                    for detalle in pedido.detalles.all():
+                        try:
+                            # Buscar en planeación por fecha_entrega y producto_nombre
+                            planeacion = Planeacion.objects.filter(
+                                fecha=pedido.fecha_entrega,
+                                producto_nombre=detalle.producto.nombre
+                            ).first()
+                            
+                            if planeacion:
+                                pedidos_antes = planeacion.pedidos
+                                total_antes = planeacion.total
+                                
+                                # Restar la cantidad del pedido anulado
+                                planeacion.pedidos = max(0, planeacion.pedidos - detalle.cantidad)
+                                # El total se recalcula automáticamente en save()
+                                planeacion.save()
+                                
+                                print(f"  ✅ {detalle.producto.nombre}:")
+                                print(f"     Pedidos: {pedidos_antes} → {planeacion.pedidos} (-{detalle.cantidad})")
+                                print(f"     Total: {total_antes} → {planeacion.total}")
+                            else:
+                                print(f"  ⚠️ {detalle.producto.nombre}: No encontrado en Planeación")
+                                
+                        except Exception as e:
+                            print(f"  ❌ Error con {detalle.producto.nombre}: {str(e)}")
+                            continue
+                else:
+                    print(f"⚠️ Sin fecha de entrega, no se revierte en Planeación")
+                
+                # 3. Revertir en Cargue (solo si existe fecha_entrega y vendedor)
+                if pedido.fecha_entrega and pedido.vendedor:
+                    print(f"\n💰 REVIRTIENDO EN CARGUE")
+                    print(f"{'='*60}")
+                    
+                    cargue_models = [
+                        ('ID1', CargueID1), ('ID2', CargueID2), ('ID3', CargueID3),
+                        ('ID4', CargueID4), ('ID5', CargueID5), ('ID6', CargueID6)
+                    ]
+                    
+                    cargue_actualizado = False
+                    
+                    for id_cargue, CargueModel in cargue_models:
+                        try:
+                            # Buscar registros de cargue por fecha
+                            cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
+                            
+                            for cargue in cargues:
+                                # Verificar si el vendedor coincide con el responsable
+                                if hasattr(cargue, 'responsable') and cargue.responsable:
+                                    if pedido.vendedor.lower() in cargue.responsable.lower():
+                                        pedidos_antes = float(cargue.total_pedidos or 0)
+                                        efectivo_antes = float(cargue.total_efectivo or 0)
+                                        
+                                        # Revertir el total_pedidos (devolver el dinero)
+                                        cargue.total_pedidos = max(0, pedidos_antes - float(pedido.total))
+                                        
+                                        # Recalcular total_efectivo
+                                        if hasattr(cargue, 'venta') and cargue.venta:
+                                            cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                                        
+                                        cargue.save()
+                                        
+                                        print(f"  ✅ {id_cargue} - {cargue.responsable}:")
+                                        print(f"     Total Pedidos: ${pedidos_antes:,.0f} → ${cargue.total_pedidos:,.0f} (-${pedido.total:,.0f})")
+                                        print(f"     Total Efectivo: ${efectivo_antes:,.0f} → ${cargue.total_efectivo:,.0f}")
+                                        
+                                        cargue_actualizado = True
+                                        break  # Solo actualizar un cargue por modelo
+                            
+                            if cargue_actualizado:
+                                break  # Salir del loop de modelos si ya se actualizó
+                                
+                        except Exception as e:
+                            print(f"  ⚠️ Error en {id_cargue}: {str(e)}")
+                            continue
+                    
+                    if not cargue_actualizado:
+                        print(f"  ⚠️ No se encontró cargue para vendedor '{pedido.vendedor}' en fecha {pedido.fecha_entrega}")
+                else:
+                    print(f"⚠️ Sin fecha de entrega o vendedor, no se revierte en Cargue")
+                
+                print(f"\n{'='*60}")
+                print(f"✅ PEDIDO ANULADO EXITOSAMENTE")
+                print(f"{'='*60}\n")
+                
+                serializer = self.get_serializer(pedido)
+                return Response({
+                    'success': True,
+                    'message': 'Pedido anulado exitosamente. Se revirtieron las cantidades en Planeación y el dinero en Cargue.',
+                    'pedido': serializer.data
+                })
+                
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"\n{'='*60}")
+            print(f"❌ ERROR AL ANULAR PEDIDO")
+            print(f"{'='*60}")
+            print(error_detail)
+            print(f"{'='*60}\n")
+            
+            return Response(
+                {'detail': f'Error al anular pedido: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class DetallePedidoViewSet(viewsets.ModelViewSet):
     """API para detalles de pedidos"""

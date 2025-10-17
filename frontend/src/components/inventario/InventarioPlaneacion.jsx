@@ -8,6 +8,8 @@ import '../../styles/TablaKardex.css';
 import '../../styles/BorderlessInputs.css';
 import '../../styles/ActionButtons.css';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
 const InventarioPlaneacion = () => {
   // const { productos: productosContext } = useProductos(); // No necesario
   const [productos, setProductos] = useState([]);
@@ -30,7 +32,7 @@ const InventarioPlaneacion = () => {
       }
       console.log('📦 Cargando pedidos para fecha:', fechaFormateada);
 
-      const response = await fetch(`http://localhost:8000/api/pedidos/`);
+      const response = await fetch(`${API_URL}/pedidos/`);
       if (!response.ok) {
         console.log('⚠️ No se pudieron cargar pedidos');
         return {};
@@ -39,9 +41,11 @@ const InventarioPlaneacion = () => {
       const pedidos = await response.json();
       console.log('✅ Pedidos cargados:', pedidos.length);
 
-      // Filtrar pedidos por fecha de entrega
-      const pedidosFecha = pedidos.filter(p => p.fecha_entrega === fechaFormateada);
-      console.log('📅 Pedidos para fecha seleccionada:', pedidosFecha.length);
+      // Filtrar pedidos por fecha de entrega Y excluir anulados
+      const pedidosFecha = pedidos.filter(p =>
+        p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
+      );
+      console.log('📅 Pedidos activos para fecha seleccionada:', pedidosFecha.length);
 
       // Sumar cantidades por producto
       const pedidosMap = {};
@@ -83,7 +87,7 @@ const InventarioPlaneacion = () => {
       }
       console.log('📊 Cargando solicitadas para fecha:', fechaFormateada);
 
-      const response = await fetch(`http://localhost:8000/api/produccion-solicitadas/?fecha=${fechaFormateada}`);
+      const response = await fetch(`${API_URL}/produccion-solicitadas/?fecha=${fechaFormateada}`);
       if (!response.ok) {
         console.log('⚠️ No hay solicitadas para esta fecha - Status:', response.status);
         console.log('🔄 Devolviendo objeto vacío - esto puede causar que se pongan en 0');
@@ -119,7 +123,7 @@ const InventarioPlaneacion = () => {
       const fechaFormateada = `${year}-${month}-${day}`;
 
       // 🚀 CARGAR PLANEACIÓN GUARDADA DESDE BD
-      const planeacionResponse = await fetch(`http://localhost:8000/api/planeacion/?fecha=${fechaFormateada}`);
+      const planeacionResponse = await fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`);
       let planeacionMap = {};
 
       if (planeacionResponse.ok) {
@@ -137,7 +141,7 @@ const InventarioPlaneacion = () => {
       }
 
       // Obtener productos directamente de la API
-      const response = await fetch('http://localhost:8000/api/productos/');
+      const response = await fetch(`${API_URL}/productos/`);
       if (!response.ok) throw new Error('Error al obtener productos');
 
       const productosFromBD = await response.json();
@@ -287,7 +291,7 @@ const InventarioPlaneacion = () => {
           usuario: 'Sistema'
         };
 
-        const response = await fetch('http://localhost:8000/api/planeacion/', {
+        const response = await fetch(`${API_URL}/planeacion/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(datosPlaneacion)

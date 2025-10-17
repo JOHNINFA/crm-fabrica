@@ -1,7 +1,7 @@
 // 🚀 NUEVO SERVICIO SIMPLIFICADO - MANTIENE LA MISMA INTERFAZ
 // Adapta los endpoints antiguos a los nuevos sin cambiar la lógica del frontend
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Mapeo de IDs a endpoints
 const ENDPOINT_MAP = {

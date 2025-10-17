@@ -8,6 +8,7 @@ import TablaProductos from './TablaProductos';
 import ResumenVentas from './ResumenVentas';
 import BotonLimpiar from './BotonLimpiar';
 import ControlCumplimiento from './ControlCumplimiento';
+import RegistroLotes from './RegistroLotes';
 import BotonCorreccionNuevo from './BotonCorreccionNuevo';
 import './PlantillaOperativa.css';
 
@@ -220,9 +221,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             const nombreVendedor = responsableStorage.get(idVendedor);
             console.log(`📋 Nombre del vendedor ${idVendedor}: "${nombreVendedor}"`);
 
-            // Filtrar pedidos por fecha de entrega y vendedor
+            // Filtrar pedidos por fecha de entrega, vendedor Y excluir anulados
             const pedidosFiltrados = pedidos.filter(pedido => {
                 const coincideFecha = pedido.fecha_entrega === fechaFormateada;
+                const noAnulado = pedido.estado !== 'ANULADA';
 
                 // 🚀 CORREGIDO: Buscar por nombre del vendedor desde responsableStorage
                 let coincideVendedor = false;
@@ -237,11 +239,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     }
                 }
 
-                if (coincideFecha && coincideVendedor) {
-                    console.log(`✅ Pedido encontrado:`, pedido.numero_pedido, pedido.vendedor, pedido.total);
+                if (coincideFecha && coincideVendedor && noAnulado) {
+                    console.log(`✅ Pedido encontrado:`, pedido.numero_pedido, pedido.vendedor, pedido.total, pedido.estado);
                 }
 
-                return coincideFecha && coincideVendedor;
+                return coincideFecha && coincideVendedor && noAnulado;
             });
 
             // Sumar el total de los pedidos
@@ -939,12 +941,26 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         fechaSeleccionada={fechaSeleccionada}
                         onLimpiar={limpiarDatos}
                     />
-                    <ControlCumplimiento
-                        dia={dia}
-                        idSheet={idSheet}
-                        fechaSeleccionada={fechaSeleccionada}
-                        estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
-                    />
+
+                    {/* Contenedor flex para Control de Cumplimiento y Registro de Lotes */}
+                    <div className="d-flex gap-3 mb-3">
+                        <ControlCumplimiento
+                            dia={dia}
+                            idSheet={idSheet}
+                            fechaSeleccionada={fechaSeleccionada}
+                            estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
+                        />
+                        {/* Registro de Lotes solo visible en ID1 (control por día) */}
+                        {idSheet === 'ID1' && (
+                            <RegistroLotes
+                                dia={dia}
+                                idSheet={idSheet}
+                                fechaSeleccionada={fechaSeleccionada}
+                                estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
+                            />
+                        )}
+                    </div>
+
                     <BotonCorreccionNuevo
                         dia={dia}
                         idSheet={idSheet}

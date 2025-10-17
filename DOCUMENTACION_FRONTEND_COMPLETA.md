@@ -926,3 +926,842 @@ setTransportadora("Propia");
 - [ ] Exportar informe de pedidos a Excel/PDF
 - [ ] Agregar historial de cambios de estado de pedidos
 
+
+
+---
+
+## MÓDULO DE GESTIÓN DE PEDIDOS
+
+### Descripción General
+Sistema completo para gestionar pedidos de clientes organizados por día de entrega, con integración automática a Planeación de Inventario y Cargue de Vendedores.
+
+### Estructura de Archivos
+
+```
+frontend/src/
+├── pages/
+│   ├── PedidosScreen.jsx                    # Formulario de creación de pedidos
+│   ├── SelectorDiasPedidosScreen.jsx        # Selector de días (Lunes-Sábado)
+│   ├── PedidosDiaScreen.jsx                 # Vista de clientes por día
+│   └── InformePedidosScreen.jsx             # Informe general de pedidos
+├── components/Pedidos/
+│   ├── Sidebar.jsx                          # Menú lateral
+│   ├── Topbar.jsx                           # Barra superior
+│   ├── ProductList.jsx                      # Lista de productos
+│   ├── Cart.jsx                             # Carrito de compras
+│   ├── ConsumerForm.jsx                     # Formulario de destinatario
+│   ├── PaymentModal.jsx                     # Modal de confirmación
+│   └── ModalDetallePedido.jsx               # Modal de detalle de pedido
+├── context/
+│   └── CajeroPedidosContext.jsx             # Contexto de autenticación
+└── services/
+    └── api.js                               # Servicio de API (pedidoService)
+```
+
+---
+
+### Componentes Principales
+
+#### 1. SelectorDiasPedidosScreen.jsx
+**Ruta:** `/pedidos`
+
+**Función:** Selector de días de la semana para gestión de pedidos
+
+**Características:**
+- Botones para cada día (LUNES-SÁBADO)
+- Navegación a `/pedidos/:dia`
+- Botón de regreso a remisiones
+
+**Código:**
+```jsx
+const dias = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
+
+export default function SelectorDiasPedidosScreen() {
+  const navigate = useNavigate();
+
+  const handleDayClick = (dia) => {
+    navigate(`/pedidos/${dia}`);
+  };
+
+  return (
+    <div className="selector-dia-container">
+      {dias.map((dia) => (
+        <button 
+          key={dia}
+          onClick={() => handleDayClick(dia)}
+        >
+          {dia}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
+#### 2. PedidosDiaScreen.jsx
+**Ruta:** `/pedidos/:dia`
+
+**Función:** Muestra clientes del día seleccionado con estado de pedidos
+
+**Características:**
+- ✅ Carga clientes filtrados por `dia_entrega`
+- ✅ Selector de fecha para filtrar pedidos
+- ✅ Tabla de clientes con información resumida
+- ✅ Botón "Crear Pedido" o estado "Realizado"
+- ✅ Modal de detalle al hacer clic en pedido realizado
+- ✅ Función de anular pedido
+- ✅ Drag & drop para reordenar clientes
+- ✅ Campo de notas por cliente
+- ✅ Recarga automática al recuperar foco
+
+**Código clave:**
+```jsx
+const cargarClientes = async () => {
+  const response = await fetch(`${API_URL}/clientes/`);
+  const data = await response.json();
+  
+  // Filtrar clientes por día de entrega
+  const clientesFiltrados = data.filter(
+    cliente => cliente.dia_entrega === dia && cliente.activo
+  );
+  
+  setClientes(clientesFiltrados);
+};
+
+const cargarPedidos = async () => {
+  const response = await fetch(`${API_URL}/pedidos/`);
+  const pedidos = await response.json();
+  
+  // Filtrar por fecha de entrega Y excluir anulados
+  const pedidosFiltradas = pedidos.filter(r =>
+    r.fecha_entrega === fechaSeleccionada && r.estado !== 'ANULADA'
+  );
+  
+  // Crear mapa de pedidos por cliente
+  const pedidosMap = {};
+  pedidosFiltradas.forEach(pedido => {
+    pedidosMap[pedido.destinatario.toLowerCase()] = pedido;
+  });
+  
+  setPedidosRealizados(pedidosMap);
+};
+
+const anularPedido = async (cliente) => {
+  const pedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+  
+  const confirmar = window.confirm(
+    `¿Estás seguro de anular el pedido de ${cliente.nombre_completo}?`
+  );
+  
+  if (!confirmar) return;
+  
+  const response = await fetch(
+    `${API_URL}/pedidos/${pedido.id}/anular/`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+  );
+  
+  if (response.ok) {
+    alert('Pedido anulado exitosamente');
+    cargarPedidos(); // Recargar para actualizar vista
+  }
+};
+```
+
+**Tabla de clientes:**
+```jsx
+<table>
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th>Vendedor</th>
+      <th>Dirección</th>
+      <th>Lista Precio</th>
+      <th>Estado</th>
+      <th>Anular</th>
+      <th>Notas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {clientesOrdenados.map((cliente) => {
+      const tienePedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+      
+      return (
+        <tr 
+          key={cliente.id}
+          onClick={() => handleRowClick(cliente)}
+          draggable
+          onDragStart={(e) => handleDragStart(e, index)}
+          onDrop={(e) => handleDrop(e, index)}
+        >
+          <td>{cliente.nombre_completo}</td>
+          <td>{cliente.vendedor_asignado}</td>
+          <td>{cliente.direccion}</td>
+          <td>{cliente.tipo_lista_precio}</td>
+          <td>
+            {tienePedido ? (
+              <span className="badge-success">Realizado</span>
+            ) : (
+              <span className="badge-pending">Pendiente</span>
+            )}
+          </td>
+          <td>
+            {tienePedido && (
+              <button onClick={(e) => {
+                e.stopPropagation();
+                anularPedido(cliente);
+              }}>
+                ✕
+              </button>
+            )}
+          </td>
+          <td>
+            <input
+              type="text"
+              value={notas[cliente.id] || ''}
+              onChange={(e) => handleNotaChange(cliente.id, e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+```
+
+---
+
+#### 3. PedidosScreen.jsx
+**Ruta:** `/remisiones`
+
+**Función:** Formulario principal para crear pedidos
+
+**Características:**
+- ✅ Recibe datos del cliente por URL params
+- ✅ Precarga: nombre, dirección, vendedor, lista de precios, fecha
+- ✅ Lista de productos con precios según lista del cliente
+- ✅ Carrito de compras con cálculo de totales
+- ✅ Modal de confirmación con todos los datos
+- ✅ Reseteo de formulario después de crear pedido
+- ✅ Opción de volver a gestión del día
+
+**Código clave:**
+```jsx
+function PedidosScreenContent() {
+  const { cajeroLogueado, isAuthenticated } = useCajeroPedidos();
+  const [searchParams] = useSearchParams();
+  const [cart, setCart] = useState([]);
+  const [date, setDate] = useState(getFechaLocal());
+  const [seller, setSeller] = useState("PEDIDOS");
+  const [client, setClient] = useState("DESTINATARIO GENERAL");
+  const [clientData, setClientData] = useState(null);
+
+  // Cargar datos del cliente desde URL
+  useEffect(() => {
+    const clienteParam = searchParams.get('cliente');
+    if (clienteParam) {
+      const clienteData = JSON.parse(decodeURIComponent(clienteParam));
+      setClientData(clienteData);
+      setClient(clienteData.nombre);
+      if (clienteData.lista_precio) setPriceList(clienteData.lista_precio);
+      if (clienteData.fecha) setDate(clienteData.fecha);
+      if (clienteData.vendedor) setSeller(clienteData.vendedor);
+    }
+  }, [searchParams]);
+
+  const addProduct = (product, currentPrice = null) => {
+    setCart((prev) => {
+      const found = prev.find((item) => item.id === product.id);
+      if (found) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        );
+      }
+      const priceToUse = currentPrice !== null ? currentPrice : product.price;
+      return [...prev, { ...product, price: priceToUse, qty: 1 }];
+    });
+  };
+
+  const subtotal = cart.reduce((a, c) => a + c.price * c.qty, 0);
+  const total = Math.max(0, subtotal + Number(imp) - Number(desc));
+
+  return (
+    <div className="pedidos-screen">
+      <Sidebar />
+      <div className="main-content">
+        <Topbar />
+        <div className="row">
+          <div className="col-lg-7">
+            <ProductList
+              addProduct={addProduct}
+              search={search}
+              setSearch={setSearch}
+              priceList={priceList}
+            />
+          </div>
+          <div className="col-lg-5">
+            <ConsumerForm
+              date={date}
+              seller={seller}
+              client={client}
+              priceList={priceList}
+              setDate={setDate}
+              setSeller={setSeller}
+              setClient={setClient}
+              setPriceList={setPriceList}
+            />
+            <Cart
+              cart={cart}
+              removeProduct={removeProduct}
+              changeQty={changeQty}
+              subtotal={subtotal}
+              total={total}
+              seller={seller}
+              client={client}
+              clientData={clientData}
+              clearCart={clearCart}
+              resetForm={resetForm}
+              date={date}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+#### 4. PaymentModal.jsx
+**Ubicación:** `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+**Función:** Modal de confirmación y creación de pedido
+
+**Características:**
+- ✅ Muestra resumen del pedido
+- ✅ Formulario de datos de entrega
+- ✅ Selector de tipo de pedido (Entrega, Traslado, Devolución, Muestra)
+- ✅ Selector de transportadora
+- ✅ Validación de campos requeridos
+- ✅ Conversión de precios a números con `parseFloat()`
+- ✅ Llamada a API para crear pedido
+- ✅ Opción de volver a gestión del día
+
+**Código clave:**
+```jsx
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (cart.length === 0) {
+    alert('El carrito está vacío');
+    return;
+  }
+
+  if (!destinatario.trim() || !direccionEntrega.trim()) {
+    alert('Debe especificar destinatario y dirección');
+    return;
+  }
+
+  setProcessing(true);
+
+  try {
+    const pedidoData = {
+      fecha: getFechaLocal(),
+      vendedor: seller,
+      destinatario: destinatario,
+      direccion_entrega: direccionEntrega,
+      telefono_contacto: telefonoContacto,
+      fecha_entrega: fechaEntrega,
+      tipo_remision: tipoPedido,
+      transportadora: transportadora,
+      subtotal: subtotal,
+      impuestos: impuestos,
+      descuentos: descuentos,
+      total: safeTotal,
+      estado: 'PENDIENTE',
+      nota: nota,
+      detalles: cart.map(item => ({
+        producto: item.id,
+        cantidad: item.qty,
+        precio_unitario: parseFloat(item.price)  // ✅ IMPORTANTE
+      }))
+    };
+
+    // Crear el pedido
+    const result = await pedidoService.create(pedidoData);
+
+    if (result && !result.error) {
+      alert(`¡Pedido generado exitosamente!\nNúmero: ${result.numero_pedido}`);
+      
+      // Resetear formulario
+      resetForm();
+      onClose();
+
+      // Si el toggle está activado, navegar a gestión del día
+      if (volverGestion && date && navigate) {
+        const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+        const fechaObj = new Date(date + 'T00:00:00');
+        const dia = diasSemana[fechaObj.getDay()];
+        navigate(`/pedidos/${dia}?fecha=${date}`);
+      }
+    } else {
+      alert('Error al generar el pedido');
+    }
+  } catch (error) {
+    console.error('Error al procesar pedido:', error);
+    alert('Error al generar el pedido');
+  } finally {
+    setProcessing(false);
+  }
+};
+```
+
+---
+
+### Integración con Planeación
+
+#### InventarioPlaneacion.jsx
+**Ubicación:** `frontend/src/components/inventario/InventarioPlaneacion.jsx`
+
+**Función:** Carga pedidos y los suma por producto para mostrar en columna "Pedidos"
+
+**Código clave:**
+```jsx
+const cargarPedidosDesdeBD = async (fechaSeleccionada) => {
+  try {
+    const fechaFormateada = formatearFecha(fechaSeleccionada);
+    
+    const response = await fetch(`${API_URL}/pedidos/`);
+    const pedidos = await response.json();
+
+    // ✅ Filtrar por fecha de entrega Y excluir anulados
+    const pedidosFecha = pedidos.filter(p => 
+      p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
+    );
+
+    // Sumar cantidades por producto
+    const pedidosMap = {};
+    for (const pedido of pedidosFecha) {
+      if (pedido.detalles && pedido.detalles.length > 0) {
+        for (const detalle of pedido.detalles) {
+          const nombreProducto = detalle.producto_nombre;
+          if (!pedidosMap[nombreProducto]) {
+            pedidosMap[nombreProducto] = 0;
+          }
+          pedidosMap[nombreProducto] += detalle.cantidad;
+        }
+      }
+    }
+
+    return pedidosMap;
+  } catch (error) {
+    console.error('Error cargando pedidos:', error);
+    return {};
+  }
+};
+
+// Usar en la carga de productos
+const productosConPlaneacion = productosFromBD.map(p => {
+  const pedidosProducto = pedidosMap[p.nombre] || 0;
+  
+  return {
+    id: p.id,
+    nombre: p.nombre,
+    existencias: p.stock_total || 0,
+    solicitado: solicitadoFinal,
+    pedidos: pedidosProducto,  // ✅ Cantidad de pedidos
+    orden: 0,
+    ia: 0
+  };
+});
+```
+
+**Tabla de Planeación:**
+```jsx
+<table>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Existencias</th>
+      <th>Solicitadas</th>
+      <th>Pedidos</th>  {/* ← Columna de pedidos */}
+      <th>Total</th>
+      <th>Orden</th>
+      <th>IA</th>
+    </tr>
+  </thead>
+  <tbody>
+    {productos.map((producto) => {
+      const total = (producto.solicitado || 0) + (producto.pedidos || 0);
+      
+      return (
+        <tr key={producto.id}>
+          <td>{producto.nombre}</td>
+          <td>{producto.existencias}</td>
+          <td>{producto.solicitado}</td>
+          <td>{producto.pedidos}</td>  {/* ← Muestra pedidos */}
+          <td>{total}</td>
+          <td>{producto.orden}</td>
+          <td>{producto.ia}</td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+```
+
+---
+
+### Integración con Cargue
+
+#### PlantillaOperativa.jsx
+**Ubicación:** `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+
+**Función:** Carga pedidos del vendedor y los suma para mostrar en "TOTAL PEDIDOS"
+
+**Código clave:**
+```jsx
+const cargarPedidosDesdeBD = async (fecha, idVendedor) => {
+  try {
+    const fechaFormateada = formatearFecha(fecha);
+    
+    // Cargar todos los pedidos
+    const response = await fetch('http://localhost:8000/api/pedidos/');
+    const pedidos = await response.json();
+
+    // Obtener el nombre del vendedor
+    const { responsableStorage } = await import('../../utils/responsableStorage');
+    const nombreVendedor = responsableStorage.get(idVendedor);
+
+    // ✅ Filtrar por fecha, vendedor Y excluir anulados
+    const pedidosFiltrados = pedidos.filter(pedido => {
+      const coincideFecha = pedido.fecha_entrega === fechaFormateada;
+      const noAnulado = pedido.estado !== 'ANULADA';  // ✅ IMPORTANTE
+      
+      let coincideVendedor = false;
+      if (pedido.vendedor) {
+        if (pedido.vendedor.includes(`(${idVendedor})`)) {
+          coincideVendedor = true;
+        } else if (nombreVendedor && pedido.vendedor.trim() === nombreVendedor.trim()) {
+          coincideVendedor = true;
+        }
+      }
+
+      return coincideFecha && coincideVendedor && noAnulado;
+    });
+
+    // Sumar el total de los pedidos
+    const totalPedidos = pedidosFiltrados.reduce((sum, pedido) => {
+      return sum + parseFloat(pedido.total || 0);
+    }, 0);
+
+    return totalPedidos;
+  } catch (error) {
+    console.error('Error cargando pedidos:', error);
+    return 0;
+  }
+};
+```
+
+**Resumen de Ventas:**
+```jsx
+<div className="resumen-ventas">
+  <div className="bg-lightpink">
+    <strong>TOTAL PEDIDOS:</strong>
+    <div>{formatCurrency(datos.totalPedidos)}</div>  {/* ← Total de pedidos */}
+  </div>
+  
+  <div className="bg-lightgreen">
+    <strong>TOTAL EFECTIVO:</strong>
+    <div>{formatCurrency(datos.totalEfectivo)}</div>  {/* ← Venta - Pedidos */}
+  </div>
+</div>
+```
+
+---
+
+### Servicio de API
+
+#### pedidoService
+**Ubicación:** `frontend/src/services/api.js`
+
+```javascript
+export const pedidoService = {
+  // Obtener todos los pedidos
+  getAll: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key]) queryParams.append(key, params[key]);
+      });
+      
+      const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
+      
+      // Intentar con API primero
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+
+      // Fallback: usar localStorage
+      const pedidosGuardados = localStorage.getItem('pedidos_sistema');
+      if (pedidosGuardados) {
+        let pedidos = JSON.parse(pedidosGuardados);
+        
+        // Aplicar estados de pedidos anulados
+        const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
+        if (pedidosAnulados.length > 0) {
+          pedidos = pedidos.map(pedido => {
+            if (pedidosAnulados.includes(pedido.id)) {
+              return { ...pedido, estado: 'ANULADA' };
+            }
+            return pedido;
+          });
+        }
+        
+        return pedidos;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error en getAll pedidos:', error);
+      return [];
+    }
+  },
+
+  // Crear un nuevo pedido
+  create: async (pedidoData) => {
+    try {
+      // Intentar con API primero
+      const response = await fetch(`${API_URL}/pedidos/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pedidoData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result;
+      } else {
+        throw new Error(`Error al crear pedido: ${response.status}`);
+      }
+    } catch (error) {
+      console.warn('API no disponible, guardando en localStorage:', error);
+      
+      // Fallback: guardar en localStorage
+      const pedidosGuardados = JSON.parse(localStorage.getItem('pedidos_sistema') || '[]');
+      
+      const nuevoId = Date.now();
+      const numeroPedido = `PED-${String(nuevoId).slice(-6)}`;
+      
+      const nuevoPedido = {
+        id: nuevoId,
+        numero_pedido: numeroPedido,
+        ...pedidoData,
+        fecha_creacion: new Date().toISOString()
+      };
+      
+      pedidosGuardados.push(nuevoPedido);
+      localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosGuardados));
+      
+      return nuevoPedido;
+    }
+  },
+
+  // Obtener un pedido por ID
+  getById: async (id) => {
+    try {
+      // Intentar con API primero
+      const response = await fetch(`${API_URL}/pedidos/${id}/`);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+
+      // Fallback: buscar en localStorage
+      const pedidosGuardados = localStorage.getItem('pedidos_sistema');
+      if (pedidosGuardados) {
+        const pedidos = JSON.parse(pedidosGuardados);
+        let pedido = pedidos.find(r => r.id === parseInt(id));
+        
+        if (pedido) {
+          // Verificar si está anulado
+          const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
+          if (pedidosAnulados.includes(parseInt(id))) {
+            pedido = { ...pedido, estado: 'ANULADA' };
+          }
+          
+          return pedido;
+        }
+      }
+      
+      throw new Error('Pedido no encontrado');
+    } catch (error) {
+      console.error('Error en getById pedido:', error);
+      return { error: true, message: error.message };
+    }
+  },
+
+  // Anular un pedido
+  anularPedido: async (id) => {
+    try {
+      // Intentar con API primero
+      const response = await fetch(`${API_URL}/pedidos/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'ANULADA' })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return { 
+          success: true, 
+          message: 'Pedido anulado exitosamente',
+          pedido: result
+        };
+      }
+    } catch (error) {
+      console.warn('API no disponible, usando fallback local:', error);
+    }
+
+    // Fallback: marcar como anulado localmente
+    const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
+    if (!pedidosAnulados.includes(parseInt(id))) {
+      pedidosAnulados.push(parseInt(id));
+      localStorage.setItem('pedidos_anulados', JSON.stringify(pedidosAnulados));
+    }
+    
+    return { 
+      success: true, 
+      message: 'Pedido anulado exitosamente (pendiente sincronización)',
+      pedido: { id: parseInt(id), estado: 'ANULADA' }
+    };
+  }
+};
+```
+
+---
+
+### Flujo Completo de Creación de Pedido
+
+```
+1. Usuario selecciona día (ej: SABADO)
+   ↓
+2. Sistema muestra clientes con dia_entrega = SABADO
+   ↓
+3. Usuario hace clic en "Crear Pedido" para cliente PRUEBA3
+   ↓
+4. Sistema navega a /remisiones con datos del cliente en URL:
+   ?cliente={"nombre":"PRUEBA3","direccion":"Cll 134","vendedor":"Carlos","fecha":"2025-10-18"}
+   ↓
+5. PedidosScreen precarga datos del cliente
+   ↓
+6. Usuario agrega productos al carrito
+   ↓
+7. Usuario hace clic en "Generar Pedido"
+   ↓
+8. PaymentModal valida datos y crea pedidoData
+   ↓
+9. pedidoService.create() envía POST /api/pedidos/
+   ↓
+10. Backend (PedidoSerializer.create):
+    - Crea Pedido
+    - Crea DetallePedido
+    - Actualiza Planeación (suma cantidades)
+    - Actualiza Cargue (suma dinero)
+   ↓
+11. Frontend recibe respuesta con numero_pedido
+   ↓
+12. Sistema muestra alerta de éxito
+   ↓
+13. Si toggle activado, navega a /pedidos/SABADO?fecha=2025-10-18
+   ↓
+14. PedidosDiaScreen recarga y muestra pedido como "Realizado"
+```
+
+---
+
+### Flujo Completo de Anulación de Pedido
+
+```
+1. Usuario ve pedido en estado "Realizado"
+   ↓
+2. Usuario hace clic en botón "Anular" (✕)
+   ↓
+3. Sistema muestra confirmación
+   ↓
+4. Usuario confirma anulación
+   ↓
+5. pedidoService.anularPedido() envía POST /api/pedidos/{id}/anular/
+   ↓
+6. Backend (PedidoViewSet.anular):
+    - Cambia estado a ANULADA
+    - Resta cantidades en Planeación
+    - Resta dinero en Cargue
+    - Agrega nota con motivo
+   ↓
+7. Frontend recibe respuesta de éxito
+   ↓
+8. Sistema muestra alerta de éxito
+   ↓
+9. cargarPedidos() recarga datos
+   ↓
+10. Sistema muestra pedido como "Pendiente" (porque está anulado)
+```
+
+---
+
+### Consideraciones Importantes
+
+#### 1. Filtrado de Pedidos Anulados
+**CRÍTICO:** Siempre filtrar pedidos anulados al calcular totales:
+```javascript
+const pedidosActivos = pedidos.filter(p => p.estado !== 'ANULADA');
+```
+
+#### 2. Conversión de Precios
+**IMPORTANTE:** Convertir precios a números antes de enviar:
+```javascript
+precio_unitario: parseFloat(item.price)
+```
+
+#### 3. Formato de Fecha
+**IMPORTANTE:** Usar formato YYYY-MM-DD para fecha_entrega:
+```javascript
+const fechaFormateada = `${year}-${month}-${day}`;
+```
+
+#### 4. Recarga Automática
+**RECOMENDADO:** Recargar pedidos al recuperar foco:
+```javascript
+useEffect(() => {
+  const handleFocus = () => cargarPedidos();
+  window.addEventListener('focus', handleFocus);
+  return () => window.removeEventListener('focus', handleFocus);
+}, []);
+```
+
+---
+
+### Troubleshooting
+
+#### Problema: Pedidos anulados se siguen sumando
+**Solución:** Verificar filtro `estado !== 'ANULADA'` en:
+- `InventarioPlaneacion.jsx` (línea ~48)
+- `PlantillaOperativa.jsx` (línea ~227)
+
+#### Problema: Total duplicado en Cargue
+**Causa:** No se está filtrando por estado anulado
+**Solución:** Agregar filtro `noAnulado` en PlantillaOperativa.jsx
+
+#### Problema: Pedido no aparece en Planeación
+**Causa:** Fecha de entrega no coincide
+**Solución:** Verificar formato de fecha (YYYY-MM-DD)
+
+#### Problema: Datos del cliente no se precargan
+**Causa:** URL params mal formateados
+**Solución:** Usar `encodeURIComponent(JSON.stringify(clienteData))`

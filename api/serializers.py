@@ -484,20 +484,92 @@ class PedidoSerializer(serializers.ModelSerializer):
         read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
     
     def create(self, validated_data):
+        from django.db import transaction
+        
         # Extraer detalles si vienen en los datos
         detalles_data = self.context['request'].data.get('detalles', [])
         
-        # Crear el pedido
-        pedido = Pedido.objects.create(**validated_data)
-        
-        # Crear los detalles
-        for detalle_data in detalles_data:
-            DetallePedido.objects.create(
-                pedido=pedido,
-                producto_id=detalle_data['producto'],
-                cantidad=detalle_data['cantidad'],
-                precio_unitario=detalle_data['precio_unitario']
-            )
+        with transaction.atomic():
+            # Crear el pedido
+            pedido = Pedido.objects.create(**validated_data)
+            
+            # Crear los detalles
+            for detalle_data in detalles_data:
+                DetallePedido.objects.create(
+                    pedido=pedido,
+                    producto_id=detalle_data['producto'],
+                    cantidad=detalle_data['cantidad'],
+                    precio_unitario=detalle_data['precio_unitario']
+                )
+            
+            # Actualizar Planeación si hay fecha_entrega
+            if pedido.fecha_entrega:
+                from .models import Planeacion, Producto
+                
+                for detalle_data in detalles_data:
+                    try:
+                        # Obtener el producto para su nombre
+                        producto = Producto.objects.get(id=detalle_data['producto'])
+                        
+                        # Buscar o crear registro en Planeación
+                        planeacion, created = Planeacion.objects.get_or_create(
+                            fecha=pedido.fecha_entrega,
+                            producto_nombre=producto.nombre,
+                            defaults={
+                                'existencias': 0,
+                                'solicitadas': 0,
+                                'pedidos': 0,
+                                'orden': 0,
+                                'ia': 0,
+                                'usuario': 'Sistema'
+                            }
+                        )
+                        
+                        # Sumar la cantidad del pedido
+                        planeacion.pedidos += detalle_data['cantidad']
+                        # El total se calcula automáticamente en el save()
+                        planeacion.save()
+                        
+                        print(f"✅ Planeación actualizada: {producto.nombre} +{detalle_data['cantidad']} = {planeacion.pedidos}")
+                        
+                    except Producto.DoesNotExist:
+                        print(f"⚠️ Producto {detalle_data['producto']} no encontrado para actualizar Planeación")
+                        continue
+                    except Exception as e:
+                        print(f"⚠️ Error actualizando Planeación: {str(e)}")
+                        continue
+            
+            # Actualizar Cargue si hay fecha_entrega y vendedor
+            if pedido.fecha_entrega and pedido.vendedor:
+                from .models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
+                
+                # Mapear vendedores a modelos de cargue
+                cargue_models = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+                
+                for CargueModel in cargue_models:
+                    try:
+                        # Buscar registros de cargue por fecha
+                        cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
+                        
+                        for cargue in cargues:
+                            # Verificar si el vendedor coincide con el responsable
+                            if hasattr(cargue, 'responsable') and cargue.responsable:
+                                if pedido.vendedor.lower() in cargue.responsable.lower():
+                                    # Sumar al total_pedidos
+                                    if hasattr(cargue, 'total_pedidos'):
+                                        cargue.total_pedidos = float(cargue.total_pedidos or 0) + float(pedido.total)
+                                    
+                                    # Recalcular total_efectivo
+                                    if hasattr(cargue, 'total_efectivo') and hasattr(cargue, 'venta'):
+                                        if cargue.venta and cargue.total_pedidos:
+                                            cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                                    
+                                    cargue.save()
+                                    print(f"✅ Cargue actualizado: {CargueModel.__name__} +${pedido.total}")
+                                    break  # Solo actualizar un cargue por modelo
+                    except Exception as e:
+                        print(f"⚠️ Error actualizando Cargue en {CargueModel.__name__}: {str(e)}")
+                        continue
         
         return pedido
 class PlaneacionSerializer(serializers.ModelSerializer):

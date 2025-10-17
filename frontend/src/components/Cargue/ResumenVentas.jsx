@@ -345,15 +345,17 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
       {/* Resumen de Totales */}
       <div className="resumen-totales mt-4">
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <span className="fw-bold">BASE CAJA</span>
-          <Form.Control
-            type="text"
-            style={{ width: '120px' }}
-            className="text-center"
-            value={baseCaja ? formatCurrency(baseCaja) : ''}
-            onChange={handleBaseCajaChange}
-          />
+        <div className="bg-light p-2 mb-2">
+          <strong>BASE CAJA</strong>
+          <div className="text-end">
+            <Form.Control
+              type="text"
+              style={{ width: '100px', fontSize: '14px', padding: '4px 8px', marginLeft: 'auto' }}
+              className="text-center"
+              value={baseCaja ? formatCurrency(baseCaja) : ''}
+              onChange={handleBaseCajaChange}
+            />
+          </div>
         </div>
 
         <div className="bg-light p-2 mb-2">

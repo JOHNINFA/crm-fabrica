@@ -347,6 +347,7 @@ class CargueID1(models.Model):
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -428,6 +429,7 @@ class CargueID2(models.Model):
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -503,6 +505,7 @@ class CargueID3(models.Model):
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -577,6 +580,7 @@ class CargueID4(models.Model):
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -651,6 +655,7 @@ class CargueID5(models.Model):
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -725,6 +730,7 @@ class CargueID6(models.Model):
     devoluciones = models.IntegerField(default=0)
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
+    lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
     total = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)

@@ -38,19 +38,19 @@ export const ProductosProvider = ({ children }) => {
   // Sincronizar stock desde BD
   const syncStockFromBD = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/productos/');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/productos/`);
       if (!response.ok) return;
-      
+
       const productosFromBD = await response.json();
       const posProducts = getFromLocalStorage('products', []);
-      
+
       const updatedPosProducts = posProducts.map(posProduct => {
         const productoBD = productosFromBD.find(p => p.id === posProduct.id);
-        return productoBD 
+        return productoBD
           ? { ...posProduct, stock: productoBD.stock_total }
           : posProduct;
       });
-      
+
       saveToLocalStorage('products', updatedPosProducts);
     } catch (error) {
       console.error('Error syncing stock from BD:', error);
@@ -62,7 +62,7 @@ export const ProductosProvider = ({ children }) => {
     try {
       const posProducts = getFromLocalStorage('products', []);
       if (posProducts.length === 0) return;
-      
+
       const convertedPosProducts = posProducts.map(posProduct => ({
         id: posProduct.id,
         nombre: posProduct.name.toUpperCase(),
@@ -71,10 +71,10 @@ export const ProductosProvider = ({ children }) => {
         cantidad: 0,
         precio: posProduct.price || 0
       }));
-      
+
       const inventoryProducts = getFromLocalStorage('productos', []);
       const combinedProducts = [...inventoryProducts];
-      
+
       convertedPosProducts.forEach(posProduct => {
         const existingIndex = combinedProducts.findIndex(p => p.id === posProduct.id);
         if (existingIndex >= 0) {
@@ -86,7 +86,7 @@ export const ProductosProvider = ({ children }) => {
           combinedProducts.push(posProduct);
         }
       });
-      
+
       saveToLocalStorage('productos', combinedProducts);
     } catch (error) {
       console.error('Error syncing POS with inventory:', error);
@@ -97,50 +97,50 @@ export const ProductosProvider = ({ children }) => {
   const loadInitialData = () => {
     try {
       const productosGuardados = getFromLocalStorage('productos');
-      
+
       if (productosGuardados.length > 0) {
         // Combinar productos iniciales con guardados
         const productosCompletos = productosIniciales.map(productoInicial => {
           const productoGuardado = productosGuardados.find(p => p.id === productoInicial.id);
-          return productoGuardado 
+          return productoGuardado
             ? { ...productoInicial, ...productoGuardado, categoria: productoInicial.categoria }
             : productoInicial;
         });
-        
+
         // Incluir productos del POS no iniciales
         const productosDelPOS = productosGuardados.filter(
           p => !productosIniciales.some(pi => pi.id === p.id)
         );
-        
+
         setProductos([...productosCompletos, ...productosDelPOS]);
       } else {
         setProductos(productosIniciales);
       }
-      
+
       // Cargar movimientos
       const movimientosGuardados = getFromLocalStorage('movimientos');
       if (movimientosGuardados.length > 0) {
         setMovimientos(movimientosGuardados);
       } else {
         const movimientosIniciales = [
-          { 
-            id: 1, 
-            fecha: '2023-05-10', 
-            hora: '10:30', 
-            producto: 'AREPA TIPO OBLEA', 
-            cantidad: 5, 
-            tipo: 'Entrada', 
+          {
+            id: 1,
+            fecha: '2023-05-10',
+            hora: '10:30',
+            producto: 'AREPA TIPO OBLEA',
+            cantidad: 5,
+            tipo: 'Entrada',
             usuario: 'Admin',
             lote: 'L001',
             fechaVencimiento: '10/11/2023'
           },
-          { 
-            id: 2, 
-            fecha: '2023-05-09', 
-            hora: '15:45', 
-            producto: 'AREPA MEDIANA', 
-            cantidad: 3, 
-            tipo: 'Salida', 
+          {
+            id: 2,
+            fecha: '2023-05-09',
+            hora: '15:45',
+            producto: 'AREPA MEDIANA',
+            cantidad: 3,
+            tipo: 'Salida',
             usuario: 'Usuario',
             lote: 'L002',
             fechaVencimiento: '-'
@@ -160,12 +160,12 @@ export const ProductosProvider = ({ children }) => {
     syncStockFromBD();
     syncPOSWithInventory();
     loadInitialData();
-    
+
     // Configurar sincronización periódica
     const syncInterval = setInterval(() => {
       syncService.processSyncQueue();
     }, 30000);
-    
+
     return () => clearInterval(syncInterval);
   }, []);
 
@@ -173,22 +173,22 @@ export const ProductosProvider = ({ children }) => {
   const actualizarExistencias = (productosActualizados) => {
     setProductos(productosActualizados);
     saveToLocalStorage('productos', productosActualizados);
-    
+
     // Sincronizar con POS
     try {
       const posProducts = getFromLocalStorage('products', []);
       const updatedPosProducts = posProducts.map(posProduct => {
         const inventoryProduct = productosActualizados.find(p => p.id === posProduct.id);
-        return inventoryProduct 
+        return inventoryProduct
           ? { ...posProduct, stock: inventoryProduct.existencias }
           : posProduct;
       });
-      
+
       saveToLocalStorage('products', updatedPosProducts);
     } catch (error) {
       console.error('Error syncing with POS:', error);
     }
-    
+
     // Sincronizar con backend
     productosActualizados.forEach(async (producto) => {
       try {
@@ -214,10 +214,10 @@ export const ProductosProvider = ({ children }) => {
       const movimientosNoRepetidos = nuevosMovimientos.filter(
         nuevoMov => !prevMovimientos.some(prevMov => prevMov.id === nuevoMov.id)
       );
-      
+
       const movimientosActualizados = [...movimientosNoRepetidos, ...prevMovimientos];
       saveToLocalStorage('movimientos', movimientosActualizados);
-      
+
       return movimientosActualizados;
     });
   };
@@ -236,10 +236,10 @@ export const ProductosProvider = ({ children }) => {
         cantidad: 0,
         precio: producto.precio
       }));
-      
+
       setProductos(productosFormateados);
       saveToLocalStorage('productos', productosFormateados);
-      
+
       // Cargar movimientos desde backend
       try {
         const backendMovimientos = await movimientoService.getAll();
@@ -255,14 +255,14 @@ export const ProductosProvider = ({ children }) => {
           fechaVencimiento: '-',
           registrado: true
         }));
-        
+
         const movimientosLocales = getFromLocalStorage('movimientos', []);
         const backendMovimientosIds = new Set(backendMovimientos.map(m => m.id));
-        
+
         const movimientosLocalesUnicos = movimientosLocales.filter(
           m => !backendMovimientosIds.has(m.id) && m.id.toString().includes('-')
         );
-        
+
         const movimientosCombinados = [...movimientosFormateados, ...movimientosLocalesUnicos];
         setMovimientos(movimientosCombinados);
         saveToLocalStorage('movimientos', movimientosCombinados);
@@ -271,7 +271,7 @@ export const ProductosProvider = ({ children }) => {
         const movimientosLocales = getFromLocalStorage('movimientos', []);
         setMovimientos(movimientosLocales);
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error syncing with backend:', error);

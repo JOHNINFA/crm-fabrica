@@ -423,6 +423,25 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
+      // 🚀 NUEVO: Recopilar lotes de producción (solo desde ID1)
+      let lotesProduccion = [];
+      if (idVendedor === 'ID1') {
+        const lotesKey = `lotes_${dia}_ID1_${fechaAUsar}`;
+        const lotesData = localStorage.getItem(lotesKey);
+        console.log(`📦 ${idVendedor} - Buscando lotes en: ${lotesKey}`);
+
+        if (lotesData) {
+          try {
+            lotesProduccion = JSON.parse(lotesData);
+            console.log(`📦 ${idVendedor} - Lotes de producción encontrados:`, lotesProduccion);
+          } catch (error) {
+            console.error(`❌ Error parsing lotes para ${idVendedor}:`, error);
+          }
+        } else {
+          console.log(`⚠️ ${idVendedor} - No se encontraron lotes de producción`);
+        }
+      }
+
       const datosParaGuardar = {
         dia_semana: dia,
         vendedor_id: idVendedor,
@@ -431,6 +450,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         pagos: pagosData,
         resumen: resumenData,
         cumplimiento: cumplimientoData,
+        lotes_produccion: lotesProduccion, // 🚀 NUEVO: Agregar lotes de producción
         productos: productosParaGuardar.map(p => ({
           producto_nombre: p.producto,
           cantidad: p.cantidad || 0,

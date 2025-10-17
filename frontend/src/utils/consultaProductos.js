@@ -9,7 +9,7 @@
 async function consultarTablaProducto() {
   try {
     console.log('Consultando tabla api_producto...');
-    const response = await fetch('http://localhost:8000/api/productos/');
+    const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/productos/`);
     
     if (!response.ok) {
       throw new Error(`Error al consultar productos: ${response.status}`);
