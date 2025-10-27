@@ -16,18 +16,20 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ModalProvider } from "../context/ModalContext";
-import { ProductProvider } from "../context/ProductContext";
+import { ProductProvider, useProducts } from "../context/ProductContext";
 import { CajeroPedidosProvider, useCajeroPedidos } from "../context/CajeroPedidosContext";
 import Sidebar from "../components/Pedidos/Sidebar"
 import Topbar from "../components/Pedidos/Topbar";
 import ProductList from "../components/Pedidos/ProductList";
 import Cart from "../components/Pedidos/Cart";
 import ConsumerForm from "../components/Pedidos/ConsumerForm";
+import { usePriceList } from "../hooks/usePriceList";
 
 import ImageSyncButton from "../components/common/ImageSyncButton";
 
-// Componente interno que usa el CajeroPedidosContext
-function PedidosScreenContent() {
+// Componente que usa ProductContext (debe estar dentro de ProductProvider)
+function PedidosMainContent() {
+    const { products } = useProducts();
     const { cajeroLogueado, isAuthenticated } = useCajeroPedidos();
     const [searchParams] = useSearchParams();
     const [search, setSearch] = useState("");
@@ -91,6 +93,22 @@ function PedidosScreenContent() {
     const [desc, setDesc] = useState(0);
     const [sidebarWidth, setSidebarWidth] = useState(210);
 
+    // Hook para obtener precios de la lista actual
+    const { precios } = usePriceList(priceList, products);
+
+    // Actualizar precios del carrito cuando cambia la lista de precios
+    useEffect(() => {
+        if (cart.length > 0 && Object.keys(precios).length > 0) {
+            setCart(prevCart =>
+                prevCart.map(item => {
+                    // Obtener el precio de la nueva lista, o usar el precio base del producto
+                    const nuevoPrecio = precios[item.id] !== undefined ? precios[item.id] : item.price;
+                    return { ...item, price: nuevoPrecio };
+                })
+            );
+        }
+    }, [priceList, precios]);
+
     // Función para limpiar carrito después de remisión exitosa
     const clearCart = () => {
         setCart([]);
@@ -137,77 +155,86 @@ function PedidosScreenContent() {
     const total = Math.max(0, subtotal + Number(imp) - Number(desc));
 
     return (
-        <ProductProvider>
-            <ModalProvider>
-                <div className="d-flex pedidos-screen">
-                    <Sidebar onWidthChange={setSidebarWidth} />
-                    <div
-                        className="flex-grow-1 offset"
-                        style={{
-                            marginLeft: sidebarWidth,
-                            minHeight: "100vh",
-                            background: "#f7f7fa",
-                            transition: 'margin-left 0.3s ease'
-                        }}
-                    >
-                        <Topbar />
-                        <main style={{ padding: "20px 24px 0px 24px" }}>
-                            <div className="row">
-                                <div className="col-lg-7 mb-4">
-                                    <ProductList
-                                        addProduct={addProduct}
-                                        search={search}
-                                        setSearch={setSearch}
+        <ModalProvider>
+            <div className="d-flex pedidos-screen">
+                <Sidebar onWidthChange={setSidebarWidth} />
+                <div
+                    className="flex-grow-1 offset"
+                    style={{
+                        marginLeft: sidebarWidth,
+                        minHeight: "100vh",
+                        background: "#f7f7fa",
+                        transition: 'margin-left 0.3s ease'
+                    }}
+                >
+                    <Topbar />
+                    <main style={{ padding: "20px 24px 0px 24px" }}>
+                        <div className="row">
+                            <div className="col-lg-7 mb-4">
+                                <ProductList
+                                    addProduct={addProduct}
+                                    search={search}
+                                    setSearch={setSearch}
+                                    priceList={priceList}
+                                />
+                            </div>
+
+                            <div className="col-lg-5">
+                                <div className="card-bg mb-3 p-0" style={{ overflow: 'hidden' }}>
+                                    <ConsumerForm
+                                        date={date}
+                                        seller={seller}
+                                        client={client}
                                         priceList={priceList}
+                                        setDate={setDate}
+                                        setSeller={setSeller}
+                                        setClient={setClient}
+                                        setPriceList={setPriceList}
+                                        sellers={sellers}
+                                    />
+                                    <Cart
+                                        cart={cart}
+                                        removeProduct={removeProduct}
+                                        changeQty={changeQty}
+                                        subtotal={subtotal}
+                                        imp={imp}
+                                        setImp={setImp}
+                                        desc={desc}
+                                        setDesc={setDesc}
+                                        total={total}
+                                        seller={seller}
+                                        client={client}
+                                        clientData={clientData}
+                                        clearCart={clearCart}
+                                        resetForm={resetForm}
+                                        date={date}
                                     />
                                 </div>
-
-                                <div className="col-lg-5">
-                                    <div className="card-bg mb-3 p-0" style={{ overflow: 'hidden' }}>
-                                        <ConsumerForm
-                                            date={date}
-                                            seller={seller}
-                                            client={client}
-                                            priceList={priceList}
-                                            setDate={setDate}
-                                            setSeller={setSeller}
-                                            setClient={setClient}
-                                            setPriceList={setPriceList}
-                                            sellers={sellers}
-                                        />
-                                        <Cart
-                                            cart={cart}
-                                            removeProduct={removeProduct}
-                                            changeQty={changeQty}
-                                            subtotal={subtotal}
-                                            imp={imp}
-                                            setImp={setImp}
-                                            desc={desc}
-                                            setDesc={setDesc}
-                                            total={total}
-                                            seller={seller}
-                                            client={client}
-                                            clientData={clientData}
-                                            clearCart={clearCart}
-                                            resetForm={resetForm}
-                                            date={date}
-                                        />
-                                    </div>
-                                </div>
                             </div>
-                        </main>
-                    </div>
+                        </div>
+                    </main>
                 </div>
-            </ModalProvider>
-        </ProductProvider>
+            </div>
+        </ModalProvider>
     );
 }
 
+// Componente intermedio que provee ProductProvider
+const PedidosScreenContent = () => {
+    return (
+        <ProductProvider>
+            <PedidosMainContent />
+        </ProductProvider>
+    );
+};
+
 // Componente principal que provee el CajeroPedidosContext
-export default function PedidosScreen() {
+const PedidosScreen = () => {
     return (
         <CajeroPedidosProvider>
             <PedidosScreenContent />
         </CajeroPedidosProvider>
     );
-}
+};
+
+export default PedidosScreen;

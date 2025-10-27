@@ -23,6 +23,40 @@ class Producto(models.Model):
     fecha_creacion = models.DateTimeField(default=timezone.now)
     activo = models.BooleanField(default=True)
 
+    def save(self, *args, **kwargs):
+        """Eliminar imagen antigua al actualizar con una nueva"""
+        if self.pk:  # Solo si es actualización
+            try:
+                old_producto = Producto.objects.get(pk=self.pk)
+                # Si hay imagen antigua y es diferente a la nueva
+                if old_producto.imagen and old_producto.imagen != self.imagen:
+                    import os
+                    from django.conf import settings
+                    
+                    # Eliminar de media/productos/
+                    if os.path.isfile(old_producto.imagen.path):
+                        os.remove(old_producto.imagen.path)
+                        print(f"✅ Imagen antigua eliminada: {old_producto.imagen.path}")
+                    
+                    # Eliminar de frontend/public/images/productos/
+                    frontend_path = os.path.join(
+                        settings.BASE_DIR, 
+                        'frontend', 
+                        'public', 
+                        'images', 
+                        'productos',
+                        os.path.basename(old_producto.imagen.name)
+                    )
+                    if os.path.isfile(frontend_path):
+                        os.remove(frontend_path)
+                        print(f"✅ Imagen frontend eliminada: {frontend_path}")
+            except Producto.DoesNotExist:
+                pass
+            except Exception as e:
+                print(f"⚠️ Error al eliminar imagen antigua: {e}")
+        
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.nombre} - Stock: {self.stock_total}"
 
@@ -311,6 +345,16 @@ class PrecioProducto(models.Model):
     
     class Meta:
         unique_together = ('producto', 'lista_precio')
+    
+    def save(self, *args, **kwargs):
+        """Si es lista CLIENTES, actualizar precio base del producto"""
+        super().save(*args, **kwargs)
+        
+        # Si la lista es "CLIENTES", actualizar el precio base del producto
+        if self.lista_precio.nombre == 'CLIENTES':
+            self.producto.precio = self.precio
+            self.producto.save(update_fields=['precio'])
+            print(f"✅ Precio base actualizado: {self.producto.nombre} = ${self.precio}")
     
     def __str__(self):
         return f"{self.producto.nombre} - {self.lista_precio.nombre} - ${self.precio}"
@@ -1081,6 +1125,33 @@ class ArqueoCaja(models.Model):
         estado_emoji = {'PENDIENTE': '⏳', 'COMPLETADO': '✅', 'REVISADO': '🔍'}
         return f"{estado_emoji.get(self.estado, '')} {self.fecha} - {self.cajero} - {self.banco}"
 
+class MovimientoCaja(models.Model):
+    """Modelo para movimientos de caja (ingresos y egresos)"""
+    TIPO_CHOICES = [
+        ('INGRESO', 'Ingreso'),
+        ('EGRESO', 'Egreso'),
+    ]
+    
+    # Información básica
+    fecha = models.DateField()
+    hora = models.CharField(max_length=10)
+    cajero = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    concepto = models.CharField(max_length=255)
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        verbose_name = 'Movimiento de Caja'
+        verbose_name_plural = 'Movimientos de Caja'
+        ordering = ['-fecha', '-hora']
+    
+    def __str__(self):
+        tipo_emoji = {'INGRESO': '💰', 'EGRESO': '💸'}
+        return f"{tipo_emoji.get(self.tipo, '')} {self.fecha} - {self.cajero} - ${self.monto}"
+
 class Pedido(models.Model):
     """Modelo para pedidos de productos"""
     
@@ -1226,3 +1297,28 @@ class Vendedor(models.Model):
         verbose_name = "Vendedor"
         verbose_name_plural = "Vendedores"
         ordering = ['id_vendedor']
+
+
+class MovimientoCaja(models.Model):
+    """Modelo para registrar movimientos de caja (ingresos y egresos)"""
+    
+    TIPO_CHOICES = [
+        ('INGRESO', 'Ingreso'),
+        ('EGRESO', 'Egreso'),
+    ]
+    
+    fecha = models.DateField()
+    hora = models.CharField(max_length=10)
+    cajero = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    concepto = models.CharField(max_length=255)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        verbose_name = 'Movimiento de Caja'
+        verbose_name_plural = 'Movimientos de Caja'
+        ordering = ['-fecha', '-hora']
+    
+    def __str__(self):
+        return f"{self.fecha} {self.hora} - {self.tipo} - ${self.monto} - {self.concepto}"

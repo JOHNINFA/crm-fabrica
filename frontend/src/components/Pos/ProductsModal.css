@@ -7,11 +7,14 @@
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: flex-start;
-  /* Cambiado a flex-start para que el modal esté en la parte superior */
+  /* Alineado hacia arriba */
   justify-content: center;
   z-index: 1000;
-  padding-top: 20px;
-  /* Espacio en la parte superior */
+  padding-top: 30px;
+  /* Espacio desde la parte superior */
+  padding-bottom: 20px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .modal-content {
@@ -33,11 +36,11 @@
   background-color: #fff;
   border-radius: 4px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  width: 98vw;
+  width: 95vw;
   max-width: none;
-  height: 95vh;
-  /* Altura fija como en Cuenti */
-  max-height: none;
+  height: 85vh;
+  /* Altura ajustada para mejor centrado */
+  max-height: 85vh;
   overflow: hidden;
   /* Ocultar desbordamiento */
   padding: 0;

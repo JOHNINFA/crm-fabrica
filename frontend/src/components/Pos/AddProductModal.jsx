@@ -3,8 +3,13 @@ import { useModalContext } from '../../context/ModalContext';
 import { useProducts } from '../../context/ProductContext';
 import './AddProductModal.css';
 
-const AddProductModal = () => {
-  const { showAddProductModal, closeAddProductModal, selectedProduct } = useModalContext();
+const AddProductModal = ({ show, onClose, selectedProduct }) => {
+  // Si se pasa show y onClose como props, usarlos; si no, usar el contexto
+  const modalContext = useModalContext();
+  const showModal = show !== undefined ? show : modalContext?.showAddProductModal;
+  const closeModal = onClose || modalContext?.closeAddProductModal;
+  const productToEdit = selectedProduct !== undefined ? selectedProduct : modalContext?.selectedProduct;
+
   const { addProduct, categories, addCategory } = useProducts();
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategory, setNewCategory] = useState("");
@@ -25,22 +30,22 @@ const AddProductModal = () => {
 
   // Cargar datos del producto seleccionado
   useEffect(() => {
-    if (selectedProduct) {
+    if (productToEdit) {
       setFormData({
-        nombre: selectedProduct.name || "",
-        precio: selectedProduct.price || 0,
-        categoria: selectedProduct.category || "General",
-        tipoMedida: selectedProduct.measureType || "und",
-        grupoContable: selectedProduct.accountGroup || "",
-        marca: selectedProduct.brand || "GENERICA",
-        impuesto: selectedProduct.tax || "IVA(0%)",
-        precioCompra: selectedProduct.purchasePrice || 0,
-        precioVenta: selectedProduct.price || 0,
-        imagen: selectedProduct.image || null,
-        existencias: selectedProduct.stock || 0,
+        nombre: productToEdit.name || "",
+        precio: productToEdit.price || 0,
+        categoria: productToEdit.category || "General",
+        tipoMedida: productToEdit.measureType || "und",
+        grupoContable: productToEdit.accountGroup || "",
+        marca: productToEdit.brand || "GENERICA",
+        impuesto: productToEdit.tax || "IVA(0%)",
+        precioCompra: productToEdit.purchasePrice || 0,
+        precioVenta: productToEdit.price || 0,
+        imagen: productToEdit.image || null,
+        existencias: productToEdit.stock || 0,
       });
     }
-  }, [selectedProduct]);
+  }, [productToEdit]);
 
   // Utilidades
   const resetForm = () => {
@@ -106,12 +111,12 @@ const AddProductModal = () => {
   // Envío del formulario
   const handleSubmit = (e) => {
     e.preventDefault();
-    const productToSave = selectedProduct
-      ? { ...formData, id: selectedProduct.id }
+    const productToSave = productToEdit
+      ? { ...formData, id: productToEdit.id }
       : formData;
 
     addProduct(productToSave);
-    closeAddProductModal();
+    closeModal();
     resetForm();
   };
 
@@ -148,14 +153,14 @@ const AddProductModal = () => {
     </div>
   );
 
-  if (!showAddProductModal) return null;
+  if (!showModal) return null;
 
   return (
     <div className="modal-overlay">
       <div className="modal-content add-product-modal">
         <div className="modal-header">
-          <h4>{selectedProduct ? 'Editar Producto' : 'Agregar Producto'}</h4>
-          <button className="close-button" onClick={closeAddProductModal}>×</button>
+          <h4>{productToEdit ? 'Editar Producto' : 'Agregar Producto'}</h4>
+          <button className="close-button" onClick={closeModal}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
@@ -265,7 +270,7 @@ const AddProductModal = () => {
 
           {/* Botones */}
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={closeAddProductModal}>
+            <button type="button" className="btn btn-secondary" onClick={closeModal}>
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary">

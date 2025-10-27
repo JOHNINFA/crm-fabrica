@@ -13,7 +13,7 @@ const CajaScreenContent = () => {
     const navigate = useNavigate();
     const { cajeroLogueado, isAuthenticated } = useCajero();
     const [cajero, setCajero] = useState('jose');
-    const [banco, setBanco] = useState('Caja General');
+    const [banco, setBanco] = useState('Todos');
     const [fechaActual] = useState(new Date().toLocaleString('es-ES'));
     // Función para obtener fecha local en formato YYYY-MM-DD
     const getFechaLocal = () => {
@@ -62,6 +62,7 @@ const CajaScreenContent = () => {
     const [recomendaciones, setRecomendaciones] = useState([]);
     const [ultimoArqueo, setUltimoArqueo] = useState(null);
     const [guardandoArqueo, setGuardandoArqueo] = useState(false);
+    const [corteRealizado, setCorteRealizado] = useState(false);
     const [activeTab, setActiveTab] = useState('arqueo');
 
     // Actualizar cajero cuando se loguea
@@ -77,6 +78,8 @@ const CajaScreenContent = () => {
     const [loadingVentas, setLoadingVentas] = useState(false);
     const [showVentaModal, setShowVentaModal] = useState(false);
     const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
+    const [showAnularModal, setShowAnularModal] = useState(false);
+    const [confirmacionAnular, setConfirmacionAnular] = useState('');
     const [metricasVentas, setMetricasVentas] = useState({
         totalSinImpuestos: 0,
         totalImpuestos: 0,
@@ -95,9 +98,25 @@ const CajaScreenContent = () => {
     const [tipoMovimiento, setTipoMovimiento] = useState('INGRESO');
     const [montoMovimiento, setMontoMovimiento] = useState('');
     const [conceptoMovimiento, setConceptoMovimiento] = useState('');
-
+    const [fechaMovimientos, setFechaMovimientos] = useState(getFechaLocal());
 
     const [loadingMovimientos, setLoadingMovimientos] = useState(false);
+
+    // Estados para historial de arqueos
+    const [historialArqueos, setHistorialArqueos] = useState([]);
+    const [loadingHistorial, setLoadingHistorial] = useState(false);
+    const [fechaHistorialInicio, setFechaHistorialInicio] = useState(
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    );
+    const [fechaHistorialFin, setFechaHistorialFin] = useState(getFechaLocal());
+    const [estadisticasHistorial, setEstadisticasHistorial] = useState({
+        totalArqueos: 0,
+        sinDiferencias: 0,
+        conDiferencias: 0,
+        totalDiferencia: 0
+    });
+    const [showArqueoDetalleModal, setShowArqueoDetalleModal] = useState(false);
+    const [arqueoDetalle, setArqueoDetalle] = useState(null);
 
     // Cargar datos de ventas del día
     const cargarDatosVentas = async () => {
@@ -359,7 +378,10 @@ const CajaScreenContent = () => {
             return;
         }
 
-        const totales = ventasData.reduce((acc, venta) => {
+        // Filtrar solo ventas NO anuladas
+        const ventasValidas = ventasData.filter(venta => venta.estado !== 'ANULADA');
+
+        const totales = ventasValidas.reduce((acc, venta) => {
             acc.totalFacturado += parseFloat(venta.total || 0);
             acc.totalSinImpuestos += parseFloat(venta.subtotal || 0);
             acc.totalImpuestos += parseFloat(venta.impuestos || 0);
@@ -370,6 +392,13 @@ const CajaScreenContent = () => {
             totalImpuestos: 0,
             totalFacturado: 0,
             totalPagado: 0
+        });
+
+        console.log('📊 Métricas calculadas (sin anuladas):', {
+            totalVentas: ventasData.length,
+            ventasValidas: ventasValidas.length,
+            ventasAnuladas: ventasData.length - ventasValidas.length,
+            totalFacturado: totales.totalFacturado
         });
 
         setMetricasVentas({
@@ -392,23 +421,50 @@ const CajaScreenContent = () => {
         }
     };
 
+    // Función para abrir modal de anulación
+    const abrirModalAnular = () => {
+        setConfirmacionAnular('');
+        setShowAnularModal(true);
+    };
+
     // Anular venta
-    const handleAnularVenta = async (ventaId) => {
+    const handleAnularVenta = async () => {
+        if (confirmacionAnular.toUpperCase() !== 'SI') {
+            alert('Debe escribir "SI" para confirmar la anulación');
+            return;
+        }
+
+        const ventaId = ventaSeleccionada?.id;
         if (!ventaId) return;
 
-        const confirmar = window.confirm(
-            '⚠️ ¿Está seguro de anular esta venta?\n\n' +
-            'Esta acción:\n' +
-            '• Marcará la venta como ANULADA\n' +
-            '• Devolverá TODOS los productos al inventario\n' +
-            '• Actualizará las existencias automáticamente\n' +
-            '• No se puede deshacer\n\n' +
-            '¿Desea continuar?'
-        );
-
-        if (!confirmar) return;
-
         try {
+            // 🔒 VALIDAR: No permitir anular si ya existe arqueo del día
+            const fechaVenta = ventaSeleccionada.fecha.split('T')[0];
+            console.log('🔍 Verificando arqueo para fecha:', fechaVenta);
+
+            try {
+                const arqueoExistente = await cajaService.getArqueosPorRango(fechaVenta, fechaVenta, cajero);
+
+                if (arqueoExistente && arqueoExistente.length > 0) {
+                    alert('❌ NO SE PUEDE ANULAR ESTA VENTA\n\n' +
+                        '🔒 Ya existe un arqueo de caja guardado para este día.\n\n' +
+                        '📋 Fecha del arqueo: ' + fechaVenta + '\n' +
+                        '👤 Cajero: ' + cajero + '\n\n' +
+                        '⚠️ Anular esta venta descuadraría el arqueo ya realizado.\n\n' +
+                        '💡 Si necesita anular esta venta:\n' +
+                        '   1. Contacte al supervisor/administrador\n' +
+                        '   2. Elimine el arqueo del día desde el Historial\n' +
+                        '   3. Anule la venta\n' +
+                        '   4. Realice un nuevo arqueo con los valores correctos');
+
+                    setShowAnularModal(false);
+                    return;
+                }
+            } catch (error) {
+                console.warn('⚠️ Error verificando arqueo:', error);
+                // Si hay error verificando, permitir continuar (para no bloquear en caso de error de red)
+            }
+
             console.log('🚫 Anulando venta:', ventaId);
             console.log('📦 Venta seleccionada:', ventaSeleccionada);
 
@@ -476,6 +532,11 @@ const CajaScreenContent = () => {
                         '⚠️ Estado guardado localmente (se sincronizará cuando la API esté disponible).');
                 }
 
+                // Cerrar modales
+                setShowAnularModal(false);
+                setShowVentaModal(false);
+                setConfirmacionAnular('');
+
                 // Actualizar la venta seleccionada para cambio visual inmediato
                 setVentaSeleccionada(prev => ({
                     ...prev,
@@ -498,12 +559,12 @@ const CajaScreenContent = () => {
             }
         } catch (error) {
             console.error('Error anulando venta:', error);
-            alert('❌ Error al anular la venta. Intente nuevamente.');
+            alert('❌ Error al anular la venta: ' + error.message);
         }
     };
 
     // Agregar movimiento de caja
-    const handleAgregarMovimiento = () => {
+    const handleAgregarMovimiento = async () => {
         if (!montoMovimiento || !conceptoMovimiento) {
             alert('⚠️ Debe ingresar monto y concepto del movimiento');
             return;
@@ -515,29 +576,60 @@ const CajaScreenContent = () => {
             return;
         }
 
-        const nuevoMovimiento = {
-            id: Date.now(),
-            tipo: tipoMovimiento,
-            monto: tipoMovimiento === 'EGRESO' ? -monto : monto,
-            concepto: conceptoMovimiento,
-            fecha: new Date().toISOString(),
-            hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-            cajero: cajero
-        };
+        try {
+            const nuevoMovimiento = {
+                tipo: tipoMovimiento,
+                monto: monto, // Siempre positivo, el tipo determina si suma o resta
+                concepto: conceptoMovimiento,
+                fecha: getFechaLocal(),
+                hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                cajero: cajero
+            };
 
-        setMovimientosCaja(prev => [...prev, nuevoMovimiento]);
+            // Guardar en la base de datos
+            const movimientoGuardado = await cajaService.guardarMovimientoCaja(nuevoMovimiento);
 
-        // Limpiar formulario
-        setMontoMovimiento('');
-        setConceptoMovimiento('');
-        setShowNuevoMovimiento(false);
+            console.log('✅ Movimiento guardado en BD:', movimientoGuardado);
 
-        console.log('💰 Movimiento agregado:', nuevoMovimiento);
-        alert(`✅ ${tipoMovimiento} de ${formatCurrency(monto)} registrado exitosamente`);
+            // Agregar al estado local con el ID de la BD
+            setMovimientosCaja(prev => [...prev, {
+                ...movimientoGuardado, // Usar los datos del servidor
+                id: movimientoGuardado.id
+            }]);
+
+            // Cambiar a la fecha actual para ver el movimiento recién agregado
+            setFechaMovimientos(getFechaLocal());
+
+            // Limpiar formulario
+            setMontoMovimiento('');
+            setConceptoMovimiento('');
+            setShowNuevoMovimiento(false);
+
+            alert(`✅ ${tipoMovimiento === 'EGRESO' ? 'SALIDA' : tipoMovimiento} de ${formatCurrency(monto)} registrado exitosamente`);
+        } catch (error) {
+            console.error('❌ Error al guardar movimiento:', error);
+            alert('❌ Error al guardar el movimiento. Intente nuevamente.');
+        }
+    };
+
+    // Cargar movimientos de caja desde BD
+    const cargarMovimientosCaja = async () => {
+        try {
+            console.log('🔄 Cargando movimientos de caja para:', fechaConsulta, cajero);
+            const movimientos = await cajaService.getMovimientosCaja(fechaConsulta, cajero);
+            setMovimientosCaja(movimientos);
+            console.log('✅ Movimientos de caja cargados:', movimientos.length);
+        } catch (error) {
+            console.error('❌ Error cargando movimientos de caja:', error);
+            setMovimientosCaja([]);
+        }
     };
 
     // Calcular total de movimientos de caja
-    const totalMovimientosCaja = movimientosCaja.reduce((sum, mov) => sum + mov.monto, 0);
+    const totalMovimientosCaja = movimientosCaja.reduce((sum, mov) => {
+        const monto = Math.abs(parseFloat(mov.monto) || 0); // Siempre positivo
+        return sum + (mov.tipo === 'EGRESO' ? -monto : monto);
+    }, 0);
 
     // Cargar movimientos bancarios
     const cargarMovimientosBancarios = async () => {
@@ -559,6 +651,112 @@ const CajaScreenContent = () => {
     const handleMovimientosCaja = () => {
         setShowMovimientosBancarios(true);
     };
+
+    // Cargar historial de arqueos
+    const cargarHistorialArqueos = async (fechaInicio = fechaHistorialInicio, fechaFin = fechaHistorialFin) => {
+        setLoadingHistorial(true);
+        try {
+            console.log('🔄 Cargando historial de arqueos:', { fechaInicio, fechaFin, cajero });
+            const arqueos = await cajaService.getArqueosPorRango(fechaInicio, fechaFin, cajero);
+
+            setHistorialArqueos(arqueos);
+
+            // Calcular estadísticas
+            const stats = {
+                totalArqueos: arqueos.length,
+                sinDiferencias: arqueos.filter(a => Math.abs(parseFloat(a.total_diferencia)) < 0.01).length,
+                conDiferencias: arqueos.filter(a => Math.abs(parseFloat(a.total_diferencia)) >= 0.01).length,
+                totalDiferencia: arqueos.reduce((sum, a) => sum + parseFloat(a.total_diferencia || 0), 0)
+            };
+            setEstadisticasHistorial(stats);
+
+            console.log('✅ Historial cargado:', arqueos.length, 'arqueos');
+        } catch (error) {
+            console.error('❌ Error cargando historial:', error);
+            setHistorialArqueos([]);
+        } finally {
+            setLoadingHistorial(false);
+        }
+    };
+
+    // Ver detalle de un arqueo
+    const verDetalleArqueo = (arqueo) => {
+        setArqueoDetalle(arqueo);
+        setShowArqueoDetalleModal(true);
+    };
+
+    // Imprimir arqueo
+    const imprimirArqueo = (arqueo) => {
+        const printContent = `
+            <html>
+                <head>
+                    <title>Arqueo de Caja - ${arqueo.fecha}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f8f9fa; }
+                        .total-row { background-color: #e9ecef; font-weight: bold; }
+                        .text-right { text-align: right; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>ARQUEO DE CAJA</h2>
+                        <p>Fecha: ${new Date(arqueo.fecha).toLocaleDateString('es-ES')}</p>
+                        <p>Cajero: ${arqueo.cajero}</p>
+                        <p>Banco: ${arqueo.banco}</p>
+                    </div>
+                    
+                    <h3>Valores del Sistema</h3>
+                    <table>
+                        <tr><th>Método</th><th class="text-right">Valor</th></tr>
+                        ${Object.entries(arqueo.valores_sistema || {}).map(([metodo, valor]) => `
+                            <tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>
+                        `).join('')}
+                        <tr class="total-row"><td>TOTAL SISTEMA</td><td class="text-right">${formatCurrency(arqueo.total_sistema)}</td></tr>
+                    </table>
+                    
+                    <h3>Valores en Caja</h3>
+                    <table>
+                        <tr><th>Método</th><th class="text-right">Valor</th></tr>
+                        ${Object.entries(arqueo.valores_caja || {}).map(([metodo, valor]) => `
+                            <tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>
+                        `).join('')}
+                        <tr class="total-row"><td>TOTAL CAJA</td><td class="text-right">${formatCurrency(arqueo.total_caja)}</td></tr>
+                    </table>
+                    
+                    <h3>Diferencias</h3>
+                    <table>
+                        <tr><th>Método</th><th class="text-right">Diferencia</th></tr>
+                        ${Object.entries(arqueo.diferencias || {}).map(([metodo, valor]) => `
+                            <tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>
+                        `).join('')}
+                        <tr class="total-row"><td>TOTAL DIFERENCIA</td><td class="text-right">${formatCurrency(arqueo.total_diferencia)}</td></tr>
+                    </table>
+                    
+                    ${arqueo.observaciones ? `<p><strong>Observaciones:</strong> ${arqueo.observaciones}</p>` : ''}
+                    
+                    <p style="margin-top: 30px; text-align: center; font-size: 10px;">
+                        Generado: ${new Date().toLocaleString('es-ES')}
+                    </p>
+                </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    // Cargar historial cuando cambia el tab
+    useEffect(() => {
+        if (activeTab === 'historial') {
+            cargarHistorialArqueos();
+        }
+    }, [activeTab]);
 
     // Generar comprobante diario de ventas
     const handleComprobanteDiario = () => {
@@ -651,6 +849,15 @@ const CajaScreenContent = () => {
                             font-weight: bold;
                             font-size: 13px;
                         }
+                        .ingreso { color: #198754; }
+                        .egreso { color: #dc3545; }
+                        .nota-box {
+                            background-color: #fff3cd;
+                            padding: 10px;
+                            border-left: 4px solid #ffc107;
+                            margin-top: 10px;
+                            font-size: 11px;
+                        }
                     </style>
                 </head>
                 <body>
@@ -675,10 +882,6 @@ const CajaScreenContent = () => {
                             <div class="summary-item">
                                 <span>Total Pagado:</span>
                                 <span>${formatCurrency(metricasValidas.totalPagado)}</span>
-                            </div>
-                            <div class="summary-item">
-                                <span>Promedio por Venta:</span>
-                                <span>${(ventasValidas?.length || 0) > 0 ? formatCurrency(metricasValidas.totalFacturado / ventasValidas.length) : '$0'}</span>
                             </div>
                         </div>
                     </div>
@@ -726,6 +929,53 @@ const CajaScreenContent = () => {
                             </tfoot>
                         </table>
                     </div>
+
+                    ${movimientosCaja.length > 0 ? `
+                        <div class="section">
+                            <h3>💰 MOVIMIENTOS DE CAJA</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Concepto</th>
+                                        <th class="text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${movimientosCaja.map(mov => {
+            const monto = Math.abs(parseFloat(mov.monto) || 0);
+            const esEgreso = mov.tipo === 'EGRESO';
+            return `
+                                            <tr>
+                                                <td>${mov.hora}</td>
+                                                <td style="color: ${esEgreso ? '#dc3545' : '#198754'}; font-weight: bold;">
+                                                    ${mov.tipo === 'EGRESO' ? 'SALIDA' : mov.tipo}
+                                                </td>
+                                                <td>${mov.concepto}</td>
+                                                <td class="text-right" style="color: ${esEgreso ? '#dc3545' : '#198754'};">
+                                                    ${esEgreso ? '- ' : '+ '}${formatCurrency(monto)}
+                                                </td>
+                                            </tr>
+                                        `;
+        }).join('')}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td colspan="3">SALDO NETO DE MOVIMIENTOS</td>
+                                        <td class="text-right" style="color: ${totalMovimientosCaja < 0 ? '#dc3545' : '#198754'};">
+                                            ${formatCurrency(totalMovimientosCaja)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <div style="background-color: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin-top: 10px;">
+                                <small style="color: #856404;">
+                                    <strong>Nota:</strong> Este saldo se ${totalMovimientosCaja >= 0 ? 'suma' : 'resta'} del efectivo esperado en el arqueo de caja.
+                                </small>
+                            </div>
+                        </div>
+                    ` : ''}
 
                     <div class="section">
                         <h3>📋 DETALLE DE VENTAS</h3>
@@ -948,6 +1198,10 @@ const CajaScreenContent = () => {
             // Recargar el último arqueo para actualizar la interfaz
             await cargarUltimoArqueo();
 
+            // Marcar que se realizó el corte de caja
+            setCorteRealizado(true);
+            localStorage.setItem(`corteRealizado_${cajero}_${fechaConsulta}`, 'true');
+
             // Limpiar después de 5 segundos
             setTimeout(() => {
                 setValidacion(null);
@@ -972,6 +1226,7 @@ const CajaScreenContent = () => {
         cargarDatosVentas();
         cargarUltimoArqueo();
         cargarVentasDelDia();
+        cargarMovimientosCaja();
     };
 
     // Imprimir reporte
@@ -984,6 +1239,12 @@ const CajaScreenContent = () => {
         cargarDatosVentas();
         cargarUltimoArqueo();
         cargarVentasDelDia();
+        cargarMovimientosCaja();
+
+        // Verificar si ya se hizo el corte hoy
+        const corteKey = `corteRealizado_${cajero}_${fechaConsulta}`;
+        const yaSeHizoCorte = localStorage.getItem(corteKey) === 'true';
+        setCorteRealizado(yaSeHizoCorte);
     }, [fechaConsulta, cajero]);
 
     const mediosPago = [
@@ -1077,7 +1338,7 @@ const CajaScreenContent = () => {
                 )}
 
                 {ultimoArqueo && (
-                    <Alert variant="info" className="mb-4">
+                    <Alert className="mb-4" style={{ backgroundColor: 'transparent', border: 'none', padding: '0.5rem 0', fontSize: '1.1rem' }}>
                         <i className="bi bi-info-circle me-2"></i>
                         <strong>Último arqueo:</strong> {ultimoArqueo.fecha} -
                         Diferencia: {formatCurrency(ultimoArqueo.total_diferencia || 0)}
@@ -1092,15 +1353,14 @@ const CajaScreenContent = () => {
                             <Col md={2}>
                                 <Form.Group>
                                     <Form.Label className="text-muted form-label-compact">Cajero:</Form.Label>
-                                    <Form.Select
+                                    <Form.Control
                                         value={cajero}
-                                        onChange={(e) => setCajero(e.target.value)}
                                         size="sm"
                                         className="form-control-compact"
-                                    >
-                                        <option value="jose">jose</option>
-                                        <option value="Wilson">Wilson</option>
-                                    </Form.Select>
+                                        disabled
+                                        readOnly
+                                        style={{ backgroundColor: '#f8f9fa', cursor: 'not-allowed' }}
+                                    />
                                 </Form.Group>
                             </Col>
                             <Col md={2}>
@@ -1206,7 +1466,7 @@ const CajaScreenContent = () => {
                     <Card className="mb-4">
                         <Card.Body>
                             <Row className="text-center">
-                                <Col md={3}>
+                                <Col md={4}>
                                     <div className="stat-card">
                                         <div className="stat-value text-primary">
                                             {resumenVentas.totalVentas}
@@ -1214,7 +1474,7 @@ const CajaScreenContent = () => {
                                         <div className="stat-label">Total Ventas</div>
                                     </div>
                                 </Col>
-                                <Col md={3}>
+                                <Col md={4}>
                                     <div className="stat-card">
                                         <div className="stat-value text-success">
                                             {formatCurrency(resumenVentas.totalGeneral)}
@@ -1222,15 +1482,7 @@ const CajaScreenContent = () => {
                                         <div className="stat-label">Monto Total</div>
                                     </div>
                                 </Col>
-                                <Col md={3}>
-                                    <div className="stat-card">
-                                        <div className="stat-value text-info">
-                                            {formatCurrency(resumenVentas.totalGeneral / resumenVentas.totalVentas || 0)}
-                                        </div>
-                                        <div className="stat-label">Promedio por Venta</div>
-                                    </div>
-                                </Col>
-                                <Col md={3}>
+                                <Col md={4}>
                                     <div className="stat-card">
                                         <div className={`stat-value ${totalDiferencia < 0 ? 'text-danger' : totalDiferencia > 0 ? 'text-success' : 'text-secondary'}`}>
                                             {formatCurrency(totalDiferencia)}
@@ -1273,6 +1525,14 @@ const CajaScreenContent = () => {
                                 </div>
                             </Card.Header>
                             <Card.Body>
+                                {/* Alert de corte realizado */}
+                                {corteRealizado && (
+                                    <Alert variant="success" className="mb-3">
+                                        <i className="bi bi-check-circle-fill me-2"></i>
+                                        <strong>Corte de caja realizado.</strong> Los valores están bloqueados. Para realizar un nuevo corte, cierre sesión y vuelva a ingresar.
+                                    </Alert>
+                                )}
+
                                 {/* Tabla de arqueo estilo limpio */}
                                 <div className="table-responsive">
                                     <Table className="caja-table-page">
@@ -1328,6 +1588,7 @@ const CajaScreenContent = () => {
                                                                     step="1"
                                                                     min="0"
                                                                     placeholder="0"
+                                                                    disabled={corteRealizado}
                                                                 />
                                                             ) : (
                                                                 <span>-</span>
@@ -1419,8 +1680,9 @@ const CajaScreenContent = () => {
                                                                     </Badge>
                                                                 </td>
                                                                 <td>{mov.concepto}</td>
-                                                                <td className={`text-end ${mov.monto > 0 ? 'text-success' : 'text-danger'}`}>
-                                                                    {formatCurrency(Math.abs(mov.monto))}
+                                                                <td className={`text-end ${mov.tipo === 'INGRESO' ? 'text-success' : 'text-danger'}`}>
+                                                                    {mov.tipo === 'EGRESO' ? '- ' : '+ '}
+                                                                    {formatCurrency(Math.abs(parseFloat(mov.monto) || 0))}
                                                                 </td>
                                                             </tr>
                                                         ))}
@@ -1664,11 +1926,13 @@ const CajaScreenContent = () => {
                                             </h6>
                                             <Row>
                                                 {Object.entries(
-                                                    ventasDelDia.reduce((acc, venta) => {
-                                                        const metodo = venta.metodo_pago || 'efectivo';
-                                                        acc[metodo] = (acc[metodo] || 0) + parseFloat(venta.total || 0);
-                                                        return acc;
-                                                    }, {})
+                                                    ventasDelDia
+                                                        .filter(venta => venta.estado !== 'ANULADA') // Excluir anuladas
+                                                        .reduce((acc, venta) => {
+                                                            const metodo = venta.metodo_pago || 'efectivo';
+                                                            acc[metodo] = (acc[metodo] || 0) + parseFloat(venta.total || 0);
+                                                            return acc;
+                                                        }, {})
                                                 ).map(([metodo, total]) => (
                                                     <Col md={3} key={metodo} className="mb-2">
                                                         <div className="d-flex justify-content-between align-items-center p-2 bg-white rounded">
@@ -1702,7 +1966,8 @@ const CajaScreenContent = () => {
                                             <Form.Label>Fecha Desde:</Form.Label>
                                             <Form.Control
                                                 type="date"
-                                                defaultValue={new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                                                value={fechaHistorialInicio}
+                                                onChange={(e) => setFechaHistorialInicio(e.target.value)}
                                             />
                                         </Form.Group>
                                     </Col>
@@ -1711,114 +1976,263 @@ const CajaScreenContent = () => {
                                             <Form.Label>Fecha Hasta:</Form.Label>
                                             <Form.Control
                                                 type="date"
-                                                defaultValue={fechaConsulta}
+                                                value={fechaHistorialFin}
+                                                onChange={(e) => setFechaHistorialFin(e.target.value)}
                                             />
                                         </Form.Group>
                                     </Col>
                                 </Row>
 
                                 <div className="d-flex gap-2 mb-4">
-                                    <Button variant="info">
+                                    <Button
+                                        variant="info"
+                                        onClick={() => cargarHistorialArqueos(fechaHistorialInicio, fechaHistorialFin)}
+                                        disabled={loadingHistorial}
+                                    >
                                         <i className="bi bi-search me-2"></i>
-                                        Consultar Historial
+                                        {loadingHistorial ? 'Cargando...' : 'Consultar Historial'}
                                     </Button>
-                                    <Button variant="outline-primary">
+                                    <Button
+                                        variant="outline-primary"
+                                        onClick={() => {
+                                            const hace7Dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                                            setFechaHistorialInicio(hace7Dias);
+                                            setFechaHistorialFin(getFechaLocal());
+                                            cargarHistorialArqueos(hace7Dias, getFechaLocal());
+                                        }}
+                                    >
                                         <i className="bi bi-calendar-week me-2"></i>
                                         Última Semana
                                     </Button>
-                                    <Button variant="outline-success">
+                                    <Button
+                                        variant="outline-success"
+                                        onClick={() => {
+                                            const hace30Dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                                            setFechaHistorialInicio(hace30Dias);
+                                            setFechaHistorialFin(getFechaLocal());
+                                            cargarHistorialArqueos(hace30Dias, getFechaLocal());
+                                        }}
+                                    >
                                         <i className="bi bi-calendar-month me-2"></i>
                                         Último Mes
                                     </Button>
                                 </div>
 
-                                {/* Tabla de historial */}
-                                <Table striped bordered hover>
-                                    <thead>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Cajero</th>
-                                            <th className="text-end">Total Sistema</th>
-                                            <th className="text-end">Total Caja</th>
-                                            <th className="text-end">Diferencia</th>
-                                            <th className="text-center">Estado</th>
-                                            <th className="text-center">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {/* Datos de ejemplo */}
-                                        <tr>
-                                            <td>{new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString('es-ES')}</td>
-                                            <td>jose</td>
-                                            <td className="text-end">{formatCurrency(4500000)}</td>
-                                            <td className="text-end">{formatCurrency(4498000)}</td>
-                                            <td className="text-end text-danger">{formatCurrency(-2000)}</td>
-                                            <td className="text-center">
-                                                <Badge bg="success">Cerrado</Badge>
-                                            </td>
-                                            <td className="text-center">
-                                                <Button variant="outline-primary" size="sm" className="me-1">
-                                                    <i className="bi bi-eye"></i>
-                                                </Button>
-                                                <Button variant="outline-secondary" size="sm">
-                                                    <i className="bi bi-printer"></i>
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>{new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES')}</td>
-                                            <td>Wilson</td>
-                                            <td className="text-end">{formatCurrency(3800000)}</td>
-                                            <td className="text-end">{formatCurrency(3800000)}</td>
-                                            <td className="text-end text-success">{formatCurrency(0)}</td>
-                                            <td className="text-center">
-                                                <Badge bg="success">Cerrado</Badge>
-                                            </td>
-                                            <td className="text-center">
-                                                <Button variant="outline-primary" size="sm" className="me-1">
-                                                    <i className="bi bi-eye"></i>
-                                                </Button>
-                                                <Button variant="outline-secondary" size="sm">
-                                                    <i className="bi bi-printer"></i>
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </Table>
+                                {loadingHistorial ? (
+                                    <div className="text-center py-5">
+                                        <Spinner animation="border" variant="primary" />
+                                        <p className="mt-2">Cargando historial...</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Tabla de historial */}
+                                        <Table striped bordered hover responsive>
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Cajero</th>
+                                                    <th className="text-end">Total Sistema</th>
+                                                    <th className="text-end">Total Caja</th>
+                                                    <th className="text-end">Diferencia</th>
+                                                    <th className="text-center">Estado</th>
+                                                    <th className="text-center">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {historialArqueos.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="7" className="text-center text-muted py-4">
+                                                            No se encontraron arqueos en el período seleccionado
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    historialArqueos.map((arqueo) => {
+                                                        const diferencia = parseFloat(arqueo.total_diferencia || 0);
+                                                        const tieneDiferencia = Math.abs(diferencia) >= 0.01;
 
-                                {/* Estadísticas del período */}
-                                <Card className="bg-light mt-4">
-                                    <Card.Body>
-                                        <h6 className="mb-3">
-                                            <i className="bi bi-graph-up me-2"></i>
-                                            Estadísticas del Período
-                                        </h6>
-                                        <Row className="text-center">
-                                            <Col md={3}>
-                                                <div className="h5 text-primary mb-1">7</div>
-                                                <small className="text-muted">Arqueos Realizados</small>
-                                            </Col>
-                                            <Col md={3}>
-                                                <div className="h5 text-success mb-1">5</div>
-                                                <small className="text-muted">Sin Diferencias</small>
-                                            </Col>
-                                            <Col md={3}>
-                                                <div className="h5 text-warning mb-1">2</div>
-                                                <small className="text-muted">Con Diferencias</small>
-                                            </Col>
-                                            <Col md={3}>
-                                                <div className="h5 text-info mb-1">{formatCurrency(28500000)}</div>
-                                                <small className="text-muted">Total Manejado</small>
-                                            </Col>
-                                        </Row>
-                                    </Card.Body>
-                                </Card>
+                                                        return (
+                                                            <tr key={arqueo.id}>
+                                                                <td>{new Date(arqueo.fecha).toLocaleDateString('es-ES')}</td>
+                                                                <td>{arqueo.cajero}</td>
+                                                                <td className="text-end">{formatCurrency(arqueo.total_sistema)}</td>
+                                                                <td className="text-end">{formatCurrency(arqueo.total_caja)}</td>
+                                                                <td className={`text-end ${tieneDiferencia ? (diferencia > 0 ? 'text-success' : 'text-danger') : 'text-muted'}`}>
+                                                                    {formatCurrency(diferencia)}
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    <Badge bg={
+                                                                        arqueo.estado === 'COMPLETADO' ? 'success' :
+                                                                            arqueo.estado === 'REVISADO' ? 'info' :
+                                                                                'warning'
+                                                                    }>
+                                                                        {arqueo.estado}
+                                                                    </Badge>
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    <Button
+                                                                        variant="outline-primary"
+                                                                        size="sm"
+                                                                        className="me-1"
+                                                                        onClick={() => verDetalleArqueo(arqueo)}
+                                                                        title="Ver detalle"
+                                                                    >
+                                                                        <i className="bi bi-eye"></i>
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="outline-secondary"
+                                                                        size="sm"
+                                                                        onClick={() => imprimirArqueo(arqueo)}
+                                                                        title="Imprimir"
+                                                                    >
+                                                                        <i className="bi bi-printer"></i>
+                                                                    </Button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </Table>
+
+                                        {/* Estadísticas del período */}
+                                        <Card className="bg-light mt-4">
+                                            <Card.Body>
+                                                <h6 className="mb-3">
+                                                    <i className="bi bi-graph-up me-2"></i>
+                                                    Estadísticas del Período
+                                                </h6>
+                                                <Row className="text-center">
+                                                    <Col md={3}>
+                                                        <div className="h5 text-primary mb-1">{estadisticasHistorial.totalArqueos}</div>
+                                                        <small className="text-muted">Arqueos Realizados</small>
+                                                    </Col>
+                                                    <Col md={3}>
+                                                        <div className="h5 text-success mb-1">{estadisticasHistorial.sinDiferencias}</div>
+                                                        <small className="text-muted">Sin Diferencias</small>
+                                                    </Col>
+                                                    <Col md={3}>
+                                                        <div className="h5 text-warning mb-1">{estadisticasHistorial.conDiferencias}</div>
+                                                        <small className="text-muted">Con Diferencias</small>
+                                                    </Col>
+                                                    <Col md={3}>
+                                                        <div className={`h5 mb-1 ${estadisticasHistorial.totalDiferencia < 0 ? 'text-danger' : estadisticasHistorial.totalDiferencia > 0 ? 'text-success' : 'text-muted'}`}>
+                                                            {formatCurrency(estadisticasHistorial.totalDiferencia)}
+                                                        </div>
+                                                        <small className="text-muted">Diferencia Total</small>
+                                                    </Col>
+                                                </Row>
+                                            </Card.Body>
+                                        </Card>
+                                    </>
+                                )}
                             </Card.Body>
                         </Card>
                     </Tab>
 
 
                 </Tabs>
+
+                {/* Modal de Detalle de Arqueo */}
+                <Modal show={showArqueoDetalleModal} onHide={() => setShowArqueoDetalleModal(false)} size="lg">
+                    <Modal.Header closeButton>
+                        <Modal.Title>
+                            <i className="bi bi-file-text me-2"></i>
+                            Detalle de Arqueo
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        {arqueoDetalle && (
+                            <>
+                                <Row className="mb-4">
+                                    <Col md={6}>
+                                        <p><strong>Fecha:</strong> {new Date(arqueoDetalle.fecha).toLocaleDateString('es-ES')}</p>
+                                        <p><strong>Cajero:</strong> {arqueoDetalle.cajero}</p>
+                                    </Col>
+                                    <Col md={6}>
+                                        <p><strong>Banco:</strong> {arqueoDetalle.banco}</p>
+                                        <p><strong>Estado:</strong> <Badge bg={
+                                            arqueoDetalle.estado === 'COMPLETADO' ? 'success' :
+                                                arqueoDetalle.estado === 'REVISADO' ? 'info' : 'warning'
+                                        }>{arqueoDetalle.estado}</Badge></p>
+                                    </Col>
+                                </Row>
+
+                                <h6 className="mb-3">Valores del Sistema</h6>
+                                <Table bordered size="sm" className="mb-4">
+                                    <tbody>
+                                        {Object.entries(arqueoDetalle.valores_sistema || {}).map(([metodo, valor]) => (
+                                            <tr key={metodo}>
+                                                <td><strong>{metodo.toUpperCase()}</strong></td>
+                                                <td className="text-end">{formatCurrency(valor)}</td>
+                                            </tr>
+                                        ))}
+                                        <tr className="table-secondary">
+                                            <td><strong>TOTAL SISTEMA</strong></td>
+                                            <td className="text-end"><strong>{formatCurrency(arqueoDetalle.total_sistema)}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </Table>
+
+                                <h6 className="mb-3">Valores en Caja</h6>
+                                <Table bordered size="sm" className="mb-4">
+                                    <tbody>
+                                        {Object.entries(arqueoDetalle.valores_caja || {}).map(([metodo, valor]) => (
+                                            <tr key={metodo}>
+                                                <td><strong>{metodo.toUpperCase()}</strong></td>
+                                                <td className="text-end">{formatCurrency(valor)}</td>
+                                            </tr>
+                                        ))}
+                                        <tr className="table-secondary">
+                                            <td><strong>TOTAL CAJA</strong></td>
+                                            <td className="text-end"><strong>{formatCurrency(arqueoDetalle.total_caja)}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </Table>
+
+                                <h6 className="mb-3">Diferencias</h6>
+                                <Table bordered size="sm" className="mb-4">
+                                    <tbody>
+                                        {Object.entries(arqueoDetalle.diferencias || {}).map(([metodo, valor]) => {
+                                            const diff = parseFloat(valor);
+                                            return (
+                                                <tr key={metodo}>
+                                                    <td><strong>{metodo.toUpperCase()}</strong></td>
+                                                    <td className={`text-end ${diff < 0 ? 'text-danger' : diff > 0 ? 'text-success' : 'text-muted'}`}>
+                                                        {formatCurrency(valor)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        <tr className="table-secondary">
+                                            <td><strong>TOTAL DIFERENCIA</strong></td>
+                                            <td className={`text-end ${arqueoDetalle.total_diferencia < 0 ? 'text-danger' : arqueoDetalle.total_diferencia > 0 ? 'text-success' : 'text-muted'}`}>
+                                                <strong>{formatCurrency(arqueoDetalle.total_diferencia)}</strong>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </Table>
+
+                                {arqueoDetalle.observaciones && (
+                                    <>
+                                        <h6 className="mb-2">Observaciones</h6>
+                                        <Alert variant="info">
+                                            {arqueoDetalle.observaciones}
+                                        </Alert>
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={() => setShowArqueoDetalleModal(false)}>
+                            Cerrar
+                        </Button>
+                        <Button variant="primary" onClick={() => imprimirArqueo(arqueoDetalle)}>
+                            <i className="bi bi-printer me-2"></i>
+                            Imprimir
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
 
                 {/* Botones de acción */}
                 <div className="caja-actions">
@@ -1837,14 +2251,16 @@ const CajaScreenContent = () => {
                                     variant="success"
                                     size="lg"
                                     onClick={handleGuardarArqueo}
-                                    disabled={guardandoArqueo || (validacion && !validacion.esValido)}
+                                    disabled={guardandoArqueo || (validacion && !validacion.esValido) || corteRealizado}
                                 >
                                     {guardandoArqueo ? (
                                         <Spinner animation="border" size="sm" className="me-2" />
+                                    ) : corteRealizado ? (
+                                        <i className="bi bi-check-circle me-2"></i>
                                     ) : (
                                         <i className="bi bi-save me-2"></i>
                                     )}
-                                    Guardar Arqueo
+                                    {corteRealizado ? 'Corte Realizado' : 'Guardar Arqueo'}
                                 </Button>
                                 <Button variant="primary" size="lg" onClick={handleImprimir}>
                                     <i className="bi bi-printer me-2"></i>
@@ -1876,38 +2292,71 @@ const CajaScreenContent = () => {
             </Container>
 
             {/* Modal de Movimientos de Caja */}
-            <Modal show={showMovimientosBancarios} onHide={() => setShowMovimientosBancarios(false)} size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>
-                        <i className="bi bi-arrow-left-right me-2"></i>
-                        Movimientos de Caja - {getFechaLocal().split('-').reverse().join('/')}
+            <Modal show={showMovimientosBancarios} onHide={() => setShowMovimientosBancarios(false)} size="lg" centered>
+                <Modal.Header closeButton style={{ backgroundColor: '#0c2c53', color: 'white', borderBottom: 'none', padding: '0.75rem 1rem' }}>
+                    <Modal.Title className="d-flex align-items-center justify-content-between w-100" style={{ fontSize: '1rem' }}>
+                        <div className="d-flex align-items-center">
+                            <i className="bi bi-arrow-left-right me-2" style={{ fontSize: '1rem' }}></i>
+                            <span style={{ fontSize: '1rem' }}>Movimientos de Caja</span>
+                        </div>
+                        <div className="d-flex align-items-center" style={{ marginRight: '2rem' }}>
+                            <span style={{ fontSize: '0.9rem', marginRight: '0.5rem' }}>{fechaMovimientos.split('-').reverse().join('/')}</span>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                <i
+                                    className="bi bi-calendar3"
+                                    style={{
+                                        fontSize: '1.1rem',
+                                        cursor: 'pointer',
+                                        padding: '0.2rem 0.4rem',
+                                        borderRadius: '4px',
+                                        transition: 'background-color 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                                    onClick={(e) => e.currentTarget.nextSibling.showPicker()}
+                                ></i>
+                                <input
+                                    type="date"
+                                    value={fechaMovimientos}
+                                    onChange={(e) => setFechaMovimientos(e.target.value)}
+                                    style={{
+                                        position: 'absolute',
+                                        opacity: 0,
+                                        width: '1px',
+                                        height: '1px',
+                                        pointerEvents: 'none'
+                                    }}
+                                />
+                            </div>
+                        </div>
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body>
+                <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1.5rem' }}>
                     <>
                         {/* Formulario para agregar nuevo movimiento */}
-                        <Card className="mb-4">
-                            <Card.Header className="bg-primary text-white">
-                                <h6 className="mb-0">
+                        <Card className="mb-4 shadow-sm border-0">
+                            <Card.Header style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #0c2c53' }}>
+                                <h6 className="mb-0" style={{ color: '#0c2c53', fontWeight: '600' }}>
                                     <i className="bi bi-plus-circle me-2"></i>
                                     Agregar Nuevo Movimiento
                                 </h6>
                             </Card.Header>
-                            <Card.Body>
-                                <Row>
-                                    <Col md={3}>
+                            <Card.Body style={{ backgroundColor: '#ffffff' }}>
+                                <Row className="g-4">
+                                    <Col md={2} sm={3}>
                                         <Form.Group className="mb-3">
                                             <Form.Label>Tipo</Form.Label>
                                             <Form.Select
                                                 value={tipoMovimiento}
                                                 onChange={(e) => setTipoMovimiento(e.target.value)}
+                                                style={{ minWidth: '100px' }}
                                             >
                                                 <option value="INGRESO">Ingreso</option>
-                                                <option value="EGRESO">Egreso</option>
+                                                <option value="EGRESO">Salida</option>
                                             </Form.Select>
                                         </Form.Group>
                                     </Col>
-                                    <Col md={3}>
+                                    <Col md={2} sm={3}>
                                         <Form.Group className="mb-3">
                                             <Form.Label>Monto</Form.Label>
                                             <Form.Control
@@ -1915,12 +2364,14 @@ const CajaScreenContent = () => {
                                                 placeholder="0.00"
                                                 value={montoMovimiento}
                                                 onChange={(e) => setMontoMovimiento(e.target.value)}
+                                                onFocus={(e) => e.target.select()}
                                                 min="0"
                                                 step="0.01"
+                                                style={{ minWidth: '110px' }}
                                             />
                                         </Form.Group>
                                     </Col>
-                                    <Col md={4}>
+                                    <Col md={5} sm={12} style={{ paddingLeft: '1.5rem' }}>
                                         <Form.Group className="mb-3">
                                             <Form.Label>Concepto</Form.Label>
                                             <Form.Control
@@ -1931,7 +2382,7 @@ const CajaScreenContent = () => {
                                             />
                                         </Form.Group>
                                     </Col>
-                                    <Col md={2} className="d-flex align-items-end">
+                                    <Col md={3} sm={6} className="d-flex align-items-end">
                                         <Button
                                             variant="success"
                                             onClick={handleAgregarMovimiento}
@@ -1949,146 +2400,186 @@ const CajaScreenContent = () => {
                         {/* Resumen de movimientos */}
                         <Row className="mb-4">
                             <Col md={4}>
-                                <Card className="border-0 bg-success text-white">
+                                <Card className="border" style={{ backgroundColor: 'rgba(25, 135, 84, 0.1)', borderColor: 'rgba(25, 135, 84, 0.3)' }}>
                                     <Card.Body className="text-center py-2">
-                                        <div className="h5 mb-1">
+                                        <div className="h5 mb-1" style={{ color: '#198754' }}>
                                             {formatCurrency(
                                                 movimientosCaja
-                                                    .filter(mov => mov.monto > 0)
-                                                    .reduce((sum, mov) => sum + mov.monto, 0)
+                                                    .filter(mov => {
+                                                        const fechaMov = mov.fecha ? mov.fecha.split('T')[0] : getFechaLocal();
+                                                        return fechaMov === fechaMovimientos && mov.tipo === 'INGRESO';
+                                                    })
+                                                    .reduce((sum, mov) => sum + Math.abs(parseFloat(mov.monto) || 0), 0)
                                             )}
                                         </div>
-                                        <small>Total Ingresos</small>
+                                        <small style={{ color: '#198754' }}>Total Ingresos</small>
                                     </Card.Body>
                                 </Card>
                             </Col>
                             <Col md={4}>
-                                <Card className="border-0 bg-danger text-white">
+                                <Card className="border" style={{ backgroundColor: 'rgba(220, 53, 69, 0.1)', borderColor: 'rgba(220, 53, 69, 0.3)' }}>
                                     <Card.Body className="text-center py-2">
-                                        <div className="h5 mb-1">
+                                        <div className="h5 mb-1" style={{ color: '#dc3545' }}>
                                             {formatCurrency(
-                                                Math.abs(movimientosCaja
-                                                    .filter(mov => mov.monto < 0)
-                                                    .reduce((sum, mov) => sum + mov.monto, 0))
+                                                movimientosCaja
+                                                    .filter(mov => {
+                                                        const fechaMov = mov.fecha ? mov.fecha.split('T')[0] : getFechaLocal();
+                                                        return fechaMov === fechaMovimientos && mov.tipo === 'EGRESO';
+                                                    })
+                                                    .reduce((sum, mov) => sum + Math.abs(parseFloat(mov.monto) || 0), 0)
                                             )}
                                         </div>
-                                        <small>Total Egresos</small>
+                                        <small style={{ color: '#dc3545' }}>Total Egresos</small>
                                     </Card.Body>
                                 </Card>
                             </Col>
                             <Col md={4}>
-                                <Card className="border-0 bg-primary text-white">
+                                <Card className="border" style={{ backgroundColor: 'rgba(12, 44, 83, 0.1)', borderColor: 'rgba(12, 44, 83, 0.3)' }}>
                                     <Card.Body className="text-center py-2">
-                                        <div className="h5 mb-1">
-                                            {formatCurrency(totalMovimientosCaja)}
+                                        <div className="h5 mb-1" style={{ color: '#0c2c53' }}>
+                                            {formatCurrency(
+                                                movimientosCaja
+                                                    .filter(mov => {
+                                                        const fechaMov = mov.fecha ? mov.fecha.split('T')[0] : getFechaLocal();
+                                                        return fechaMov === fechaMovimientos;
+                                                    })
+                                                    .reduce((sum, mov) => {
+                                                        const monto = Math.abs(parseFloat(mov.monto) || 0); // Siempre positivo
+                                                        return sum + (mov.tipo === 'EGRESO' ? -monto : monto);
+                                                    }, 0)
+                                            )}
                                         </div>
-                                        <small>Saldo Neto</small>
+                                        <small style={{ color: '#0c2c53' }}>Saldo Neto</small>
                                     </Card.Body>
                                 </Card>
                             </Col>
                         </Row>
 
                         {/* Información del cajero */}
-                        <Alert variant="info" className="mb-3">
+                        <Alert className="mb-3" style={{ backgroundColor: 'rgba(12, 44, 83, 0.05)', border: '1px solid rgba(12, 44, 83, 0.2)', color: '#0c2c53' }}>
                             <i className="bi bi-info-circle me-2"></i>
                             <strong>Cajero:</strong> {cajero} |
-                            <strong> Fecha:</strong> {getFechaLocal().split('-').reverse().join('/')} |
-                            <strong> Total movimientos:</strong> {movimientosCaja?.length || 0}
+                            <strong> Fecha:</strong> {fechaMovimientos.split('-').reverse().join('/')} |
+                            <strong> Total movimientos:</strong> {movimientosCaja.filter(mov => {
+                                const fechaMov = mov.fecha ? mov.fecha.split('T')[0] : getFechaLocal();
+                                return fechaMov === fechaMovimientos;
+                            }).length}
                         </Alert>
 
                         {/* Tabla de movimientos */}
-                        {(movimientosCaja?.length || 0) > 0 ? (
-                            <Table striped bordered hover size="sm">
-                                <thead className="table-dark">
-                                    <tr>
-                                        <th style={{ width: '80px' }}>Hora</th>
-                                        <th style={{ width: '100px' }}>Tipo</th>
-                                        <th>Concepto</th>
-                                        <th className="text-end" style={{ width: '120px' }}>Monto</th>
-                                        <th className="text-end" style={{ width: '120px' }}>Saldo</th>
-                                        <th style={{ width: '80px' }}>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {movimientosCaja.map((movimiento, index) => {
-                                        const saldoAcumulado = movimientosCaja
-                                            .slice(0, index + 1)
-                                            .reduce((sum, mov) => sum + mov.monto, 0);
+                        {(() => {
+                            const movimientosFiltrados = movimientosCaja.filter(mov => {
+                                const fechaMov = mov.fecha ? mov.fecha.split('T')[0] : getFechaLocal();
+                                return fechaMov === fechaMovimientos;
+                            });
 
-                                        return (
-                                            <tr key={movimiento.id || index}>
-                                                <td className="font-monospace">{movimiento.hora}</td>
-                                                <td>
-                                                    <Badge bg={movimiento.tipo === 'INGRESO' ? 'success' : 'danger'}>
-                                                        {movimiento.tipo}
-                                                    </Badge>
-                                                </td>
-                                                <td>{movimiento.concepto}</td>
-                                                <td className={`text-end fw-bold ${movimiento.monto > 0 ? 'text-success' : 'text-danger'}`}>
-                                                    {movimiento.monto > 0 ? '+' : ''}{formatCurrency(Math.abs(movimiento.monto))}
-                                                </td>
-                                                <td className="text-end fw-bold">
-                                                    {formatCurrency(saldoAcumulado)}
-                                                </td>
-                                                <td className="text-center">
-                                                    <Button
-                                                        variant="outline-danger"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            if (window.confirm('¿Está seguro de eliminar este movimiento?')) {
-                                                                setMovimientosCaja(prev => prev.filter(mov => mov.id !== movimiento.id));
-                                                            }
-                                                        }}
-                                                        title="Eliminar movimiento"
-                                                    >
-                                                        <i className="bi bi-trash"></i>
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="table-warning">
-                                        <td colSpan="3" className="text-end fw-bold">SALDO FINAL:</td>
-                                        <td className="text-end fw-bold">
-                                            {formatCurrency(totalMovimientosCaja)}
-                                        </td>
-                                        <td></td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </Table>
-                        ) : (
-                            <div className="text-center text-muted p-4">
-                                <i className="bi bi-arrow-left-right fs-1 d-block mb-2"></i>
-                                <p>No hay movimientos de caja registrados para el día {getFechaLocal().split('-').reverse().join('/')}</p>
-                                <small>Use el formulario superior para agregar ingresos o egresos</small>
-                            </div>
-                        )}
+                            return movimientosFiltrados.length > 0 ? (
+                                <Table striped bordered hover size="sm" className="shadow-sm">
+                                    <thead style={{ backgroundColor: '#0c2c53', color: 'white' }}>
+                                        <tr>
+                                            <th style={{ width: '80px' }}>Hora</th>
+                                            <th style={{ width: '100px' }}>Tipo</th>
+                                            <th>Concepto</th>
+                                            <th className="text-end" style={{ width: '120px' }}>Monto</th>
+                                            <th className="text-end" style={{ width: '120px' }}>Saldo</th>
+                                            <th style={{ width: '80px' }}>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {movimientosFiltrados.map((movimiento, index) => {
+                                            const saldoAcumulado = movimientosFiltrados
+                                                .slice(0, index + 1)
+                                                .reduce((sum, mov) => {
+                                                    const monto = Math.abs(parseFloat(mov.monto) || 0); // Siempre positivo
+                                                    return sum + (mov.tipo === 'EGRESO' ? -monto : monto);
+                                                }, 0);
+
+                                            return (
+                                                <tr key={movimiento.id || index}>
+                                                    <td className="font-monospace">{movimiento.hora}</td>
+                                                    <td>
+                                                        <Badge bg={movimiento.tipo === 'INGRESO' ? 'success' : 'danger'}>
+                                                            {movimiento.tipo === 'EGRESO' ? 'SALIDA' : movimiento.tipo}
+                                                        </Badge>
+                                                    </td>
+                                                    <td>{movimiento.concepto}</td>
+                                                    <td className={`text-end fw-bold ${movimiento.tipo === 'INGRESO' ? 'text-success' : 'text-danger'}`}>
+                                                        {movimiento.tipo === 'EGRESO' ? '- ' : '+ '}
+                                                        {formatCurrency(Math.abs(parseFloat(movimiento.monto) || 0))}
+                                                    </td>
+                                                    <td className="text-end fw-bold">
+                                                        {formatCurrency(saldoAcumulado)}
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <Button
+                                                            variant="outline-danger"
+                                                            size="sm"
+                                                            onClick={async () => {
+                                                                if (window.confirm('¿Está seguro de eliminar este movimiento?')) {
+                                                                    try {
+                                                                        await cajaService.eliminarMovimientoCaja(movimiento.id);
+                                                                        setMovimientosCaja(prev => prev.filter(mov => mov.id !== movimiento.id));
+                                                                        console.log('✅ Movimiento eliminado de BD');
+                                                                    } catch (error) {
+                                                                        console.error('❌ Error al eliminar movimiento:', error);
+                                                                        alert('Error al eliminar el movimiento');
+                                                                    }
+                                                                }
+                                                            }}
+                                                            title="Eliminar movimiento"
+                                                        >
+                                                            <i className="bi bi-trash"></i>
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ backgroundColor: 'rgba(12, 44, 83, 0.1)' }}>
+                                            <td colSpan="3" className="text-end fw-bold" style={{ color: '#0c2c53' }}>SALDO FINAL:</td>
+                                            <td className="text-end fw-bold" style={{ color: '#0c2c53', fontSize: '1.1rem' }}>
+                                                {formatCurrency(movimientosFiltrados.reduce((sum, mov) => {
+                                                    const monto = Math.abs(parseFloat(mov.monto) || 0); // Siempre positivo
+                                                    return sum + (mov.tipo === 'EGRESO' ? -monto : monto);
+                                                }, 0))}
+                                            </td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </Table>
+                            ) : (
+                                <div className="text-center text-muted p-4">
+                                    <i className="bi bi-arrow-left-right fs-1 d-block mb-2"></i>
+                                    <p>No hay movimientos de caja registrados para el día {fechaMovimientos.split('-').reverse().join('/')}</p>
+                                    <small>Use el formulario superior para agregar ingresos o egresos</small>
+                                </div>
+                            );
+                        })()}
 
                         {/* Nota informativa */}
-                        <Alert variant="light" className="mt-3 mb-0">
-                            <small className="text-muted">
-                                <i className="bi bi-lightbulb me-1"></i>
+                        <Alert className="mt-3 mb-0" style={{ backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderLeft: '4px solid #ffc107' }}>
+                            <small style={{ color: '#856404' }}>
+                                <i className="bi bi-lightbulb-fill me-1"></i>
                                 <strong>Nota:</strong> Los movimientos de caja registrados aquí se incluirán automáticamente
                                 en el cálculo del arqueo de caja para determinar el saldo real esperado.
                             </small>
                         </Alert>
                     </>
                 </Modal.Body>
-                <Modal.Footer>
+                <Modal.Footer style={{ backgroundColor: '#f8f9fa', borderTop: '1px solid #dee2e6' }}>
                     <Button variant="outline-secondary" onClick={() => setShowMovimientosBancarios(false)}>
                         <i className="bi bi-x-lg me-1"></i>
                         Cerrar
                     </Button>
-                    <Button variant="primary" disabled={(movimientosCaja?.length || 0) === 0}>
+                    <Button style={{ backgroundColor: '#0c2c53', borderColor: '#0c2c53', color: 'white' }} disabled={(movimientosCaja?.length || 0) === 0}>
                         <i className="bi bi-printer me-1"></i>
-                        Imprimir Movimientos
+                        Imprimir
                     </Button>
                     <Button variant="success" disabled={(movimientosCaja?.length || 0) === 0}>
                         <i className="bi bi-file-earmark-excel me-1"></i>
-                        Exportar Excel
+                        Exportar
                     </Button>
                 </Modal.Footer>
             </Modal>
@@ -2108,7 +2599,7 @@ const CajaScreenContent = () => {
                             <Row className="mb-3">
                                 <Col md={6}>
                                     <Card className="h-100 border-0 bg-light">
-                                        <Card.Header className="bg-primary text-white">
+                                        <Card.Header style={{ backgroundColor: 'rgb(12, 44, 83)', color: 'white' }}>
                                             <strong><i className="bi bi-info-circle me-2"></i>Información General</strong>
                                         </Card.Header>
                                         <Card.Body>
@@ -2163,26 +2654,26 @@ const CajaScreenContent = () => {
 
                             {/* Productos vendidos */}
                             <Card className="border-0">
-                                <Card.Header className="bg-info text-white">
-                                    <strong><i className="bi bi-basket me-2"></i>Productos Vendidos</strong>
+                                <Card.Header style={{ backgroundColor: 'transparent', border: 'none', padding: '0.5rem 0' }}>
+                                    <strong style={{ color: '#000000', fontSize: '16px' }}>Productos Vendidos</strong>
                                 </Card.Header>
                                 <Card.Body>
                                     {ventaSeleccionada?.detalles && (ventaSeleccionada.detalles?.length || 0) > 0 ? (
-                                        <Table striped bordered hover size="sm" responsive>
-                                            <thead className="table-dark">
+                                        <Table bordered hover size="sm" responsive style={{ marginBottom: 0 }}>
+                                            <thead style={{ backgroundColor: '#e9ecef' }}>
                                                 <tr>
-                                                    <th style={{ minWidth: '200px' }}>Producto</th>
-                                                    <th className="text-center" style={{ width: '100px' }}>Cantidad</th>
-                                                    <th className="text-end" style={{ width: '120px' }}>Precio Unit.</th>
-                                                    <th className="text-end" style={{ width: '120px' }}>Subtotal</th>
+                                                    <th style={{ minWidth: '200px', color: '#212529', fontWeight: '600' }}>PRODUCTO</th>
+                                                    <th className="text-center" style={{ width: '100px', color: '#212529', fontWeight: '600' }}>CANTIDAD</th>
+                                                    <th className="text-end" style={{ width: '120px', color: '#212529', fontWeight: '600' }}>PRECIO UNIT.</th>
+                                                    <th className="text-end" style={{ width: '120px', color: '#212529', fontWeight: '600' }}>SUBTOTAL</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {ventaSeleccionada.detalles.map((detalle, index) => (
-                                                    <tr key={index}>
+                                                    <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
                                                         <td><strong>{detalle.producto_nombre}</strong></td>
-                                                        <td className="text-center">
-                                                            <Badge bg="secondary">{detalle.cantidad}</Badge>
+                                                        <td className="text-center" style={{ color: '#000000', fontWeight: '600' }}>
+                                                            {detalle.cantidad}
                                                         </td>
                                                         <td className="text-end">{formatCurrency(parseFloat(detalle.precio_unitario || 0))}</td>
                                                         <td className="text-end fw-bold text-success">
@@ -2192,7 +2683,7 @@ const CajaScreenContent = () => {
                                                 ))}
                                             </tbody>
                                             <tfoot>
-                                                <tr className="table-warning">
+                                                <tr style={{ backgroundColor: '#fff3cd' }}>
                                                     <td colSpan="3" className="text-end fw-bold">TOTAL:</td>
                                                     <td className="text-end fw-bold fs-5 text-success">
                                                         {formatCurrency(parseFloat(ventaSeleccionada.total || 0))}
@@ -2227,13 +2718,27 @@ const CajaScreenContent = () => {
                     <div className="d-flex justify-content-between w-100">
                         <div className="d-flex gap-2">
                             <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => handleAnularVenta(ventaSeleccionada?.id)}
+                                onClick={abrirModalAnular}
                                 disabled={ventaSeleccionada?.estado === 'ANULADA'}
+                                style={{
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    color: ventaSeleccionada?.estado === 'ANULADA' ? '#6c757d' : '#dc3545',
+                                    fontSize: '16px',
+                                    fontWeight: '500'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (ventaSeleccionada?.estado !== 'ANULADA') {
+                                        e.target.style.backgroundColor = '#f8d7da';
+                                        e.target.style.borderRadius = '4px';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.backgroundColor = 'transparent';
+                                }}
                                 title={ventaSeleccionada?.estado === 'ANULADA' ? 'Esta venta ya está anulada' : 'Anular esta venta'}
                             >
-                                <i className="bi bi-x-circle me-1"></i>
+                                <i className="bi bi-x-circle me-2"></i>
                                 {ventaSeleccionada?.estado === 'ANULADA' ? 'Ya Anulada' : 'Anular Venta'}
                             </Button>
                         </div>
@@ -2242,12 +2747,51 @@ const CajaScreenContent = () => {
                                 <i className="bi bi-x-lg me-1"></i>
                                 Cerrar
                             </Button>
-                            <Button variant="primary">
+                            <Button style={{ backgroundColor: 'rgb(12, 44, 83)', borderColor: 'rgb(12, 44, 83)' }}>
                                 <i className="bi bi-printer me-1"></i>
                                 Imprimir Factura
                             </Button>
                         </div>
                     </div>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Mini Modal de confirmación para anular */}
+            <Modal show={showAnularModal} onHide={() => setShowAnularModal(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirmar Anulación</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p className="mb-3">
+                        ⚠️ <strong>¿Está seguro de anular esta venta?</strong>
+                    </p>
+                    <p className="text-muted small mb-3">
+                        Esta acción marcará la venta como ANULADA y devolverá los productos al inventario.
+                    </p>
+                    <Form.Group>
+                        <Form.Label>
+                            Para confirmar, escriba <strong>SI</strong> en mayúsculas:
+                        </Form.Label>
+                        <Form.Control
+                            type="text"
+                            value={confirmacionAnular}
+                            onChange={(e) => setConfirmacionAnular(e.target.value)}
+                            placeholder="Escriba SI para confirmar"
+                            autoFocus
+                        />
+                    </Form.Group>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowAnularModal(false)}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={handleAnularVenta}
+                        disabled={confirmacionAnular.toUpperCase() !== 'SI'}
+                    >
+                        Confirmar Anulación
+                    </Button>
                 </Modal.Footer>
             </Modal>
 

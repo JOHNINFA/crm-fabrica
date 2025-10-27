@@ -15,10 +15,19 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
   const cargarListasPrecios = async () => {
     try {
       const listas = await listaPrecioService.getAll({ activo: true });
-      setPriceLists(listas);
-      if (listas.length > 0 && !priceList) {
-        const clienteLista = listas.find(l => l.nombre === 'CLIENTES');
-        setPriceList(clienteLista ? 'CLIENTES' : listas[0].nombre);
+
+      // Obtener configuración de listas visibles en POS desde localStorage
+      const listasVisiblesPos = JSON.parse(localStorage.getItem('listasVisiblesPos') || '{"CLIENTES": true}');
+
+      // Filtrar solo las listas que están marcadas como visibles en POS
+      const listasVisibles = listas.filter(lista => listasVisiblesPos[lista.nombre] === true);
+
+      console.log('📋 Listas de precios visibles en POS:', listasVisibles.map(l => l.nombre));
+
+      setPriceLists(listasVisibles);
+      if (listasVisibles.length > 0 && !priceList) {
+        const clienteLista = listasVisibles.find(l => l.nombre === 'CLIENTES');
+        setPriceList(clienteLista ? 'CLIENTES' : listasVisibles[0].nombre);
       }
     } catch (error) {
       console.error('Error cargando listas:', error);

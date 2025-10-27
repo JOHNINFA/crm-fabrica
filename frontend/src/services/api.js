@@ -344,6 +344,32 @@ export const categoriaService = {
       return handleApiError(error);
     }
   },
+
+  // Eliminar una categoría
+  delete: async (id) => {
+    try {
+      console.log('Intentando eliminar categoría con ID:', id);
+      const response = await fetch(`${API_URL}/categorias/${id}/`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error al eliminar categoría: ${response.status}`);
+      }
+      
+      // DELETE puede retornar 204 No Content
+      if (response.status === 204) {
+        return { success: true };
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error en delete categoría:', error);
+      return handleApiError(error);
+    }
+  },
 };
 
 // Servicios para Lotes

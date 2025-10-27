@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, Pedido, DetallePedido, Vendedor
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -455,6 +455,14 @@ class ArqueoCajaSerializer(serializers.ModelSerializer):
         # Aquí podrías agregar lógica para vincular automáticamente
         # el cajero logueado, sucursal y turno activo
         return super().create(validated_data)
+
+class MovimientoCajaSerializer(serializers.ModelSerializer):
+    """Serializer para movimientos de caja"""
+    
+    class Meta:
+        model = MovimientoCaja
+        fields = ['id', 'fecha', 'hora', 'cajero', 'tipo', 'monto', 'concepto', 'fecha_creacion']
+        read_only_fields = ('fecha_creacion',)
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
     """Serializer para detalles de pedido"""

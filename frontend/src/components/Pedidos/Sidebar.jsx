@@ -1,14 +1,10 @@
 // src/components/Pedidos/Sidebar.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useModalContext } from '../../context/ModalContext';
-import ProductsModal from './ProductsModal';
-import AddProductModal from './AddProductModal';
 import logo from '../../assets/images/icono.png';
 import { consultarTablaProducto } from '../../utils/consultaProductos';
 
 export default function Sidebar({ onWidthChange }) {
-    const { openProductsModal } = useModalContext();
     const navigate = useNavigate();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -81,10 +77,10 @@ export default function Sidebar({ onWidthChange }) {
 
 
 
-                        {/* Productos con Modal */}
+                        {/* Productos - Navegar a página completa */}
                         <li
                             className="nav-item sidebar-item py-2"
-                            onClick={openProductsModal}
+                            onClick={() => navigate('/productos')}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
@@ -114,7 +110,10 @@ export default function Sidebar({ onWidthChange }) {
                             <>
                                 <li
                                     className="nav-item sidebar-item py-1"
-                                    onClick={() => navigate('/lista-precios')}
+                                    onClick={() => {
+                                        sessionStorage.setItem('origenModulo', 'pedidos');
+                                        navigate('/lista-precios');
+                                    }}
                                     style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                                 >
                                     <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
@@ -122,7 +121,10 @@ export default function Sidebar({ onWidthChange }) {
                                 </li>
                                 <li
                                     className="nav-item sidebar-item py-1"
-                                    onClick={() => navigate('/informe-lista-precios')}
+                                    onClick={() => {
+                                        sessionStorage.setItem('origenModulo', 'pedidos');
+                                        navigate('/informe-lista-precios');
+                                    }}
                                     style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                                 >
                                     <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
@@ -247,10 +249,6 @@ export default function Sidebar({ onWidthChange }) {
 
                 <div className="flex-grow-1"></div>
             </nav>
-
-            {/* Modales */}
-            <ProductsModal />
-            <AddProductModal />
         </>
     );
 }

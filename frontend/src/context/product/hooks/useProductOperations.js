@@ -73,8 +73,8 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       return true;
     } catch (error) {
       console.error('Error creating category:', error);
+      // Guardar localmente de todos modos
       updateState(products, updatedCategories);
-      syncService.queueOperation('CATEGORY_CREATE', { nombre: newCategory });
       return true;
     }
   };
@@ -98,8 +98,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       }
     } catch (error) {
       console.error('Error deleting category from backend:', error);
-      // Encolar operación para sincronización posterior
-      syncService.queueOperation('CATEGORY_DELETE', { nombre: categoryToRemove });
+      // La categoría se eliminará localmente de todos modos
     }
     
     updateState(updatedProducts, updatedCategories);
@@ -243,20 +242,8 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       
       storage.save('productos', updatedInventory);
       
-      // Crear registro de inventario automáticamente
-      try {
-        // Registrar movimiento de inventario para el nuevo producto
-        syncService.queueOperation('MOVEMENT_CREATE', {
-          producto: newProduct.id,
-          tipo: 'ENTRADA',
-          cantidad: 0,  // Inicialmente sin stock
-          usuario: 'Sistema POS',
-          nota: 'Registro automático desde POS'
-        });
-        console.log('✅ Producto creado con registro automático de inventario:', newProduct.name);
-      } catch (error) {
-        console.error('Error al crear registro de inventario:', error);
-      }
+      // Producto creado exitosamente
+      console.log('✅ Producto creado:', newProduct.name);
       
       // Forzar sincronización inmediata
       syncService.syncAllToBackend();
@@ -289,18 +276,8 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       
       updateState(updatedProducts);
       
-      // Encolar para sincronización posterior
-      syncService.queueOperation('PRODUCT_CREATE', {
-        nombre: newProduct.name,
-        precio: newProduct.price,
-        precio_compra: newProduct.purchasePrice || 0,
-        categoria: 3, // ID por defecto para "General"
-        marca: newProduct.brand || "GENERICA",
-        impuesto: newProduct.tax || "IVA(0%)",
-        stock_total: 0, // Los productos del POS inician sin stock
-        activo: true,
-        ...(newProduct.image && { imagen: newProduct.image })
-      });
+      // Producto guardado localmente, se sincronizará automáticamente
+      console.log('⚠️ Producto guardado localmente (offline):', newProduct.name);
       
       // Sincronizar con inventario (sin existencias iniciales)
       const inventoryProducts = storage.get('productos', []);
@@ -320,20 +297,8 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       
       storage.save('productos', updatedInventory);
       
-      // Encolar registro de inventario automáticamente
-      try {
-        // Registrar movimiento de inventario para el nuevo producto
-        syncService.queueOperation('MOVEMENT_CREATE', {
-          producto: newProduct.id,
-          tipo: 'ENTRADA',
-          cantidad: 0,  // Inicialmente sin stock
-          usuario: 'Sistema POS',
-          nota: 'Registro automático desde POS (offline)'
-        });
-        console.log('✅ Producto guardado localmente con registro automático de inventario:', newProduct.name);
-      } catch (error) {
-        console.error('Error al encolar registro de inventario:', error);
-      }
+      // Producto guardado localmente
+      console.log('✅ Producto guardado localmente:', newProduct.name);
       
       // Forzar procesamiento de la cola
       setTimeout(() => {
@@ -359,7 +324,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       try {
         await productoService.update(productId, { activo: false });
       } catch (error) {
-        syncService.queueOperation('PRODUCT_UPDATE', { id: productId, activo: false });
+        console.error('Error desactivando producto en backend:', error);
       }
       
       return true;
@@ -379,13 +344,6 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       );
       
       updateState(updatedProducts);
-      
-      syncService.queueOperation('PRODUCT_UPDATE_STOCK', {
-        id: productId,
-        stock: updatedProducts.find(p => p.id === productId).stock,
-        usuario: 'Usuario POS',
-        nota: 'Venta desde POS'
-      });
       
       return true;
     } catch (error) {

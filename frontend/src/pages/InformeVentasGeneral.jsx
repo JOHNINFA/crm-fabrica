@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Form, Badge, Dropdown, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { ventaService } from '../services/api';
+import { cajaService } from '../services/cajaService';
 
 const InformeVentasGeneral = () => {
   const navigate = useNavigate();
@@ -9,6 +10,8 @@ const InformeVentasGeneral = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
+  const [showAnularModal, setShowAnularModal] = useState(false);
+  const [confirmacionAnular, setConfirmacionAnular] = useState('');
   const [metricas, setMetricas] = useState({
     totalSinImpuestos: 0.00,
     totalImpuestos: 0.00,
@@ -41,7 +44,14 @@ const InformeVentasGeneral = () => {
 
   // Calcular métricas basadas en las ventas
   const calcularMetricas = (ventasData) => {
-    const totales = ventasData.reduce((acc, venta) => {
+    // Filtrar solo ventas NO anuladas para las métricas
+    const ventasValidas = ventasData.filter(venta => venta.estado !== 'ANULADA');
+
+    console.log('📊 Total ventas:', ventasData.length);
+    console.log('✅ Ventas válidas (no anuladas):', ventasValidas.length);
+    console.log('🚫 Ventas anuladas excluidas:', ventasData.length - ventasValidas.length);
+
+    const totales = ventasValidas.reduce((acc, venta) => {
       acc.totalFacturado += parseFloat(venta.total || 0);
       acc.totalSinImpuestos += parseFloat(venta.subtotal || 0);
       acc.totalImpuestos += parseFloat(venta.impuestos || 0);
@@ -81,6 +91,134 @@ const InformeVentasGeneral = () => {
     }
   };
 
+  // Función para abrir modal de anulación
+  const abrirModalAnular = () => {
+    setConfirmacionAnular('');
+    setShowAnularModal(true);
+  };
+
+  // Función para anular venta
+  const handleAnularVenta = async () => {
+    if (confirmacionAnular.toUpperCase() !== 'SI') {
+      alert('Debe escribir "SI" para confirmar la anulación');
+      return;
+    }
+
+    try {
+      // 🔒 VALIDAR: No permitir anular si ya existe arqueo del día
+      const fechaVenta = ventaSeleccionada.fecha.split('T')[0];
+      console.log('🔍 Verificando arqueo para fecha:', fechaVenta);
+
+      try {
+        // Verificar si existe arqueo para cualquier cajero en esa fecha
+        const arqueoExistente = await cajaService.getArqueosPorRango(fechaVenta, fechaVenta);
+
+        if (arqueoExistente && arqueoExistente.length > 0) {
+          const cajeros = arqueoExistente.map(a => a.cajero).join(', ');
+
+          alert('❌ NO SE PUEDE ANULAR ESTA VENTA\n\n' +
+            '🔒 Ya existe un arqueo de caja guardado para este día.\n\n' +
+            '📋 Fecha del arqueo: ' + fechaVenta + '\n' +
+            '👤 Cajero(s): ' + cajeros + '\n\n' +
+            '⚠️ Anular esta venta descuadraría el arqueo ya realizado.\n\n' +
+            '💡 Si necesita anular esta venta:\n' +
+            '   1. Contacte al supervisor/administrador\n' +
+            '   2. Vaya a Arqueo de Caja → Historial\n' +
+            '   3. Elimine el arqueo del día ' + fechaVenta + '\n' +
+            '   4. Anule la venta\n' +
+            '   5. Realice un nuevo arqueo con los valores correctos');
+
+          setShowAnularModal(false);
+          return;
+        }
+      } catch (error) {
+        console.warn('⚠️ Error verificando arqueo:', error);
+        // Si hay error verificando, permitir continuar (para no bloquear en caso de error de red)
+      }
+
+      console.log('🚫 Iniciando anulación de venta:', ventaSeleccionada.id);
+      console.log('📦 Venta seleccionada:', ventaSeleccionada);
+
+      // 1. Devolver productos al inventario
+      if (ventaSeleccionada.detalles && Array.isArray(ventaSeleccionada.detalles)) {
+        console.log('📦 Devolviendo productos al inventario:', ventaSeleccionada.detalles.length, 'productos');
+
+        for (const detalle of ventaSeleccionada.detalles) {
+          const productoId = detalle.producto_id || detalle.producto;
+          const cantidad = parseInt(detalle.cantidad) || 0;
+
+          console.log('🔍 Procesando detalle:', detalle);
+          console.log('🔍 Producto ID:', productoId, 'Cantidad:', cantidad);
+
+          if (productoId && cantidad > 0) {
+            console.log(`🔄 Devolviendo ${cantidad} unidades del producto ${detalle.producto_nombre} (ID: ${productoId})`);
+
+            try {
+              // Importar productoService si no está importado
+              const { productoService } = await import('../services/api');
+
+              // Devolver las unidades al inventario
+              const resultadoStock = await productoService.updateStock(
+                productoId,
+                cantidad, // Cantidad positiva para sumar al inventario
+                'Sistema POS',
+                `Devolución por anulación de venta ${ventaSeleccionada.numero_factura || ventaSeleccionada.id}`
+              );
+
+              console.log('📊 Resultado actualización stock:', resultadoStock);
+
+              if (resultadoStock && !resultadoStock.error) {
+                console.log(`✅ Devueltas ${cantidad} unidades de ${detalle.producto_nombre} al inventario`);
+              } else {
+                console.warn(`⚠️ Error devolviendo ${detalle.producto_nombre} al inventario:`, resultadoStock?.message);
+              }
+            } catch (stockError) {
+              console.error(`❌ Error actualizando stock de ${detalle.producto_nombre}:`, stockError);
+            }
+          } else {
+            console.warn('⚠️ Detalle sin producto ID válido o cantidad:', {
+              productoId,
+              cantidad,
+              detalle
+            });
+          }
+        }
+      } else {
+        console.warn('⚠️ No se encontraron detalles de productos para devolver al inventario');
+      }
+
+      // 2. Marcar la venta como anulada
+      console.log('🔄 Marcando venta como ANULADA...');
+      const resultado = await ventaService.anularVenta(ventaSeleccionada.id);
+
+      if (resultado && (resultado.success || !resultado.error)) {
+        const mensaje = resultado.message || 'Venta anulada exitosamente';
+
+        if (mensaje.includes('base de datos')) {
+          alert('✅ Venta anulada exitosamente.\n\n' +
+            '💾 Estado guardado en base de datos.\n' +
+            '📦 Los productos han sido devueltos al inventario.\n' +
+            '📊 Cambios visibles en todos los módulos.');
+        } else {
+          alert('✅ Venta anulada exitosamente.\n\n' +
+            '📦 Los productos han sido devueltos al inventario.\n' +
+            '⚠️ Estado guardado localmente (se sincronizará cuando la API esté disponible).');
+        }
+
+        setShowAnularModal(false);
+        setShowModal(false);
+        setConfirmacionAnular('');
+        // Recargar ventas
+        cargarVentas();
+      } else {
+        alert('❌ Error al anular la venta');
+      }
+    } catch (error) {
+      console.error('❌ Error anulando venta:', error);
+      alert('❌ Error al anular la venta: ' + error.message);
+    }
+  };
+
   // Transformar ventas para la tabla
   const transacciones = ventas.map((venta) => ({
     id: venta.id,
@@ -112,7 +250,7 @@ const InformeVentasGeneral = () => {
     backgroundColor: '#e8f4fd',
     borderRadius: '6px'
   };
-  const metricIconStyle = { fontSize: '24px', color: '#337ab7' };
+  const metricIconStyle = { fontSize: '24px', color: '#0c2c53' };
 
   return (
     <div className="bg-light min-vh-100" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -125,7 +263,7 @@ const InformeVentasGeneral = () => {
         `}
       </style>
       {/* Header de navegación */}
-      <div className="bg-primary text-white py-2" style={{ fontSize: '14px' }}>
+      <div className="text-white py-2" style={{ fontSize: '14px', backgroundColor: '#0c2c53' }}>
         <Container fluid>
           <Row>
             <Col>
@@ -158,13 +296,13 @@ const InformeVentasGeneral = () => {
               Historial de Ventas / Ingresos
             </h6>
             <div className="d-flex align-items-center" style={{ fontSize: '12px' }}>
-              <Button variant="link" className="text-primary me-3 text-decoration-none p-0" style={{ fontSize: '12px' }}>
+              <Button variant="link" className="me-3 text-decoration-none p-0" style={{ fontSize: '12px', color: '#0c2c53' }}>
                 📁 Importar Facturas y Cuentas x Cobrar
               </Button>
-              <Button variant="link" className="text-primary me-3 text-decoration-none p-0" style={{ fontSize: '12px' }}>
+              <Button variant="link" className="me-3 text-decoration-none p-0" style={{ fontSize: '12px', color: '#0c2c53' }}>
                 📄 Importar Facturas
               </Button>
-              <Button variant="link" className="text-primary text-decoration-none p-0" style={{ fontSize: '12px' }}>
+              <Button variant="link" className="text-decoration-none p-0" style={{ fontSize: '12px', color: '#0c2c53' }}>
                 💰 Recalcular Costos en Transacciones
               </Button>
             </div>
@@ -199,7 +337,7 @@ const InformeVentasGeneral = () => {
                 />
                 <span className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none">📅</span>
               </div>
-              <Button variant="primary" size="sm" style={{ fontSize: '12px' }}>
+              <Button size="sm" style={{ fontSize: '12px', backgroundColor: '#0c2c53', color: 'white', border: 'none' }}>
                 🔍 Consultar Transacciones
               </Button>
             </div>
@@ -222,7 +360,7 @@ const InformeVentasGeneral = () => {
                       <span style={metricIconStyle}>{metric.icon}</span>
                     </div>
                     <div>
-                      <div style={{ fontSize: '11px', color: '#337ab7', fontWeight: '500' }}>
+                      <div style={{ fontSize: '11px', color: '#0c2c53', fontWeight: '500' }}>
                         {metric.label}
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
@@ -250,7 +388,7 @@ const InformeVentasGeneral = () => {
                       <span style={metricIconStyle}>{metric.icon}</span>
                     </div>
                     <div>
-                      <div style={{ fontSize: '11px', color: '#337ab7', fontWeight: '500' }}>
+                      <div style={{ fontSize: '11px', color: '#0c2c53', fontWeight: '500' }}>
                         {metric.label}
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
@@ -264,7 +402,7 @@ const InformeVentasGeneral = () => {
           ))}
           <Col md={6} className="mb-3">
             <Card className="text-white shadow-sm rounded-2" style={{
-              background: 'linear-gradient(135deg, #1e88e5 0%, #1565c0 100%)',
+              background: 'linear-gradient(135deg, #0c2c53 0%, #0a2340 100%)',
               border: 'none',
             }}>
               <Card.Body className="p-3">
@@ -391,86 +529,130 @@ const InformeVentasGeneral = () => {
       </Container>
 
       {/* Modal de detalle de venta */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Detalle de Venta - {ventaSeleccionada?.numero_factura}</Modal.Title>
+          <Modal.Title>
+            <i className="bi bi-receipt me-2"></i>
+            Detalle de Venta - {ventaSeleccionada?.numero_factura || 'N/A'}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ maxHeight: '75vh', overflowY: 'auto', padding: '1.5rem' }}>
           {ventaSeleccionada && (
             <>
               {/* Información de la venta */}
               <Row className="mb-3">
                 <Col md={6}>
-                  <Card className="h-100">
-                    <Card.Header><strong>Información General</strong></Card.Header>
+                  <Card className="h-100 border-0 bg-light">
+                    <Card.Header style={{ backgroundColor: '#0c2c53', color: 'white' }}>
+                      <strong><i className="bi bi-info-circle me-2"></i>Información General</strong>
+                    </Card.Header>
                     <Card.Body>
-                      <p><strong>Cliente:</strong> {ventaSeleccionada.cliente}</p>
-                      <p><strong>Vendedor:</strong> {ventaSeleccionada.vendedor}</p>
+                      <p><strong># Factura:</strong> {ventaSeleccionada.numero_factura || ventaSeleccionada.id}</p>
+                      <p><strong>Cliente:</strong> {ventaSeleccionada.cliente || 'CONSUMIDOR FINAL'}</p>
+                      <p><strong>Vendedor:</strong> {ventaSeleccionada.vendedor || 'Sistema'}</p>
                       <p><strong>Fecha:</strong> {new Date(ventaSeleccionada.fecha).toLocaleString('es-CO')}</p>
-                      <p><strong>Método de Pago:</strong> {ventaSeleccionada.metodo_pago}</p>
+                      <p><strong>Método de Pago:</strong>
+                        <Badge bg="primary" className="ms-2 text-capitalize" style={{ backgroundColor: '#0c2c53' }}>
+                          {ventaSeleccionada.metodo_pago}
+                        </Badge>
+                      </p>
                       <p><strong>Estado:</strong>
                         <Badge bg={
                           ventaSeleccionada.estado === 'ANULADA' ? 'danger' :
                             ventaSeleccionada.estado === 'PAGADO' ? 'success' : 'warning'
                         } className="ms-2">
-                          {ventaSeleccionada.estado}
+                          {ventaSeleccionada.estado || 'PAGADO'}
                         </Badge>
                       </p>
                     </Card.Body>
                   </Card>
                 </Col>
                 <Col md={6}>
-                  <Card className="h-100">
-                    <Card.Header><strong>Totales</strong></Card.Header>
+                  <Card className="h-100 border-0 bg-light">
+                    <Card.Header className="bg-success text-white">
+                      <strong><i className="bi bi-calculator me-2"></i>Totales</strong>
+                    </Card.Header>
                     <Card.Body>
-                      <p><strong>Subtotal:</strong> {formatCurrency(ventaSeleccionada.subtotal)}</p>
-                      <p><strong>Impuestos:</strong> {formatCurrency(ventaSeleccionada.impuestos)}</p>
-                      <p><strong>Descuentos:</strong> {formatCurrency(ventaSeleccionada.descuentos)}</p>
-                      <p><strong>Total:</strong> {formatCurrency(ventaSeleccionada.total)}</p>
-                      <p><strong>Dinero Entregado:</strong> {formatCurrency(ventaSeleccionada.dinero_entregado)}</p>
-                      <p><strong>Devuelta:</strong> {formatCurrency(ventaSeleccionada.devuelta)}</p>
+                      <p><strong>Subtotal:</strong>
+                        <span className="float-end">{formatCurrency(parseFloat(ventaSeleccionada.subtotal || 0))}</span>
+                      </p>
+                      <p><strong>Impuestos:</strong>
+                        <span className="float-end">{formatCurrency(parseFloat(ventaSeleccionada.impuestos || 0))}</span>
+                      </p>
+                      <p><strong>Descuentos:</strong>
+                        <span className="float-end">{formatCurrency(parseFloat(ventaSeleccionada.descuentos || 0))}</span>
+                      </p>
+                      <hr />
+                      <p className="fw-bold"><strong>Total:</strong>
+                        <span className="float-end text-success">{formatCurrency(parseFloat(ventaSeleccionada.total || 0))}</span>
+                      </p>
+                      <p><strong>Dinero Entregado:</strong>
+                        <span className="float-end">{formatCurrency(parseFloat(ventaSeleccionada.dinero_entregado || 0))}</span>
+                      </p>
+                      <p><strong>Devuelta:</strong>
+                        <span className="float-end">{formatCurrency(parseFloat(ventaSeleccionada.devuelta || 0))}</span>
+                      </p>
                     </Card.Body>
                   </Card>
                 </Col>
               </Row>
 
               {/* Productos vendidos */}
-              <Card>
-                <Card.Header><strong>Productos Vendidos</strong></Card.Header>
+              <Card className="border-0">
+                <Card.Header style={{ backgroundColor: 'transparent', border: 'none', padding: '0.5rem 0' }}>
+                  <strong style={{ color: '#000000', fontSize: '16px' }}>Productos Vendidos</strong>
+                </Card.Header>
                 <Card.Body>
                   {ventaSeleccionada.detalles && ventaSeleccionada.detalles.length > 0 ? (
-                    <Table striped bordered hover size="sm">
-                      <thead>
+                    <Table bordered hover size="sm" responsive style={{ marginBottom: 0 }}>
+                      <thead style={{ backgroundColor: '#e9ecef' }}>
                         <tr>
-                          <th>Producto</th>
-                          <th>Cantidad</th>
-                          <th>Precio Unit.</th>
-                          <th>Subtotal</th>
+                          <th style={{ minWidth: '200px', color: '#212529', fontWeight: '600' }}>PRODUCTO</th>
+                          <th className="text-center" style={{ width: '100px', color: '#212529', fontWeight: '600' }}>CANTIDAD</th>
+                          <th className="text-end" style={{ width: '120px', color: '#212529', fontWeight: '600' }}>PRECIO UNIT.</th>
+                          <th className="text-end" style={{ width: '120px', color: '#212529', fontWeight: '600' }}>SUBTOTAL</th>
                         </tr>
                       </thead>
                       <tbody>
                         {ventaSeleccionada.detalles.map((detalle, index) => (
-                          <tr key={index}>
-                            <td>{detalle.producto_nombre}</td>
-                            <td>{detalle.cantidad}</td>
-                            <td>{formatCurrency(detalle.precio_unitario)}</td>
-                            <td>{formatCurrency(detalle.subtotal)}</td>
+                          <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
+                            <td><strong>{detalle.producto_nombre}</strong></td>
+                            <td className="text-center" style={{ color: '#000000', fontWeight: '600' }}>
+                              {detalle.cantidad}
+                            </td>
+                            <td className="text-end">{formatCurrency(parseFloat(detalle.precio_unitario || 0))}</td>
+                            <td className="text-end fw-bold text-success">
+                              {formatCurrency(parseFloat(detalle.subtotal || 0))}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot>
+                        <tr style={{ backgroundColor: '#fff3cd' }}>
+                          <td colSpan="3" className="text-end fw-bold">TOTAL:</td>
+                          <td className="text-end fw-bold fs-5 text-success">
+                            {formatCurrency(parseFloat(ventaSeleccionada.total || 0))}
+                          </td>
+                        </tr>
+                      </tfoot>
                     </Table>
                   ) : (
-                    <p className="text-muted">No hay detalles disponibles</p>
+                    <div className="text-center text-muted p-4">
+                      <i className="bi bi-basket-x fs-1 d-block mb-2"></i>
+                      <p>No hay detalles de productos disponibles</p>
+                    </div>
                   )}
                 </Card.Body>
               </Card>
 
               {/* Nota si existe */}
               {ventaSeleccionada.nota && (
-                <Card className="mt-3">
-                  <Card.Header><strong>Nota</strong></Card.Header>
+                <Card className="mt-3 border-0">
+                  <Card.Header className="bg-warning">
+                    <strong><i className="bi bi-sticky me-2"></i>Nota</strong>
+                  </Card.Header>
                   <Card.Body>
-                    <p>{ventaSeleccionada.nota}</p>
+                    <p className="mb-0">{ventaSeleccionada.nota}</p>
                   </Card.Body>
                 </Card>
               )}
@@ -478,8 +660,84 @@ const InformeVentasGeneral = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Cerrar
+          <div className="d-flex justify-content-between w-100">
+            <div>
+              <Button
+                variant="primary"
+                onClick={() => console.log('Imprimir venta:', ventaSeleccionada?.id)}
+                style={{ backgroundColor: '#0c2c53', borderColor: '#0c2c53' }}
+              >
+                <i className="bi bi-printer me-2"></i>
+                Imprimir
+              </Button>
+            </div>
+            <div className="d-flex gap-2">
+              <Button
+                onClick={abrirModalAnular}
+                disabled={ventaSeleccionada?.estado === 'ANULADA'}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: ventaSeleccionada?.estado === 'ANULADA' ? '#6c757d' : '#dc3545',
+                  fontSize: '16px',
+                  fontWeight: '500'
+                }}
+                onMouseEnter={(e) => {
+                  if (ventaSeleccionada?.estado !== 'ANULADA') {
+                    e.target.style.backgroundColor = '#f8d7da';
+                    e.target.style.borderRadius = '4px';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+              >
+                <i className="bi bi-x-circle me-2"></i>
+                {ventaSeleccionada?.estado === 'ANULADA' ? 'Ya Anulada' : 'Anular Venta'}
+              </Button>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Mini Modal de confirmación para anular */}
+      <Modal show={showAnularModal} onHide={() => setShowAnularModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirmar Anulación</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-3">
+            ⚠️ <strong>¿Está seguro de anular esta venta?</strong>
+          </p>
+          <p className="text-muted small mb-3">
+            Esta acción marcará la venta como ANULADA y devolverá los productos al inventario.
+          </p>
+          <Form.Group>
+            <Form.Label>
+              Para confirmar, escriba <strong>SI</strong> en mayúsculas:
+            </Form.Label>
+            <Form.Control
+              type="text"
+              value={confirmacionAnular}
+              onChange={(e) => setConfirmacionAnular(e.target.value)}
+              placeholder="Escriba SI para confirmar"
+              autoFocus
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAnularModal(false)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleAnularVenta}
+            disabled={confirmacionAnular.toUpperCase() !== 'SI'}
+          >
+            Confirmar Anulación
           </Button>
         </Modal.Footer>
       </Modal>

@@ -75,10 +75,10 @@ export default function Sidebar({ onWidthChange }) {
 
 
 
-            {/* Productos con Modal */}
+            {/* Productos - Navegar a página completa */}
             <li
               className="nav-item sidebar-item py-2"
-              onClick={openProductsModal}
+              onClick={() => navigate('/productos')}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
@@ -107,7 +107,10 @@ export default function Sidebar({ onWidthChange }) {
               <>
                 <li
                   className="nav-item sidebar-item py-1"
-                  onClick={() => navigate('/lista-precios')}
+                  onClick={() => {
+                    sessionStorage.setItem('origenModulo', 'pos');
+                    navigate('/lista-precios');
+                  }}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
@@ -115,7 +118,10 @@ export default function Sidebar({ onWidthChange }) {
                 </li>
                 <li
                   className="nav-item sidebar-item py-1"
-                  onClick={() => navigate('/informe-lista-precios')}
+                  onClick={() => {
+                    sessionStorage.setItem('origenModulo', 'pos');
+                    navigate('/informe-lista-precios');
+                  }}
                   style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
                 >
                   <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>

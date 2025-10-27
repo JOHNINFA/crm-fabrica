@@ -131,8 +131,23 @@ export const cajaService = {
    */
   guardarArqueoCaja: async (datosArqueo) => {
     try {
-      const response = await fetch(`${API_URL}/arqueo-caja/`, {
-        method: 'POST',
+      // Primero verificar si ya existe un arqueo para esta fecha y cajero
+      const arqueoExistente = await cajaService.getUltimoArqueo(datosArqueo.cajero);
+      
+      let method = 'POST';
+      let url = `${API_URL}/arqueo-caja/`;
+      
+      // Si existe un arqueo para la misma fecha, actualizar en lugar de crear
+      if (arqueoExistente && arqueoExistente.fecha === datosArqueo.fecha) {
+        method = 'PUT';
+        url = `${API_URL}/arqueo-caja/${arqueoExistente.id}/`;
+        console.log('📝 Actualizando arqueo existente:', arqueoExistente.id);
+      } else {
+        console.log('✨ Creando nuevo arqueo');
+      }
+      
+      const response = await fetch(url, {
+        method: method,
         headers: getHeaders(),
         body: JSON.stringify({
           fecha: datosArqueo.fecha,
@@ -311,6 +326,79 @@ export const cajaService = {
       
     } catch (error) {
       console.error('Error en getMovimientosBancarios:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Guardar movimiento de caja
+   */
+  guardarMovimientoCaja: async (movimiento) => {
+    try {
+      const response = await fetch(`${API_URL}/movimientos-caja/`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(movimiento)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Error al guardar movimiento: ${response.status}`);
+      }
+      
+      return await response.json();
+      
+    } catch (error) {
+      console.error('Error en guardarMovimientoCaja:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtener movimientos de caja por fecha y cajero
+   */
+  getMovimientosCaja: async (fecha, cajero = null) => {
+    try {
+      let url = `${API_URL}/movimientos-caja/?fecha=${fecha}`;
+      if (cajero) {
+        url += `&cajero=${cajero}`;
+      }
+      
+      const response = await fetch(url, { headers: getHeaders() });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return []; // No hay movimientos
+        }
+        throw new Error(`Error al obtener movimientos: ${response.status}`);
+      }
+      
+      return await response.json();
+      
+    } catch (error) {
+      console.error('Error en getMovimientosCaja:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Eliminar movimiento de caja
+   */
+  eliminarMovimientoCaja: async (movimientoId) => {
+    try {
+      const response = await fetch(`${API_URL}/movimientos-caja/${movimientoId}/`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error al eliminar movimiento: ${response.status}`);
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('Error en eliminarMovimientoCaja:', error);
       throw error;
     }
   }

@@ -11,6 +11,9 @@ const MaestroListaPreciosScreen = () => {
     const [listas, setListas] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Detectar de dónde viene el usuario
+    const origenModulo = sessionStorage.getItem('origenModulo') || 'pos';
+
     useEffect(() => {
         cargarListas();
     }, [activeTab]);
@@ -53,7 +56,7 @@ const MaestroListaPreciosScreen = () => {
         }
     };
 
-    const listasFiltradas = listas.filter(lista => 
+    const listasFiltradas = listas.filter(lista =>
         lista.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
 
@@ -68,30 +71,30 @@ const MaestroListaPreciosScreen = () => {
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h2 className="card-title h5 mb-0">Maestro de Lista de Precios</h2>
                         <div className="d-flex gap-2">
-                            <button 
+                            <button
                                 className="btn btn-add-custom btn-sm"
                                 onClick={() => navigate('/crear-lista-precios')}
                             >
                                 Añadir
                             </button>
-                            <button 
+                            <button
                                 className="btn btn-outline-secondary btn-regresar-custom btn-sm"
-                                onClick={() => navigate('/pos')}
+                                onClick={() => navigate(origenModulo === 'pedidos' ? '/remisiones' : '/pos')}
                             >
-                                Regresar al POS
+                                Regresar a {origenModulo === 'pedidos' ? 'Pedidos' : 'POS'}
                             </button>
                         </div>
                     </div>
 
                     {/* Pestañas */}
                     <div className="nav nav-tabs mb-3">
-                        <button 
+                        <button
                             className={`nav-link ${activeTab === 'activos' ? 'active' : ''}`}
                             onClick={() => setActiveTab('activos')}
                         >
                             Activos
                         </button>
-                        <button 
+                        <button
                             className={`nav-link ${activeTab === 'inactivos' ? 'active' : ''}`}
                             onClick={() => setActiveTab('inactivos')}
                         >
@@ -117,9 +120,9 @@ const MaestroListaPreciosScreen = () => {
                                 <tbody>
                                     <tr>
                                         <td colSpan="7">
-                                            <input 
-                                                type="text" 
-                                                className="form-control form-control-sm" 
+                                            <input
+                                                type="text"
+                                                className="form-control form-control-sm"
                                                 placeholder="Búsqueda General"
                                                 value={busqueda}
                                                 onChange={(e) => setBusqueda(e.target.value)}
@@ -138,19 +141,19 @@ const MaestroListaPreciosScreen = () => {
                                         listasFiltradas.map((item) => (
                                             <tr key={item.id}>
                                                 <td className="actions-cell">
-                                                    <button 
+                                                    <button
                                                         className="btn btn-sm btn-edit-custom me-1"
                                                         onClick={() => handleEdit(item.id)}
                                                         title="Editar"
                                                     >
-                                                        <span className="material-icons" style={{fontSize: '14px'}}>edit</span>
+                                                        <span className="material-icons" style={{ fontSize: '14px' }}>edit</span>
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         className="btn btn-sm btn-outline-danger"
                                                         onClick={() => handleDelete(item.id)}
                                                         title="Eliminar"
                                                     >
-                                                        <span className="material-icons" style={{fontSize: '14px'}}>close</span>
+                                                        <span className="material-icons" style={{ fontSize: '14px' }}>close</span>
                                                     </button>
                                                 </td>
                                                 <td>{item.id}</td>
@@ -160,9 +163,9 @@ const MaestroListaPreciosScreen = () => {
                                                 <td>{item.sucursal}</td>
                                                 <td className="text-center">
                                                     <div className="form-check">
-                                                        <input 
-                                                            className="form-check-input" 
-                                                            type="checkbox" 
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="checkbox"
                                                             checked={item.activo}
                                                             onChange={() => handleToggleActivo(item.id, item.activo)}
                                                         />
@@ -184,20 +187,20 @@ const MaestroListaPreciosScreen = () => {
 
                     {/* Sección de exportación */}
                     <div className="export-section mt-3">
-                        <div className="input-group" style={{maxWidth: '450px'}}>
+                        <div className="input-group" style={{ maxWidth: '450px' }}>
                             <span className="input-group-text">Nombre Archivo:</span>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 className="form-control form-control-sm"
                                 value={nombreArchivo}
                                 onChange={(e) => setNombreArchivo(e.target.value)}
                             />
-                            <button 
+                            <button
                                 className="btn btn-outline-secondary btn-sm"
                                 onClick={handleExport}
                                 title="Descargar"
                             >
-                                <span className="material-icons" style={{fontSize: '16px'}}>download</span>
+                                <span className="material-icons" style={{ fontSize: '16px' }}>download</span>
                             </button>
                         </div>
                     </div>

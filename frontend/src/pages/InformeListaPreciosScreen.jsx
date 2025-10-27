@@ -25,6 +25,15 @@ const InformeListaPreciosScreen = () => {
     const [showModal, setShowModal] = useState(false);
     const [productoSeleccionado, setProductoSeleccionado] = useState(null);
 
+    // Estado para controlar qué listas están visibles en POS
+    const [listasVisiblesPos, setListasVisiblesPos] = useState(() => {
+        const saved = localStorage.getItem('listasVisiblesPos');
+        return saved ? JSON.parse(saved) : { 'CLIENTES': true };
+    });
+
+    // Detectar de dónde viene el usuario
+    const origenModulo = sessionStorage.getItem('origenModulo') || 'pos';
+
     useEffect(() => {
         cargarDatos();
     }, []);
@@ -37,7 +46,7 @@ const InformeListaPreciosScreen = () => {
                 listaPrecioService.getAll({ activo: true }),
                 precioProductoService.getAll()
             ]);
-            
+
             setProductos(productosData);
             setListasPrecios(listasData);
             setPreciosProductos(preciosData);
@@ -51,7 +60,7 @@ const InformeListaPreciosScreen = () => {
     const getPrecioProductoLista = (productoId, listaNombre) => {
         const lista = listasPrecios.find(l => l.nombre === listaNombre);
         if (!lista) return '$ 0';
-        
+
         const precio = preciosProductos.find(p => p.producto === productoId && p.lista_precio === lista.id);
         return precio ? `$ ${Math.round(precio.precio)}` : '$ 0';
     };
@@ -61,7 +70,7 @@ const InformeListaPreciosScreen = () => {
         setShowModal(true);
     };
 
-    const productosFiltrados = productos.filter(p => 
+    const productosFiltrados = productos.filter(p =>
         p.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
 
@@ -77,6 +86,16 @@ const InformeListaPreciosScreen = () => {
         console.log('Imprimiendo...');
     };
 
+    const handleToggleVisiblePos = (nombreLista) => {
+        const nuevasListas = {
+            ...listasVisiblesPos,
+            [nombreLista]: !listasVisiblesPos[nombreLista]
+        };
+        setListasVisiblesPos(nuevasListas);
+        localStorage.setItem('listasVisiblesPos', JSON.stringify(nuevasListas));
+        console.log(`✅ Lista "${nombreLista}" ${nuevasListas[nombreLista] ? 'activada' : 'desactivada'} para POS`);
+    };
+
     return (
         <div className="informe-lista-precios-container bg-light">
             <div className="card shadow-sm">
@@ -86,18 +105,18 @@ const InformeListaPreciosScreen = () => {
                         <h2 className="card-title h5 mb-0">Informe de Ajustes de Listas de Precios</h2>
                         <div className="d-flex align-items-center gap-2">
                             <span className="status-dot"></span>
-                            <button 
+                            <button
                                 className="btn btn-outline-secondary btn-refresh-custom btn-sm"
                                 onClick={handleRefresh}
                                 title="Refrescar"
                             >
-                                <span className="material-icons" style={{fontSize: '16px'}}>refresh</span>
+                                <span className="material-icons" style={{ fontSize: '16px' }}>refresh</span>
                             </button>
-                            <button 
+                            <button
                                 className="btn btn-outline-secondary btn-regresar-informe-custom btn-sm"
-                                onClick={() => navigate('/pos')}
+                                onClick={() => navigate(origenModulo === 'pedidos' ? '/remisiones' : '/pos')}
                             >
-                                Regresar al POS
+                                Regresar a {origenModulo === 'pedidos' ? 'Pedidos' : 'POS'}
                             </button>
                         </div>
                     </div>
@@ -108,7 +127,7 @@ const InformeListaPreciosScreen = () => {
                             <div className="row align-items-center">
                                 <label className="col-sm-3 col-form-label col-form-label-sm">Sucursal:</label>
                                 <div className="col-sm-9">
-                                    <select 
+                                    <select
                                         className="form-select form-select-sm"
                                         value={sucursal}
                                         onChange={(e) => setSucursal(e.target.value)}
@@ -123,7 +142,7 @@ const InformeListaPreciosScreen = () => {
                             <div className="row align-items-center">
                                 <label className="col-sm-3 col-form-label col-form-label-sm">Categoría:</label>
                                 <div className="col-sm-9">
-                                    <select 
+                                    <select
                                         className="form-select form-select-sm"
                                         value={categoria}
                                         onChange={(e) => setCategoria(e.target.value)}
@@ -139,13 +158,13 @@ const InformeListaPreciosScreen = () => {
                     {/* Pestañas */}
                     <div className="custom-tabs">
                         <div className="nav nav-tabs">
-                            <button 
+                            <button
                                 className={`nav-link ${activeTab === 'actualizarMasivamente' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('actualizarMasivamente')}
                             >
                                 Lista de Precios Actualizar Precios Masivamente
                             </button>
-                            <button 
+                            <button
                                 className={`nav-link ${activeTab === 'cambiarMasivamente' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('cambiarMasivamente')}
                             >
@@ -165,6 +184,7 @@ const InformeListaPreciosScreen = () => {
                                             <th className="text-start">Nombre</th>
                                             <th>Aumento</th>
                                             <th>Porcentaje</th>
+                                            <th>Visible en POS</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -173,10 +193,10 @@ const InformeListaPreciosScreen = () => {
                                                 <td className="text-start align-middle">{lista.nombre}</td>
                                                 <td className="align-middle">
                                                     <div className="form-check">
-                                                        <input 
-                                                            className="form-check-input" 
-                                                            type="checkbox" 
-                                                            defaultChecked 
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="checkbox"
+                                                            defaultChecked
                                                         />
                                                         <label className="form-check-label">
                                                             Aumento / Disminuir
@@ -184,11 +204,24 @@ const InformeListaPreciosScreen = () => {
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <input 
-                                                        type="number" 
-                                                        className="form-control form-control-sm" 
-                                                        defaultValue={0} 
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm"
+                                                        defaultValue={0}
                                                     />
+                                                </td>
+                                                <td className="align-middle">
+                                                    <div className="form-check form-switch d-flex justify-content-center">
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="checkbox"
+                                                            role="switch"
+                                                            checked={listasVisiblesPos[lista.nombre] || false}
+                                                            onChange={() => handleToggleVisiblePos(lista.nombre)}
+                                                            title={`${listasVisiblesPos[lista.nombre] ? 'Desactivar' : 'Activar'} para POS`}
+                                                            style={{ cursor: 'pointer' }}
+                                                        />
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -200,31 +233,31 @@ const InformeListaPreciosScreen = () => {
                             <div className="productos-section mt-3">
                                 <div className="d-flex justify-content-between align-items-center mb-3">
                                     <div>
-                                        <button 
+                                        <button
                                             className="btn btn-warning btn-sm me-2"
                                             onClick={handleExport}
                                             title="Exportar"
                                         >
-                                            <span className="material-icons" style={{fontSize: '16px'}}>file_download</span>
+                                            <span className="material-icons" style={{ fontSize: '16px' }}>file_download</span>
                                         </button>
-                                        <button 
+                                        <button
                                             className="btn btn-print-custom btn-sm"
                                             onClick={handlePrint}
                                             title="Imprimir"
                                         >
-                                            <span className="material-icons" style={{fontSize: '16px'}}>print</span>
+                                            <span className="material-icons" style={{ fontSize: '16px' }}>print</span>
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <div className="table-responsive">
                                     <table className="table table-striped table-hover productos-table">
                                         <thead>
                                             <tr>
                                                 <th colSpan="9">
-                                                    <input 
-                                                        type="text" 
-                                                        className="form-control form-control-sm" 
+                                                    <input
+                                                        type="text"
+                                                        className="form-control form-control-sm"
                                                         placeholder="Búsqueda General"
                                                         value={busqueda}
                                                         onChange={(e) => setBusqueda(e.target.value)}
@@ -256,12 +289,12 @@ const InformeListaPreciosScreen = () => {
                                                 productosFiltrados.map(p => (
                                                     <tr key={p.id}>
                                                         <td className="text-center align-middle">
-                                                            <button 
+                                                            <button
                                                                 className="btn btn-dollar-custom btn-sm"
                                                                 onClick={() => handleEditarProducto(p)}
                                                                 title="Editar precios"
                                                             >
-                                                                <span className="material-icons" style={{fontSize: '14px'}}>attach_money</span>
+                                                                <span className="material-icons" style={{ fontSize: '14px' }}>attach_money</span>
                                                             </button>
                                                         </td>
                                                         <td className="align-middle">{p.nombre}</td>
@@ -289,8 +322,8 @@ const InformeListaPreciosScreen = () => {
                     )}
                 </div>
             </div>
-            
-            <EditarProductoModal 
+
+            <EditarProductoModal
                 show={showModal}
                 handleClose={() => {
                     setShowModal(false);

@@ -112,7 +112,7 @@ const TablaKardex = () => {
           new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
           existenciasPorProducto[productoId] = {
             nombre: registro.producto_nombre,
-            existencias: productosMap[productoId]?.existencias || registro.saldo, // Usar stock actual de BD
+            existencias: productosMap[productoId]?.existencias || 0, // Usar SOLO stock_total de BD
             ultimaFecha: registro.fecha_creacion,
             ultimoMovimiento: registro
           };

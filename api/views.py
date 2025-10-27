@@ -8,13 +8,13 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -1484,6 +1484,76 @@ class VendedorViewSet(viewsets.ModelViewSet):
                     'ruta': vendedor.ruta
                 },
                 'message': f'Responsable {"creado" if created else "actualizado"} exitosamente'
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class MovimientoCajaViewSet(viewsets.ModelViewSet):
+    """API para gestionar movimientos de caja (ingresos y egresos)"""
+    queryset = MovimientoCaja.objects.all()
+    serializer_class = MovimientoCajaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        """Filtrar movimientos por fecha, cajero o tipo"""
+        queryset = MovimientoCaja.objects.all()
+        
+        fecha = self.request.query_params.get('fecha', None)
+        cajero = self.request.query_params.get('cajero', None)
+        tipo = self.request.query_params.get('tipo', None)
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if cajero:
+            queryset = queryset.filter(cajero=cajero)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+            
+        return queryset.order_by('-fecha', '-hora')
+    
+    @action(detail=False, methods=['get'])
+    def resumen_por_fecha(self, request):
+        """Obtener resumen de ingresos y egresos por fecha"""
+        try:
+            fecha = request.query_params.get('fecha')
+            cajero = request.query_params.get('cajero', None)
+            
+            if not fecha:
+                return Response(
+                    {'error': 'Fecha es requerida'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Filtrar movimientos
+            movimientos = MovimientoCaja.objects.filter(fecha=fecha)
+            if cajero:
+                movimientos = movimientos.filter(cajero=cajero)
+            
+            # Calcular totales
+            from django.db.models import Sum, Q
+            
+            total_ingresos = movimientos.filter(tipo='INGRESO').aggregate(
+                total=Sum('monto')
+            )['total'] or 0
+            
+            total_egresos = movimientos.filter(tipo='EGRESO').aggregate(
+                total=Sum('monto')
+            )['total'] or 0
+            
+            saldo = total_ingresos - total_egresos
+            
+            return Response({
+                'fecha': fecha,
+                'cajero': cajero,
+                'total_ingresos': float(total_ingresos),
+                'total_egresos': float(total_egresos),
+                'saldo': float(saldo),
+                'cantidad_movimientos': movimientos.count()
             })
             
         except Exception as e:

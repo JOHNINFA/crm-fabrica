@@ -67,16 +67,16 @@ const ProductsModal = () => {
 
         <div className="actions-toolbar">
           <button className="btn btn-primary" onClick={() => openAddProductModal()}>
-            <span className="material-icons" style={{fontSize: '16px'}}>add</span> Añadir Producto
+            <span className="material-icons" style={{ fontSize: '16px' }}>add</span> Añadir Producto
           </button>
           <button className="btn btn-secondary">
-            <span className="material-icons" style={{fontSize: '16px'}}>file_download</span>
+            <span className="material-icons" style={{ fontSize: '16px' }}>file_download</span>
           </button>
           <button className="btn btn-secondary">
-            <span className="material-icons" style={{fontSize: '16px'}}>print</span>
+            <span className="material-icons" style={{ fontSize: '16px' }}>print</span>
           </button>
           <button className="btn btn-danger">
-            <span className="material-icons" style={{fontSize: '16px'}}>delete</span> Desactivar Productos
+            <span className="material-icons" style={{ fontSize: '16px' }}>delete</span> Desactivar Productos
           </button>
         </div>
 
@@ -103,22 +103,22 @@ const ProductsModal = () => {
                     <td>
                       <div className="action-buttons">
                         <button className="btn btn-info" onClick={() => openAddProductModal(product)}>
-                          <span className="material-icons" style={{fontSize: '14px'}}>edit</span>
+                          <span className="material-icons" style={{ fontSize: '14px' }}>edit</span>
                         </button>
                         <button className="btn btn-warning">
-                          <span className="material-icons" style={{fontSize: '14px'}}>refresh</span>
+                          <span className="material-icons" style={{ fontSize: '14px' }}>refresh</span>
                         </button>
-                        <button 
+                        <button
                           className="btn btn-danger"
                           onClick={() => {
                             setProductToDelete(product);
                             setShowConfirmDelete(true);
                           }}
                         >
-                          <span className="material-icons" style={{fontSize: '14px'}}>close</span>
+                          <span className="material-icons" style={{ fontSize: '14px' }}>close</span>
                         </button>
                         <button className="btn btn-success">
-                          <span className="material-icons" style={{fontSize: '14px'}}>shopping_cart</span>
+                          <span className="material-icons" style={{ fontSize: '14px' }}>shopping_cart</span>
                         </button>
                       </div>
                     </td>
@@ -126,8 +126,8 @@ const ProductsModal = () => {
                     <td>{product.category}</td>
                     <td>{product.brand || 'GENERICA'}</td>
                     <td>{product.stock || 0}</td>
-                    <td>$ {(product.purchasePrice || 0).toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
-                    <td>$ {product.price.toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                    <td>$ {(product.purchasePrice || 0).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                    <td>$ {product.price.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                     <td>{product.tax || 'IVA(0%)'}</td>
                   </tr>
                 ))}
@@ -150,14 +150,14 @@ const ProductsModal = () => {
               <p className="text-danger">Esta acción no se puede deshacer.</p>
             </div>
             <div className="modal-footer">
-              <button 
-                className="btn btn-secondary" 
+              <button
+                className="btn btn-secondary"
                 onClick={() => setShowConfirmDelete(false)}
               >
                 Cancelar
               </button>
-              <button 
-                className="btn btn-danger" 
+              <button
+                className="btn btn-danger"
                 onClick={() => {
                   deleteProduct(productToDelete.id);
                   setShowConfirmDelete(false);

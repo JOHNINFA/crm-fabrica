@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import { useProducts } from "../../context/ProductContext";
+import { usePriceList } from "../../hooks/usePriceList";
 import CategoryManager from "./CategoryManager";
 // import CajaModal from "./CajaModal"; // Ya no necesitamos el modal
 import "./ProductList.css";
 
 export default function ProductList({ addProduct, search, setSearch, priceList }) {
   const { products, categories } = useProducts();
+  const { precios } = usePriceList(priceList, products);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showReportMenu, setShowReportMenu] = useState(false);
@@ -139,7 +141,16 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
         <div className="row g-3">
           {filteredProducts.map((p) => (
             <div className="col-md-6 col-xl-4" key={p.id}>
-              <ProductCard product={p} onClick={(product, currentPrice) => addProduct(product, currentPrice)} priceList={priceList} />
+              <ProductCard
+                product={p}
+                onClick={(product) => {
+                  // Usar precio especial si existe, sino usar precio base
+                  const precioFinal = precios[p.id] !== undefined && precios[p.id] !== null
+                    ? precios[p.id]
+                    : product.price;
+                  addProduct(product, precioFinal);
+                }}
+              />
             </div>
           ))}
           {filteredProducts.length === 0 && (

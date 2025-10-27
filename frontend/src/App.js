@@ -24,6 +24,7 @@ import CajeroScreen from './pages/CajeroScreen';
 import SucursalesScreen from './pages/SucursalesScreen';
 import CajerosScreen from './pages/CajerosScreen';
 import OtrosScreen from './pages/OtrosScreen';
+import ProductFormScreen from './pages/ProductFormScreen';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Routes>
           <Route path="/" element={<MainMenu />} />
           <Route path="/pos" element={<PosScreen />} />
+          <Route path="/productos" element={<ProductFormScreen />} />
           <Route path="/remisiones" element={<PedidosScreen />} />
           <Route path="/pedidos" element={<SelectorDiasPedidosScreen />} />
           <Route path="/pedidos/:dia" element={<PedidosDiaScreen />} />
