@@ -1099,7 +1099,7 @@ class ArqueoCaja(models.Model):
         verbose_name = 'Arqueo de Caja'
         verbose_name_plural = 'Arqueos de Caja'
         ordering = ['-fecha', '-fecha_creacion']
-        unique_together = ('fecha', 'cajero', 'banco')
+        # NOTA: Removido unique_together para permitir múltiples arqueos por día (uno por turno)
     
     def save(self, *args, **kwargs):
         # Calcular totales automáticamente

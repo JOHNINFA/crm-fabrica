@@ -96,6 +96,10 @@ export const CajeroProvider = ({ children }) => {
 
                     // Guardar saldo inicial para usar en el arqueo
                     localStorage.setItem('saldo_inicial_turno', saldoInicial.toString());
+
+                    // Marcar timestamp del login para detectar nuevos logins
+                    localStorage.setItem('ultimo_login', new Date().toISOString());
+                    console.log('🔖 Marcado login en:', new Date().toISOString());
                 }
 
                 console.log('✅ Login exitoso:', cajero.nombre);
@@ -124,6 +128,24 @@ export const CajeroProvider = ({ children }) => {
                 console.log('✅ Turno cerrado');
             }
 
+            // Marcar que se hizo logout para que el próximo login sepa que debe limpiar
+            localStorage.setItem('ultimo_logout', new Date().toISOString());
+            console.log('🔖 Marcado logout en:', new Date().toISOString());
+
+            // Limpiar estados de corte de caja del localStorage
+            // Buscar y eliminar todas las claves que empiecen con 'corteRealizado_'
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('corteRealizado_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('🗑️ Limpiado:', key);
+            });
+
             // Limpiar estados
             setCajeroLogueado(null);
             setTurnoActivo(null);
@@ -135,7 +157,7 @@ export const CajeroProvider = ({ children }) => {
             localStorage.removeItem('saldo_inicial_turno');
 
             // Mantener sucursal activa para próximo login
-            console.log('✅ Logout exitoso');
+            console.log('✅ Logout exitoso - Estados de caja limpiados');
             return { success: true, message: 'Sesión cerrada exitosamente' };
         } catch (error) {
             console.error('❌ Error en logout:', error);

@@ -11,7 +11,7 @@ import '../styles/CajaScreen.css';
 // Componente interno que usa el CajeroContext
 const CajaScreenContent = () => {
     const navigate = useNavigate();
-    const { cajeroLogueado, isAuthenticated } = useCajero();
+    const { cajeroLogueado, isAuthenticated, turnoActivo } = useCajero();
     const [cajero, setCajero] = useState('jose');
     const [banco, setBanco] = useState('Todos');
     const [fechaActual] = useState(new Date().toLocaleString('es-ES'));
@@ -162,27 +162,85 @@ const CajaScreenContent = () => {
             const ventasData = await ventaService.getAll();
 
             if (ventasData && Array.isArray(ventasData) && !ventasData.error) {
-                // Filtrar ventas del día actual Y que NO estén anuladas
+                // Obtener hora de inicio del turno actual
+                let horaInicioTurno = null;
+                const turnoGuardado = localStorage.getItem('turno_activo');
+                if (turnoGuardado) {
+                    try {
+                        const turno = JSON.parse(turnoGuardado);
+                        console.log('📦 Turno guardado:', turno);
+
+                        // Intentar con fecha_inicio (API) o hora_inicio (fallback localStorage)
+                        const fechaInicio = turno.fecha_inicio || turno.hora_inicio;
+
+                        if (fechaInicio) {
+                            horaInicioTurno = new Date(fechaInicio);
+                            console.log('⏰ Turno iniciado en:', horaInicioTurno.toLocaleString('es-ES'));
+                            console.log('⏰ Timestamp del turno:', horaInicioTurno.getTime());
+                        } else {
+                            console.warn('⚠️ Turno sin fecha_inicio ni hora_inicio');
+                        }
+                    } catch (error) {
+                        console.error('❌ Error parseando turno:', error);
+                    }
+                } else {
+                    console.warn('⚠️ No hay turno guardado en localStorage');
+                }
+
+                // Filtrar ventas del día actual, NO anuladas, y DESPUÉS del inicio del turno
                 const ventasHoy = ventasData.filter(venta => {
                     // Usar solo la parte de fecha sin conversión UTC
                     const fechaVenta = venta.fecha.split('T')[0];
                     const esDelDia = fechaVenta === fechaConsulta;
                     const noEstaAnulada = venta.estado !== 'ANULADA';
 
-                    return esDelDia && noEstaAnulada;
+                    // Si hay turno activo, filtrar por hora
+                    let esDespuesDelTurno = true;
+                    if (horaInicioTurno) {
+                        const fechaVentaCompleta = new Date(venta.fecha);
+                        esDespuesDelTurno = fechaVentaCompleta >= horaInicioTurno;
+
+                        // Log detallado para debugging
+                        if (esDelDia && noEstaAnulada) {
+                            console.log(`🔍 Venta ${venta.id}:`, {
+                                fecha: venta.fecha,
+                                fechaVentaCompleta: fechaVentaCompleta.toLocaleString('es-ES'),
+                                horaInicioTurno: horaInicioTurno.toLocaleString('es-ES'),
+                                esDespuesDelTurno,
+                                timestampVenta: fechaVentaCompleta.getTime(),
+                                timestampTurno: horaInicioTurno.getTime()
+                            });
+                        }
+                    }
+
+                    return esDelDia && noEstaAnulada && esDespuesDelTurno;
                 });
 
-                console.log('📊 Ventas del día encontradas (sin anuladas):', ventasHoy.length);
+                console.log('📊 Ventas del turno actual (sin anuladas):', ventasHoy.length);
+                if (horaInicioTurno) {
+                    console.log('   Filtradas desde:', horaInicioTurno.toLocaleString('es-ES'));
+                }
 
-                // Contar ventas anuladas para información
-                const ventasAnuladas = ventasData.filter(venta => {
+                // Contar ventas excluidas para información
+                const todasVentasDelDia = ventasData.filter(venta => {
                     const fechaVenta = venta.fecha.split('T')[0];
-                    return fechaVenta === fechaConsulta && venta.estado === 'ANULADA';
+                    return fechaVenta === fechaConsulta;
                 });
+
+                const ventasAnuladas = todasVentasDelDia.filter(v => v.estado === 'ANULADA');
+                const ventasAntesDelTurno = horaInicioTurno ? todasVentasDelDia.filter(v => {
+                    const fechaVentaCompleta = new Date(v.fecha);
+                    return fechaVentaCompleta < horaInicioTurno && v.estado !== 'ANULADA';
+                }) : [];
 
                 if (ventasAnuladas.length > 0) {
-                    console.log('🚫 Ventas anuladas excluidas del arqueo:', ventasAnuladas.length);
+                    console.log('🚫 Ventas anuladas excluidas:', ventasAnuladas.length);
                 }
+                if (ventasAntesDelTurno.length > 0) {
+                    console.log('⏮️ Ventas de turnos anteriores excluidas:', ventasAntesDelTurno.length);
+                }
+                console.log('✅ Total ventas del día:', todasVentasDelDia.length);
+                console.log('✅ Ventas incluidas en este arqueo:', ventasHoy.length);
 
                 // Calcular resumen por método de pago manualmente
                 const resumenPorMetodo = {
@@ -294,19 +352,46 @@ const CajaScreenContent = () => {
 
                     console.log('✅ Nuevo día iniciado con valores en cero');
                 } else if (fechaUltimoArqueo === fechaHoy) {
-                    console.log('📅 Ya existe arqueo para hoy, mostrando valores actuales');
+                    console.log('📅 Ya existe arqueo para hoy');
 
-                    // Si ya hay arqueo para hoy, mostrar esos valores
-                    if (ultimo.valores_caja) {
+                    // Verificar si es un nuevo turno
+                    const ultimoLogin = localStorage.getItem('ultimo_login');
+                    const ultimoLogout = localStorage.getItem('ultimo_logout');
+
+                    let esNuevoTurno = false;
+                    if (ultimoLogin && ultimoLogout) {
+                        esNuevoTurno = new Date(ultimoLogin) > new Date(ultimoLogout);
+                    } else if (ultimoLogin) {
+                        const minutosDesdeLogin = (new Date() - new Date(ultimoLogin)) / 1000 / 60;
+                        esNuevoTurno = minutosDesdeLogin < 2;
+                    }
+
+                    if (esNuevoTurno) {
+                        console.log('🆕 Nuevo turno detectado, iniciando con valores en cero');
+                        // Nuevo turno: empezar limpio
                         setValoresCaja({
-                            efectivo: ultimo.valores_caja.efectivo || 0,
-                            tarjetas: ultimo.valores_caja.tarjetas || 0,
-                            transferencia: ultimo.valores_caja.transferencia || 0,
-                            consignacion: ultimo.valores_caja.consignacion || 0,
-                            qr: ultimo.valores_caja.qr || 0,
-                            rappipay: ultimo.valores_caja.rappipay || 0,
-                            bonos: ultimo.valores_caja.bonos || 0
+                            efectivo: saldoInicialTurno,
+                            tarjetas: 0,
+                            transferencia: 0,
+                            consignacion: 0,
+                            qr: 0,
+                            rappipay: 0,
+                            bonos: 0
                         });
+                    } else {
+                        console.log('📅 Mismo turno, mostrando valores del arqueo actual');
+                        // Mismo turno: mostrar valores del arqueo en progreso
+                        if (ultimo.valores_caja) {
+                            setValoresCaja({
+                                efectivo: ultimo.valores_caja.efectivo || 0,
+                                tarjetas: ultimo.valores_caja.tarjetas || 0,
+                                transferencia: ultimo.valores_caja.transferencia || 0,
+                                consignacion: ultimo.valores_caja.consignacion || 0,
+                                qr: ultimo.valores_caja.qr || 0,
+                                rappipay: ultimo.valores_caja.rappipay || 0,
+                                bonos: ultimo.valores_caja.bonos || 0
+                            });
+                        }
                     }
                 }
             } else {
@@ -1139,24 +1224,9 @@ const CajaScreenContent = () => {
                 observaciones
             };
 
-            // Validar que no exista arqueo para hoy
-            if (ultimoArqueo) {
-                const fechaUltimoArqueo = ultimoArqueo.fecha; // Ya viene en formato YYYY-MM-DD
-                const fechaHoy = getFechaLocal();
-
-                if (fechaUltimoArqueo === fechaHoy) {
-                    const confirmar = window.confirm(
-                        `⚠️ Ya existe un arqueo para hoy (${fechaHoy})\n\n` +
-                        `Último arqueo: ${ultimoArqueo.cajero} - ${ultimoArqueo.banco}\n` +
-                        `Diferencia anterior: ${formatCurrency(ultimoArqueo.total_diferencia || 0)}\n\n` +
-                        `¿Desea actualizar el arqueo existente?`
-                    );
-
-                    if (!confirmar) {
-                        return;
-                    }
-                }
-            }
+            // NOTA: Permitir múltiples arqueos por día (uno por turno)
+            // No validar si existe arqueo previo - cada turno crea su propio arqueo
+            console.log('💾 Guardando nuevo arqueo para el turno actual');
 
             // Validar antes de guardar
             const validacionGuardado = cajaValidaciones.validarAntesDeGuardar(datosArqueo);
@@ -1199,8 +1269,11 @@ const CajaScreenContent = () => {
             await cargarUltimoArqueo();
 
             // Marcar que se realizó el corte de caja
+            // NOTA: Este estado se limpiará automáticamente al hacer logout
+            const corteKey = `corteRealizado_${cajero}_${fechaConsulta}`;
             setCorteRealizado(true);
-            localStorage.setItem(`corteRealizado_${cajero}_${fechaConsulta}`, 'true');
+            localStorage.setItem(corteKey, 'true');
+            console.log('✅ Corte de caja guardado:', corteKey);
 
             // Limpiar después de 5 segundos
             setTimeout(() => {
@@ -1244,8 +1317,41 @@ const CajaScreenContent = () => {
         // Verificar si ya se hizo el corte hoy
         const corteKey = `corteRealizado_${cajero}_${fechaConsulta}`;
         const yaSeHizoCorte = localStorage.getItem(corteKey) === 'true';
-        setCorteRealizado(yaSeHizoCorte);
-    }, [fechaConsulta, cajero]);
+
+        // Verificar si es un nuevo login comparando timestamps
+        const ultimoLogin = localStorage.getItem('ultimo_login');
+        const ultimoLogout = localStorage.getItem('ultimo_logout');
+
+        let esNuevoLogin = false;
+        if (ultimoLogin && ultimoLogout) {
+            // Si el login es más reciente que el logout, es un nuevo login
+            esNuevoLogin = new Date(ultimoLogin) > new Date(ultimoLogout);
+        } else if (ultimoLogin && !ultimoLogout) {
+            // Si hay login pero no logout, verificar si es reciente (menos de 2 minutos)
+            const minutosDesdeLogin = (new Date() - new Date(ultimoLogin)) / 1000 / 60;
+            esNuevoLogin = minutosDesdeLogin < 2;
+        }
+
+        if (esNuevoLogin) {
+            console.log('🆕 Nuevo login detectado, ignorando corte anterior');
+            setCorteRealizado(false);
+
+            // Limpiar valores de caja para empezar limpio
+            setValoresCaja({
+                efectivo: saldoInicialTurno,
+                tarjetas: 0,
+                transferencia: 0,
+                consignacion: 0,
+                qr: 0,
+                rappipay: 0,
+                bonos: 0
+            });
+        } else {
+            // No es nuevo login, verificar corte normalmente
+            setCorteRealizado(yaSeHizoCorte);
+            console.log('📊 Verificando corte:', { corteKey, yaSeHizoCorte, esNuevoLogin });
+        }
+    }, [fechaConsulta, cajero, isAuthenticated, cajeroLogueado?.id]);
 
     const mediosPago = [
         { key: 'efectivo', label: 'Efectivo Disponible:', destacado: true },
@@ -1465,13 +1571,24 @@ const CajaScreenContent = () => {
                 {resumenVentas && (
                     <Card className="mb-4">
                         <Card.Body>
+                            {/* Indicador de turno */}
+                            {turnoActivo && (turnoActivo.fecha_inicio || turnoActivo.hora_inicio) && (
+                                <Alert variant="info" className="mb-3 py-2">
+                                    <small>
+                                        <i className="bi bi-info-circle me-2"></i>
+                                        <strong>Arqueo del Turno Actual:</strong> Mostrando solo las ventas realizadas desde el inicio de tu turno
+                                        ({new Date(turnoActivo.fecha_inicio || turnoActivo.hora_inicio).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})
+                                    </small>
+                                </Alert>
+                            )}
+
                             <Row className="text-center">
                                 <Col md={4}>
                                     <div className="stat-card">
                                         <div className="stat-value text-primary">
                                             {resumenVentas.totalVentas}
                                         </div>
-                                        <div className="stat-label">Total Ventas</div>
+                                        <div className="stat-label">Ventas del Turno</div>
                                     </div>
                                 </Col>
                                 <Col md={4}>

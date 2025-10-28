@@ -1121,24 +1121,10 @@ class ArqueoCajaViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-fecha', '-fecha_creacion')
     
     def create(self, request, *args, **kwargs):
-        """Crear arqueo con validaciones"""
+        """Crear arqueo - Permite múltiples arqueos por día (uno por turno)"""
         try:
-            # Validar que no exista un arqueo para la misma fecha, cajero y banco
-            fecha = request.data.get('fecha')
-            cajero = request.data.get('cajero')
-            banco = request.data.get('banco', 'Caja General')
-            
-            arqueo_existente = ArqueoCaja.objects.filter(
-                fecha=fecha,
-                cajero=cajero,
-                banco=banco
-            ).first()
-            
-            if arqueo_existente:
-                return Response({
-                    'error': f'Ya existe un arqueo para {cajero} en {banco} el {fecha}',
-                    'arqueo_existente': ArqueoCajaSerializer(arqueo_existente).data
-                }, status=status.HTTP_400_BAD_REQUEST)
+            # NOTA: Permitir múltiples arqueos por día para soportar múltiples turnos
+            # No validar duplicados - cada turno puede tener su propio arqueo
             
             # Crear el arqueo
             response = super().create(request, *args, **kwargs)
