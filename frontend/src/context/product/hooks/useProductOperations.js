@@ -9,14 +9,21 @@ export const useProductOperations = (products, setProducts, categories, setCateg
   
   // Utilidad para actualizar estado y localStorage
   const updateState = (newProducts, newCategories = null) => {
-    setProducts(newProducts);
-    storage.save('products', newProducts);
+    // 🚀 Ordenar productos por ID antes de guardar
+    const sortedProducts = [...newProducts].sort((a, b) => {
+      const idA = parseInt(a.id) || 999999;
+      const idB = parseInt(b.id) || 999999;
+      return idA - idB;
+    });
+    
+    setProducts(sortedProducts);
+    storage.save('products', sortedProducts);
     
     if (newCategories) {
       setCategories(newCategories);
       storage.save('categories', newCategories);
     } else {
-      const uniqueCategories = [...new Set(newProducts.map(p => p.category).filter(Boolean))];
+      const uniqueCategories = [...new Set(sortedProducts.map(p => p.category).filter(Boolean))];
       if (uniqueCategories.length > 0) {
         setCategories(uniqueCategories);
         storage.save('categories', uniqueCategories);

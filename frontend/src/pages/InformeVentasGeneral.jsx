@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, Row, Col, Card, Button, Table, Form, Badge, Dropdown, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { ventaService } from '../services/api';
 import { cajaService } from '../services/cajaService';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 const InformeVentasGeneral = () => {
   const navigate = useNavigate();
@@ -12,6 +14,15 @@ const InformeVentasGeneral = () => {
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [showAnularModal, setShowAnularModal] = useState(false);
   const [confirmacionAnular, setConfirmacionAnular] = useState('');
+
+  // Estados para los calendarios
+  const [fechaInicial, setFechaInicial] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [fechaFinal, setFechaFinal] = useState(new Date());
+  const [showCalendarInicial, setShowCalendarInicial] = useState(false);
+  const [showCalendarFinal, setShowCalendarFinal] = useState(false);
+  const calendarInicialRef = useRef(null);
+  const calendarFinalRef = useRef(null);
+
   const [metricas, setMetricas] = useState({
     totalSinImpuestos: 0.00,
     totalImpuestos: 0.00,
@@ -77,6 +88,53 @@ const InformeVentasGeneral = () => {
   useEffect(() => {
     cargarVentas();
   }, []);
+
+  // Cerrar calendarios al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (calendarInicialRef.current && !calendarInicialRef.current.contains(event.target)) {
+        setShowCalendarInicial(false);
+      }
+      if (calendarFinalRef.current && !calendarFinalRef.current.contains(event.target)) {
+        setShowCalendarFinal(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Formatear fecha para mostrar
+  const formatearFecha = (fecha) => {
+    return fecha.toLocaleString('es-CO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Filtrar ventas por rango de fechas usando useMemo
+  const ventasFiltradas = useMemo(() => {
+    return ventas.filter(venta => {
+      const fechaVenta = new Date(venta.fecha);
+      const inicioDelDia = new Date(fechaInicial);
+      inicioDelDia.setHours(0, 0, 0, 0);
+      const finDelDia = new Date(fechaFinal);
+      finDelDia.setHours(23, 59, 59, 999);
+
+      return fechaVenta >= inicioDelDia && fechaVenta <= finDelDia;
+    });
+  }, [ventas, fechaInicial, fechaFinal]);
+
+  // Recalcular métricas cuando cambien las ventas filtradas
+  useEffect(() => {
+    if (ventasFiltradas.length >= 0) {
+      calcularMetricas(ventasFiltradas);
+    }
+  }, [ventasFiltradas]);
 
   // Función para mostrar detalle de venta
   const mostrarDetalleVenta = async (ventaId) => {
@@ -219,8 +277,8 @@ const InformeVentasGeneral = () => {
     }
   };
 
-  // Transformar ventas para la tabla
-  const transacciones = ventas.map((venta) => ({
+  // Transformar ventas para la tabla (con filtro de fechas)
+  const transacciones = ventasFiltradas.map((venta) => ({
     id: venta.id,
     tipo: 'Ventas',
     medio: venta.metodo_pago || 'Efectivo',
@@ -259,6 +317,35 @@ const InformeVentasGeneral = () => {
           .table-row-hover:hover {
             background-color: #f8f9fa !important;
             transition: background-color 0.2s ease;
+          }
+          
+          /* Estilos personalizados para el calendario */
+          .react-calendar {
+            border: none;
+            font-family: Arial, sans-serif;
+            background: white;
+          }
+          
+          .react-calendar__tile--active {
+            background: #0c2c53 !important;
+            color: white !important;
+          }
+          
+          .react-calendar__tile--now {
+            background: #e8f4fd;
+          }
+          
+          .react-calendar__tile:enabled:hover {
+            background: #e8f4fd;
+          }
+          
+          .react-calendar__navigation button {
+            color: #0c2c53;
+            font-weight: bold;
+          }
+          
+          .react-calendar__navigation button:enabled:hover {
+            background-color: #e8f4fd;
           }
         `}
       </style>
@@ -317,27 +404,97 @@ const InformeVentasGeneral = () => {
               <Form.Select size="sm" className="me-3 mb-2 mb-md-0" style={{ width: '120px' }}>
                 <option>Principal</option>
               </Form.Select>
+
               <span className="me-2">Fecha inicial:</span>
-              <div className="position-relative me-3 mb-2 mb-md-0">
+              <div className="position-relative me-3 mb-2 mb-md-0" ref={calendarInicialRef}>
                 <Form.Control
                   type="text"
                   size="sm"
-                  defaultValue="01/06/2025, 12:00 a.m."
-                  style={{ width: '160px', paddingRight: '28px' }}
+                  value={formatearFecha(fechaInicial)}
+                  onClick={() => setShowCalendarInicial(!showCalendarInicial)}
+                  readOnly
+                  style={{ width: '200px', paddingRight: '28px', cursor: 'pointer' }}
                 />
-                <span className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none">📅</span>
+                <span
+                  className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setShowCalendarInicial(!showCalendarInicial)}
+                >
+                  📅
+                </span>
+                {showCalendarInicial && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    zIndex: 1000,
+                    marginTop: '5px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                  }}>
+                    <Calendar
+                      onChange={(date) => {
+                        setFechaInicial(date);
+                        setShowCalendarInicial(false);
+                      }}
+                      value={fechaInicial}
+                      locale="es-ES"
+                    />
+                  </div>
+                )}
               </div>
+
               <span className="me-2">Fecha Final:</span>
-              <div className="position-relative me-3 mb-2 mb-md-0">
+              <div className="position-relative me-3 mb-2 mb-md-0" ref={calendarFinalRef}>
                 <Form.Control
                   type="text"
                   size="sm"
-                  defaultValue="30/06/2025, 11:59:58.059 p.m."
-                  style={{ width: '180px', paddingRight: '28px' }}
+                  value={formatearFecha(fechaFinal)}
+                  onClick={() => setShowCalendarFinal(!showCalendarFinal)}
+                  readOnly
+                  style={{ width: '200px', paddingRight: '28px', cursor: 'pointer' }}
                 />
-                <span className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none">📅</span>
+                <span
+                  className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setShowCalendarFinal(!showCalendarFinal)}
+                >
+                  📅
+                </span>
+                {showCalendarFinal && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    zIndex: 1000,
+                    marginTop: '5px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                  }}>
+                    <Calendar
+                      onChange={(date) => {
+                        setFechaFinal(date);
+                        setShowCalendarFinal(false);
+                      }}
+                      value={fechaFinal}
+                      locale="es-ES"
+                      minDate={fechaInicial}
+                    />
+                  </div>
+                )}
               </div>
-              <Button size="sm" style={{ fontSize: '12px', backgroundColor: '#0c2c53', color: 'white', border: 'none' }}>
+
+              <Button
+                size="sm"
+                style={{ fontSize: '12px', backgroundColor: '#0c2c53', color: 'white', border: 'none' }}
+                onClick={() => {
+                  // Las métricas se recalculan automáticamente con useMemo
+                  console.log('Consultando transacciones del', formatearFecha(fechaInicial), 'al', formatearFecha(fechaFinal));
+                  console.log('Total ventas filtradas:', ventasFiltradas.length);
+                }}
+              >
                 🔍 Consultar Transacciones
               </Button>
             </div>

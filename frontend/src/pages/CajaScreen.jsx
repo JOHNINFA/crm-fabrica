@@ -31,6 +31,8 @@ const CajaScreenContent = () => {
     const { getSaldoInicialTurno } = useCajero();
     const saldoInicialTurno = getSaldoInicialTurno();
 
+    console.log('💰 Saldo inicial del turno:', saldoInicialTurno);
+
     // Estados para los valores de caja
     const [valoresCaja, setValoresCaja] = useState({
         efectivo: 0,
@@ -1171,7 +1173,11 @@ const CajaScreenContent = () => {
 
     // Manejar cambios en inputs con validación
     const handleInputChange = (metodo, valor) => {
+        console.log('🔵 Input ORIGINAL:', metodo, 'Valor RAW:', valor, 'Tipo:', typeof valor);
+
         const validacionNumero = cajaValidaciones.validarFormatoNumero(valor);
+
+        console.log('💰 Input validado:', metodo, 'Valor ingresado:', valor, 'Valor validado:', validacionNumero.valor, 'Tipo validado:', typeof validacionNumero.valor);
 
         if (validacionNumero.esValido) {
             setValoresCaja(prev => {
@@ -1179,6 +1185,9 @@ const CajaScreenContent = () => {
                     ...prev,
                     [metodo]: validacionNumero.valor
                 };
+
+                console.log('✅ Nuevos valores de caja COMPLETOS:', nuevosValores);
+                console.log('✅ Valor específico de', metodo, ':', nuevosValores[metodo]);
 
                 // Validar y generar recomendaciones en tiempo real
                 setTimeout(() => {
@@ -1208,6 +1217,19 @@ const CajaScreenContent = () => {
         try {
             setGuardandoArqueo(true);
 
+            console.log('💾 GUARDANDO ARQUEO - Valores actuales:');
+            console.log('📊 valoresSistema:', valoresSistema);
+            console.log('💰 valoresCaja:', valoresCaja);
+
+            // 🔥 RECALCULAR TOTALES JUSTO ANTES DE GUARDAR
+            const totalSistemaActual = Object.values(valoresSistema).reduce((sum, val) => sum + val, 0) + totalMovimientosCaja;
+            const totalCajaActual = Object.values(valoresCaja).reduce((sum, val) => sum + val, 0);
+            const totalDiferenciaActual = totalCajaActual - totalSistemaActual;
+
+            console.log('🔢 totalSistema RECALCULADO:', totalSistemaActual);
+            console.log('💵 totalCaja RECALCULADO:', totalCajaActual);
+            console.log('📉 totalDiferencia RECALCULADO:', totalDiferenciaActual);
+
             const datosArqueo = {
                 fecha: fechaConsulta,
                 cajero,
@@ -1218,11 +1240,13 @@ const CajaScreenContent = () => {
                     acc[key] = calcularDiferencia(key);
                     return acc;
                 }, {}),
-                totalSistema,
-                totalCaja,
-                totalDiferencia,
+                totalSistema: totalSistemaActual,
+                totalCaja: totalCajaActual,
+                totalDiferencia: totalDiferenciaActual,
                 observaciones
             };
+
+            console.log('📦 Datos del arqueo a guardar:', datosArqueo);
 
             // NOTA: Permitir múltiples arqueos por día (uno por turno)
             // No validar si existe arqueo previo - cada turno crea su propio arqueo
@@ -1251,9 +1275,9 @@ const CajaScreenContent = () => {
             const mensaje = `✅ Arqueo de caja guardado exitosamente
 
 📊 Resumen:
-• Total Sistema: ${formatCurrency(totalSistema)}
-• Total Caja: ${formatCurrency(totalCaja)}
-• Diferencia: ${formatCurrency(totalDiferencia)}
+• Total Sistema: ${formatCurrency(totalSistemaActual)}
+• Total Caja: ${formatCurrency(totalCajaActual)}
+• Diferencia: ${formatCurrency(totalDiferenciaActual)}
 • Cajero: ${cajero}
 • Fecha: ${fechaConsulta}`;
 
@@ -1261,12 +1285,12 @@ const CajaScreenContent = () => {
             setError(null);
             setValidacion({
                 esValido: true,
-                mensaje: `✅ Arqueo guardado exitosamente - Diferencia: ${formatCurrency(totalDiferencia)}`,
+                mensaje: `✅ Arqueo guardado exitosamente - Diferencia: ${formatCurrency(totalDiferenciaActual)}`,
                 tipo: 'success'
             });
 
-            // Recargar el último arqueo para actualizar la interfaz
-            await cargarUltimoArqueo();
+            // NO recargar el último arqueo para no sobrescribir los valores ingresados
+            // await cargarUltimoArqueo();
 
             // Marcar que se realizó el corte de caja
             // NOTA: Este estado se limpiará automáticamente al hacer logout
