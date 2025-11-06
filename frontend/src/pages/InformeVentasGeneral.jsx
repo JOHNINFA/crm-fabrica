@@ -355,8 +355,15 @@ const InformeVentasGeneral = () => {
           <Row>
             <Col>
               <div className="d-flex align-items-center">
-                <Button variant="outline-light" size="sm" className="me-2 rounded-1 px-2 py-0">
-                  +
+                <Button
+                  variant="outline-light"
+                  size="sm"
+                  className="me-3 rounded-1 px-3 py-1"
+                  onClick={() => navigate('/pos')}
+                  title="Volver al POS"
+                >
+                  <i className="bi bi-arrow-left me-1"></i>
+                  Volver al POS
                 </Button>
                 <Dropdown className="me-3">
                   <Dropdown.Toggle variant="link" id="dropdown-venta" className="text-white text-decoration-none p-0" style={{ fontSize: '14px' }}>
@@ -367,8 +374,12 @@ const InformeVentasGeneral = () => {
                   <Dropdown.Toggle variant="link" id="dropdown-informes-ventas" className="text-white text-decoration-none p-0" style={{ fontSize: '14px' }}>
                     Informes de Ventas
                   </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item onClick={() => navigate('/informes/general')}>
+                      Informe de Ventas General
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
                 </Dropdown>
-                <span style={{ fontSize: '14px' }}>Informes de CxC</span>
               </div>
             </Col>
           </Row>

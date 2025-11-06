@@ -131,46 +131,44 @@ export const cajaService = {
    */
   guardarArqueoCaja: async (datosArqueo) => {
     try {
-      // Primero verificar si ya existe un arqueo para esta fecha y cajero
-      const arqueoExistente = await cajaService.getUltimoArqueo(datosArqueo.cajero);
+      // SIEMPRE crear un nuevo arqueo (no sobrescribir)
+      // Cada turno debe tener su propio arqueo
+      console.log('✨ Creando nuevo arqueo de caja');
       
-      let method = 'POST';
-      let url = `${API_URL}/arqueo-caja/`;
+      const arqueoData = {
+        fecha: datosArqueo.fecha,
+        cajero: datosArqueo.cajero,
+        banco: datosArqueo.banco,
+        valores_sistema: datosArqueo.valoresSistema,
+        valores_caja: datosArqueo.valoresCaja,
+        diferencias: datosArqueo.diferencias,
+        total_sistema: datosArqueo.totalSistema,
+        total_caja: datosArqueo.totalCaja,
+        total_diferencia: datosArqueo.totalDiferencia,
+        observaciones: datosArqueo.observaciones || '',
+        estado: 'COMPLETADO',
+        turno: datosArqueo.turno_id || null,
+        cajero_logueado: datosArqueo.cajero_id || null,
+        sucursal: datosArqueo.sucursal_id || null
+      };
       
-      // Si existe un arqueo para la misma fecha, actualizar en lugar de crear
-      if (arqueoExistente && arqueoExistente.fecha === datosArqueo.fecha) {
-        method = 'PUT';
-        url = `${API_URL}/arqueo-caja/${arqueoExistente.id}/`;
-        console.log('📝 Actualizando arqueo existente:', arqueoExistente.id);
-      } else {
-        console.log('✨ Creando nuevo arqueo');
-      }
+      console.log('📤 Enviando arqueo al backend:', arqueoData);
       
-      const response = await fetch(url, {
-        method: method,
+      const response = await fetch(`${API_URL}/arqueo-caja/`, {
+        method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({
-          fecha: datosArqueo.fecha,
-          cajero: datosArqueo.cajero,
-          banco: datosArqueo.banco,
-          valores_sistema: datosArqueo.valoresSistema,
-          valores_caja: datosArqueo.valoresCaja,
-          diferencias: datosArqueo.diferencias,
-          total_sistema: datosArqueo.totalSistema,
-          total_caja: datosArqueo.totalCaja,
-          total_diferencia: datosArqueo.totalDiferencia,
-          observaciones: datosArqueo.observaciones || '',
-          estado: 'COMPLETADO',
-          fecha_creacion: new Date().toISOString()
-        })
+        body: JSON.stringify(arqueoData)
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Error al guardar arqueo: ${response.status}`);
+        console.error('❌ Error del servidor:', errorData);
+        throw new Error(errorData.error || errorData.message || `Error al guardar arqueo: ${response.status}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('✅ Arqueo guardado exitosamente:', result);
+      return result;
       
     } catch (error) {
       console.error('Error en guardarArqueoCaja:', error);

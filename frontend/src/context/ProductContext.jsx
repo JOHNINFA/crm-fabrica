@@ -8,10 +8,10 @@ const ProductContext = createContext();
 export const useProducts = () => useContext(ProductContext);
 
 export const ProductProvider = ({ children }) => {
-  // Estados principales
+  // Estados principales - Producto inicial ordenado por ID
   const [products, setProducts] = useState([
     { id: 2, name: "Servicio", price: 0, category: "Servicios", image: null, stock: 0, brand: "GENERICA", tax: "IVA(0%)" }
-  ]);
+  ].sort((a, b) => (parseInt(a.id) || 0) - (parseInt(b.id) || 0)));
   const [categories, setCategories] = useState(["Servicios"]);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -58,7 +58,7 @@ export const ProductProvider = ({ children }) => {
     initialize();
 
     const syncInterval = setInterval(() => sincronizarConBD(), 60000); // Sincronizar cada 60 segundos
-    
+
     const handleStorageChange = (e) => {
       if (e.key === 'products') {
         const newProducts = storage.get('products');
@@ -77,9 +77,9 @@ export const ProductProvider = ({ children }) => {
   }, []);  // Eliminadas las dependencias que causaban bucles
 
   return (
-    <ProductContext.Provider value={{ 
-      products, 
-      categories, 
+    <ProductContext.Provider value={{
+      products,
+      categories,
       isSyncing,
       syncWithBackend,
       loadProductsFromBackend,

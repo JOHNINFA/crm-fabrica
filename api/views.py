@@ -8,13 +8,13 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja, ArqueoCaja
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -29,7 +29,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 
 class ProductoViewSet(viewsets.ModelViewSet):
     """API para gestionar productos"""
-    queryset = Producto.objects.all()
+    queryset = Producto.objects.all().order_by('id')  # Orden consistente por ID
     serializer_class = ProductoSerializer
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
@@ -1541,6 +1541,135 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
                 'saldo': float(saldo),
                 'cantidad_movimientos': movimientos.count()
             })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ArqueoCajaViewSet(viewsets.ModelViewSet):
+    """API para gestionar arqueos de caja"""
+    queryset = ArqueoCaja.objects.all().order_by('-fecha', '-fecha_creacion')
+    serializer_class = ArqueoCajaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def create(self, request, *args, **kwargs):
+        """Crear arqueo con logging detallado"""
+        print('📦 Datos recibidos para crear arqueo:', request.data)
+        
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            print('✅ Arqueo creado exitosamente:', serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            print('❌ Error al crear arqueo:', str(e))
+            if hasattr(e, 'detail'):
+                print('   Detalles:', e.detail)
+            return Response(
+                {'error': str(e), 'detail': getattr(e, 'detail', None)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def get_queryset(self):
+        """Filtrar arqueos por fecha, cajero o estado"""
+        queryset = ArqueoCaja.objects.all()
+        
+        fecha_inicio = self.request.query_params.get('fecha_inicio', None)
+        fecha_fin = self.request.query_params.get('fecha_fin', None)
+        cajero = self.request.query_params.get('cajero', None)
+        estado = self.request.query_params.get('estado', None)
+        
+        if fecha_inicio:
+            queryset = queryset.filter(fecha__gte=fecha_inicio)
+        if fecha_fin:
+            queryset = queryset.filter(fecha__lte=fecha_fin)
+        if cajero:
+            queryset = queryset.filter(cajero=cajero)
+        if estado:
+            queryset = queryset.filter(estado=estado)
+            
+        return queryset.order_by('-fecha', '-fecha_creacion')
+    
+    @action(detail=False, methods=['post'])
+    def validar(self, request):
+        """Validar arqueo antes de guardar"""
+        try:
+            valores_sistema = request.data.get('valores_sistema', {})
+            valores_caja = request.data.get('valores_caja', {})
+            
+            # Calcular diferencias
+            diferencias = {}
+            for metodo in valores_sistema.keys():
+                sistema = float(valores_sistema.get(metodo, 0))
+                caja = float(valores_caja.get(metodo, 0))
+                diferencias[metodo] = caja - sistema
+            
+            total_diferencia = sum(diferencias.values())
+            
+            # Validaciones
+            alertas = []
+            if abs(total_diferencia) > 10000:
+                alertas.append({
+                    'tipo': 'error',
+                    'mensaje': f'Diferencia muy alta: ${total_diferencia:,.2f}'
+                })
+            elif abs(total_diferencia) > 1000:
+                alertas.append({
+                    'tipo': 'warning',
+                    'mensaje': f'Diferencia moderada: ${total_diferencia:,.2f}'
+                })
+            else:
+                alertas.append({
+                    'tipo': 'success',
+                    'mensaje': 'Arqueo cuadrado correctamente'
+                })
+            
+            return Response({
+                'valido': abs(total_diferencia) <= 10000,
+                'diferencias': diferencias,
+                'total_diferencia': total_diferencia,
+                'alertas': alertas
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def estadisticas(self, request):
+        """Obtener estadísticas de arqueos por rango de fechas"""
+        try:
+            fecha_inicio = request.query_params.get('fecha_inicio')
+            fecha_fin = request.query_params.get('fecha_fin')
+            
+            if not fecha_inicio or not fecha_fin:
+                return Response(
+                    {'error': 'Fechas de inicio y fin son requeridas'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            arqueos = ArqueoCaja.objects.filter(
+                fecha__gte=fecha_inicio,
+                fecha__lte=fecha_fin
+            )
+            
+            from django.db.models import Sum, Avg, Count
+            
+            estadisticas = {
+                'total_arqueos': arqueos.count(),
+                'sin_diferencias': arqueos.filter(total_diferencia=0).count(),
+                'con_diferencias': arqueos.exclude(total_diferencia=0).count(),
+                'total_diferencia': float(arqueos.aggregate(Sum('total_diferencia'))['total_diferencia__sum'] or 0),
+                'promedio_diferencia': float(arqueos.aggregate(Avg('total_diferencia'))['total_diferencia__avg'] or 0),
+            }
+            
+            return Response(estadisticas)
             
         except Exception as e:
             return Response(

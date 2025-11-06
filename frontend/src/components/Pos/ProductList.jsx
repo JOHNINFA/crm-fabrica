@@ -17,12 +17,19 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
   const reportMenuRef = useRef(null);
   const navigate = useNavigate();
 
-  // Filtrar productos
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = selectedCategory === "Todos" || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Filtrar y ordenar productos
+  const filteredProducts = products
+    .filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory = selectedCategory === "Todos" || p.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      // Ordenar por ID numérico para mantener orden consistente
+      const idA = parseInt(a.id) || 999999;
+      const idB = parseInt(b.id) || 999999;
+      return idA - idB;
+    });
 
   // Iconos para categorías
   const getCategoryIcon = (category) => {
@@ -64,9 +71,6 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
           {showReportMenu && (
             <ul className="dropdown-menu show" style={{ position: 'absolute', inset: '0px auto auto 0px', margin: '0px', transform: 'translate(0px, 40px)' }}>
               <li><button className="dropdown-item" onClick={() => { setShowReportMenu(false); navigate('/informes/general'); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas General</button></li>
-              <li><button className="dropdown-item" onClick={() => { console.log('Informe por vendedor'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas por Vendedor</button></li>
-              <li><button className="dropdown-item" onClick={() => { console.log('Informe por cliente'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas por Cliente</button></li>
-              <li><button className="dropdown-item" onClick={() => { console.log('Informe por cajero'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas por Cajero</button></li>
             </ul>
           )}
         </div>

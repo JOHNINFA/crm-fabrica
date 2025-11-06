@@ -11,7 +11,7 @@ import '../styles/CajaScreen.css';
 // Componente interno que usa el CajeroContext
 const CajaScreenContent = () => {
     const navigate = useNavigate();
-    const { cajeroLogueado, isAuthenticated, turnoActivo } = useCajero();
+    const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva } = useCajero();
     const [cajero, setCajero] = useState('jose');
     const [banco, setBanco] = useState('Todos');
     const [fechaActual] = useState(new Date().toLocaleString('es-ES'));
@@ -288,15 +288,24 @@ const CajaScreenContent = () => {
                     }
                 });
 
+                // ✅ SUMAR EL SALDO INICIAL DEL TURNO AL EFECTIVO
+                if (saldoInicialTurno > 0) {
+                    console.log('💰 Sumando saldo inicial del turno al efectivo:', saldoInicialTurno);
+                    resumenPorMetodo.efectivo += saldoInicialTurno;
+                }
+
                 const resumenCalculado = {
                     fecha: fechaConsulta,
                     totalVentas: ventasHoy.length,
                     resumenPorMetodo,
-                    totalGeneral: Object.values(resumenPorMetodo).reduce((sum, val) => sum + val, 0)
+                    totalGeneral: Object.values(resumenPorMetodo).reduce((sum, val) => sum + val, 0),
+                    saldoInicial: saldoInicialTurno  // Guardar para referencia
                 };
 
                 console.log('✅ Resumen calculado manualmente:', resumenCalculado);
-                console.log('💰 EFECTIVO CALCULADO:', resumenPorMetodo.efectivo);
+                console.log('💰 EFECTIVO CALCULADO (con saldo inicial):', resumenPorMetodo.efectivo);
+                console.log('   - Ventas en efectivo:', resumenPorMetodo.efectivo - saldoInicialTurno);
+                console.log('   - Saldo inicial:', saldoInicialTurno);
                 console.log('💳 TARJETAS CALCULADO:', resumenPorMetodo.tarjetas);
                 console.log('🏦 TRANSFERENCIA CALCULADO:', resumenPorMetodo.transferencia);
 
@@ -1230,6 +1239,11 @@ const CajaScreenContent = () => {
             console.log('💵 totalCaja RECALCULADO:', totalCajaActual);
             console.log('📉 totalDiferencia RECALCULADO:', totalDiferenciaActual);
 
+            // ✅ Validar IDs antes de enviar (no enviar timestamps de localStorage)
+            const turnoIdValido = turnoActivo?.id && turnoActivo.id < 1000000 ? turnoActivo.id : null;
+            const cajeroIdValido = cajeroLogueado?.id && cajeroLogueado.id < 1000000 ? cajeroLogueado.id : null;
+            const sucursalIdValida = sucursalActiva?.id && sucursalActiva.id < 1000000 ? sucursalActiva.id : null;
+
             const datosArqueo = {
                 fecha: fechaConsulta,
                 cajero,
@@ -1243,8 +1257,18 @@ const CajaScreenContent = () => {
                 totalSistema: totalSistemaActual,
                 totalCaja: totalCajaActual,
                 totalDiferencia: totalDiferenciaActual,
-                observaciones
+                observaciones,
+                // ✅ Solo enviar IDs válidos (no timestamps de localStorage)
+                turno_id: turnoIdValido,
+                cajero_id: cajeroIdValido,
+                sucursal_id: sucursalIdValida
             };
+
+            console.log('🔍 IDs validados:', {
+                turno: turnoIdValido,
+                cajero: cajeroIdValido,
+                sucursal: sucursalIdValida
+            });
 
             console.log('📦 Datos del arqueo a guardar:', datosArqueo);
 

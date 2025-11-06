@@ -464,6 +464,27 @@ class MovimientoCajaSerializer(serializers.ModelSerializer):
         fields = ['id', 'fecha', 'hora', 'cajero', 'tipo', 'monto', 'concepto', 'fecha_creacion']
         read_only_fields = ('fecha_creacion',)
 
+class ArqueoCajaSerializer(serializers.ModelSerializer):
+    """Serializer para arqueos de caja"""
+    cajero_nombre = serializers.ReadOnlyField(source='cajero_logueado.nombre', allow_null=True)
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre', allow_null=True)
+    turno_id = serializers.ReadOnlyField(source='turno.id', allow_null=True)
+    
+    class Meta:
+        model = ArqueoCaja
+        fields = [
+            'id', 'fecha', 'cajero', 'banco', 
+            'valores_sistema', 'total_sistema',
+            'valores_caja', 'total_caja',
+            'diferencias', 'total_diferencia',
+            'observaciones', 'estado',
+            'cajero_logueado', 'cajero_nombre',
+            'sucursal', 'sucursal_nombre',
+            'turno', 'turno_id',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('total_sistema', 'total_caja', 'total_diferencia', 'diferencias', 'fecha_creacion', 'fecha_actualizacion')
+
 class DetallePedidoSerializer(serializers.ModelSerializer):
     """Serializer para detalles de pedido"""
     producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
