@@ -1,8 +1,11 @@
 /* Estilos para la tabla de Producción Principal */
 .tabla-produccion {
   font-size: 0.65rem;
-  width: auto;
-  table-layout: auto;
+  width: 100%;
+  table-layout: fixed !important;
+  margin-bottom: 0;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
 }
 
 .tabla-produccion .header-produccion {
@@ -12,14 +15,71 @@
   color: #000;
 }
 
+.tabla-produccion thead tr:first-child th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.tabla-produccion thead tr:first-child th:last-child {
+  border-top-right-radius: 8px;
+}
+
 .tabla-produccion th,
 .tabla-produccion td {
   vertical-align: middle;
   border: 1px solid #dee2e6;
-  padding: 0.1rem 0.2rem;
+  padding: 0.02rem 0.15rem;
   text-align: center;
-  min-width: 80px;
   white-space: nowrap;
+  height: 22px;
+  max-height: 22px;
+  line-height: 1;
+}
+
+.tabla-produccion th:nth-child(1),
+.tabla-produccion td:nth-child(1) {
+  width: 52% !important;
+  text-align: center !important;
+  padding-left: 0.15rem;
+  padding-right: 0.15rem;
+}
+
+.tabla-produccion th:nth-child(2),
+.tabla-produccion td:nth-child(2) {
+  width: 18% !important;
+  text-align: center !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.tabla-produccion th:nth-child(3),
+.tabla-produccion td:nth-child(3) {
+  width: 10% !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.tabla-produccion th:nth-child(4),
+.tabla-produccion td:nth-child(4) {
+  width: 10% !important;
+  text-align: center !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.tabla-produccion th:nth-child(5),
+.tabla-produccion td:nth-child(5) {
+  width: 10% !important;
+}
+
+.tabla-produccion tbody tr {
+  height: 22px !important;
+  max-height: 22px !important;
 }
 
 .tabla-produccion .fila-produccion {
@@ -28,75 +88,135 @@
 
 .tabla-produccion .producto-cell {
   font-weight: 500;
-  min-width: 250px;
-  text-align: left;
-  padding-left: 0.5rem;
+  text-align: center !important;
+  padding-left: 0.15rem;
+  padding-right: 0.15rem;
 }
 
 .tabla-produccion input[type="number"] {
   border: none;
-  background: transparent;
-  width: 50px;
-  padding: 0px 1px;
+  background: transparent !important;
+  width: 100%;
+  padding: 0px 2px;
   text-align: center;
-  display: block;
-  margin: 0 auto;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: bold;
   color: #000;
+  height: 18px;
 }
 
 .tabla-produccion input[type="number"]:focus {
-  background: white;
-  border: 1px solid #007bff;
-  outline: none;
+  background: white !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Asegurar que inputs readonly también sean transparentes */
+.tabla-produccion input[type="number"][readonly] {
+  background: transparent !important;
+  cursor: default;
+  pointer-events: none;
+  outline: none !important;
+  border: none !important;
+}
+
+.tabla-produccion input[type="number"][readonly]:focus {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
 }
 
 /* Estilos para la tabla de Porciones */
 .tabla-porciones {
   border-collapse: collapse;
-  margin-left: 10rem;
-  margin-right: 6rem;
+  width: 100%;
+  table-layout: fixed !important;
+  margin-bottom: 0;
+  margin-left: 3rem;
+  margin-right: 5rem;
+  border-radius: 8px;
+  border: 1px solid #b4c6e7;
 }
 
 .tabla-porciones .header-porciones {
   background-color: #d9e1f2;
   font-weight: bold;
-  text-align: center;
+  text-align: center !important;
   vertical-align: middle;
+}
+
+.tabla-porciones thead th {
+  text-align: center !important;
+}
+
+.tabla-porciones thead tr:first-child th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.tabla-porciones thead tr:first-child th:last-child {
+  border-top-right-radius: 8px;
+}
+
+.tabla-porciones tfoot tr:last-child td:first-child {
+  border-bottom-left-radius: 8px;
+}
+
+.tabla-porciones tfoot tr:last-child td:last-child {
+  border-bottom-right-radius: 8px;
 }
 
 .tabla-porciones th,
 .tabla-porciones td {
-  border: 2px solid #b4c6e7;
+  border: 1px solid #b4c6e7;
   text-align: center;
-  padding: 0.2rem;
-  font-size: 0.75rem;
+  padding: 0.02rem 0.15rem;
+  font-size: 0.65rem;
+  height: 22px;
+  max-height: 22px;
+  line-height: 1;
+  width: 25% !important;
+}
+
+.tabla-porciones tbody tr {
+  height: 22px !important;
+  max-height: 22px !important;
 }
 
 .tabla-porciones input[type="number"] {
   border: none;
-  background: transparent;
-  width: 50px;
-  padding: 0px 1px;
+  background: transparent !important;
+  width: 100%;
+  padding: 0px 2px;
   text-align: center;
-  display: block;
-  margin: 0 auto;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: bold;
   color: #000;
+  height: 18px;
 }
 
 .tabla-porciones input[type="number"]:focus {
-  background: white;
+  background: white !important;
   border: 1px solid #007bff;
   outline: none;
 }
 
-.tabla-porciones .footer-porciones td {
-  background-color: #d9e1f2;
+/* Asegurar que inputs disabled también sean transparentes */
+.tabla-porciones input[type="number"]:disabled {
+  background: transparent !important;
+  cursor: not-allowed;
+}
+
+.tabla-porciones .footer-porciones tr:first-child td {
+  background-color: #e8f5e8 !important;
   font-weight: bold;
-  border: 2px solid #000;
+  border: 1px solid #b4c6e7;
+}
+
+.tabla-porciones .footer-porciones tr:last-child td {
+  background-color: white !important;
+  font-weight: bold;
+  border: 1px solid #b4c6e7;
 }
 
 /* Colores intercalados para tabla de producción */
@@ -117,23 +237,48 @@
   background-color: white !important;
 }
 
-/* Eliminar overflow de contenedores Bootstrap */
-.row {
+/* Layout de columnas - Solo para el componente Produccion */
+.produccion-container.container-fluid {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  max-width: 100%;
+  min-width: 1800px;
+}
+
+.produccion-container .row {
+  margin-left: 0;
+  margin-right: 0;
+  gap: 1rem;
   overflow-x: visible !important;
 }
 
-.col,
-.col-md-6,
-.col-lg-6,
-[class*="col-"] {
+.produccion-container .row>.col-md-7 {
+  padding-left: 0;
+  padding-right: 0.5rem;
+  flex: 0 0 58%;
+  max-width: 58%;
   overflow-x: visible !important;
 }
 
-/* Asegurar que no haya scroll en contenedores individuales */
-.table-responsive {
+.produccion-container .row>.col-md-5 {
+  padding-left: 0.5rem;
+  padding-right: 5rem;
+  flex: 0 0 40%;
+  max-width: 40%;
   overflow-x: visible !important;
 }
 
-div[style*="overflow"] {
+.produccion-container .col,
+.produccion-container .col-md-6,
+.produccion-container .col-lg-6,
+.produccion-container [class*="col-"] {
+  overflow-x: visible !important;
+}
+
+.produccion-container .table-responsive {
+  overflow-x: visible !important;
+}
+
+.produccion-container div[style*="overflow"] {
   overflow-x: visible !important;
 }

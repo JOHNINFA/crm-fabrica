@@ -556,7 +556,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   const datosPorciones = Array(22).fill({});
 
   return (
-    <div className="container-fluid mt-4">
+    <div className="container-fluid mt-4 produccion-container">
       {produccionCongelada && (
         <div className="alert alert-warning mb-3" role="alert">
           <strong>❄️ PRODUCCIÓN CONGELADA</strong> - Los datos están bloqueados durante el proceso de alistamiento y despacho.
@@ -592,12 +592,11 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
                     <input
                       type="number"
                       value={pedidos[producto.name] || 0}
-                      onChange={(e) => handlePedidoChange(producto.name, e.target.value)}
-                      disabled={produccionCongelada}
+                      readOnly
                       style={{
                         textAlign: 'center',
-                        backgroundColor: produccionCongelada ? '#f8f9fa' : 'white',
-                        cursor: produccionCongelada ? 'not-allowed' : 'text'
+                        backgroundColor: 'transparent',
+                        cursor: 'default'
                       }}
                     />
                   </td>
