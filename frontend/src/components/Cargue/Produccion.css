@@ -1,6 +1,8 @@
 /* Estilos para la tabla de Producción Principal */
 .tabla-produccion {
   font-size: 0.65rem;
+  width: auto;
+  table-layout: auto;
 }
 
 .tabla-produccion .header-produccion {
@@ -10,11 +12,14 @@
   color: #000;
 }
 
-.tabla-produccion th, .tabla-produccion td {
+.tabla-produccion th,
+.tabla-produccion td {
   vertical-align: middle;
   border: 1px solid #dee2e6;
   padding: 0.1rem 0.2rem;
   text-align: center;
+  min-width: 80px;
+  white-space: nowrap;
 }
 
 .tabla-produccion .fila-produccion {
@@ -23,8 +28,9 @@
 
 .tabla-produccion .producto-cell {
   font-weight: 500;
-  min-width: 200px;
+  min-width: 250px;
   text-align: left;
+  padding-left: 0.5rem;
 }
 
 .tabla-produccion input[type="number"] {
@@ -49,6 +55,8 @@
 /* Estilos para la tabla de Porciones */
 .tabla-porciones {
   border-collapse: collapse;
+  margin-left: 10rem;
+  margin-right: 6rem;
 }
 
 .tabla-porciones .header-porciones {
@@ -58,7 +66,8 @@
   vertical-align: middle;
 }
 
-.tabla-porciones th, .tabla-porciones td {
+.tabla-porciones th,
+.tabla-porciones td {
   border: 2px solid #b4c6e7;
   text-align: center;
   padding: 0.2rem;
@@ -106,4 +115,25 @@
 
 .tabla-porciones tbody tr:nth-child(even) td {
   background-color: white !important;
+}
+
+/* Eliminar overflow de contenedores Bootstrap */
+.row {
+  overflow-x: visible !important;
+}
+
+.col,
+.col-md-6,
+.col-lg-6,
+[class*="col-"] {
+  overflow-x: visible !important;
+}
+
+/* Asegurar que no haya scroll en contenedores individuales */
+.table-responsive {
+  overflow-x: visible !important;
+}
+
+div[style*="overflow"] {
+  overflow-x: visible !important;
 }

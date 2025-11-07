@@ -928,12 +928,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             <div className="row">
                 <div className="col-lg-8">
-                    <TablaProductos
-                        productos={productosOperativos}
-                        onActualizarProducto={actualizarProducto}
-                        dia={dia}
-                        fechaSeleccionada={fechaSeleccionada}
-                    />
+                    <div className="tabla-productos-container">
+                        <TablaProductos
+                            productos={productosOperativos}
+                            onActualizarProducto={actualizarProducto}
+                            dia={dia}
+                            fechaSeleccionada={fechaSeleccionada}
+                        />
+                    </div>
                     <BotonLimpiar
                         productos={productosOperativos}
                         dia={dia}
