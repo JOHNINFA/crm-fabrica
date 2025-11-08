@@ -12,6 +12,18 @@
   box-shadow: none !important;
 }
 
+.consumer-form-control:focus,
+.consumer-form-select:focus {
+  border-color: #007bff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+  outline: 0 !important;
+}
+
+.consumer-form-control:hover,
+.consumer-form-select:hover {
+  border-color: #007bff !important;
+}
+
 /* Estilos para las sugerencias de clientes */
 .cliente-suggestions {
   position: absolute;

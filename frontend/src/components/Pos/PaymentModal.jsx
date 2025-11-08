@@ -10,6 +10,7 @@ const PaymentModal = ({
   const [entregado, setEntregado] = useState(safeTotal);
   const [nota, setNota] = useState("");
   const [banco, setBanco] = useState("Caja General");
+  const [bancos, setBancos] = useState([]);
   const [centroCosto, setCentroCosto] = useState("");
   const [impresion, setImpresion] = useState("Ninguna");
   const [bodega, setBodega] = useState("Principal");
@@ -17,10 +18,43 @@ const PaymentModal = ({
   const [processing, setProcessing] = useState(false);
   const [showNotaModal, setShowNotaModal] = useState(false);
 
+  // Cargar bancos desde localStorage
+  useEffect(() => {
+    const bancosGuardados = localStorage.getItem('bancos');
+    if (bancosGuardados) {
+      const bancosList = JSON.parse(bancosGuardados);
+      const bancosActivos = bancosList.filter(b => b.activo);
+      setBancos(bancosActivos);
+      if (bancosActivos.length > 0) {
+        setBanco(bancosActivos[0].nombre);
+      }
+    } else {
+      // Bancos por defecto si no hay configurados
+      const bancosDefault = [
+        { id: 1, nombre: 'Caja General', activo: true }
+      ];
+      setBancos(bancosDefault);
+      setBanco('Caja General');
+    }
+  }, []);
+
   // Actualizar dinero entregado cuando cambia el total
   useEffect(() => {
     setEntregado(safeTotal);
   }, [safeTotal]);
+
+  // Ocultar elementos sticky cuando el modal está abierto
+  useEffect(() => {
+    if (show) {
+      document.body.classList.add('payment-modal-open');
+    } else {
+      document.body.classList.remove('payment-modal-open');
+    }
+
+    return () => {
+      document.body.classList.remove('payment-modal-open');
+    };
+  }, [show]);
 
   const devuelta = Math.max(0, entregado - safeTotal);
 
@@ -264,8 +298,13 @@ const PaymentModal = ({
                   value={banco}
                   onChange={(e) => setBanco(e.target.value)}
                 >
-                  <option>Caja General</option>
-                  <option>Bancolombia</option>
+                  {bancos.length === 0 ? (
+                    <option>Caja General</option>
+                  ) : (
+                    bancos.map(b => (
+                      <option key={b.id} value={b.nombre}>{b.nombre}</option>
+                    ))
+                  )}
                 </select>
               </div>
               <div className="form-group">

@@ -1,0 +1,151 @@
+/* Sidebar.css - Estilos para el sidebar hamburguesa */
+
+/* Botón hamburguesa */
+.hamburger-button {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1001;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background-color: #163864;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: left 0.3s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.hamburger-button:hover {
+    background-color: #1e4a7a;
+    transform: scale(1.05);
+}
+
+.hamburger-button:active {
+    transform: scale(0.95);
+}
+
+.hamburger-button.expanded {
+    left: 220px;
+}
+
+/* Logo junto al botón hamburguesa */
+.hamburger-logo {
+    height: 55px;
+    width: auto;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.hamburger-logo:hover {
+    transform: scale(1.05);
+}
+
+.hamburger-logo:active {
+    transform: scale(0.98);
+}
+
+/* Overlay */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Sidebar */
+.sidebar-bg {
+    background: linear-gradient(180deg, #163864 0%, #0d2540 100%);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    color: white;
+}
+
+/* Items del menú */
+.sidebar-item {
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    margin: 2px 8px;
+    color: white !important;
+}
+
+.sidebar-item span {
+    color: white !important;
+}
+
+.sidebar-item .material-icons {
+    color: white !important;
+}
+
+.sidebar-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(4px);
+}
+
+.sidebar-item:active {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Animación de entrada del sidebar */
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* Scrollbar personalizado para el sidebar */
+.sidebar-bg::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-bg::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-bg::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar-bg::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hamburger-button {
+        width: 36px;
+        height: 36px;
+    }
+
+    .hamburger-button .material-icons {
+        font-size: 20px !important;
+    }
+
+    .hamburger-logo {
+        display: none;
+    }
+}

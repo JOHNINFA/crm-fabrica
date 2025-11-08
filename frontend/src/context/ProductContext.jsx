@@ -14,6 +14,7 @@ export const ProductProvider = ({ children }) => {
   ].sort((a, b) => (parseInt(a.id) || 0) - (parseInt(b.id) || 0)));
   const [categories, setCategories] = useState(["Servicios"]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Hook de operaciones
   const operations = useProductOperations(products, setProducts, categories, setCategories);
@@ -50,9 +51,11 @@ export const ProductProvider = ({ children }) => {
   useEffect(() => {
     const initialize = async () => {
       setIsSyncing(true);
+      setIsInitialLoading(true);
       await sync.fromBackend(setProducts, setCategories, products, categories);
       sync.withInventory(setProducts);
       setIsSyncing(false);
+      setIsInitialLoading(false);
     };
 
     initialize();
@@ -81,6 +84,7 @@ export const ProductProvider = ({ children }) => {
       products,
       categories,
       isSyncing,
+      isInitialLoading,
       syncWithBackend,
       loadProductsFromBackend,
       ...operations

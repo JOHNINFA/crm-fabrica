@@ -30,32 +30,45 @@ class Producto(models.Model):
                 old_producto = Producto.objects.get(pk=self.pk)
                 # Si hay imagen antigua y es diferente a la nueva
                 if old_producto.imagen and old_producto.imagen != self.imagen:
-                    import os
-                    from django.conf import settings
-                    
-                    # Eliminar de media/productos/
-                    if os.path.isfile(old_producto.imagen.path):
-                        os.remove(old_producto.imagen.path)
-                        print(f"✅ Imagen antigua eliminada: {old_producto.imagen.path}")
-                    
-                    # Eliminar de frontend/public/images/productos/
-                    frontend_path = os.path.join(
-                        settings.BASE_DIR, 
-                        'frontend', 
-                        'public', 
-                        'images', 
-                        'productos',
-                        os.path.basename(old_producto.imagen.name)
-                    )
-                    if os.path.isfile(frontend_path):
-                        os.remove(frontend_path)
-                        print(f"✅ Imagen frontend eliminada: {frontend_path}")
+                    self._delete_image_files(old_producto.imagen)
             except Producto.DoesNotExist:
                 pass
             except Exception as e:
                 print(f"⚠️ Error al eliminar imagen antigua: {e}")
         
         super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """Eliminar imagen al borrar el producto"""
+        if self.imagen:
+            self._delete_image_files(self.imagen)
+        super().delete(*args, **kwargs)
+    
+    def _delete_image_files(self, imagen):
+        """Método auxiliar para eliminar archivos de imagen de ambas ubicaciones"""
+        import os
+        from django.conf import settings
+        
+        try:
+            # Eliminar de media/productos/
+            if os.path.isfile(imagen.path):
+                os.remove(imagen.path)
+                print(f"✅ Imagen eliminada de media: {imagen.path}")
+            
+            # Eliminar de frontend/public/images/productos/
+            frontend_path = os.path.join(
+                settings.BASE_DIR, 
+                'frontend', 
+                'public', 
+                'images', 
+                'productos',
+                os.path.basename(imagen.name)
+            )
+            if os.path.isfile(frontend_path):
+                os.remove(frontend_path)
+                print(f"✅ Imagen eliminada de frontend: {frontend_path}")
+        except Exception as e:
+            print(f"⚠️ Error al eliminar archivos de imagen: {e}")
 
     def __str__(self):
         return f"{self.nombre} - Stock: {self.stock_total}"

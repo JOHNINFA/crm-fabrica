@@ -3,10 +3,12 @@ import "./ConsumerForm.css";
 import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
 import { useCajero } from "../../context/CajeroContext";
+import { useScrollVisibility } from "../../hooks/useScrollVisibility";
 
 export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers, priceList, setPriceList }) {
   const { cajeroLogueado, sucursalActiva, isAuthenticated } = useCajero();
   const [priceLists, setPriceLists] = useState([]);
+  const isVisible = useScrollVisibility(false);
 
   useEffect(() => {
     cargarListasPrecios();
@@ -82,8 +84,19 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
     setClienteSuggestions([]);
     setIsSearching(false);
   };
+
+
+
   return (
-    <div className="consumer-form">
+    <div
+      className="consumer-form"
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+        backgroundColor: '#fff'
+      }}
+    >
       <div className="consumer-form-header">
         <div className="consumer-form-title-container position-relative">
           <input
@@ -135,6 +148,8 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
             className="btn-primary"
             title="Agregar cliente"
             onClick={() => window.location.href = '/clientes/nuevo'}
+            disabled
+            style={{ opacity: 0.5, cursor: 'not-allowed' }}
           >
             <span className="material-icons" style={{ fontSize: '16px' }}>person_add</span>
           </button>

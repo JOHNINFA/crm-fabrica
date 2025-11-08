@@ -25,6 +25,7 @@ import SucursalesScreen from './pages/SucursalesScreen';
 import CajerosScreen from './pages/CajerosScreen';
 import OtrosScreen from './pages/OtrosScreen';
 import ProductFormScreen from './pages/ProductFormScreen';
+import ConfiguracionScreen from './pages/ConfiguracionScreen';
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
           <Route path="/sucursales" element={<SucursalesScreen />} />
           <Route path="/cajeros" element={<CajerosScreen />} />
           <Route path="/otros" element={<OtrosScreen />} />
+          <Route path="/configuracion" element={<ConfiguracionScreen />} />
           </Routes>
         </div>
       </Router>

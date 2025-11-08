@@ -1,0 +1,11 @@
+/* Estilos para PosScreen */
+
+.pos-main-container {
+    margin-left: 0;
+    min-height: 100vh;
+    background: #f7f7fa;
+    width: 100%;
+    padding-top: 0;
+    overflow-y: auto;
+    height: auto;
+}

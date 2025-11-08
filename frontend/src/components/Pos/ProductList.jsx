@@ -1,21 +1,72 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import ProductCard from "./ProductCard";
 import { useProducts } from "../../context/ProductContext";
 import { usePriceList } from "../../hooks/usePriceList";
 import CategoryManager from "./CategoryManager";
-// import CajaModal from "./CajaModal"; // Ya no necesitamos el modal
 import "./ProductList.css";
 
-export default function ProductList({ addProduct, search, setSearch, priceList }) {
-  const { products, categories } = useProducts();
+export default function ProductList({ addProduct, search, setSearch, priceList, showCategoryManager, setShowCategoryManager }) {
+  const { products, categories, isInitialLoading } = useProducts();
   const { precios } = usePriceList(priceList, products);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
-  const [showCategoryManager, setShowCategoryManager] = useState(false);
-  const [showReportMenu, setShowReportMenu] = useState(false);
-  // const [showCajaModal, setShowCajaModal] = useState(false); // Ya no necesitamos el estado del modal
-  const reportMenuRef = useRef(null);
-  const navigate = useNavigate();
+
+  // Estado para drag scroll de categorías
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const scrollContainerRef = React.useRef(null);
+
+  // Estado para drag scroll de productos
+  const [isDraggingProducts, setIsDraggingProducts] = useState(false);
+  const [startYProducts, setStartYProducts] = useState(0);
+  const [scrollTopProducts, setScrollTopProducts] = useState(0);
+  const productsContainerRef = React.useRef(null);
+
+  // Funciones para drag scroll de categorías
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  // Funciones para drag scroll de productos
+  const handleMouseDownProducts = (e) => {
+    setIsDraggingProducts(true);
+    setStartYProducts(e.pageY - productsContainerRef.current.offsetTop);
+    setScrollTopProducts(productsContainerRef.current.scrollTop);
+  };
+
+  const handleMouseLeaveProducts = () => {
+    setIsDraggingProducts(false);
+  };
+
+  const handleMouseUpProducts = () => {
+    setIsDraggingProducts(false);
+  };
+
+  const handleMouseMoveProducts = (e) => {
+    if (!isDraggingProducts) return;
+    e.preventDefault();
+    const y = e.pageY - productsContainerRef.current.offsetTop;
+    const walk = (y - startYProducts) * 2;
+    productsContainerRef.current.scrollTop = scrollTopProducts - walk;
+  };
 
   // Filtrar y ordenar productos
   const filteredProducts = products
@@ -41,61 +92,51 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
     return icons[category] || "sell";
   };
 
-  // Cerrar el menú al hacer clic fuera de él
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (reportMenuRef.current && !reportMenuRef.current.contains(event.target)) {
-        setShowReportMenu(false);
-      }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+
+  // Mostrar loading mientras se cargan los productos iniciales
+  if (isInitialLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </div>
+          <p className="mt-3 text-muted">Cargando productos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      {/* Botones superiores */}
-      <div className="d-flex align-items-center gap-3 mb-2" style={{ marginTop: '-15px', paddingLeft: '20px' }}>
-        <div className="dropdown" ref={reportMenuRef}>
-          <button
-            className="btn btn-light border dropdown-toggle top-button"
-            style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }}
-            type="button"
-            onClick={() => setShowReportMenu(!showReportMenu)}
-          >
-            Informes de Ventas
-          </button>
-          {showReportMenu && (
-            <ul className="dropdown-menu show" style={{ position: 'absolute', inset: '0px auto auto 0px', margin: '0px', transform: 'translate(0px, 40px)' }}>
-              <li><button className="dropdown-item" onClick={() => { setShowReportMenu(false); navigate('/informes/general'); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Ventas General</button></li>
-            </ul>
-          )}
-        </div>
-        <button
-          className="btn btn-light border top-button"
-          style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }}
-          type="button"
-          onClick={() => navigate('/caja')}
-          title="Arqueo de Caja"
-        >
-          <i className="bi bi-cash-stack me-1"></i>
-          Caja
-        </button>
-      </div>
-
       {/* Barra de búsqueda */}
-      <div className="d-flex align-items-center gap-2 mb-1" style={{ marginTop: '-5px' }}>
-        <button className="btn btn-light" style={{ borderRadius: '12px' }} title="Buscar">
-          <span className="material-icons">search</span>
+      <div
+        className="d-flex align-items-center gap-2 mb-2"
+        style={{
+          backgroundColor: '#f7f7fa',
+          paddingTop: '15px',
+          paddingBottom: '10px',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          paddingLeft: '24px',
+          paddingRight: '24px',
+          marginTop: '-20px'
+        }}
+      >
+        <button className="btn btn-light" style={{ borderRadius: '12px', padding: '8px 12px' }} title="Buscar">
+          <span className="material-icons" style={{ fontSize: '20px' }}>search</span>
         </button>
 
 
         <input
           className="form-control search-input"
-          style={{ maxWidth: 700, borderRadius: '3px' }}
+          style={{
+            maxWidth: 700,
+            borderRadius: '12px',
+            height: '40px',
+            padding: '8px 16px'
+          }}
           placeholder="Buscar Productos"
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -103,25 +144,41 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
         />
       </div>
 
-      <div className="card-bg mb-3 p-3">
-        {/* Header de categorías */}
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="m-0">Categorías</h6>
-          <button
-            className="btn btn-sm btn-outline-primary"
-            onClick={() => setShowCategoryManager(true)}
-            title="Gestionar categorías"
-          >
-            <span className="material-icons" style={{ fontSize: '16px' }}>settings</span>
-            <span className="ms-1">Gestionar</span>
-          </button>
-        </div>
-
-        {/* Botones de categoría */}
-        <div className="category-buttons">
+      {/* Categorías */}
+      <div
+        className="card-bg"
+        style={{
+          overflow: 'visible',
+          backgroundColor: '#fff',
+          marginTop: '-10px',
+          marginBottom: '3px',
+          padding: '8px 8px 0.1px 8px'
+        }}
+      >
+        {/* Botones de categoría - Carrusel horizontal */}
+        <div
+          ref={scrollContainerRef}
+          className="category-buttons"
+          style={{
+            display: 'flex',
+            gap: '23px',
+            overflowX: 'auto',
+            overflowY: 'visible',
+            padding: '4px 0px 4px 0px',
+            scrollBehavior: isDragging ? 'auto' : 'smooth',
+            WebkitOverflowScrolling: 'touch',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none'
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+        >
           <button
             className={`category-button ${selectedCategory === "Todos" ? "active" : ""}`}
             onClick={() => setSelectedCategory("Todos")}
+            style={{ minWidth: 'fit-content', flexShrink: 0 }}
           >
             <span className="material-icons">{getCategoryIcon("Todos")}</span>
             <span className="category-name">Todos</span>
@@ -132,19 +189,36 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
               key={category}
               className={`category-button ${selectedCategory === category ? "active" : ""}`}
               onClick={() => setSelectedCategory(category)}
+              style={{ minWidth: 'fit-content', flexShrink: 0 }}
             >
               <span className="material-icons">{getCategoryIcon(category)}</span>
               <span className="category-name">{category}</span>
             </button>
           ))}
         </div>
+      </div>
 
-        <hr />
+      {/* Lista de productos - Con scroll */}
+      <div
+        ref={productsContainerRef}
+        className="card-bg mb-3 p-3"
+        style={{
+          maxHeight: 'calc(100vh - 270px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          cursor: isDraggingProducts ? 'grabbing' : 'grab',
+          userSelect: 'none'
+        }}
+        onMouseDown={handleMouseDownProducts}
+        onMouseLeave={handleMouseLeaveProducts}
+        onMouseUp={handleMouseUpProducts}
+        onMouseMove={handleMouseMoveProducts}
+      >
 
         {/* Lista de productos */}
-        <div className="row g-3">
+        <div className="row g-2">
           {filteredProducts.map((p) => (
-            <div className="col-md-6 col-xl-4" key={p.id}>
+            <div className="col-md-6 col-xl-3" key={p.id}>
               <ProductCard
                 product={p}
                 onClick={(product) => {

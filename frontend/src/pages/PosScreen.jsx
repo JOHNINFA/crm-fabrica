@@ -23,8 +23,7 @@ import ProductList from "../components/Pos/ProductList";
 import Cart from "../components/Pos/Cart";
 import ConsumerForm from "../components/Pos/ConsumerForm";
 import { usePriceList } from "../hooks/usePriceList";
-
-import ImageSyncButton from "../components/common/ImageSyncButton";
+import "./PosScreen.css";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PosMainContent() {
@@ -32,6 +31,7 @@ function PosMainContent() {
   const { cajeroLogueado, isAuthenticated } = useCajero();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
 
   // Función para obtener fecha local en formato YYYY-MM-DD
   const getFechaLocal = () => {
@@ -125,16 +125,8 @@ function PosMainContent() {
     <ModalProvider>
       <div className="d-flex pos-screen">
         <Sidebar onWidthChange={setSidebarWidth} />
-        <div
-          className="flex-grow-1 offset"
-          style={{
-            marginLeft: sidebarWidth,
-            minHeight: "100vh",
-            background: "#f7f7fa",
-            transition: 'margin-left 0.3s ease'
-          }}
-        >
-          <Topbar />
+        <div className="flex-grow-1 pos-main-container">
+          <Topbar onOpenCategoryManager={() => setShowCategoryManager(true)} />
           <main style={{ padding: "20px 24px 0px 24px" }}>
             <div className="row">
               <div className="col-lg-7 mb-4">
@@ -143,11 +135,21 @@ function PosMainContent() {
                   search={search}
                   setSearch={setSearch}
                   priceList={priceList}
+                  showCategoryManager={showCategoryManager}
+                  setShowCategoryManager={setShowCategoryManager}
                 />
               </div>
 
               <div className="col-lg-5">
-                <div className="card-bg mb-3 p-0" style={{ overflow: 'hidden' }}>
+                <div
+                  className="card-bg mb-3 p-0"
+                  style={{
+                    position: 'sticky',
+                    top: '70px',
+                    alignSelf: 'flex-start',
+                    overflow: 'visible'
+                  }}
+                >
                   <ConsumerForm
                     date={date}
                     seller={seller}
