@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import './CategoryManager.css';
 
 const CategoryManager = ({ onClose }) => {

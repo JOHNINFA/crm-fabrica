@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Badge } from 'react-bootstrap';
 import { pedidoService } from '../services/api';
 import { ModalProvider } from '../context/ModalContext';
-import { ProductProvider } from '../context/ProductContext';
 import { CajeroPedidosProvider } from '../context/CajeroPedidosContext';
 import Sidebar from '../components/Pedidos/Sidebar';
 import Topbar from '../components/Pedidos/Topbar';
@@ -172,11 +171,9 @@ function InformePedidosContent() {
 export default function InformePedidosScreen() {
     return (
         <CajeroPedidosProvider>
-            <ProductProvider>
-                <ModalProvider>
-                    <InformePedidosContent />
-                </ModalProvider>
-            </ProductProvider>
+            <ModalProvider>
+                <InformePedidosContent />
+            </ModalProvider>
         </CajeroPedidosProvider>
     );
 }

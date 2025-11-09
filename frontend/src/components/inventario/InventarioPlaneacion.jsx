@@ -18,117 +18,123 @@ const InventarioPlaneacion = () => {
   const [planeacion, setPlaneacion] = useState([]);
   const [solicitadasCargadas, setSolicitadasCargadas] = useState(false);
 
-  // 🚀 Cargar pedidos desde BD y sumar por producto
-  const cargarPedidosDesdeBD = async (fechaSeleccionada) => {
-    try {
-      let fechaFormateada;
-      if (fechaSeleccionada instanceof Date) {
+  // 🚀 Cache para optimización
+  const [cache, setCache] = useState({
+    datos: null,
+    timestamp: null,
+    fecha: null
+  });
+  const CACHE_DURATION = 15000; // 15 segundos
+  const [cargando, setCargando] = useState(false); // Para evitar salto visual
+
+  // 🚀 Cargar datos desde localStorage al iniciar
+  useEffect(() => {
+    const cargarDesdeLocalStorage = () => {
+      try {
         const year = fechaSeleccionada.getFullYear();
         const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
         const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-        fechaFormateada = `${year}-${month}-${day}`;
-      } else {
-        fechaFormateada = fechaSeleccionada;
-      }
-      console.log('📦 Cargando pedidos para fecha:', fechaFormateada);
+        const fechaFormateada = `${year}-${month}-${day}`;
 
-      const response = await fetch(`${API_URL}/pedidos/`);
-      if (!response.ok) {
-        console.log('⚠️ No se pudieron cargar pedidos');
-        return {};
-      }
+        const key = `planeacion_${fechaFormateada}`;
+        const datosGuardados = localStorage.getItem(key);
 
-      const pedidos = await response.json();
-      console.log('✅ Pedidos cargados:', pedidos.length);
+        if (datosGuardados) {
+          const { productos: productosGuardados, timestamp } = JSON.parse(datosGuardados);
+          console.log('⚡ Cargando desde localStorage (instantáneo):', productosGuardados.length, 'productos');
+          setProductos(productosGuardados);
 
-      // Filtrar pedidos por fecha de entrega Y excluir anulados
-      const pedidosFecha = pedidos.filter(p =>
-        p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
-      );
-      console.log('📅 Pedidos activos para fecha seleccionada:', pedidosFecha.length);
-
-      // Sumar cantidades por producto
-      const pedidosMap = {};
-      for (const pedido of pedidosFecha) {
-        console.log(`🔍 Procesando pedido ${pedido.numero_pedido}:`, pedido.detalles?.length || 0, 'detalles');
-        if (pedido.detalles && pedido.detalles.length > 0) {
-          for (const detalle of pedido.detalles) {
-            const nombreProducto = detalle.producto_nombre;
-            console.log(`  ➕ Sumando: ${nombreProducto} = ${detalle.cantidad}`);
-            if (!pedidosMap[nombreProducto]) {
-              pedidosMap[nombreProducto] = 0;
-            }
-            pedidosMap[nombreProducto] += detalle.cantidad;
-          }
+          // Actualizar cache en memoria también
+          setCache({
+            datos: productosGuardados,
+            timestamp: timestamp,
+            fecha: fechaFormateada
+          });
         }
+      } catch (error) {
+        console.error('Error al cargar desde localStorage:', error);
       }
+    };
 
-      console.log('📊 Pedidos por producto (FINAL):', pedidosMap);
-      console.log('📊 Claves en pedidosMap:', Object.keys(pedidosMap));
-      return pedidosMap;
-    } catch (error) {
-      console.error('❌ Error cargando pedidos:', error);
-      return {};
+    // 🗑️ Limpiar localStorage viejo (más de 7 días)
+    const limpiarLocalStorageViejo = () => {
+      try {
+        const ahora = Date.now();
+        const SIETE_DIAS = 7 * 24 * 60 * 60 * 1000;
+
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('planeacion_')) {
+            try {
+              const datos = JSON.parse(localStorage.getItem(key));
+              if (datos.timestamp && (ahora - datos.timestamp) > SIETE_DIAS) {
+                localStorage.removeItem(key);
+                console.log('🗑️ Limpiado localStorage viejo:', key);
+              }
+            } catch (e) {
+              localStorage.removeItem(key);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error al limpiar localStorage:', error);
+      }
+    };
+
+    cargarDesdeLocalStorage();
+    limpiarLocalStorageViejo();
+  }, [fechaSeleccionada]);
+
+
+
+  // 🚀 Verificar si el cache es válido
+  const cacheValido = (fecha) => {
+    if (!cache.datos || !cache.timestamp || cache.fecha !== fecha) {
+      return false;
     }
+    const ahora = Date.now();
+    const tiempoTranscurrido = ahora - cache.timestamp;
+    return tiempoTranscurrido < CACHE_DURATION;
   };
 
-  // 🚀 NUEVA FUNCIÓN: Cargar solicitadas desde BD
-  const cargarSolicitadasDesdeBD = async (fechaSeleccionada) => {
+  // Cargar existencias desde BD con optimización
+  const cargarExistenciasReales = async (forzarRecarga = false) => {
     try {
-      // ✅ CORREGIDO: Asegurar formato correcto de fecha
-      let fechaFormateada;
-      if (fechaSeleccionada instanceof Date) {
-        const year = fechaSeleccionada.getFullYear();
-        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-        fechaFormateada = `${year}-${month}-${day}`;
-      } else {
-        fechaFormateada = fechaSeleccionada;
-      }
-      console.log('📊 Cargando solicitadas para fecha:', fechaFormateada);
-
-      const response = await fetch(`${API_URL}/produccion-solicitadas/?fecha=${fechaFormateada}`);
-      if (!response.ok) {
-        console.log('⚠️ No hay solicitadas para esta fecha - Status:', response.status);
-        console.log('🔄 Devolviendo objeto vacío - esto puede causar que se pongan en 0');
-        return {};
-      }
-
-      const solicitadas = await response.json();
-      console.log('✅ Solicitadas cargadas:', solicitadas.length);
-      console.log('📋 Datos de solicitadas:', solicitadas);
-
-      // Convertir array a objeto para búsqueda rápida
-      const solicitadasMap = {};
-      solicitadas.forEach(item => {
-        solicitadasMap[item.producto_nombre] = item.cantidad_solicitada;
-      });
-
-      return solicitadasMap;
-    } catch (error) {
-      console.error('❌ Error cargando solicitadas:', error);
-      return {};
-    }
-  };
-
-  // Cargar existencias desde BD
-  const cargarExistenciasReales = async () => {
-    try {
-      console.log('🔄 EJECUTANDO cargarExistenciasReales...', new Date().toLocaleTimeString());
-      console.log('📊 Productos actuales antes de cargar:', productos.length);
-
       const year = fechaSeleccionada.getFullYear();
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaFormateada = `${year}-${month}-${day}`;
 
-      // 🚀 CARGAR PLANEACIÓN GUARDADA DESDE BD
-      const planeacionResponse = await fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`);
-      let planeacionMap = {};
+      // 🚀 Verificar cache
+      if (!forzarRecarga && cacheValido(fechaFormateada)) {
+        console.log('⚡ Usando datos en cache (rápido)');
+        setProductos(cache.datos);
+        setCargando(false);
+        return;
+      }
 
+      console.log('🔄 Cargando datos desde servidor...', new Date().toLocaleTimeString());
+
+      // 🎯 Marcar como cargando solo si no hay productos
+      if (productos.length === 0) {
+        setCargando(true);
+      }
+
+      // 🎯 NO limpiar productos mientras carga - mantener datos anteriores
+      // Esto evita el salto visual de "No hay productos disponibles"
+
+      // 🚀 CARGA PARALELA - Todas las llamadas al mismo tiempo
+      const [planeacionResponse, productosResponse, solicitadasResponse, pedidosResponse] = await Promise.all([
+        fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`),
+        fetch(`${API_URL}/productos/`),
+        fetch(`${API_URL}/produccion-solicitadas/?fecha=${fechaFormateada}`),
+        fetch(`${API_URL}/pedidos/`)
+      ]);
+
+      // Procesar planeación
+      let planeacionMap = {};
       if (planeacionResponse.ok) {
         const planeacionData = await planeacionResponse.json();
-        console.log('✅ Planeación cargada desde BD:', planeacionData.length, 'productos');
+        console.log('✅ Planeación:', planeacionData.length, 'productos');
         planeacionData.forEach(item => {
           planeacionMap[item.producto_nombre] = {
             existencias: item.existencias,
@@ -140,22 +146,50 @@ const InventarioPlaneacion = () => {
         });
       }
 
-      // Obtener productos directamente de la API
-      const response = await fetch(`${API_URL}/productos/`);
-      if (!response.ok) throw new Error('Error al obtener productos');
+      // Procesar productos
+      if (!productosResponse.ok) throw new Error('Error al obtener productos');
+      const productosFromBD = await productosResponse.json();
+      console.log('✅ Productos:', productosFromBD.length);
 
-      const productosFromBD = await response.json();
-      console.log('📊 Productos obtenidos de BD:', productosFromBD.length);
+      // Procesar solicitadas
+      let solicitadasMap = {};
+      if (solicitadasResponse.ok && Object.keys(planeacionMap).length === 0) {
+        const solicitadas = await solicitadasResponse.json();
+        console.log('✅ Solicitadas:', solicitadas.length);
+        solicitadas.forEach(item => {
+          solicitadasMap[item.producto_nombre] = item.cantidad_solicitada;
+        });
+      }
 
-      // 🚀 CARGAR SOLICITADAS Y PEDIDOS DESDE BD (si no hay planeación guardada)
-      const solicitadasMap = Object.keys(planeacionMap).length === 0
-        ? await cargarSolicitadasDesdeBD(fechaSeleccionada)
-        : {};
+      // Procesar pedidos
+      const pedidosMap = {};
+      if (pedidosResponse.ok) {
+        const pedidos = await pedidosResponse.json();
+        const pedidosFecha = pedidos.filter(p =>
+          p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
+        );
+        console.log('✅ Pedidos activos:', pedidosFecha.length);
 
-      const pedidosMap = await cargarPedidosDesdeBD(fechaSeleccionada);
+        for (const pedido of pedidosFecha) {
+          if (pedido.detalles && pedido.detalles.length > 0) {
+            for (const detalle of pedido.detalles) {
+              const nombreProducto = detalle.producto_nombre;
+              if (!pedidosMap[nombreProducto]) {
+                pedidosMap[nombreProducto] = 0;
+              }
+              pedidosMap[nombreProducto] += detalle.cantidad;
+            }
+          }
+        }
+      }
+
+      // Filtrar solo productos de PRODUCCION
+      const productosProduccion = productosFromBD.filter(p =>
+        !p.ubicacion_inventario || p.ubicacion_inventario === 'PRODUCCION'
+      );
 
       // Preparar productos con planeación
-      const productosConPlaneacion = productosFromBD.map(p => {
+      const productosConPlaneacion = productosProduccion.map(p => {
         const productoExistente = productos.find(prod => prod.id === p.id);
         const planeacionGuardada = planeacionMap[p.nombre];
 
@@ -223,18 +257,41 @@ const InventarioPlaneacion = () => {
         }
       });
 
+      // 🎯 Actualizar productos solo cuando los datos están listos
       setProductos(productosConPlaneacion);
+      setCargando(false);
+
+      const timestamp = Date.now();
+
+      // 🚀 Guardar en cache en memoria
+      setCache({
+        datos: productosConPlaneacion,
+        timestamp: timestamp,
+        fecha: fechaFormateada
+      });
+
+      // 🚀 Guardar en localStorage para carga instantánea futura
+      try {
+        const key = `planeacion_${fechaFormateada}`;
+        const datosParaGuardar = {
+          productos: productosConPlaneacion,
+          timestamp: timestamp,
+          fecha: fechaFormateada
+        };
+        localStorage.setItem(key, JSON.stringify(datosParaGuardar));
+        console.log('✅ Datos guardados en cache y localStorage');
+      } catch (error) {
+        console.error('Error al guardar en localStorage:', error);
+      }
 
       // Mostrar mensaje si se cargaron solicitadas
       const totalSolicitadas = Object.values(solicitadasMap).reduce((sum, val) => sum + val, 0);
       if (totalSolicitadas > 0) {
-        console.log(`✅ Datos actualizados + ${Object.keys(solicitadasMap).length} solicitadas cargadas`);
-        mostrarMensaje(`Solicitadas cargadas desde Producción: ${Object.keys(solicitadasMap).length} productos`, 'info');
-      } else {
-        console.log('⚠️ NO SE ENCONTRARON SOLICITADAS - Esto puede causar que se pongan en 0');
+        console.log(`✅ ${Object.keys(solicitadasMap).length} solicitadas cargadas`);
       }
     } catch (error) {
       console.error('❌ Error al cargar existencias:', error);
+      setCargando(false);
       // No hacer nada si hay error - mantener productos existentes
     }
   };
@@ -255,7 +312,7 @@ const InventarioPlaneacion = () => {
     setProductos(nuevosProductos);
   };
 
-  // Effects - Solo un useEffect para evitar doble carga
+  // Effects - Carga inicial y actualización automática
   useEffect(() => {
     if (fechaSeleccionada) {
       const year = fechaSeleccionada.getFullYear();
@@ -265,6 +322,39 @@ const InventarioPlaneacion = () => {
       console.log('📅 Cargando datos para fecha:', fechaFormateada);
       cargarExistenciasReales();
     }
+
+    // 🚀 Actualización automática cada 15 segundos (silenciosa)
+    const intervalo = setInterval(() => {
+      console.log('🔄 Actualización automática en segundo plano...');
+      cargarExistenciasReales(true); // Forzar recarga
+    }, 15000);
+
+    // 🚀 Escuchar eventos de otros módulos
+    const handlePedidoGuardado = () => {
+      console.log('📦 Pedido guardado - Actualizando Planeación...');
+      cargarExistenciasReales(true);
+    };
+
+    const handleInventarioActualizado = () => {
+      console.log('📊 Inventario actualizado - Actualizando Planeación...');
+      cargarExistenciasReales(true);
+    };
+
+    const handleProductosUpdated = () => {
+      console.log('🔄 Productos actualizados - Actualizando Planeación...');
+      cargarExistenciasReales(true);
+    };
+
+    window.addEventListener('pedidoGuardado', handlePedidoGuardado);
+    window.addEventListener('inventarioActualizado', handleInventarioActualizado);
+    window.addEventListener('productosUpdated', handleProductosUpdated);
+
+    return () => {
+      clearInterval(intervalo);
+      window.removeEventListener('pedidoGuardado', handlePedidoGuardado);
+      window.removeEventListener('inventarioActualizado', handleInventarioActualizado);
+      window.removeEventListener('productosUpdated', handleProductosUpdated);
+    };
   }, [fechaSeleccionada]);
 
   // const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad); // No editable
@@ -304,6 +394,24 @@ const InventarioPlaneacion = () => {
 
       mostrarMensaje('Planeación guardada correctamente en BD', 'success');
 
+      // 🚀 Limpiar cache para forzar recarga
+      setCache({ datos: null, timestamp: null, fecha: null });
+
+      // 🚀 Limpiar localStorage para forzar recarga desde servidor
+      try {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        const fechaFormateada = `${year}-${month}-${day}`;
+        const key = `planeacion_${fechaFormateada}`;
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error('Error al limpiar localStorage:', error);
+      }
+
+      // 🚀 Notificar a otros módulos
+      window.dispatchEvent(new Event('planeacionGuardada'));
+
     } catch (error) {
       console.error('Error guardando planeación:', error);
       mostrarMensaje('Error al guardar planeación', 'danger');
@@ -331,7 +439,7 @@ const InventarioPlaneacion = () => {
             variant="outline-info"
             className="mb-2 mb-md-0"
             onClick={() => {
-              cargarExistenciasReales();
+              cargarExistenciasReales(true); // Forzar recarga
               mostrarMensaje('Datos actualizados correctamente', 'info');
             }}
           >
@@ -421,10 +529,22 @@ const InventarioPlaneacion = () => {
                     </tr>
                   );
                 })}
-                {productos.length === 0 && (
+                {productos.length === 0 && !cargando && (
                   <tr>
                     <td colSpan="7" className="text-center py-4">
                       <p className="text-muted">No hay productos disponibles</p>
+                    </td>
+                  </tr>
+                )}
+                {productos.length === 0 && cargando && (
+                  <tr>
+                    <td colSpan="7" className="text-center py-4">
+                      <div className="d-flex justify-content-center align-items-center">
+                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                          <span className="visually-hidden">Cargando...</span>
+                        </div>
+                        <p className="text-muted mb-0">Cargando productos...</p>
+                      </div>
                     </td>
                   </tr>
                 )}

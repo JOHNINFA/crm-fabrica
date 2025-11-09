@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "./ProductCard";
-import { useProducts } from "../../context/ProductContext";
+import { useProducts } from "../../hooks/useUnifiedProducts";
 import CategoryManager from "./CategoryManager";
 import "./ProductList.css";
 

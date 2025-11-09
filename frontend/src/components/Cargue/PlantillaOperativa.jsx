@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
 import { responsableStorage } from '../../utils/responsableStorage';
@@ -451,27 +451,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     console.log(`🔍 ${idSheet} - Ejemplo producto con cantidad:`, productosConCantidad[0]);
                 }
 
-                // Orden específico de productos
-                const ordenEspecifico = [
-                    'AREPA TIPO OBLEA 500Gr',
-                    'AREPA MEDIANA 330Gr',
-                    'AREPA TIPO PINCHO 330Gr',
-                    'AREPA QUESO CORRIENTE 450Gr',
-                    'AREPA QUESO ESPECIAL GRANDE 600Gr',
-                    'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
-                    'AREPA QUESO MINI X10',
-                    'AREPA CON QUESO CUADRADA 450Gr',
-                    'AREPA BOYACENSE X 10',
-                    'ALMOJABANA X 5 300Gr',
-                    'AREPA SANTANDEREANA 450Gr',
-                    'AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr',
-                    'AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr',
-                    'AREPA CON SEMILLA DE QUINUA 450Gr',
-                    'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
-                    'AREPA DE CHOCLO CORRIENTE 300Gr',
-                    'AREPA BOYACENSE X 5 450Gr',
-                    'ALMOJABANAS X 10 600Gr'
-                ];
+                // Ya no se usa ordenEspecifico hardcodeado, se usa el campo 'orden' de la BD
 
                 // ✅ CARGA DIRECTA: Si no hay contexto válido, usar datos de localStorage tal como están
                 const tieneContextoValido = products && products.length > 0 &&
@@ -510,15 +490,16 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     return;
                 }
 
+                // Ordenar por el campo 'orden' si existe, sino por ID
                 const productosOrdenados = [...products].sort((a, b) => {
-                    const indexA = ordenEspecifico.indexOf(a.name);
-                    const indexB = ordenEspecifico.indexOf(b.name);
+                    const ordenA = a.orden !== undefined ? a.orden : 999999;
+                    const ordenB = b.orden !== undefined ? b.orden : 999999;
 
-                    if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
-                    if (indexA === -1) return 1;
-                    if (indexB === -1) return -1;
+                    if (ordenA !== ordenB) {
+                        return ordenA - ordenB;
+                    }
 
-                    return indexA - indexB;
+                    return (a.id || 0) - (b.id || 0);
                 });
 
                 const productosConDatos = productosOrdenados.map(product => {
@@ -571,37 +552,18 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 return;
             }
 
-            // Si no hay datos, usar formato inicial con orden específico
-            const ordenEspecifico = [
-                'AREPA TIPO OBLEA 500Gr',
-                'AREPA MEDIANA 330Gr',
-                'AREPA TIPO PINCHO 330Gr',
-                'AREPA QUESO CORRIENTE 450Gr',
-                'AREPA QUESO ESPECIAL GRANDE 600Gr',
-                'AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr',
-                'AREPA QUESO MINI X10',
-                'AREPA CON QUESO CUADRADA 450Gr',
-                'AREPA DE CHOCLO CORRIENTE 300Gr',
-                'AREPA DE CHOCLO CON QUESO GRANDE 1200Gr',
-                'AREPA BOYACENSE X 10',
-                'ALMOJABANA X 5 300Gr',
-                'AREPA SANTANDEREANA 450Gr',
-                'AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr',
-                'AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr',
-                'AREPA CON SEMILLA DE QUINUA 450Gr',
-                'AREPA BOYACENSE X 5 450Gr',
-                'ALMOJABANAS X 10 600Gr'
-            ];
+            // Ya no se usa ordenEspecifico hardcodeado, se usa el campo 'orden' de la BD
 
+            // Ordenar por el campo 'orden' si existe, sino por ID
             const productosOrdenados = [...products].sort((a, b) => {
-                const indexA = ordenEspecifico.indexOf(a.name);
-                const indexB = ordenEspecifico.indexOf(b.name);
+                const ordenA = a.orden !== undefined ? a.orden : 999999;
+                const ordenB = b.orden !== undefined ? b.orden : 999999;
 
-                if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
+                if (ordenA !== ordenB) {
+                    return ordenA - ordenB;
+                }
 
-                return indexA - indexB;
+                return (a.id || 0) - (b.id || 0);
             });
 
             const productosFormateados = productosOrdenados.map(product => ({

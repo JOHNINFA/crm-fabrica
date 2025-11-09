@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ProductProvider, useProducts } from '../context/ProductContext';
+import { useProducts } from '../hooks/useUnifiedProducts';
 import AddProductModal from '../components/Pos/AddProductModal';
 import './ProductFormScreen.css';
 
@@ -15,6 +15,19 @@ const ProductFormScreenContent = () => {
     const [selectedProduct, setSelectedProduct] = useState(null);
 
     // ProductContext ya sincroniza automáticamente con el inventario
+
+    // Obtener el origen desde sessionStorage (por defecto '/pos')
+    const getOriginRoute = () => {
+        const origen = sessionStorage.getItem('origenModulo');
+        if (origen === 'pedidos') {
+            return '/remisiones';
+        }
+        return '/pos';
+    };
+
+    const handleGoBack = () => {
+        navigate(getOriginRoute());
+    };
 
     const handleRefresh = async () => {
         await loadProductsFromBackend();
@@ -40,12 +53,12 @@ const ProductFormScreenContent = () => {
             {/* Header */}
             <div className="product-header">
                 <div className="header-left">
-                    <button className="btn-back" onClick={() => navigate('/pos')}>
+                    <button className="btn-back" onClick={handleGoBack}>
                         <i className="bi bi-arrow-left"></i>
                     </button>
                     <h2>Productos</h2>
                 </div>
-                <button className="btn-close" onClick={() => navigate('/pos')}>
+                <button className="btn-close" onClick={handleGoBack}>
                     <i className="bi bi-x-lg"></i>
                 </button>
             </div>
@@ -130,7 +143,7 @@ const ProductFormScreenContent = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredProducts.map(product => (
+                            {filteredProducts.map((product) => (
                                 <tr key={product.id}>
                                     <td><input type="checkbox" /></td>
                                     <td>
@@ -223,11 +236,7 @@ const ProductFormScreenContent = () => {
 };
 
 const ProductFormScreen = () => {
-    return (
-        <ProductProvider>
-            <ProductFormScreenContent />
-        </ProductProvider>
-    );
+    return <ProductFormScreenContent />;
 };
 
 export default ProductFormScreen;

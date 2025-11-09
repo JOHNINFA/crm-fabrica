@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useModalContext } from '../../context/ModalContext';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import './AddProductModal.css';
 
 const AddProductModal = () => {

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import { UsuariosProvider } from './context/UsuariosContext';
+import { UnifiedProductProvider } from './context/UnifiedProductContext';
 
 import MainMenu from './pages/MainMenu';
 import PosScreen from './pages/PosScreen';
@@ -30,9 +31,10 @@ import ConfiguracionScreen from './pages/ConfiguracionScreen';
 function App() {
   return (
     <UsuariosProvider>
-      <Router>
-        <div className="App">
-        <Routes>
+      <UnifiedProductProvider>
+        <Router>
+          <div className="App">
+          <Routes>
           <Route path="/" element={<MainMenu />} />
           <Route path="/pos" element={<PosScreen />} />
           <Route path="/productos" element={<ProductFormScreen />} />
@@ -60,8 +62,9 @@ function App() {
           <Route path="/otros" element={<OtrosScreen />} />
           <Route path="/configuracion" element={<ConfiguracionScreen />} />
           </Routes>
-        </div>
-      </Router>
+          </div>
+        </Router>
+      </UnifiedProductProvider>
     </UsuariosProvider>
   );
 }

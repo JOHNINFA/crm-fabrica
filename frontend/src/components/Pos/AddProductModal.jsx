@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useModalContext } from '../../context/ModalContext';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import './AddProductModal.css';
 
 const AddProductModal = ({ show, onClose, selectedProduct }) => {
@@ -26,6 +26,7 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
     precioVenta: 0,
     imagen: null,
     existencias: 0,
+    ubicacionInventario: "PRODUCCION",
   });
 
   // Cargar datos del producto seleccionado
@@ -43,6 +44,7 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
         precioVenta: productToEdit.price || 0,
         imagen: productToEdit.image || null,
         existencias: productToEdit.stock || 0,
+        ubicacionInventario: productToEdit.ubicacionInventario || "PRODUCCION",
       });
     }
   }, [productToEdit]);
@@ -252,6 +254,22 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
 
             {renderSelect("Impuesto", "impuesto", ["IVA(0%)", "IVA(5%)", "IVA(19%)"])}
             {renderInput("Existencias", "existencias", "number")}
+          </div>
+
+          {/* Ubicación en Inventario */}
+          <div className="form-group row">
+            <div className="col-md-12">
+              <label>Ubicación en Inventario</label>
+              <select
+                className="form-select"
+                value={formData.ubicacionInventario}
+                onChange={(e) => updateFormData('ubicacionInventario', e.target.value)}
+              >
+                <option value="PRODUCCION">Producción</option>
+                <option value="MAQUILA">Maquila</option>
+              </select>
+              <small className="text-muted">Define si este producto aparece en Producción o Maquilas en el módulo de Inventario</small>
+            </div>
           </div>
 
           {/* Precios */}

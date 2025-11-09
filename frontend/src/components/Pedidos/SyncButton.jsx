@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 
 const SyncButton = () => {
     const { syncWithBackend, isSyncing } = useProducts();

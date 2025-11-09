@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Row,
@@ -15,7 +15,7 @@ import ModalEditarExistencias from "./ModalEditarExistencias";
 import ModalCambiarUsuario from "./ModalCambiarUsuario";
 import ModalEditarCantidades from "./ModalEditarCantidades";
 import DateSelector from "../common/DateSelector";
-import { useProductos } from "../../context/ProductosContext";
+import { useProductos } from "../../hooks/useUnifiedProducts";
 import { loteService } from "../../services/loteService";
 import { registroInventarioService } from "../../services/registroInventarioService";
 import { productoService } from "../../services/api";
@@ -56,6 +56,26 @@ const InventarioProduccion = () => {
   const [productoEditarProduccion, setProductoEditarProduccion] = useState(null);
   const [motivoEdicion, setMotivoEdicion] = useState("");
 
+  // Memorizar productos ordenados y filtrados para Producción
+  const productosOrdenados = useMemo(() => {
+    // Filtrar solo productos de Producción
+    const productosFiltrados = productos.filter(p =>
+      !p.ubicacionInventario || p.ubicacionInventario === 'PRODUCCION'
+    );
+
+    // Ordenar los productos filtrados
+    return productosFiltrados.sort((a, b) => {
+      const ordenA = a.orden !== undefined ? a.orden : 999999;
+      const ordenB = b.orden !== undefined ? b.orden : 999999;
+
+      if (ordenA !== ordenB) {
+        return ordenA - ordenB;
+      }
+
+      return (a.id || 0) - (b.id || 0);
+    });
+  }, [productos]);
+
   // Filtrar movimientos por fecha seleccionada
   const movimientosFiltrados = movimientos.filter((movimiento) => {
     if (!movimiento.fecha) return false;
@@ -77,7 +97,10 @@ const InventarioProduccion = () => {
   // Cargar productos desde localStorage (POS)
   const cargarProductos = async () => {
     try {
-      setCargando(true);
+      // No mostrar loading si ya hay productos (evita el salto visual)
+      if (productos.length === 0) {
+        setCargando(true);
+      }
 
       // Intentar cargar desde 'productos' (inventario) primero
       const inventoryProducts = JSON.parse(
@@ -90,21 +113,18 @@ const InventarioProduccion = () => {
           inventoryProducts.length
         );
 
-        // Ordenar en el orden específico: AREPA TIPO OBLEA 500Gr, AREPA MEDIANA 330Gr, AREPA TIPO PINCHO 330Gr
+        // Ordenar por el campo 'orden' si existe, sino por ID
         const productosOrdenados = [...inventoryProducts].sort((a, b) => {
-          // Definir el orden específico de los productos
-          const orden = {
-            "AREPA TIPO OBLEA 500GR": 1,
-            "AREPA MEDIANA 330GR": 2,
-            "AREPA TIPO PINCHO 330GR": 3,
-          };
+          // Usar el campo orden si existe
+          const ordenA = a.orden !== undefined ? a.orden : 999999;
+          const ordenB = b.orden !== undefined ? b.orden : 999999;
 
-          // Obtener el orden de cada producto (o 999 si no está en la lista)
-          const ordenA = orden[a.nombre?.toUpperCase()] || 999;
-          const ordenB = orden[b.nombre?.toUpperCase()] || 999;
+          if (ordenA !== ordenB) {
+            return ordenA - ordenB;
+          }
 
-          // Ordenar por el número de orden
-          return ordenA - ordenB;
+          // Si el orden es igual, ordenar por ID
+          return (a.id || 0) - (b.id || 0);
         });
 
         setProductos(productosOrdenados);
@@ -125,23 +145,21 @@ const InventarioProduccion = () => {
             precio: producto.price || 0,
             categoria: producto.category || "General",
             imagen: producto.image || null,
+            orden: producto.orden || 0,
           }));
 
-          // Ordenar en el orden específico: AREPA TIPO OBLEA 500Gr, AREPA MEDIANA 330Gr, AREPA TIPO PINCHO 330Gr
+          // Ordenar por el campo 'orden' si existe, sino por ID
           const productosOrdenados = productosFormateados.sort((a, b) => {
-            // Definir el orden específico de los productos
-            const orden = {
-              "AREPA TIPO OBLEA 500GR": 1,
-              "AREPA MEDIANA 330GR": 2,
-              "AREPA TIPO PINCHO 330GR": 3,
-            };
+            // Usar el campo orden si existe
+            const ordenA = a.orden !== undefined ? a.orden : 999999;
+            const ordenB = b.orden !== undefined ? b.orden : 999999;
 
-            // Obtener el orden de cada producto (o 999 si no está en la lista)
-            const ordenA = orden[a.nombre?.toUpperCase()] || 999;
-            const ordenB = orden[b.nombre?.toUpperCase()] || 999;
+            if (ordenA !== ordenB) {
+              return ordenA - ordenB;
+            }
 
-            // Ordenar por el número de orden
-            return ordenA - ordenB;
+            // Si el orden es igual, ordenar por ID
+            return (a.id || 0) - (b.id || 0);
           });
 
           setProductos(productosOrdenados);
@@ -168,23 +186,21 @@ const InventarioProduccion = () => {
                 cantidad: 0,
                 precio: parseFloat(p.precio) || 0,
                 categoria: p.categoria_nombre || "General",
+                orden: p.orden || 0,
               }));
 
-              // Ordenar en el orden específico: AREPA TIPO OBLEA 500Gr, AREPA MEDIANA 330Gr, AREPA TIPO PINCHO 330Gr
+              // Ordenar por el campo 'orden' si existe, sino por ID
               const productosOrdenados = productosFormateados.sort((a, b) => {
-                // Definir el orden específico de los productos
-                const orden = {
-                  "AREPA TIPO OBLEA 500GR": 1,
-                  "AREPA MEDIANA 330GR": 2,
-                  "AREPA TIPO PINCHO 330GR": 3,
-                };
+                // Usar el campo orden si existe
+                const ordenA = a.orden !== undefined ? a.orden : 999999;
+                const ordenB = b.orden !== undefined ? b.orden : 999999;
 
-                // Obtener el orden de cada producto (o 999 si no está en la lista)
-                const ordenA = orden[a.nombre?.toUpperCase()] || 999;
-                const ordenB = orden[b.nombre?.toUpperCase()] || 999;
+                if (ordenA !== ordenB) {
+                  return ordenA - ordenB;
+                }
 
-                // Ordenar por el número de orden
-                return ordenA - ordenB;
+                // Si el orden es igual, ordenar por ID
+                return (a.id || 0) - (b.id || 0);
               });
 
               setProductos(productosOrdenados);
@@ -220,6 +236,7 @@ const InventarioProduccion = () => {
           existencias: p.stock_total,
           categoria: p.categoria_nombre || "General",
           cantidad: 0,
+          orden: p.orden || 0, // ✅ Incluir campo orden
         }));
         localStorage.setItem(
           "productos",
@@ -236,6 +253,7 @@ const InventarioProduccion = () => {
           brand: p.marca || "GENERICA",
           tax: p.impuesto || "IVA(0%)",
           image: p.imagen || null,
+          orden: p.orden || 0, // ✅ Incluir campo orden
         }));
 
         // Guardar en localStorage
@@ -293,17 +311,27 @@ const InventarioProduccion = () => {
       localStorage.removeItem(key)
     );
 
-    // Ejecutar sincronización inicial
-    sincronizarProductos();
+    // Cargar productos primero (desde localStorage que ya está ordenado)
     cargarProductos();
+
+    // Luego sincronizar en segundo plano (sin recargar inmediatamente)
+    sincronizarProductos();
 
     // 🎯 NUEVO: Cargar datos de confirmación del día actual
     cargarDatosConfirmacionActual();
 
-    // Event listeners
-    const handleStorageChange = (e) =>
-      e.key === "productos" && cargarProductos();
-    const handleProductosUpdated = () => cargarProductos();
+    // Event listeners - solo recargar si realmente cambió el storage
+    const handleStorageChange = (e) => {
+      if (e.key === "productos") {
+        // Pequeño delay para evitar múltiples recargas
+        setTimeout(() => cargarProductos(), 100);
+      }
+    };
+
+    const handleProductosUpdated = () => {
+      // Pequeño delay para evitar múltiples recargas
+      setTimeout(() => cargarProductos(), 100);
+    };
 
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("productosUpdated", handleProductosUpdated);
@@ -1302,7 +1330,7 @@ const InventarioProduccion = () => {
         <Col>
           <div className="table-responsive">
             <TablaInventario
-              productos={productos}
+              productos={productosOrdenados}
               onEditarClick={handleEditarClick}
               handleCantidadChange={handleCantidadChange}
               productosGrabados={productosGrabados}

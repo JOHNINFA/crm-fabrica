@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import { Button, Modal, Form, Alert } from 'react-bootstrap';
 
 /**
@@ -21,8 +21,8 @@ const ProductManager = ({ show, onHide }) => {
     } else {
       const searchLower = search.toLowerCase();
       setFilteredProducts(
-        products.filter(p => 
-          p.name.toLowerCase().includes(searchLower) || 
+        products.filter(p =>
+          p.name.toLowerCase().includes(searchLower) ||
           p.category.toLowerCase().includes(searchLower)
         )
       );
@@ -55,11 +55,11 @@ const ProductManager = ({ show, onHide }) => {
       for (const productId of selectedProducts) {
         await deleteProduct(productId);
       }
-      
+
       // Mostrar mensaje de éxito
       setMessage({ text: 'Productos eliminados correctamente', type: 'success' });
       setSelectedProducts([]);
-      
+
       // Forzar actualización de la lista
       const updatedProducts = products.filter(p => !selectedProducts.includes(p.id));
       updateProducts(updatedProducts);
@@ -96,7 +96,7 @@ const ProductManager = ({ show, onHide }) => {
             {message.text}
           </Alert>
         )}
-        
+
         <div className="d-flex mb-3">
           <Form.Control
             type="text"
@@ -105,18 +105,18 @@ const ProductManager = ({ show, onHide }) => {
             onChange={(e) => setSearch(e.target.value)}
             className="me-2"
           />
-          <Button 
-            variant="outline-primary" 
+          <Button
+            variant="outline-primary"
             onClick={handleSelectAll}
           >
             {selectedProducts.length === filteredProducts.length ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
           </Button>
         </div>
-        
+
         {selectedProducts.length > 0 && (
           <div className="mb-3">
-            <Button 
-              variant="danger" 
+            <Button
+              variant="danger"
               onClick={handleDeleteSelected}
               disabled={isDeleting}
             >
@@ -124,7 +124,7 @@ const ProductManager = ({ show, onHide }) => {
             </Button>
           </div>
         )}
-        
+
         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table className="table table-striped">
             <thead>

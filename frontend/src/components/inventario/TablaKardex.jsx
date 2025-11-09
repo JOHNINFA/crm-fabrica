@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Form, InputGroup, Row, Col } from 'react-bootstrap';
 import DateSelector from '../common/DateSelector';
 import HoverToggleButton from '../common/HoverToggleButton';
-import { useProductos } from '../../context/ProductosContext';
+import { useProductos } from '../../hooks/useUnifiedProducts';
 import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
 import '../../styles/HoverToggleButton.css';
@@ -12,6 +12,7 @@ const TablaKardex = () => {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [movimientosFromBD, setMovimientosFromBD] = useState([]);
   const { productos } = useProductos();
+  const [cargando, setCargando] = useState(false);
 
   // Utilidades
   const getExistenciasClass = (existencias) => {
@@ -82,14 +83,23 @@ const TablaKardex = () => {
   // Cargar movimientos desde BD
   const cargarMovimientosFromBD = async () => {
     try {
+      // 🎯 Marcar como cargando solo si no hay movimientos
+      if (movimientosFromBD.length === 0) {
+        setCargando(true);
+      }
       // Obtener productos actuales de la BD para tener datos precisos
       const productosResponse = await fetch('http://localhost:8000/api/productos/');
       if (!productosResponse.ok) throw new Error('Error al obtener productos');
       const productosBD = await productosResponse.json();
 
+      // Filtrar solo productos de PRODUCCION
+      const productosProduccion = productosBD.filter(p =>
+        !p.ubicacion_inventario || p.ubicacion_inventario === 'PRODUCCION'
+      );
+
       // Crear un mapa de productos por ID para referencia rápida
       const productosMap = {};
-      productosBD.forEach(p => {
+      productosProduccion.forEach(p => {
         productosMap[p.id] = {
           id: p.id,
           nombre: p.nombre,
@@ -99,65 +109,160 @@ const TablaKardex = () => {
 
       // Obtener registros de inventario
       const response = await fetch('http://localhost:8000/api/registro-inventario/');
-      if (!response.ok) throw new Error('Error al obtener registros');
+      const todosLosRegistros = response.ok ? await response.json() : [];
 
-      const todosLosRegistros = await response.json();
       const existenciasPorProducto = {};
 
       // Procesar registros para obtener el más reciente por producto
       todosLosRegistros.forEach(registro => {
         const productoId = registro.producto_id;
 
-        if (!existenciasPorProducto[productoId] ||
-          new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
-          existenciasPorProducto[productoId] = {
-            nombre: registro.producto_nombre,
-            existencias: productosMap[productoId]?.existencias || 0, // Usar SOLO stock_total de BD
-            ultimaFecha: registro.fecha_creacion,
-            ultimoMovimiento: registro
+        // Solo procesar si el producto está en producción
+        if (productosMap[productoId]) {
+          if (!existenciasPorProducto[productoId] ||
+            new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
+            existenciasPorProducto[productoId] = {
+              nombre: registro.producto_nombre,
+              existencias: productosMap[productoId]?.existencias || 0,
+              ultimaFecha: registro.fecha_creacion,
+              ultimoMovimiento: registro
+            };
+          }
+        }
+      });
+
+      // Convertir a formato para mostrar - INCLUIR TODOS LOS PRODUCTOS
+      const movimientosConvertidos = productosProduccion.map(producto => {
+        const data = existenciasPorProducto[producto.id];
+
+        if (data && data.ultimoMovimiento) {
+          // Producto con movimientos
+          const mov = data.ultimoMovimiento;
+          return {
+            id: mov.id,
+            productoId: mov.producto_id,
+            fecha: new Date(mov.fecha_produccion).toLocaleDateString('es-ES'),
+            hora: new Date(mov.fecha_creacion).toLocaleTimeString('es-ES'),
+            producto: data.nombre,
+            cantidad: mov.cantidad,
+            existencias: producto.stock_total || 0,
+            tipo: mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' :
+              mov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
+            usuario: mov.usuario,
+            lote: '-',
+            fechaVencimiento: '-',
+            registrado: true
+          };
+        } else {
+          // Producto sin movimientos
+          return {
+            id: `no-mov-${producto.id}`,
+            productoId: producto.id,
+            fecha: new Date().toLocaleDateString('es-ES'),
+            hora: '--:--',
+            producto: producto.nombre,
+            cantidad: 0,
+            existencias: producto.stock_total || 0,
+            tipo: 'Sin movimiento',
+            usuario: 'Sin usuario',
+            lote: '-',
+            fechaVencimiento: '-',
+            registrado: false
           };
         }
       });
 
-      // Convertir a formato para mostrar
-      const movimientosConvertidos = Object.values(existenciasPorProducto).map(data => {
-        const mov = data.ultimoMovimiento;
-        return {
-          id: mov.id,
-          productoId: mov.producto_id,
-          fecha: new Date(mov.fecha_produccion).toLocaleDateString('es-ES'),
-          hora: new Date(mov.fecha_creacion).toLocaleTimeString('es-ES'),
-          producto: data.nombre,
-          cantidad: mov.cantidad,
-          existencias: data.existencias, // Usar existencias actualizadas
-          tipo: mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' :
-            mov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
-          usuario: mov.usuario,
-          lote: '-',
-          fechaVencimiento: '-',
-          registrado: true
-        };
-      });
-
       setMovimientosFromBD(movimientosConvertidos);
+      setCargando(false);
 
-      console.log('📊 Kardex actualizado con datos de BD:', movimientosConvertidos.length, 'movimientos');
+      // 🚀 Guardar en localStorage
+      try {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        const fechaFormateada = `${year}-${month}-${day}`;
+        const key = `kardex_${fechaFormateada}`;
+
+        const datosParaGuardar = {
+          movimientos: movimientosConvertidos,
+          timestamp: Date.now(),
+          fecha: fechaFormateada
+        };
+        localStorage.setItem(key, JSON.stringify(datosParaGuardar));
+        console.log('📊 Kardex actualizado y guardado:', movimientosConvertidos.length, 'movimientos');
+      } catch (error) {
+        console.error('Error al guardar en localStorage:', error);
+      }
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
       setMovimientosFromBD([]);
+      setCargando(false);
     }
   };
 
-  // Effects
+  // 🚀 Cargar desde localStorage al iniciar
   useEffect(() => {
-    cargarMovimientosFromBD();
+    const cargarDesdeLocalStorage = () => {
+      try {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        const fechaFormateada = `${year}-${month}-${day}`;
+        const key = `kardex_${fechaFormateada}`;
 
-    // Configurar actualización periódica cada 30 segundos
+        const datosGuardados = localStorage.getItem(key);
+
+        if (datosGuardados) {
+          const { movimientos } = JSON.parse(datosGuardados);
+          console.log('⚡ Kardex cargado desde localStorage (instantáneo):', movimientos.length);
+          setMovimientosFromBD(movimientos);
+        }
+      } catch (error) {
+        console.error('Error al cargar Kardex desde localStorage:', error);
+      }
+    };
+
+    // 🗑️ Limpiar localStorage viejo (más de 7 días)
+    const limpiarLocalStorageViejo = () => {
+      try {
+        const ahora = Date.now();
+        const SIETE_DIAS = 7 * 24 * 60 * 60 * 1000;
+
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('kardex_')) {
+            try {
+              const datos = JSON.parse(localStorage.getItem(key));
+              if (datos.timestamp && (ahora - datos.timestamp) > SIETE_DIAS) {
+                localStorage.removeItem(key);
+                console.log('🗑️ Limpiado localStorage viejo:', key);
+              }
+            } catch (e) {
+              localStorage.removeItem(key);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error al limpiar localStorage:', error);
+      }
+    };
+
+    cargarDesdeLocalStorage();
+    limpiarLocalStorageViejo();
+
+    // 🚀 Cargar desde servidor en segundo plano (con delay para evitar rebote)
+    const timeoutCarga = setTimeout(() => {
+      cargarMovimientosFromBD();
+    }, 500); // Delay de 500ms para que localStorage se muestre primero
+
+    // 🔄 Configurar actualización periódica cada 30 segundos
     const interval = setInterval(() => {
       cargarMovimientosFromBD();
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeoutCarga);
+      clearInterval(interval);
+    };
   }, [fechaSeleccionada]);
 
   const handleDateSelect = (date) => {
@@ -244,6 +349,18 @@ const TablaKardex = () => {
             {/* Mostrar solo los movimientos de la BD */}
             {movimientosFiltrados.length > 0 ? (
               movimientosFiltrados.map(renderMovimientoRow)
+            ) : cargando ? (
+              // Mostrar spinner mientras carga
+              <tr>
+                <td colSpan="4" className="text-center py-4">
+                  <div className="d-flex justify-content-center align-items-center">
+                    <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                      <span className="visually-hidden">Cargando...</span>
+                    </div>
+                    <p className="text-muted mb-0">Cargando movimientos...</p>
+                  </div>
+                </td>
+              </tr>
             ) : (
               // Si no hay movimientos filtrados, mostrar mensaje
               <tr>

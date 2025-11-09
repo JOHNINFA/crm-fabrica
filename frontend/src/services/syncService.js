@@ -22,35 +22,31 @@ const sincronizarConBD = async () => {
     const productosFromBD = await response.json();
 
     
-    // Definir el orden específico de los productos
-    const ordenProductos = {
-      'AREPA TIPO OBLEA 500GR': 1,
-      'AREPA MEDIANA 330GR': 2,
-      'AREPA TIPO PINCHO 330GR': 3,
-      'AREPA QUESO CORRIENTE 450GR': 4,
-      'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
-      'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
-    };
-    
-    // Actualizar productos en localStorage
+    // Actualizar productos en localStorage (formato inventario)
     let productosParaInventario = productosFromBD.map(p => ({
       id: p.id,
       nombre: p.nombre,
       existencias: p.stock_total,
       categoria: p.categoria_nombre || 'General',
-      cantidad: 0
+      cantidad: 0,
+      orden: p.orden || 0 // ✅ Incluir campo orden de la BD
     }));
     
-    // Ordenar productos de inventario
+    // Ordenar productos de inventario por campo 'orden', luego por ID
     productosParaInventario.sort((a, b) => {
-      const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
-      const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
-      return ordenA - ordenB;
+      const ordenA = a.orden !== undefined ? a.orden : 999999;
+      const ordenB = b.orden !== undefined ? b.orden : 999999;
+      
+      if (ordenA !== ordenB) {
+        return ordenA - ordenB;
+      }
+      
+      return (a.id || 0) - (b.id || 0);
     });
     
     localStorage.setItem('productos', JSON.stringify(productosParaInventario));
     
-    // Actualizar productos en POS
+    // Actualizar productos en POS (formato products)
     let productosParaPOS = productosFromBD.map(p => ({
       id: p.id,
       name: p.nombre,
@@ -59,14 +55,20 @@ const sincronizarConBD = async () => {
       category: p.categoria_nombre || 'General',
       brand: p.marca || 'GENERICA',
       tax: p.impuesto || 'IVA(0%)',
-      image: p.imagen || null
+      image: p.imagen || null,
+      orden: p.orden || 0 // ✅ Incluir campo orden de la BD
     }));
     
-    // Ordenar productos del POS (usando el mismo objeto ordenProductos)
+    // Ordenar productos del POS por campo 'orden', luego por ID
     productosParaPOS.sort((a, b) => {
-      const ordenA = ordenProductos[a.name?.toUpperCase()] || 999;
-      const ordenB = ordenProductos[b.name?.toUpperCase()] || 999;
-      return ordenA - ordenB;
+      const ordenA = a.orden !== undefined ? a.orden : 999999;
+      const ordenB = b.orden !== undefined ? b.orden : 999999;
+      
+      if (ordenA !== ordenB) {
+        return ordenA - ordenB;
+      }
+      
+      return (a.id || 0) - (b.id || 0);
     });
     
     localStorage.setItem('products', JSON.stringify(productosParaPOS));

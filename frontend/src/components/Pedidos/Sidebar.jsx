@@ -80,7 +80,10 @@ export default function Sidebar({ onWidthChange }) {
                         {/* Productos - Navegar a página completa */}
                         <li
                             className="nav-item sidebar-item py-2"
-                            onClick={() => navigate('/productos')}
+                            onClick={() => {
+                                sessionStorage.setItem('origenModulo', 'pedidos');
+                                navigate('/productos');
+                            }}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>

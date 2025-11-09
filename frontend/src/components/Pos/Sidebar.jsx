@@ -119,6 +119,7 @@ export default function Sidebar({ onWidthChange }) {
             <li
               className="nav-item sidebar-item py-2"
               onClick={() => {
+                sessionStorage.setItem('origenModulo', 'pos');
                 navigate('/productos');
                 setIsExpanded(false);
               }}

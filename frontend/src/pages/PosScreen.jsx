@@ -15,7 +15,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ModalProvider } from "../context/ModalContext";
-import { ProductProvider, useProducts } from "../context/ProductContext";
+import { useProducts } from "../hooks/useUnifiedProducts";
 import { CajeroProvider, useCajero } from "../context/CajeroContext";
 import Sidebar from "../components/Pos/Sidebar"
 import Topbar from "../components/Pos/Topbar";
@@ -185,13 +185,9 @@ function PosMainContent() {
   );
 }
 
-// Componente intermedio que provee ProductProvider
+// Componente intermedio (ya no necesita ProductProvider, está en App.js)
 function PosScreenContent() {
-  return (
-    <ProductProvider>
-      <PosMainContent />
-    </ProductProvider>
-  );
+  return <PosMainContent />;
 }
 
 // Componente principal que provee el CajeroContext

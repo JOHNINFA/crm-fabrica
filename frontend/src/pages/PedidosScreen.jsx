@@ -16,7 +16,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ModalProvider } from "../context/ModalContext";
-import { ProductProvider, useProducts } from "../context/ProductContext";
+import { useProducts } from "../hooks/useUnifiedProducts";
 import { CajeroPedidosProvider, useCajeroPedidos } from "../context/CajeroPedidosContext";
 import Sidebar from "../components/Pedidos/Sidebar"
 import Topbar from "../components/Pedidos/Topbar";
@@ -219,13 +219,9 @@ function PedidosMainContent() {
     );
 }
 
-// Componente intermedio que provee ProductProvider
+// Componente intermedio (ya no necesita ProductProvider, está en App.js)
 const PedidosScreenContent = () => {
-    return (
-        <ProductProvider>
-            <PedidosMainContent />
-        </ProductProvider>
-    );
+    return <PedidosMainContent />;
 };
 
 // Componente principal que provee el CajeroPedidosContext

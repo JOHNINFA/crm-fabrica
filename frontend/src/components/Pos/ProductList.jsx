@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ProductCard from "./ProductCard";
-import { useProducts } from "../../context/ProductContext";
+import { useProducts } from "../../hooks/useUnifiedProducts";
 import { usePriceList } from "../../hooks/usePriceList";
 import CategoryManager from "./CategoryManager";
 import "./ProductList.css";

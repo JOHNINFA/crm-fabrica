@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Spinner, Tooltip, OverlayTrigger } from 'react-bootstrap';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 
 /**
  * Botón para sincronizar manualmente los productos con el backend

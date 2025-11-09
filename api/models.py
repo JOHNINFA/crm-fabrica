@@ -10,6 +10,11 @@ class Categoria(models.Model):
 
 class Producto(models.Model):
     """Modelo principal para productos"""
+    UBICACION_INVENTARIO_CHOICES = [
+        ('PRODUCCION', 'Producción'),
+        ('MAQUILA', 'Maquila'),
+    ]
+    
     nombre = models.CharField(max_length=255, unique=True)
     descripcion = models.TextField(blank=True, null=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -20,8 +25,13 @@ class Producto(models.Model):
     codigo_barras = models.CharField(max_length=100, blank=True, null=True)
     marca = models.CharField(max_length=100, default="GENERICA")
     impuesto = models.CharField(max_length=20, default="IVA(0%)")
+    orden = models.IntegerField(default=0, db_index=True)  # Campo para ordenamiento personalizado
+    ubicacion_inventario = models.CharField(max_length=20, choices=UBICACION_INVENTARIO_CHOICES, default='PRODUCCION', db_index=True)  # Para filtrar en Inventario
     fecha_creacion = models.DateTimeField(default=timezone.now)
     activo = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['orden', 'id']  # Ordenar por orden personalizado, luego por ID
 
     def save(self, *args, **kwargs):
         """Eliminar imagen antigua al actualizar con una nueva"""

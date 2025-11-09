@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Row,
@@ -15,7 +15,7 @@ import ModalEditarExistencias from "./ModalEditarExistencias";
 import ModalCambiarUsuario from "./ModalCambiarUsuario";
 import ModalEditarCantidades from "./ModalEditarCantidades";
 import DateSelector from "../common/DateSelector";
-import { useProductos } from "../../context/ProductosContext";
+import { useProductos } from "../../hooks/useUnifiedProducts";
 import { loteService } from "../../services/loteService";
 import { registroInventarioService } from "../../services/registroInventarioService";
 import { productoService } from "../../services/api";
@@ -57,6 +57,26 @@ const InventarioMaquilas = () => {
   const [productoEditarProduccion, setProductoEditarProduccion] = useState(null);
   const [motivoEdicion, setMotivoEdicion] = useState("");
 
+  // Memorizar productos ordenados y filtrados para Maquilas
+  const productosOrdenados = useMemo(() => {
+    // Filtrar solo productos de Maquila
+    const productosFiltrados = productos.filter(p =>
+      p.ubicacionInventario === 'MAQUILA'
+    );
+
+    // Ordenar los productos filtrados
+    return productosFiltrados.sort((a, b) => {
+      const ordenA = a.orden !== undefined ? a.orden : 999999;
+      const ordenB = b.orden !== undefined ? b.orden : 999999;
+
+      if (ordenA !== ordenB) {
+        return ordenA - ordenB;
+      }
+
+      return (a.id || 0) - (b.id || 0);
+    });
+  }, [productos]);
+
   // Filtrar movimientos por fecha seleccionada
   const movimientosFiltrados = movimientos.filter((movimiento) => {
     if (!movimiento.fecha) return false;
@@ -75,24 +95,57 @@ const InventarioMaquilas = () => {
     }
   });
 
-  // Cargar productos de maquila desde el archivo de datos
+  // Cargar productos de maquila desde la BD
   const cargarProductosMaquila = async () => {
     try {
-      setCargando(true);
+      // No mostrar loading si ya hay productos (evita el salto visual)
+      if (productos.length === 0) {
+        setCargando(true);
+      }
 
-      // Usar productos de maquila del archivo de datos
-      const productosFormateados = productosMaquilasData.map((producto) => ({
+      // Cargar productos desde la API
+      const response = await fetch("http://localhost:8000/api/productos/");
+      if (!response.ok) {
+        throw new Error("Error al cargar productos desde BD");
+      }
+
+      const productosFromBD = await response.json();
+      console.log("📊 Productos cargados desde BD:", productosFromBD.length);
+
+      // Filtrar solo productos de MAQUILA
+      const productosMaquila = productosFromBD.filter(p =>
+        p.ubicacion_inventario === 'MAQUILA'
+      );
+
+      console.log("🏭 Productos de MAQUILA filtrados:", productosMaquila.length);
+
+      // Formatear productos
+      const productosFormateados = productosMaquila.map((producto) => ({
         id: producto.id,
         nombre: producto.nombre?.toUpperCase() || "SIN NOMBRE",
-        existencias: producto.existencias || 0,
+        existencias: producto.stock_total || 0,
         cantidad: 0,
-        precio: producto.precio || 0,
-        categoria: producto.categoria || "Maquila",
+        precio: parseFloat(producto.precio) || 0,
+        categoria: producto.categoria_nombre || "Maquila",
         imagen: producto.imagen || null,
+        orden: producto.orden || 0,
+        ubicacionInventario: producto.ubicacion_inventario
       }));
 
-      setProductos(productosFormateados);
-      console.log("Productos de maquila cargados:", productosFormateados.length);
+      // Ordenar por campo orden
+      const productosOrdenados = productosFormateados.sort((a, b) => {
+        const ordenA = a.orden !== undefined ? a.orden : 999999;
+        const ordenB = b.orden !== undefined ? b.orden : 999999;
+
+        if (ordenA !== ordenB) {
+          return ordenA - ordenB;
+        }
+
+        return (a.id || 0) - (b.id || 0);
+      });
+
+      setProductos(productosOrdenados);
+      console.log("✅ Productos de maquila cargados:", productosOrdenados.length);
     } catch (error) {
       console.error("Error al cargar productos de maquila:", error);
       setMensaje({ texto: "Error al cargar productos de maquila", tipo: "danger" });
@@ -128,8 +181,27 @@ const InventarioMaquilas = () => {
     // Ejecutar carga inicial
     cargarProductosMaquila();
 
-    // 🎯 NUEVO: Cargar datos de confirmación del día actual
+    // 🎯 Cargar datos de confirmación del día actual
     cargarDatosConfirmacionActual();
+
+    // Event listeners para sincronización
+    const handleStorageChange = (e) => {
+      if (e.key === "productos" || e.key === "products") {
+        setTimeout(() => cargarProductosMaquila(), 100);
+      }
+    };
+
+    const handleProductosUpdated = () => {
+      setTimeout(() => cargarProductosMaquila(), 100);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("productosUpdated", handleProductosUpdated);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("productosUpdated", handleProductosUpdated);
+    };
   }, []);
 
   // Manejadores de eventos
@@ -834,7 +906,7 @@ const InventarioMaquilas = () => {
         <Col>
           <div className="table-responsive">
             <TablaInventario
-              productos={productos}
+              productos={productosOrdenados}
               onEditarClick={handleEditarClick}
               handleCantidadChange={handleCantidadChange}
               productosGrabados={productosGrabados}

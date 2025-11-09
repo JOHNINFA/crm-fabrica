@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Row, Col } from 'react-bootstrap';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import { useVendedores } from '../../context/VendedoresContext';
 import { cargueService, detalleCargueService } from '../../services/cargueService';
 import './Produccion.css';

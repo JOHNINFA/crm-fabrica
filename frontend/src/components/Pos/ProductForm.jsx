@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useProducts } from '../../context/ProductContext';
+import { useProducts } from '../../hooks/useUnifiedProducts';
 import { Form, Button, Row, Col, InputGroup } from 'react-bootstrap';
 import ImageUploader from '../common/ImageUploader';
 
 const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
   const { categories } = useProducts();
-  
+
   const [formData, setFormData] = useState({
     nombre: '',
     precioVenta: '',
@@ -17,10 +17,10 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
     imagen: null,
     ...initialData
   });
-  
+
   const [imagePreview, setImagePreview] = useState(initialData.image || null);
   const [validated, setValidated] = useState(false);
-  
+
   // Actualizar el formulario si cambian los datos iniciales
   useEffect(() => {
     if (initialData) {
@@ -35,32 +35,32 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
         imagen: null,
         ...initialData
       });
-      
+
       setImagePreview(initialData.image || null);
     }
   }, [initialData]);
-  
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleImageChange = (imageData) => {
     console.log("Imagen seleccionada:", imageData ? "Imagen presente" : "Sin imagen");
     setFormData(prev => ({ ...prev, imagen: imageData }));
     setImagePreview(imageData);
   };
-  
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     const form = e.currentTarget;
     if (form.checkValidity() === false) {
       e.stopPropagation();
       setValidated(true);
       return;
     }
-    
+
     // Preparar datos para guardar
     const productData = {
       ...formData,
@@ -69,18 +69,18 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
       precioCompra: parseFloat(formData.precioCompra) || 0,
       existencias: parseInt(formData.existencias) || 0,
     };
-    
+
     console.log("Guardando producto con datos:", productData);
     console.log("Imagen:", imagePreview ? "Presente" : "No presente");
-    
+
     // Si hay una imagen en el preview pero no en formData.imagen, usar la del preview
     if (!productData.imagen && imagePreview) {
       productData.imagen = imagePreview;
     }
-    
+
     onSave(productData);
   };
-  
+
   return (
     <Form noValidate validated={validated} onSubmit={handleSubmit}>
       <Row className="mb-3">
@@ -99,7 +99,7 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
               El nombre es obligatorio
             </Form.Control.Feedback>
           </Form.Group>
-          
+
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
@@ -140,7 +140,7 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
               </Form.Group>
             </Col>
           </Row>
-          
+
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
@@ -177,7 +177,7 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
               </Form.Group>
             </Col>
           </Row>
-          
+
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
@@ -207,7 +207,7 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
             </Col>
           </Row>
         </Col>
-        
+
         <Col md={4}>
           <Form.Group className="mb-3">
             <Form.Label>Imagen del Producto</Form.Label>
@@ -222,7 +222,7 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
           </Form.Group>
         </Col>
       </Row>
-      
+
       <div className="d-flex justify-content-end gap-2">
         <Button variant="secondary" onClick={onCancel}>
           Cancelar

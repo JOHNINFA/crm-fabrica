@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { ProductProvider } from "../../context/ProductContext";
 import { VendedoresProvider, useVendedores } from "../../context/VendedoresContext";
 import { responsableStorage } from "../../utils/responsableStorage";
 import PlantillaOperativa from "./PlantillaOperativa";
@@ -433,28 +432,24 @@ export default function MenuSheets() {
         {/* Plantilla Operativa o Producción */}
         <div className="mt-3">
           {idSeleccionado === "PRODUCCION" ? (
-            <ProductProvider>
-              <Produccion
-                dia={dia}
-                fechaSeleccionada={fechaSeleccionada}
-              />
-            </ProductProvider>
+            <Produccion
+              dia={dia}
+              fechaSeleccionada={fechaSeleccionada}
+            />
           ) : (
-            <ProductProvider>
-              <PlantillaOperativa
-                responsable={(() => {
-                  const responsable = datosIds[idSeleccionado].nombreResponsable || "RESPONSABLE";
-                  console.log(`🎯 Pasando responsable a PlantillaOperativa para ${idSeleccionado}: "${responsable}"`);
-                  return responsable;
-                })()}
-                dia={dia}
-                idSheet={idSeleccionado}
-                idUsuario={id_usuario}
-                onEditarNombre={abrirModal}
-                fechaSeleccionada={fechaSeleccionada}
-                key={`${idSeleccionado}_${fechaSeleccionada}`}
-              />
-            </ProductProvider>
+            <PlantillaOperativa
+              responsable={(() => {
+                const responsable = datosIds[idSeleccionado].nombreResponsable || "RESPONSABLE";
+                console.log(`🎯 Pasando responsable a PlantillaOperativa para ${idSeleccionado}: "${responsable}"`);
+                return responsable;
+              })()}
+              dia={dia}
+              idSheet={idSeleccionado}
+              idUsuario={id_usuario}
+              onEditarNombre={abrirModal}
+              fechaSeleccionada={fechaSeleccionada}
+              key={`${idSeleccionado}_${fechaSeleccionada}`}
+            />
           )}
         </div>
 
@@ -532,6 +527,6 @@ export default function MenuSheets() {
           </div>
         )}
       </div>
-    </VendedoresProvider>
+    </VendedoresProvider >
   );
 }
