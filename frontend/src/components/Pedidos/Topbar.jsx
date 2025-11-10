@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
 import SyncButton from "./SyncButton";
 import LoginCajeroModal from "./LoginCajeroModal";
@@ -7,6 +8,9 @@ import LoginCajeroModal from "./LoginCajeroModal";
 export default function Topbar() {
     const { getTopbarInfo, isAuthenticated, cajeroLogueado } = useCajeroPedidos();
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [showReportMenu, setShowReportMenu] = useState(false);
+    const reportMenuRef = useRef(null);
+    const navigate = useNavigate();
 
     const topbarInfo = getTopbarInfo();
 
@@ -18,18 +22,119 @@ export default function Topbar() {
         setShowLoginModal(false);
     };
 
+    // Cerrar el menú al hacer clic fuera de él
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (reportMenuRef.current && !reportMenuRef.current.contains(event.target)) {
+                setShowReportMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     return (
         <>
-            <nav className="topbar-bg d-flex align-items-center justify-content-between px-3 py-2 position-sticky">
-                {/* Título del módulo */}
-                <div className="d-flex align-items-center">
-                    <span className="material-icons me-2 text-success" style={{ fontSize: '24px' }}>
-                        file_copy
-                    </span>
-                    <h5 className="mb-0 text-success fw-bold">Sistema de Pedidos</h5>
+            <nav className="topbar-bg d-flex align-items-center justify-content-between px-3 py-2">
+                {/* Espacio para el botón hamburguesa y logo */}
+                <div style={{ width: '50px' }}></div>
+
+                {/* Botones de navegación - Centro/Izquierda */}
+                <div className="d-flex align-items-center gap-4">
+                    {/* Botón Informes de Pedidos con dropdown */}
+                    <div className="dropdown" ref={reportMenuRef}>
+                        <button
+                            className="btn btn-light border"
+                            style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
+                            type="button"
+                            onClick={() => setShowReportMenu(!showReportMenu)}
+                        >
+                            <i className="bi bi-file-earmark-text me-2" style={{ fontSize: '16px' }}></i>
+                            Informes de Pedidos
+                        </button>
+                        {showReportMenu && (
+                            <ul className="dropdown-menu show" style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px' }}>
+                                <li>
+                                    <button
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                            setShowReportMenu(false);
+                                            navigate('/informes/pedidos');
+                                        }}
+                                        style={{ fontSize: '13px' }}
+                                    >
+                                        Informe General
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                            setShowReportMenu(false);
+                                            console.log('Informe por destinatario');
+                                        }}
+                                        style={{ fontSize: '13px' }}
+                                    >
+                                        Por Destinatario
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                            setShowReportMenu(false);
+                                            console.log('Informe por transportadora');
+                                        }}
+                                        style={{ fontSize: '13px' }}
+                                    >
+                                        Por Transportadora
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                            setShowReportMenu(false);
+                                            console.log('Informe por vendedor');
+                                        }}
+                                        style={{ fontSize: '13px' }}
+                                    >
+                                        Por Vendedor
+                                    </button>
+                                </li>
+                            </ul>
+                        )}
+                    </div>
+
+                    {/* Botón Historial */}
+                    <button
+                        className="btn btn-light border"
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
+                        type="button"
+                        onClick={() => navigate('/pedidos/historial')}
+                        title="Historial de Pedidos"
+                    >
+                        <i className="bi bi-clock-history me-2" style={{ fontSize: '16px' }}></i>
+                        Historial
+                    </button>
+
+                    {/* Botón Gestionar */}
+                    <button
+                        className="btn btn-light border"
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
+                        type="button"
+                        onClick={() => navigate('/pedidos')}
+                        title="Gestión de Pedidos"
+                    >
+                        <span className="material-icons me-2" style={{ fontSize: '16px' }}>settings</span>
+                        Gestionar
+                    </button>
                 </div>
 
-                {/* Controles del topbar */}
+                {/* Controles del topbar - Derecha */}
                 <div className="d-flex align-items-center gap-2">
                     <SyncButton />
 

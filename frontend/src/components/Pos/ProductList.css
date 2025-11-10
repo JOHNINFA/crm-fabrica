@@ -67,7 +67,7 @@
 }
 
 .category-button .material-icons {
-  font-size: 28px;
+  font-size: 32px !important;
   margin-bottom: 2px;
   color: #6c757d;
 }

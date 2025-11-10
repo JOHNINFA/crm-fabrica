@@ -9,9 +9,36 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
     const { products, categories } = useProducts();
     const [selectedCategory, setSelectedCategory] = useState("Todos");
     const [showCategoryManager, setShowCategoryManager] = useState(false);
-    const [showReportMenu, setShowReportMenu] = useState(false);
-    const reportMenuRef = useRef(null);
-    const navigate = useNavigate();
+
+    // Estados para drag scroll en categorías
+    const categoryScrollRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    // Funciones de drag scroll para categorías
+    const handleMouseDown = (e) => {
+        if (!categoryScrollRef.current) return;
+        setIsDragging(true);
+        setStartX(e.pageX - categoryScrollRef.current.offsetLeft);
+        setScrollLeft(categoryScrollRef.current.scrollLeft);
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging || !categoryScrollRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - categoryScrollRef.current.offsetLeft;
+        const walk = (x - startX) * 2;
+        categoryScrollRef.current.scrollLeft = scrollLeft - walk;
+    };
 
     // Filtrar productos
     const filteredProducts = products.filter(p => {
@@ -30,63 +57,34 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
         return icons[category] || "sell";
     };
 
-    // Cerrar el menú al hacer clic fuera de él
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (reportMenuRef.current && !reportMenuRef.current.contains(event.target)) {
-                setShowReportMenu(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
     return (
         <>
-            {/* Botones superiores */}
-            <div className="d-flex align-items-center gap-3 mb-2" style={{ marginTop: '-15px', paddingLeft: '20px' }}>
-                <div className="dropdown" ref={reportMenuRef}>
-                    <button
-                        className="btn btn-light border dropdown-toggle top-button"
-                        style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }}
-                        type="button"
-                        onClick={() => setShowReportMenu(!showReportMenu)}
-                    >
-                        Informes de Pedidos
-                    </button>
-                    {showReportMenu && (
-                        <ul className="dropdown-menu show" style={{ position: 'absolute', inset: '0px auto auto 0px', margin: '0px', transform: 'translate(0px, 40px)' }}>
-                            <li><button className="dropdown-item" onClick={() => { setShowReportMenu(false); navigate('/informes/pedidos'); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe de Pedidos General</button></li>
-                            <li><button className="dropdown-item" onClick={() => { console.log('Informe por destinatario'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe por Destinatario</button></li>
-                            <li><button className="dropdown-item" onClick={() => { console.log('Informe por transportadora'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe por Transportadora</button></li>
-                            <li><button className="dropdown-item" onClick={() => { console.log('Informe por vendedor'); setShowReportMenu(false); }} style={{ fontSize: '14px', color: '#777777', padding: '3px 20px', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}>Informe por Vendedor</button></li>
-                        </ul>
-                    )}
-                </div>
-                <button
-                    className="btn btn-light border top-button"
-                    style={{ borderRadius: '8px', color: '#163864', backgroundColor: '#ffffff' }}
-                    type="button"
-                    onClick={() => navigate('/pedidos/historial')}
-                    title="Historial de Pedidos"
-                >
-                    <i className="bi bi-file-text me-1"></i>
-                    Historial
-                </button>
-            </div>
-
             {/* Barra de búsqueda */}
-            <div className="d-flex align-items-center gap-2 mb-1" style={{ marginTop: '-5px' }}>
-                <button className="btn btn-light" style={{ borderRadius: '12px' }} title="Buscar">
-                    <span className="material-icons">search</span>
+            <div
+                className="d-flex align-items-center gap-2 mb-2"
+                style={{
+                    backgroundColor: '#f7f7fa',
+                    paddingTop: '15px',
+                    paddingBottom: '10px',
+                    marginLeft: '-24px',
+                    marginRight: '-24px',
+                    paddingLeft: '24px',
+                    paddingRight: '24px',
+                    marginTop: '-20px'
+                }}
+            >
+                <button className="btn btn-light" style={{ borderRadius: '12px', padding: '8px 12px' }} title="Buscar">
+                    <span className="material-icons" style={{ fontSize: '20px' }}>search</span>
                 </button>
 
                 <input
                     className="form-control search-input"
-                    style={{ maxWidth: 700, borderRadius: '3px' }}
+                    style={{
+                        maxWidth: 700,
+                        borderRadius: '12px',
+                        height: '40px',
+                        padding: '8px 16px'
+                    }}
                     placeholder="Buscar Productos"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
@@ -94,25 +92,41 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                 />
             </div>
 
-            <div className="card-bg mb-3 p-3">
-                {/* Header de categorías */}
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h6 className="m-0">Categorías</h6>
-                    <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => setShowCategoryManager(true)}
-                        title="Gestionar categorías"
-                    >
-                        <span className="material-icons" style={{ fontSize: '16px' }}>settings</span>
-                        <span className="ms-1">Gestionar</span>
-                    </button>
-                </div>
-
-                {/* Botones de categoría */}
-                <div className="category-buttons">
+            {/* Categorías */}
+            <div
+                className="card-bg"
+                style={{
+                    overflow: 'visible',
+                    backgroundColor: '#fff',
+                    marginTop: '-10px',
+                    marginBottom: '3px',
+                    padding: '8px 8px 0.1px 8px'
+                }}
+            >
+                {/* Botones de categoría - Carrusel horizontal */}
+                <div
+                    ref={categoryScrollRef}
+                    className="category-buttons"
+                    style={{
+                        display: 'flex',
+                        gap: '23px',
+                        overflowX: 'auto',
+                        overflowY: 'visible',
+                        padding: '4px 0px 4px 0px',
+                        scrollBehavior: isDragging ? 'auto' : 'smooth',
+                        WebkitOverflowScrolling: 'touch',
+                        cursor: isDragging ? 'grabbing' : 'grab',
+                        userSelect: 'none'
+                    }}
+                    onMouseDown={handleMouseDown}
+                    onMouseLeave={handleMouseLeave}
+                    onMouseUp={handleMouseUp}
+                    onMouseMove={handleMouseMove}
+                >
                     <button
                         className={`category-button ${selectedCategory === "Todos" ? "active" : ""}`}
                         onClick={() => setSelectedCategory("Todos")}
+                        style={{ minWidth: 'fit-content', flexShrink: 0 }}
                     >
                         <span className="material-icons">{getCategoryIcon("Todos")}</span>
                         <span className="category-name">Todos</span>
@@ -123,19 +137,28 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                             key={category}
                             className={`category-button ${selectedCategory === category ? "active" : ""}`}
                             onClick={() => setSelectedCategory(category)}
+                            style={{ minWidth: 'fit-content', flexShrink: 0 }}
                         >
                             <span className="material-icons">{getCategoryIcon(category)}</span>
                             <span className="category-name">{category}</span>
                         </button>
                     ))}
                 </div>
+            </div>
 
-                <hr />
-
+            {/* Lista de productos - Con scroll */}
+            <div
+                className="card-bg mb-3 p-3"
+                style={{
+                    maxHeight: 'calc(100vh - 270px)',
+                    overflowY: 'auto',
+                    overflowX: 'hidden'
+                }}
+            >
                 {/* Lista de productos */}
-                <div className="row g-3">
+                <div className="row g-2">
                     {filteredProducts.map((p) => (
-                        <div className="col-md-6 col-xl-4" key={p.id}>
+                        <div className="col-md-6 col-xl-3" key={p.id}>
                             <ProductCard product={p} onClick={(product, currentPrice) => addProduct(product, currentPrice)} priceList={priceList} />
                         </div>
                     ))}

@@ -1,13 +1,13 @@
-/* Contenedor principal */
-.cart-container {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  height: 100%;
-  min-height: 500px;
+/* UPDATED VERSION 3.0 - Force reload */
+
+/* Contenedor principal del carrito */
+.pos-screen .cart-container {
+  display: flex !important;
+  flex-direction: column !important;
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow: visible !important;
+  min-height: 0px !important;
+  height: auto !important;
 }
 
 /* Cabecera del carrito */
@@ -48,13 +48,18 @@
 
 /* Cuerpo del carrito */
 .cart-body {
-  padding: 10px 15px;
-  min-height: 80px;
-  max-height: 250px;
+  padding: 10px 15px 0px 15px !important;
+  margin-bottom: 0px !important;
+  height: 190px !important;
+  min-height: 190px !important;
+  max-height: 190px !important;
+  flex: 0 0 auto !important;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  overflow-y: auto !important;
+
 }
 
 .cart-body:has(.cart-item) {
@@ -190,54 +195,56 @@
 
 /* Carrito vacío */
 .empty-cart {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 15px 0;
-  color: #adb5bd;
-  min-height: 80px;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 30px 0 !important;
+  color: #adb5bd !important;
+  min-height: 150px !important;
 }
 
 .empty-cart i {
-  font-size: 28px;
-  margin-bottom: 6px;
+  font-size: 52px !important;
+  margin-bottom: 8px;
 }
 
 .empty-cart p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Pie del carrito */
 .cart-footer {
-  padding: 15px;
+  padding: 5px 0px 0px 15px;
   border-top: 1px solid #dee2e6;
   background-color: #fff;
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   z-index: 10;
+
 }
 
-/* Resumen del carrito */
+/* Resumen del carrito - UPDATED v7 */
 .cart-summary {
-  margin-bottom: 15px;
+  margin-top: 8px !important;
+  margin-bottom: 0px !important;
+  padding-bottom: 0px !important;
 }
 
 .summary-row-horizontal {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 2px;
-  padding: 0px 8px;
+  gap: 6px !important;
+  margin-bottom: 0px !important;
+  padding: 0px 2px !important;
 }
 
 .summary-item {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 2px !important;
+  font-size: 11px !important;
 }
 
 .summary-label {
@@ -289,11 +296,13 @@
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #dee2e6;
+
 }
 
 /* Nota del carrito */
 .cart-note {
-  margin-bottom: 15px;
+  margin-top: 2px !important;
+  margin-bottom: 10px;
 }
 
 .cart-note input {
@@ -316,12 +325,15 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
+  margin-top: 10px !important;
+
 }
 
 .pos-screen .checkout-button:hover {
   background-color: #002149 !important;
   color: white !important;
 }
+
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -340,6 +352,7 @@
     text-align: left;
     padding-left: 10px;
   }
+
 }
 
 /* Esti
@@ -369,7 +382,8 @@ los específicos para el botón del POS - Tema Amarillo */
   border-color: #001a33 !important;
 }
 
-/ * Estilo específico para POS - Badge rojo */ .pos-screen .product-badge {
+/* Estilo específico para POS - Badge rojo */
+.pos-screen .product-badge {
   background-color: #dc3545 !important;
   color: white !important;
   font-size: 11px;

@@ -45,12 +45,12 @@ export default function Sidebar({ onWidthChange }) {
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                <div className="w-100 d-flex align-items-center justify-content-center border-bottom" style={{ height: '44px', paddingTop: '6px', paddingBottom: '6px', backgroundColor: '#ffffff' }}>
+                <div className="w-100 d-flex align-items-center justify-content-center border-bottom" style={{ height: '60px', paddingTop: '6px', paddingBottom: '6px', backgroundColor: '#ffffff' }}>
                     <img
                         src={logo}
                         alt="Logo"
                         style={{
-                            height: shouldShowText ? '36px' : '32px',
+                            height: '55px',
                             width: 'auto',
                             transition: 'height 0.3s ease'
                         }}

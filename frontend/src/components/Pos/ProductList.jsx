@@ -203,7 +203,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
         ref={productsContainerRef}
         className="card-bg mb-3 p-3"
         style={{
-          maxHeight: 'calc(100vh - 270px)',
+          maxHeight: 'calc(100vh - 260px)',
           overflowY: 'auto',
           overflowX: 'hidden',
           cursor: isDraggingProducts ? 'grabbing' : 'grab',

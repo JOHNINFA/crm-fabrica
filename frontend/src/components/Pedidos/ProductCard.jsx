@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
 import { listaPrecioService, precioProductoService } from "../../services/listaPrecioService";
+import "./ProductCard.css";
 
 export default function ProductCard({ product, onClick, priceList }) {
     const [imageSource, setImageSource] = useState(product.image || null);
     const [precioEspecifico, setPrecioEspecifico] = useState(null);
+    const [isClicked, setIsClicked] = useState(false);
 
     // Debug: verificar precio del producto
     useEffect(() => {
@@ -77,48 +79,56 @@ export default function ProductCard({ product, onClick, priceList }) {
         }
     };
 
+    const handleClick = () => {
+        setIsClicked(true);
+        onClick(product, precioEspecifico !== null ? precioEspecifico : (product.price || 0));
+        setTimeout(() => setIsClicked(false), 300);
+    };
+
     return (
         <div
-            className="card h-100"
+            className={`card h-100 product-card-item ${isClicked ? 'product-clicked' : ''}`}
             style={{
                 border: "1px solid #e5e9f2",
-                borderRadius: 9,
+                borderRadius: 6,
                 cursor: "pointer",
-                transition: "box-shadow 0.1s",
-                maxWidth: "180px",
-                margin: "0 auto"
+                transition: "transform 0.2s, box-shadow 0.1s",
+                maxWidth: "150px",
+                margin: "0 auto",
+                transform: isClicked ? 'scale(1.05)' : 'scale(1)'
             }}
-            onClick={() => onClick(product, precioEspecifico !== null ? precioEspecifico : (product.price || 0))}
+            onClick={handleClick}
             title="Agregar al carrito"
             tabIndex={0}
             onKeyDown={handleKeyDown}
         >
-            <div className="card-body d-flex flex-column align-items-center text-center p-2">
+            <div className="card-body d-flex flex-column align-items-center text-center" style={{ padding: '4px' }}>
                 {/* Imagen o icono por defecto */}
                 {imageSource ? (
                     <img
                         src={imageSource}
                         alt={product.name || 'Producto'}
-                        className="mb-2"
+                        className="product-image"
                         style={{
-                            maxHeight: 60,
+                            maxHeight: 45,
                             maxWidth: '100%',
-                            objectFit: 'contain'
+                            objectFit: 'contain',
+                            marginBottom: '3px'
                         }}
                     />
                 ) : (
-                    <span style={{ fontSize: 28 }} className="material-icons mb-1">
+                    <span className="material-icons product-icon" style={{ fontSize: 22, marginBottom: '3px' }}>
                         inventory_2
                     </span>
                 )}
 
                 {/* Precio */}
-                <div style={{ fontSize: '14px' }}>
+                <div className="product-price" style={{ fontSize: '14px', color: '#495057', fontWeight: '700', marginBottom: '2px' }}>
                     <strong>{formatPrice(product.price || 0)}</strong>
                 </div>
 
                 {/* Nombre del producto */}
-                <div className="text-muted" style={{ fontSize: 13 }}>
+                <div className="product-name" style={{ fontSize: 10.5, color: '#495057', fontWeight: '500', lineHeight: '1.2' }}>
                     {product.name || 'Producto sin nombre'}
                 </div>
             </div>

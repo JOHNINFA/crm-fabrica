@@ -39,6 +39,9 @@
     width: auto;
     cursor: pointer;
     transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    margin-top: -3px;
 }
 
 .hamburger-logo:hover {

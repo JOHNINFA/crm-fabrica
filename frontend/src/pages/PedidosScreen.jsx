@@ -159,7 +159,7 @@ function PedidosMainContent() {
             <div className="d-flex pedidos-screen">
                 <Sidebar onWidthChange={setSidebarWidth} />
                 <div
-                    className="flex-grow-1 offset"
+                    className="flex-grow-1 offset pedidos-screen"
                     style={{
                         marginLeft: sidebarWidth,
                         minHeight: "100vh",
@@ -180,7 +180,15 @@ function PedidosMainContent() {
                             </div>
 
                             <div className="col-lg-5">
-                                <div className="card-bg mb-3 p-0" style={{ overflow: 'hidden' }}>
+                                <div
+                                    className="card-bg mb-3 p-0"
+                                    style={{
+                                        position: 'sticky',
+                                        top: '70px',
+                                        alignSelf: 'flex-start',
+                                        overflow: 'visible'
+                                    }}
+                                >
                                     <ConsumerForm
                                         date={date}
                                         seller={seller}
