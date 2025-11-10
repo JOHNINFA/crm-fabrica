@@ -8,11 +8,23 @@ import './Sidebar.css';
 export default function Sidebar({ onWidthChange }) {
     const navigate = useNavigate();
     const [isHovered, setIsHovered] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
     const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
     const [showInformesSubmenu, setShowInformesSubmenu] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
 
-    // Sidebar siempre visible, se expande con hover
-    const sidebarWidth = isHovered ? 210 : 60;
+    // Detectar si es móvil
+    React.useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Sidebar siempre visible en desktop, colapsable en móvil
+    const sidebarWidth = isMobile ? (isExpanded ? 210 : 0) : (isHovered ? 210 : 60);
 
     // Estilo para los elementos del menú
     const getMenuItemStyle = () => ({
@@ -29,22 +41,64 @@ export default function Sidebar({ onWidthChange }) {
 
     return (
         <>
+            {/* Botón hamburguesa para móvil */}
+            {isMobile && (
+                <>
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        style={{
+                            position: 'fixed',
+                            top: '8px',
+                            left: '8px',
+                            zIndex: 1001,
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            backgroundColor: '#163864',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+                        }}
+                    >
+                        <span className="material-icons" style={{ fontSize: '20px' }}>{isExpanded ? 'close' : 'menu'}</span>
+                    </button>
+                    {isExpanded && (
+                        <div
+                            onClick={() => setIsExpanded(false)}
+                            style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                zIndex: 999
+                            }}
+                        />
+                    )}
+                </>
+            )}
+
             {/* Sidebar */}
             <nav
                 className="sidebar-bg pedidos-sidebar d-flex flex-column align-items-start p-0"
                 style={{
-                    width: sidebarWidth,
-                    minWidth: sidebarWidth,
+                    width: isMobile ? '210px' : sidebarWidth,
+                    minWidth: isMobile ? '210px' : sidebarWidth,
                     position: "fixed",
                     zIndex: 1000,
-                    left: 0,
+                    left: isMobile ? (isExpanded ? 0 : '-210px') : 0,
                     top: 0,
                     bottom: 0,
                     height: '100vh',
-                    transition: 'width 0.3s ease'
+                    transition: isMobile ? 'left 0.3s ease' : 'width 0.3s ease'
                 }}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                onMouseEnter={() => !isMobile && setIsHovered(true)}
+                onMouseLeave={() => !isMobile && setIsHovered(false)}
             >
                 {/* Logo en la parte superior */}
                 <div className="w-100 d-flex align-items-center justify-content-center" style={{ height: '60px', paddingTop: '2px', paddingBottom: '2px', backgroundColor: '#ffffff' }}>
@@ -64,17 +118,20 @@ export default function Sidebar({ onWidthChange }) {
                         {/* Inicio */}
                         <li
                             className="nav-item sidebar-item py-2"
-                            onClick={() => navigate('/')}
+                            onClick={() => {
+                                navigate('/');
+                                if (isMobile) setIsExpanded(false);
+                            }}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>home</span>
-                            {isHovered && <span style={{ fontSize: '14px' }}>Inicio</span>}
+                            {(isHovered || isMobile) && <span style={{ fontSize: '14px' }}>Inicio</span>}
                         </li>
 
                         {/* Pedidos - ACTIVO */}
                         <li className="nav-item sidebar-item py-2 active" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>file_copy</span>
-                            {isHovered && <span style={{ fontSize: '14px' }}>Pedidos</span>}
+                            {(isHovered || isMobile) && <span style={{ fontSize: '14px' }}>Pedidos</span>}
                         </li>
 
 
@@ -85,11 +142,12 @@ export default function Sidebar({ onWidthChange }) {
                             onClick={() => {
                                 sessionStorage.setItem('origenModulo', 'pedidos');
                                 navigate('/productos');
+                                if (isMobile) setIsExpanded(false);
                             }}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
-                            {isHovered && <span style={{ fontSize: '14px' }}>Productos</span>}
+                            {(isHovered || isMobile) && <span style={{ fontSize: '14px' }}>Productos</span>}
                         </li>
 
                         {/* Lista de precios con submenu */}

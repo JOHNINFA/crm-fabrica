@@ -25,10 +25,10 @@ export default function Topbar({ onOpenCategoryManager }) {
         <>
             <nav className="topbar-bg d-flex align-items-center justify-content-between px-3 py-2">
                 {/* Espacio para el botón hamburguesa y logo */}
-                <div style={{ width: '50px' }}></div>
+                <div style={{ width: '50px' }} className="d-none d-md-block"></div>
 
-                {/* Botones de navegación - Centro/Izquierda */}
-                <div className="d-flex align-items-center gap-4">
+                {/* Botones de navegación - Centro/Izquierda - Ocultos en móvil */}
+                <div className="d-none d-md-flex align-items-center gap-4">
                     {/* Botón Informes de Pedidos - Directo */}
                     <button
                         className="btn btn-light border"
@@ -66,14 +66,15 @@ export default function Topbar({ onOpenCategoryManager }) {
                 </div>
 
                 {/* Controles del topbar - Derecha */}
-                <div className="d-flex align-items-center gap-2">
+                <div className="d-flex align-items-center gap-2 ms-auto">
                     <SyncButton />
 
-                    <span className="material-icons mx-2 d-flex align-items-center text-success">
+                    {/* Wifi y notificaciones - Solo desktop */}
+                    <span className="material-icons mx-2 d-none d-md-flex align-items-center text-success">
                         wifi
                     </span>
 
-                    <span className="position-relative mx-2 d-flex align-items-center">
+                    <span className="position-relative mx-2 d-none d-md-flex align-items-center">
                         <span className="material-icons">notifications</span>
                         <span className="badge bg-warning position-absolute top-0 start-100 translate-middle p-1 rounded-circle" style={{ fontSize: 10 }}>
                             0
@@ -91,19 +92,19 @@ export default function Topbar({ onOpenCategoryManager }) {
                         <span className="material-icons me-1" style={{ fontSize: 16 }}>
                             {isAuthenticated ? 'logout' : 'login'}
                         </span>
-                        {isAuthenticated ? 'Logout' : 'Login'}
+                        <span className="d-none d-md-inline">{isAuthenticated ? 'Logout' : 'Login'}</span>
                     </Button>
 
-                    {/* Información del cajero */}
+                    {/* Información del cajero - Solo desktop */}
                     {isAuthenticated && cajeroLogueado ? (
-                        <div className="mx-2 d-flex align-items-center" style={{ fontSize: 15 }}>
+                        <div className="mx-2 d-none d-md-flex align-items-center" style={{ fontSize: 15 }}>
                             <span className="material-icons me-2 text-success" style={{ fontSize: 24 }}>
                                 account_circle
                             </span>
                             <span className="fw-bold">{cajeroLogueado.nombre}</span>
                         </div>
                     ) : (
-                        <div className="mx-2 d-flex align-items-center" style={{ fontSize: 15 }}>
+                        <div className="mx-2 d-none d-md-flex align-items-center" style={{ fontSize: 15 }}>
                             <span className="material-icons me-2 text-muted" style={{ fontSize: 24 }}>
                                 person_outline
                             </span>

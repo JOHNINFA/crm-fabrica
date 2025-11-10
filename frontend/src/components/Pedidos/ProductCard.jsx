@@ -89,12 +89,6 @@ export default function ProductCard({ product, onClick, priceList }) {
         <div
             className={`card h-100 product-card-item ${isClicked ? 'product-clicked' : ''}`}
             style={{
-                border: "1px solid #e5e9f2",
-                borderRadius: 6,
-                cursor: "pointer",
-                transition: "transform 0.2s, box-shadow 0.1s",
-                maxWidth: "150px",
-                margin: "0 auto",
                 transform: isClicked ? 'scale(1.05)' : 'scale(1)'
             }}
             onClick={handleClick}
@@ -102,33 +96,27 @@ export default function ProductCard({ product, onClick, priceList }) {
             tabIndex={0}
             onKeyDown={handleKeyDown}
         >
-            <div className="card-body d-flex flex-column align-items-center text-center" style={{ padding: '4px' }}>
+            <div className="card-body d-flex flex-column align-items-center text-center">
                 {/* Imagen o icono por defecto */}
                 {imageSource ? (
                     <img
                         src={imageSource}
                         alt={product.name || 'Producto'}
                         className="product-image"
-                        style={{
-                            maxHeight: 45,
-                            maxWidth: '100%',
-                            objectFit: 'contain',
-                            marginBottom: '3px'
-                        }}
                     />
                 ) : (
-                    <span className="material-icons product-icon" style={{ fontSize: 22, marginBottom: '3px' }}>
+                    <span className="material-icons product-icon">
                         inventory_2
                     </span>
                 )}
 
                 {/* Precio */}
-                <div className="product-price" style={{ fontSize: '14px', color: '#495057', fontWeight: '700', marginBottom: '2px' }}>
+                <div className="product-price">
                     <strong>{formatPrice(product.price || 0)}</strong>
                 </div>
 
                 {/* Nombre del producto */}
-                <div className="product-name" style={{ fontSize: 10.5, color: '#495057', fontWeight: '500', lineHeight: '1.2' }}>
+                <div className="product-name">
                     {product.name || 'Producto sin nombre'}
                 </div>
             </div>

@@ -46,47 +46,26 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive */
+/* Responsive para móvil */
 @media (max-width: 768px) {
     .topbar-bg {
-        padding-left: 55px !important;
-        padding-right: 8px !important;
+        padding: 8px 55px 8px 12px !important;
+        min-height: 50px;
     }
 
     .topbar-bg .btn {
         font-size: 11px !important;
-        padding: 6px 10px !important;
+        padding: 6px 8px !important;
     }
 
-    .topbar-bg .btn i,
-    .topbar-bg .btn .bi {
-        font-size: 12px !important;
-        margin-right: 4px !important;
+    .topbar-bg .btn .material-icons,
+    .topbar-bg .btn i {
+        font-size: 14px !important;
+        margin-right: 0 !important;
     }
 
-    .topbar-bg .dropdown button {
-        font-size: 11px !important;
-        padding: 6px 10px !important;
-    }
-
-    .topbar-bg .dropdown button i,
-    .topbar-bg .dropdown button .bi {
-        font-size: 12px !important;
-    }
-
-    /* Ocultar wifi y notificaciones en móvil */
-    .topbar-wifi-icon {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    .topbar-notification-icon {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    .topbar-bg .topbar-wifi-icon,
-    .topbar-bg .topbar-notification-icon {
-        display: none !important;
+    /* Ajustar gap entre elementos */
+    .topbar-bg .d-flex.align-items-center.gap-2 {
+        gap: 6px !important;
     }
 }

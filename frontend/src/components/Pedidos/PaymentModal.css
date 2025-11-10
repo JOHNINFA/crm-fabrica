@@ -372,3 +372,66 @@ tilos específicos para REMISIONES - Tema Verde */
     color: white !important;
     opacity: 0.65;
 }
+
+/* 
+Responsive mejorado para móvil */
+@media (max-width: 768px) {
+    .payment-modal {
+        max-width: 95% !important;
+        padding: 10px !important;
+        max-height: 95vh !important;
+    }
+
+    .payment-modal-header {
+        font-size: 11px !important;
+        flex-wrap: wrap;
+    }
+
+    .payment-modal-header h4 {
+        font-size: 11px !important;
+    }
+
+    .payment-summary {
+        grid-template-columns: 1fr !important;
+        gap: 4px !important;
+    }
+
+    .payment-methods {
+        gap: 4px !important;
+    }
+
+    .payment-method-btn {
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        flex: 1 1 calc(50% - 4px) !important;
+        min-width: 80px !important;
+    }
+
+    .form-row {
+        flex-direction: column !important;
+        gap: 6px !important;
+    }
+
+    .form-group {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    .payment-modal .form-control,
+    .payment-modal .form-select {
+        font-size: 12px !important;
+    }
+
+    .payment-modal .form-label {
+        font-size: 11px !important;
+    }
+
+    .compact-textarea {
+        min-height: 60px !important;
+    }
+
+    .btn {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+}

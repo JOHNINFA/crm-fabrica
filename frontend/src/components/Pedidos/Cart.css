@@ -386,3 +386,55 @@
     padding: 4px 8px;
     border-radius: 4px;
 }
+
+/* Resp
+onsive para móvil */
+@media (max-width: 768px) {
+    .cart-container {
+        font-size: 12px;
+    }
+
+    .cart-item-name {
+        font-size: 11px !important;
+    }
+
+    .product-badge {
+        font-size: 10px !important;
+        padding: 2px 4px !important;
+    }
+
+    .qty-btn {
+        width: 28px !important;
+        height: 22px !important;
+        min-width: 28px !important;
+        min-height: 22px !important;
+        max-width: 28px !important;
+        max-height: 22px !important;
+        font-size: 10px !important;
+    }
+
+    .qty-input {
+        width: 50px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        max-height: 22px !important;
+        font-size: 12px !important;
+    }
+
+    .cart-item-calculation {
+        font-size: 11px !important;
+    }
+
+    .summary-label {
+        font-size: 11px !important;
+    }
+
+    .summary-value-inline {
+        font-size: 12px !important;
+    }
+
+    .checkout-button {
+        font-size: 14px !important;
+        padding: 10px !important;
+    }
+}

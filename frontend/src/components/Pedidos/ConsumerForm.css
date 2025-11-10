@@ -18,6 +18,7 @@
     top: 100%;
     left: 0;
     width: 370px;
+    max-width: calc(100vw - 40px);
     max-height: 200px;
     overflow-y: auto;
     background-color: white;
@@ -136,4 +137,63 @@
     border: 1px solid #ced4da;
     border-radius: 4px;
     background-color: white;
+}
+
+/* Responsive para móvil */
+@media (max-width: 768px) {
+    .consumer-form {
+        padding: 10px !important;
+    }
+
+    .consumer-form-header {
+        margin-bottom: 8px !important;
+    }
+
+    .consumer-form-title-input {
+        font-size: 11px !important;
+        height: 26px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .consumer-form-label {
+        font-size: 11px !important;
+        margin-bottom: 3px !important;
+    }
+
+    .consumer-form-row {
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 6px !important;
+    }
+
+    .consumer-form-group {
+        width: 100%;
+    }
+
+    .consumer-form-actions {
+        gap: 4px !important;
+    }
+
+    .consumer-form-actions button {
+        width: 26px !important;
+        height: 26px !important;
+    }
+
+    .consumer-form-actions button .material-icons {
+        font-size: 14px !important;
+    }
+
+    .cliente-suggestions {
+        width: calc(100vw - 40px) !important;
+        max-width: calc(100vw - 40px) !important;
+    }
+
+    .cliente-name {
+        font-size: 12px !important;
+    }
+
+    .cliente-id {
+        font-size: 10px !important;
+    }
 }

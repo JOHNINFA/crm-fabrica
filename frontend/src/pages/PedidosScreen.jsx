@@ -25,6 +25,7 @@ import Cart from "../components/Pedidos/Cart";
 import ConsumerForm from "../components/Pedidos/ConsumerForm";
 import { usePriceList } from "../hooks/usePriceList";
 import CategoryManager from "../components/Pos/CategoryManager";
+import "./PedidosScreen.css";
 
 import ImageSyncButton from "../components/common/ImageSyncButton";
 

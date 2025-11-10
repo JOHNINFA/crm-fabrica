@@ -31,3 +31,19 @@ nav.pedidos-sidebar.sidebar-bg {
     width: 0px;
     display: none;
 }
+
+/* Re
+sponsive para móvil */
+@media (max-width: 768px) {
+    .pedidos-sidebar {
+        width: 210px !important;
+    }
+
+    .sidebar-item {
+        font-size: 14px;
+    }
+
+    .sidebar-item .material-icons {
+        font-size: 20px !important;
+    }
+}
