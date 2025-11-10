@@ -1,13 +1,13 @@
-/* Contenedor principal */
-.cart-container {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    height: 100%;
-    min-height: 500px;
+/* UPDATED VERSION 3.0 - Force reload - PEDIDOS */
+
+/* Contenedor principal del carrito */
+.pedidos-screen .cart-container {
+    display: flex !important;
+    flex-direction: column !important;
     background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    overflow: visible !important;
+    min-height: 0px !important;
+    height: auto !important;
 }
 
 /* Cabecera del carrito */
@@ -48,13 +48,17 @@
 
 /* Cuerpo del carrito */
 .cart-body {
-    padding: 10px 15px;
-    min-height: 80px;
-    max-height: 250px;
+    padding: 10px 15px 0px 15px !important;
+    margin-bottom: 0px !important;
+    height: 190px !important;
+    min-height: 190px !important;
+    max-height: 190px !important;
+    flex: 0 0 auto !important;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    overflow-y: auto !important;
 }
 
 .cart-body:has(.cart-item) {
@@ -179,65 +183,68 @@
 }
 
 .cart-item-calculation {
-    font-size: 11px !important;
+    font-size: 13px !important;
     color: #6c757d;
     font-weight: 500 !important;
     text-align: right;
     padding-right: 8px;
     margin-top: 1px !important;
-    line-height: 1 !important;
+    line-height: 1.2 !important;
 }
 
 /* Carrito vacío */
 .empty-cart {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 15px 0;
-    color: #adb5bd;
-    min-height: 80px;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 30px 0 !important;
+    color: #adb5bd !important;
+    min-height: 150px !important;
 }
 
 .empty-cart i {
-    font-size: 28px;
-    margin-bottom: 6px;
+    font-size: 52px !important;
+    margin-bottom: 8px;
 }
 
 .empty-cart p {
     margin: 0;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 /* Pie del carrito */
 .cart-footer {
-    padding: 15px;
+    padding: 15px 15px 0px 15px;
     border-top: 1px solid #dee2e6;
     background-color: #fff;
-    position: sticky;
-    bottom: 0;
+    flex-shrink: 0;
     z-index: 10;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
-/* Resumen del carrito */
+/* Resumen del carrito - UPDATED v7 */
 .cart-summary {
-    margin-bottom: 15px;
+    margin-top: 8px !important;
+    margin-bottom: 0px !important;
+    padding-bottom: 0px !important;
 }
 
 .summary-row-horizontal {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 2px;
-    padding: 0px 8px;
+    gap: 6px !important;
+    margin-bottom: 0px !important;
+    padding: 0px 2px !important;
 }
 
 .summary-item {
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-size: 11px;
+    gap: 2px !important;
+    font-size: 11px !important;
 }
 
 .summary-label {
@@ -293,7 +300,8 @@
 
 /* Nota del carrito */
 .cart-note {
-    margin-bottom: 15px;
+    margin-top: 2px !important;
+    margin-bottom: 10px;
 }
 
 .cart-note input {
@@ -304,23 +312,24 @@
     font-size: 14px;
 }
 
-/* Botón de checkout - Adaptado para remisiones */
-.remisiones-screen .checkout-button {
+/* Botón de checkout - Tema Verde para Pedidos */
+.pedidos-screen .checkout-button {
     width: 100%;
     padding: 12px;
-    background-color: #28a745;
-    color: white;
+    background-color: #28a745 !important;
+    color: white !important;
     border: none;
     border-radius: 4px;
     font-size: 16px;
-    font-weight: 500;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
+    margin-top: 30px !important;
 }
 
-.remisiones-screen .checkout-button:hover {
-    background-color: #218838;
-    color: white;
+.pedidos-screen .checkout-button:hover {
+    background-color: #218838 !important;
+    color: white !important;
 }
 
 /* Responsive */
@@ -342,18 +351,11 @@
     }
 }
 
-/* Estilos específicos para el botón de PEDIDOS */
+/* Estilos específicos para el botón de PEDIDOS - Tema Verde */
 .pedidos-checkout-btn {
-    width: 100%;
-    padding: 12px;
     background-color: #28a745 !important;
     color: white !important;
     border: 1px solid #28a745 !important;
-    border-radius: 4px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
 }
 
 .pedidos-checkout-btn:hover {
@@ -373,4 +375,14 @@
     background-color: #1e7e34 !important;
     color: white !important;
     border-color: #1c7430 !important;
+}
+
+/* Estilo específico para Pedidos - Badge verde */
+.pedidos-screen .product-badge {
+    background-color: #28a745 !important;
+    color: white !important;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
 }

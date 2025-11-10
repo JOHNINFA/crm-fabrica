@@ -24,6 +24,7 @@ import ProductList from "../components/Pedidos/ProductList";
 import Cart from "../components/Pedidos/Cart";
 import ConsumerForm from "../components/Pedidos/ConsumerForm";
 import { usePriceList } from "../hooks/usePriceList";
+import CategoryManager from "../components/Pos/CategoryManager";
 
 import ImageSyncButton from "../components/common/ImageSyncButton";
 
@@ -34,6 +35,7 @@ function PedidosMainContent() {
     const [searchParams] = useSearchParams();
     const [search, setSearch] = useState("");
     const [cart, setCart] = useState([]);
+    const [showCategoryManager, setShowCategoryManager] = useState(false);
     // Función para obtener fecha local en formato YYYY-MM-DD
     const getFechaLocal = () => {
         const hoy = new Date();
@@ -167,7 +169,7 @@ function PedidosMainContent() {
                         transition: 'margin-left 0.3s ease'
                     }}
                 >
-                    <Topbar />
+                    <Topbar onOpenCategoryManager={() => setShowCategoryManager(true)} />
                     <main style={{ padding: "20px 24px 0px 24px" }}>
                         <div className="row">
                             <div className="col-lg-7 mb-4">
@@ -223,6 +225,13 @@ function PedidosMainContent() {
                     </main>
                 </div>
             </div>
+
+            {/* Modal de gestión de categorías */}
+            {showCategoryManager && (
+                <div className="modal-overlay">
+                    <CategoryManager onClose={() => setShowCategoryManager(false)} />
+                </div>
+            )}
         </ModalProvider>
     );
 }

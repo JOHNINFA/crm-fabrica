@@ -6,26 +6,39 @@ body {
   background: #f7f7fa;
   margin: 0;
 }
+
 .material-icons {
   font-family: 'Material Icons' !important;
 }
+
 .sidebar-bg {
   background: #0c2c53;
 }
+
 .sidebar-item {
   color: #fff;
   font-size: 1rem;
 }
-.sidebar-item.active, .sidebar-item:hover {
+
+.sidebar-item.active,
+.sidebar-item:hover {
   background: #163864;
   color: #fccc1a;
 }
-.brand-yellow { color: #fccc1a; }
-.brand-blue   { color: #0c2c53; }
+
+.brand-yellow {
+  color: #fccc1a;
+}
+
+.brand-blue {
+  color: #0c2c53;
+}
+
 .topbar-bg {
   background: #fff;
   border-bottom: 1px solid #e5e9f2;
 }
+
 .card-bg {
   background: #fff;
   border-radius: 9px;
@@ -34,5 +47,27 @@ body {
   margin-bottom: 16px;
   border: none;
 }
-::-webkit-scrollbar { width: 8px; background: #e9e9ee; }
-::-webkit-scrollbar-thumb { background: #d6d8e3; border-radius: 4px;}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: #e9e9ee;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d6d8e3;
+  border-radius: 4px;
+}
+
+/* Modal overlay para centrar modales */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}

@@ -526,19 +526,20 @@ export const UnifiedProductProvider = ({ children }) => {
             console.log('🚀 Inicializando contexto unificado de productos...');
             setIsInitialLoading(true);
 
-            await loadFromBackend();
+            // No sincronizar al cargar para evitar salto visual
+            // await loadFromBackend();
 
             setIsInitialLoading(false);
-            console.log('✅ Contexto unificado inicializado');
+            console.log('✅ Contexto unificado inicializado (sin sync inicial)');
         };
 
         initialize();
 
-        // Sincronización periódica cada 60 segundos
+        // Sincronización periódica cada 10 minutos (en lugar de 60 segundos)
         const syncInterval = setInterval(() => {
-            console.log('🔄 Sincronización automática...');
+            console.log('🔄 Sincronización automática en background...');
             loadFromBackend();
-        }, 60000);
+        }, 10 * 60 * 1000); // 10 minutos
 
         // Escuchar cambios de storage de otras pestañas
         const handleStorageChange = (e) => {

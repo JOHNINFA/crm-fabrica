@@ -17,6 +17,12 @@ export default function PedidosDiaScreen() {
       'JUEVES': 4, 'VIERNES': 5, 'SABADO': 6, 'DOMINGO': 0
     };
 
+    // Validar que diaSemana existe y es válido
+    if (!diaSemana || diasSemana[diaSemana] === undefined) {
+      const hoy = new Date();
+      return hoy.toISOString().split('T')[0];
+    }
+
     const hoy = new Date();
     const diaActual = hoy.getDay();
     const diaObjetivo = diasSemana[diaSemana];

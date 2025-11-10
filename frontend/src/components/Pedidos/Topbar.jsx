@@ -4,8 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
 import SyncButton from "./SyncButton";
 import LoginCajeroModal from "./LoginCajeroModal";
+import "./Topbar.css";
 
-export default function Topbar() {
+export default function Topbar({ onOpenCategoryManager }) {
     const { getTopbarInfo, isAuthenticated, cajeroLogueado } = useCajeroPedidos();
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showReportMenu, setShowReportMenu] = useState(false);
@@ -48,7 +49,7 @@ export default function Topbar() {
                     <div className="dropdown" ref={reportMenuRef}>
                         <button
                             className="btn btn-light border"
-                            style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
+                            style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
                             type="button"
                             onClick={() => setShowReportMenu(!showReportMenu)}
                         >
@@ -112,7 +113,7 @@ export default function Topbar() {
                     {/* Botón Historial */}
                     <button
                         className="btn btn-light border"
-                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
                         type="button"
                         onClick={() => navigate('/pedidos/historial')}
                         title="Historial de Pedidos"
@@ -124,10 +125,10 @@ export default function Topbar() {
                     {/* Botón Gestionar */}
                     <button
                         className="btn btn-light border"
-                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
                         type="button"
-                        onClick={() => navigate('/pedidos')}
-                        title="Gestión de Pedidos"
+                        onClick={onOpenCategoryManager}
+                        title="Gestionar Categorías"
                     >
                         <span className="material-icons me-2" style={{ fontSize: '16px' }}>settings</span>
                         Gestionar
