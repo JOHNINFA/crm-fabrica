@@ -14,8 +14,34 @@ const PaymentModal = ({
     const [fechaEntrega, setFechaEntrega] = useState("");
     const [nota, setNota] = useState("");
     const [tipoPedido, setTipoRemision] = useState("ENTREGA");
+    const [metodoPago, setMetodoPago] = useState("Efectivo");
     const [transportadora, setTransportadora] = useState("Propia");
     const [processing, setProcessing] = useState(false);
+    const [showOtrosOptions, setShowOtrosOptions] = useState(false);
+    const [banco, setBanco] = useState("Caja General");
+    const [bancos, setBancos] = useState([]);
+    const [centroCosto, setCentroCosto] = useState("");
+    const [impresion, setImpresion] = useState("Ninguna");
+    const [bodega, setBodega] = useState("Principal");
+
+    // Cargar bancos desde localStorage
+    useEffect(() => {
+        const bancosGuardados = localStorage.getItem('bancos');
+        if (bancosGuardados) {
+            const bancosList = JSON.parse(bancosGuardados);
+            const bancosActivos = bancosList.filter(b => b.activo);
+            setBancos(bancosActivos);
+            if (bancosActivos.length > 0) {
+                setBanco(bancosActivos[0].nombre);
+            }
+        } else {
+            const bancosDefault = [
+                { id: 1, nombre: 'Caja General', activo: true }
+            ];
+            setBancos(bancosDefault);
+            setBanco('Caja General');
+        }
+    }, []);
 
     // Actualizar destinatario cuando cambia el prop client
     useEffect(() => {
@@ -139,12 +165,16 @@ const PaymentModal = ({
         }
     };
 
-    // Tipos de remisión
-    const tiposPedido = [
-        { id: 'ENTREGA', label: 'Entrega', icon: 'truck' },
-        { id: 'TRASLADO', label: 'Traslado', icon: 'arrow-left-right' },
-        { id: 'DEVOLUCION', label: 'Devolución', icon: 'arrow-return-left' },
-        { id: 'MUESTRA', label: 'Muestra', icon: 'gift' }
+    // Métodos de pago
+    const metodosPago = [
+        { id: 'Efectivo', label: 'Efectivo', icon: 'currency-dollar' },
+        { id: 'Tarjeta', label: 'Tarjeta', icon: 'credit-card' },
+        { id: 'T. Crédito', label: 'T. Crédito', icon: 'credit-card-2-front' },
+        { id: 'Qr', label: 'Qr', icon: 'qr-code' },
+        { id: 'Transf', label: 'Transf', icon: 'arrow-left-right' },
+        { id: 'RAPPIPAY', label: 'RAPPIPAY', icon: 'wallet2' },
+        { id: 'Bonos', label: 'Bonos', icon: 'ticket-perforated' },
+        { id: 'Otros', label: 'Otros', icon: 'three-dots' }
     ];
 
     return (
@@ -183,15 +213,22 @@ const PaymentModal = ({
                         </div>
                     </div>
 
-                    {/* Tipos de Remisión */}
+                    {/* Métodos de Pago */}
                     <div className="payment-methods">
-                        {tiposPedido.map((tipo) => (
+                        {metodosPago.map((metodo) => (
                             <button
-                                key={tipo.id}
-                                className={`payment-method-btn ${tipoPedido === tipo.id ? 'active' : ''}`}
-                                onClick={() => setTipoRemision(tipo.id)}
+                                key={metodo.id}
+                                className={`payment-method-btn ${metodoPago === metodo.id ? 'active' : ''}`}
+                                onClick={() => {
+                                    setMetodoPago(metodo.id);
+                                    if (metodo.id === 'Otros') {
+                                        setShowOtrosOptions(true);
+                                    } else {
+                                        setShowOtrosOptions(false);
+                                    }
+                                }}
                             >
-                                <i className={`bi bi-${tipo.icon}`}></i> {tipo.label}
+                                <i className={`bi bi-${metodo.icon}`}></i> {metodo.label}
                             </button>
                         ))}
                     </div>
@@ -258,47 +295,104 @@ const PaymentModal = ({
                             </div>
                         </div>
 
-                        {/* Transportadora */}
+                        {/* Opciones adicionales - Solo visible cuando se selecciona "Otros" */}
+                        {showOtrosOptions && (
+                            <div className="form-row compact-row">
+                                <div className="form-group">
+                                    <label className="form-label compact-label">Transportadora</label>
+                                    <select
+                                        className="form-select compact-select"
+                                        value={transportadora}
+                                        onChange={(e) => setTransportadora(e.target.value)}
+                                    >
+                                        <option>Propia</option>
+                                        <option>Servientrega</option>
+                                        <option>Coordinadora</option>
+                                        <option>TCC</option>
+                                        <option>Interrapidísimo</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label compact-label">Tipo de Pedido</label>
+                                    <select
+                                        className="form-select compact-select"
+                                        value={tipoPedido}
+                                        onChange={(e) => setTipoRemision(e.target.value)}
+                                    >
+                                        <option value="ENTREGA">Entrega</option>
+                                        <option value="TRASLADO">Traslado</option>
+                                        <option value="DEVOLUCION">Devolución</option>
+                                        <option value="MUESTRA">Muestra</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Fila con Bancos y Centro de Costo */}
                         <div className="form-row compact-row">
                             <div className="form-group">
-                                <label className="form-label compact-label">Transportadora</label>
+                                <label className="form-label compact-label">Bancos</label>
                                 <select
                                     className="form-select compact-select"
-                                    value={transportadora}
-                                    onChange={(e) => setTransportadora(e.target.value)}
+                                    value={banco}
+                                    onChange={(e) => setBanco(e.target.value)}
                                 >
-                                    <option>Propia</option>
-                                    <option>Servientrega</option>
-                                    <option>Coordinadora</option>
-                                    <option>TCC</option>
-                                    <option>Interrapidísimo</option>
+                                    {bancos.length === 0 ? (
+                                        <option>Caja General</option>
+                                    ) : (
+                                        bancos.map(b => (
+                                            <option key={b.id} value={b.nombre}>{b.nombre}</option>
+                                        ))
+                                    )}
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label compact-label">Tipo de Pedido</label>
+                                <label className="form-label compact-label">Centro de Costo <i className="bi bi-info-circle"></i></label>
                                 <select
                                     className="form-select compact-select"
-                                    value={tipoPedido}
-                                    onChange={(e) => setTipoRemision(e.target.value)}
+                                    value={centroCosto}
+                                    onChange={(e) => setCentroCosto(e.target.value)}
                                 >
-                                    <option value="ENTREGA">Entrega</option>
-                                    <option value="TRASLADO">Traslado</option>
-                                    <option value="DEVOLUCION">Devolución</option>
-                                    <option value="MUESTRA">Muestra</option>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Centro 1">Centro 1</option>
                                 </select>
                             </div>
                         </div>
 
-                        {/* Resumen de productos */}
+                        {/* Fila con Resumen de Pagos, Impresión y Bodega */}
                         <div className="form-row compact-row">
                             <div className="form-group">
-                                <label className="form-label compact-label">Resumen de Productos</label>
+                                <label className="form-label compact-label">Resumen de Pagos</label>
                                 <div className="payment-summary-detail">
-                                    <div className="payment-method-amount">{cart.length} productos - $ {safeTotal.toLocaleString()}</div>
-                                    <div className="payment-bank">Entrega: {fechaEntrega}</div>
+                                    <div className="payment-method-amount">{metodoPago} - $ {safeTotal.toLocaleString()}</div>
+                                    <div className="payment-bank">{banco}</div>
                                 </div>
                             </div>
+                            <div className="form-group">
+                                <label className="form-label compact-label">Impresión</label>
+                                <select
+                                    className="form-select compact-select"
+                                    value={impresion}
+                                    onChange={(e) => setImpresion(e.target.value)}
+                                >
+                                    <option>Ninguna</option>
+                                    <option>Tirilla</option>
+                                    <option>Carta</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label compact-label">Bodega</label>
+                                <select
+                                    className="form-select compact-select"
+                                    value={bodega}
+                                    onChange={(e) => setBodega(e.target.value)}
+                                >
+                                    <option>Principal</option>
+                                    <option>Secundaria</option>
+                                </select>
+                            </div>
                         </div>
+
                     </div>
                 </div>
 

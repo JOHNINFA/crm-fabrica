@@ -16,6 +16,12 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
 
+    // Estados para drag scroll en productos
+    const productsContainerRef = useRef(null);
+    const [isDraggingProducts, setIsDraggingProducts] = useState(false);
+    const [startYProducts, setStartYProducts] = useState(0);
+    const [scrollTopProducts, setScrollTopProducts] = useState(0);
+
     // Funciones de drag scroll para categorías
     const handleMouseDown = (e) => {
         if (!categoryScrollRef.current) return;
@@ -38,6 +44,29 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
         const x = e.pageX - categoryScrollRef.current.offsetLeft;
         const walk = (x - startX) * 2;
         categoryScrollRef.current.scrollLeft = scrollLeft - walk;
+    };
+
+    // Funciones para drag scroll de productos
+    const handleMouseDownProducts = (e) => {
+        setIsDraggingProducts(true);
+        setStartYProducts(e.pageY - productsContainerRef.current.offsetTop);
+        setScrollTopProducts(productsContainerRef.current.scrollTop);
+    };
+
+    const handleMouseLeaveProducts = () => {
+        setIsDraggingProducts(false);
+    };
+
+    const handleMouseUpProducts = () => {
+        setIsDraggingProducts(false);
+    };
+
+    const handleMouseMoveProducts = (e) => {
+        if (!isDraggingProducts) return;
+        e.preventDefault();
+        const y = e.pageY - productsContainerRef.current.offsetTop;
+        const walk = (y - startYProducts) * 2;
+        productsContainerRef.current.scrollTop = scrollTopProducts - walk;
     };
 
     // Filtrar productos
@@ -109,7 +138,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                     className="category-buttons"
                     style={{
                         display: 'flex',
-                        gap: '23px',
+                        gap: '15px',
                         overflowX: 'auto',
                         overflowY: 'visible',
                         padding: '4px 0px 4px 0px',
@@ -148,12 +177,19 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
 
             {/* Lista de productos - Con scroll */}
             <div
+                ref={productsContainerRef}
                 className="card-bg mb-3 p-3"
                 style={{
-                    maxHeight: 'calc(100vh - 270px)',
+                    maxHeight: 'calc(100vh - 260px)',
                     overflowY: 'auto',
-                    overflowX: 'hidden'
+                    overflowX: 'hidden',
+                    cursor: isDraggingProducts ? 'grabbing' : 'grab',
+                    userSelect: 'none'
                 }}
+                onMouseDown={handleMouseDownProducts}
+                onMouseLeave={handleMouseLeaveProducts}
+                onMouseUp={handleMouseUpProducts}
+                onMouseMove={handleMouseMoveProducts}
             >
                 {/* Lista de productos */}
                 <div className="row g-2">

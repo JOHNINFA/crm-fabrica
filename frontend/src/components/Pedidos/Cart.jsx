@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Cart.css";
 import PaymentModal from "./PaymentModal";
@@ -25,8 +25,41 @@ export default function Cart({
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [volverGestion, setVolverGestion] = useState(false);
 
+    // Estado para drag scroll
+    const [isDragging, setIsDragging] = useState(false);
+    const [startY, setStartY] = useState(0);
+    const [scrollTop, setScrollTop] = useState(0);
+    const cartBodyRef = useRef(null);
+
     // Formatear moneda
     const formatCurrency = (amount) => `${(amount || 0).toLocaleString('es-CO')}`;
+
+    // Funciones para drag scroll
+    const handleMouseDown = (e) => {
+        if (!cartBodyRef.current) return;
+        setIsDragging(true);
+        setStartY(e.pageY - cartBodyRef.current.offsetTop);
+        setScrollTop(cartBodyRef.current.scrollTop);
+        cartBodyRef.current.style.cursor = 'grabbing';
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+        if (cartBodyRef.current) cartBodyRef.current.style.cursor = 'grab';
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        if (cartBodyRef.current) cartBodyRef.current.style.cursor = 'grab';
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging || !cartBodyRef.current) return;
+        e.preventDefault();
+        const y = e.pageY - cartBodyRef.current.offsetTop;
+        const walk = (y - startY) * 2;
+        cartBodyRef.current.scrollTop = scrollTop - walk;
+    };
 
     // Renderizar item del carrito
     const renderCartItem = (item) => (
@@ -96,21 +129,16 @@ export default function Cart({
 
     return (
         <div className="cart-container">
-            {/* Header */}
-            <div className="cart-header">
-                <h5>Carrito de Pedidos</h5>
-                <div className="cart-header-actions">
-                    <button title="Limpiar carrito">
-                        <i className="bi bi-trash"></i>
-                    </button>
-                    <button title="Opciones">
-                        <i className="bi bi-three-dots-vertical"></i>
-                    </button>
-                </div>
-            </div>
-
             {/* Body */}
-            <div className="cart-body">
+            <div
+                className="cart-body"
+                ref={cartBodyRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+                style={{ cursor: cart.length > 0 ? 'grab' : 'default' }}
+            >
                 {cart.length > 0 ? (
                     cart.map(renderCartItem)
                 ) : (
@@ -124,12 +152,19 @@ export default function Cart({
             {/* Footer */}
             <div className="cart-footer">
                 <div className="cart-summary">
-                    {renderSummaryRow("Subtotal", subtotal)}
-                    {renderSummaryRow("Impuestos", imp, true, setImp)}
-                    {renderSummaryRow("Descuento", desc, true, setDesc)}
-                    <div className="summary-row total">
-                        <span>Total</span>
-                        <span>{formatCurrency(total)}</span>
+                    <div className="summary-row-horizontal">
+                        <div className="summary-item">
+                            <span className="summary-label">Imp:</span>
+                            <span className="summary-value-inline">{formatCurrency(imp)}</span>
+                        </div>
+                        <div className="summary-item">
+                            <span className="summary-label">Desc:</span>
+                            <span className="summary-value-inline">{formatCurrency(desc)}</span>
+                        </div>
+                        <div className="summary-item">
+                            <span className="summary-label">Subtotal:</span>
+                            <span className="summary-value-inline">{formatCurrency(subtotal)}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -144,7 +179,7 @@ export default function Cart({
                 </div>
 
                 {/* Toggle para volver a gestión */}
-                <div className="d-flex align-items-center justify-content-between mb-2" style={{ fontSize: '12px' }}>
+                <div className="d-flex align-items-center justify-content-between" style={{ fontSize: '12px', marginBottom: '8px' }}>
                     <span style={{ color: '#666' }}>Volver a gestión del día</span>
                     <div className="form-check form-switch">
                         <input
@@ -161,8 +196,9 @@ export default function Cart({
                 <button
                     className="checkout-button pedidos-checkout-btn"
                     onClick={() => setShowPaymentModal(true)}
+                    style={{ marginTop: '0' }}
                 >
-                    Generar Pedido
+                    Generar Pedido ${formatCurrency(total)}
                 </button>
             </div>
 

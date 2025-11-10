@@ -273,11 +273,11 @@ label:has(+ textarea.compact-textarea) {
 .payment-method-amount {
   color: #007bff;
   font-weight: bold;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .payment-bank {
-  font-size: 8px;
+  font-size: 12px;
   color: #666;
 }
 
@@ -452,7 +452,7 @@ específico para POS - Color del monto de pago */
 .pos-screen .payment-method-amount {
   color: #007bff !important;
   font-weight: bold;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 

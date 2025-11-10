@@ -65,10 +65,17 @@ function InformePedidosContent() {
                 <Topbar />
                 <Container fluid className="p-3">
                     <Row className="mb-3">
-                        <Col>
-                            <h6 className="mb-2" style={{ fontSize: '16px', fontWeight: 'normal' }}>
+                        <Col className="d-flex justify-content-between align-items-center">
+                            <h6 className="mb-0" style={{ fontSize: '16px', fontWeight: 'normal' }}>
                                 Informe de Pedidos General
                             </h6>
+                            <button
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => window.location.href = '/remisiones'}
+                            >
+                                <i className="bi bi-arrow-left me-2"></i>
+                                Regresar a Pedidos
+                            </button>
                         </Col>
                     </Row>
 

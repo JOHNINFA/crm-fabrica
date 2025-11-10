@@ -3,22 +3,22 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from '../../assets/images/icono.png';
 import { consultarTablaProducto } from '../../utils/consultaProductos';
+import './Sidebar.css';
 
 export default function Sidebar({ onWidthChange }) {
     const navigate = useNavigate();
-    const [isExpanded, setIsExpanded] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
     const [showInformesSubmenu, setShowInformesSubmenu] = useState(false);
 
-    const shouldShowText = isExpanded || isHovered;
-    const sidebarWidth = shouldShowText ? 210 : 60;
+    // Sidebar siempre visible, se expande con hover
+    const sidebarWidth = isHovered ? 210 : 60;
 
     // Estilo para los elementos del menú
     const getMenuItemStyle = () => ({
         whiteSpace: 'nowrap',
-        paddingLeft: shouldShowText ? '12px' : '18px',  // Más padding a la izquierda cuando está colapsado
-        paddingRight: shouldShowText ? '12px' : '8px'
+        paddingLeft: isHovered ? '12px' : '18px',
+        paddingRight: isHovered ? '12px' : '8px'
     });
 
     React.useEffect(() => {
@@ -29,23 +29,25 @@ export default function Sidebar({ onWidthChange }) {
 
     return (
         <>
+            {/* Sidebar */}
             <nav
-                className="sidebar-bg d-flex flex-column align-items-start p-0"
+                className="sidebar-bg pedidos-sidebar d-flex flex-column align-items-start p-0"
                 style={{
                     width: sidebarWidth,
                     minWidth: sidebarWidth,
                     position: "fixed",
-                    zIndex: 10,
+                    zIndex: 1000,
                     left: 0,
                     top: 0,
                     bottom: 0,
                     height: '100vh',
-                    transition: 'width 0.3s ease',
+                    transition: 'width 0.3s ease'
                 }}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                <div className="w-100 d-flex align-items-center justify-content-center border-bottom" style={{ height: '60px', paddingTop: '6px', paddingBottom: '6px', backgroundColor: '#ffffff' }}>
+                {/* Logo en la parte superior */}
+                <div className="w-100 d-flex align-items-center justify-content-center" style={{ height: '60px', paddingTop: '2px', paddingBottom: '2px', backgroundColor: '#ffffff' }}>
                     <img
                         src={logo}
                         alt="Logo"
@@ -58,21 +60,21 @@ export default function Sidebar({ onWidthChange }) {
                 </div>
 
                 <div className="w-100 flex-grow-1" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
-                    <ul className="nav flex-column w-100 mt-3">
-                        {/* Inicio primero */}
+                    <ul className="nav flex-column w-100 mt-3" >
+                        {/* Inicio */}
                         <li
                             className="nav-item sidebar-item py-2"
                             onClick={() => navigate('/')}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>home</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Inicio</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Inicio</span>}
                         </li>
 
                         {/* Pedidos - ACTIVO */}
                         <li className="nav-item sidebar-item py-2 active" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>file_copy</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Pedidos</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Pedidos</span>}
                         </li>
 
 
@@ -87,21 +89,18 @@ export default function Sidebar({ onWidthChange }) {
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Productos</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Productos</span>}
                         </li>
 
                         {/* Lista de precios con submenu */}
                         <li
                             className="nav-item sidebar-item py-2"
-                            onClick={() => {
-                                setShowPreciosSubmenu(!showPreciosSubmenu);
-                                if (!showPreciosSubmenu) setIsExpanded(true);
-                            }}
+                            onClick={() => setShowPreciosSubmenu(!showPreciosSubmenu)}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>attach_money</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Precios</span>}
-                            {shouldShowText && (
+                            {isHovered && <span style={{ fontSize: '14px' }}>Precios</span>}
+                            {isHovered && (
                                 <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
                                     {showPreciosSubmenu ? 'expand_less' : 'expand_more'}
                                 </span>
@@ -109,7 +108,7 @@ export default function Sidebar({ onWidthChange }) {
                         </li>
 
                         {/* Submenu de Lista de precios */}
-                        {showPreciosSubmenu && isExpanded && (
+                        {showPreciosSubmenu && isHovered && (
                             <>
                                 <li
                                     className="nav-item sidebar-item py-1"
@@ -138,27 +137,24 @@ export default function Sidebar({ onWidthChange }) {
 
                         <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>keyboard_double_arrow_down</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Ingresos</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Ingresos</span>}
                         </li>
                         <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>upload</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Gastos</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Gastos</span>}
                         </li>
                         <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>balance</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Inventarios</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Inventarios</span>}
                         </li>
                         <li
                             className="nav-item sidebar-item py-2"
-                            onClick={() => {
-                                setShowInformesSubmenu(!showInformesSubmenu);
-                                if (!showInformesSubmenu) setIsExpanded(true);
-                            }}
+                            onClick={() => setShowInformesSubmenu(!showInformesSubmenu)}
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>assessment</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Informes</span>}
-                            {shouldShowText && (
+                            {isHovered && <span style={{ fontSize: '14px' }}>Informes</span>}
+                            {isHovered && (
                                 <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
                                     {showInformesSubmenu ? 'expand_less' : 'expand_more'}
                                 </span>
@@ -166,7 +162,7 @@ export default function Sidebar({ onWidthChange }) {
                         </li>
 
                         {/* Submenu de Informes */}
-                        {showInformesSubmenu && isExpanded && (
+                        {showInformesSubmenu && isHovered && (
                             <>
                                 <li
                                     className="nav-item sidebar-item py-1"
@@ -209,7 +205,7 @@ export default function Sidebar({ onWidthChange }) {
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Gestión de Pedidos</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Gestión de Pedidos</span>}
                         </li>
                         <li
                             className="nav-item sidebar-item py-2"
@@ -217,7 +213,7 @@ export default function Sidebar({ onWidthChange }) {
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Clientes</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Clientes</span>}
                         </li>
                         <li
                             className="nav-item sidebar-item py-2"
@@ -225,27 +221,15 @@ export default function Sidebar({ onWidthChange }) {
                             style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                         >
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>badge</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Vendedores</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Vendedores</span>}
                         </li>
                         <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person_search</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Proveedores</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Proveedores</span>}
                         </li>
                         <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>account_balance</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Bancos</span>}
-                        </li>
-                        <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>calculate</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Contabilidad</span>}
-                        </li>
-                        <li
-                            className="nav-item sidebar-item py-2"
-                            onClick={() => consultarTablaProducto()}
-                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-                        >
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>table_chart</span>
-                            {shouldShowText && <span style={{ fontSize: '14px' }}>Consultar API</span>}
+                            {isHovered && <span style={{ fontSize: '14px' }}>Bancos</span>}
                         </li>
                     </ul>
                 </div>

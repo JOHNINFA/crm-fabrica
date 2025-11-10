@@ -185,9 +185,6 @@ function PedidosMainContent() {
                                 <div
                                     className="card-bg mb-3 p-0"
                                     style={{
-                                        position: 'sticky',
-                                        top: '70px',
-                                        alignSelf: 'flex-start',
                                         overflow: 'visible'
                                     }}
                                 >
