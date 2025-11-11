@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, ConfiguracionImpresion
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -613,4 +613,20 @@ class VendedorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendedor
         fields = ['id_vendedor', 'nombre', 'ruta', 'activo', 'fecha_creacion', 'fecha_actualizacion']
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+
+class ConfiguracionImpresionSerializer(serializers.ModelSerializer):
+    """Serializer para configuración de impresión de tickets"""
+    
+    class Meta:
+        model = ConfiguracionImpresion
+        fields = [
+            'id', 'nombre_negocio', 'nit_negocio', 'direccion_negocio',
+            'telefono_negocio', 'email_negocio', 'encabezado_ticket',
+            'pie_pagina_ticket', 'mensaje_agradecimiento', 'logo',
+            'ancho_papel', 'mostrar_logo', 'mostrar_codigo_barras',
+            'impresora_predeterminada', 'resolucion_facturacion',
+            'regimen_tributario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
+        ]
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')

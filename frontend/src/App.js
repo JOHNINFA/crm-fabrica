@@ -27,6 +27,7 @@ import CajerosScreen from './pages/CajerosScreen';
 import OtrosScreen from './pages/OtrosScreen';
 import ProductFormScreen from './pages/ProductFormScreen';
 import ConfiguracionScreen from './pages/ConfiguracionScreen';
+import ConfiguracionImpresionScreen from './pages/ConfiguracionImpresionScreen';
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
           <Route path="/cajeros" element={<CajerosScreen />} />
           <Route path="/otros" element={<OtrosScreen />} />
           <Route path="/configuracion" element={<ConfiguracionScreen />} />
+          <Route path="/configuracion/impresion" element={<ConfiguracionImpresionScreen />} />
           </Routes>
           </div>
         </Router>

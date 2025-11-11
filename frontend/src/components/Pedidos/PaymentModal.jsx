@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { pedidoService } from '../../services/api';
+import TicketPreviewModal from '../Print/TicketPreviewModal';
 import './PaymentModal.css';
 
 const PaymentModal = ({
@@ -23,6 +24,8 @@ const PaymentModal = ({
     const [centroCosto, setCentroCosto] = useState("");
     const [impresion, setImpresion] = useState("Ninguna");
     const [bodega, setBodega] = useState("Principal");
+    const [pedidoCreado, setPedidoCreado] = useState(null);
+    const [showTicketModal, setShowTicketModal] = useState(false);
 
     // Cargar bancos desde localStorage
     useEffect(() => {
@@ -129,30 +132,12 @@ const PaymentModal = ({
 
             if (result && !result.error) {
                 console.log('✅ Pedido creado exitosamente:', result);
-                alert(`¡Pedido generado exitosamente!\nNúmero: ${result.numero_pedido}\nDestinatario: ${destinatario}\nTotal: ${safeTotal.toLocaleString()}`);
 
-                // Resetear estados del modal
-                setDestinatario("DESTINATARIO GENERAL");
-                setDireccionEntrega("");
-                setTelefonoContacto("");
-                const mañana = new Date();
-                mañana.setDate(mañana.getDate() + 1);
-                setFechaEntrega(mañana.toISOString().split('T')[0]);
-                setNota("");
-                setTipoRemision("ENTREGA");
-                setTransportadora("Propia");
+                // Guardar el pedido creado para poder imprimir
+                setPedidoCreado(result);
 
-                // Resetear formulario completo y cerrar modal
-                resetForm();
-                onClose();
-
-                // Si el toggle está activado, navegar a gestión del día
-                if (volverGestion && date && navigate) {
-                    const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-                    const fechaObj = new Date(date + 'T00:00:00');
-                    const dia = diasSemana[fechaObj.getDay()];
-                    navigate(`/pedidos/${dia}?fecha=${date}`);
-                }
+                // NO cerrar el modal ni resetear todavía
+                // El usuario decidirá si imprimir o cerrar
             } else {
                 console.error('❌ Error al crear pedido:', result);
                 alert('Error al generar el pedido. Intente nuevamente.');
@@ -398,26 +383,109 @@ const PaymentModal = ({
 
                 {/* Botones */}
                 <div className="payment-modal-footer">
-                    <button className="btn btn-outline-secondary" onClick={onClose}>
-                        <i className="bi bi-x-lg"></i> Cancelar
-                    </button>
-                    <button
-                        className="btn btn-primary pedidos-payment-confirm-btn"
-                        onClick={handleSubmit}
-                        disabled={processing || cart.length === 0}
-                    >
-                        {processing ? (
-                            <>
-                                <i className="bi bi-hourglass-split"></i> Generando...
-                            </>
-                        ) : (
-                            <>
-                                <i className="bi bi-check-lg"></i> Generar Pedido
-                            </>
-                        )}
-                    </button>
+                    {!pedidoCreado ? (
+                        <>
+                            <button className="btn btn-outline-secondary" onClick={onClose}>
+                                <i className="bi bi-x-lg"></i> Cancelar
+                            </button>
+                            <button
+                                className="btn btn-primary pedidos-payment-confirm-btn"
+                                onClick={handleSubmit}
+                                disabled={processing || cart.length === 0}
+                            >
+                                {processing ? (
+                                    <>
+                                        <i className="bi bi-hourglass-split"></i> Generando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-check-lg"></i> Generar Pedido
+                                    </>
+                                )}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            {/* Mensaje de éxito */}
+                            <div className="venta-success-message">
+                                <i className="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>
+                                    ¡Pedido generado exitosamente!<br />
+                                    <strong>Número: {pedidoCreado.numero_pedido}</strong><br />
+                                    Destinatario: {destinatario}<br />
+                                    Total: ${safeTotal.toLocaleString()}
+                                </span>
+                            </div>
+
+                            {/* Botones después de crear el pedido */}
+                            <button
+                                className="btn btn-success"
+                                onClick={() => setShowTicketModal(true)}
+                            >
+                                <i className="bi bi-printer me-2"></i>
+                                Imprimir Tirilla
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    // Resetear estados del modal
+                                    setDestinatario("DESTINATARIO GENERAL");
+                                    setDireccionEntrega("");
+                                    setTelefonoContacto("");
+                                    const mañana = new Date();
+                                    mañana.setDate(mañana.getDate() + 1);
+                                    setFechaEntrega(mañana.toISOString().split('T')[0]);
+                                    setNota("");
+                                    setTipoRemision("ENTREGA");
+                                    setTransportadora("Propia");
+                                    setPedidoCreado(null);
+
+                                    // Resetear formulario completo y cerrar modal
+                                    resetForm();
+                                    onClose();
+
+                                    // Si el toggle está activado, navegar a gestión del día
+                                    if (volverGestion && date && navigate) {
+                                        const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+                                        const fechaObj = new Date(date + 'T00:00:00');
+                                        const dia = diasSemana[fechaObj.getDay()];
+                                        navigate(`/pedidos/${dia}?fecha=${date}`);
+                                    }
+                                }}
+                            >
+                                <i className="bi bi-check-lg me-2"></i>
+                                Cerrar
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
+
+            {/* Modal de vista previa del ticket */}
+            {pedidoCreado && (
+                <TicketPreviewModal
+                    show={showTicketModal}
+                    onClose={() => setShowTicketModal(false)}
+                    ticketData={{
+                        tipo: 'pedido',
+                        numero: pedidoCreado.numero_pedido,
+                        fecha: pedidoCreado.fecha,
+                        cliente: destinatario,
+                        vendedor: seller,
+                        items: cart,
+                        subtotal: subtotal,
+                        impuestos: impuestos,
+                        descuentos: descuentos,
+                        total: safeTotal,
+                        direccionEntrega: direccionEntrega,
+                        telefonoContacto: telefonoContacto,
+                        fechaEntrega: fechaEntrega,
+                        tipoPedido: tipoPedido,
+                        transportadora: transportadora,
+                        nota: nota
+                    }}
+                />
+            )}
         </div>
     );
 };

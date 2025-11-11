@@ -7,7 +7,7 @@ from .views import (
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
     VendedorViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
-    PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet
+    PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet
 )
 
 router = DefaultRouter()
@@ -52,5 +52,8 @@ router.register(r'movimientos-caja', MovimientoCajaViewSet, basename='movimiento
 # ===== APIs PARA SISTEMA DE PEDIDOS =====
 router.register(r'pedidos', PedidoViewSet, basename='pedido')
 router.register(r'detalle-pedidos', DetallePedidoViewSet, basename='detalle-pedido')
+
+# ===== API PARA CONFIGURACIÓN DE IMPRESIÓN =====
+router.register(r'configuracion-impresion', ConfiguracionImpresionViewSet, basename='configuracion-impresion')
 
 urlpatterns = router.urls

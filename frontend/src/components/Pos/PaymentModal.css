@@ -535,3 +535,37 @@ específico para POS - Color del monto de pago */
   box-shadow: none !important;
   transform: none !important;
 }
+
+/* Est
+ilos para mensaje de éxito después de crear venta */
+.venta-success-message {
+  flex: 1;
+  background: #d4edda;
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #155724;
+}
+
+.venta-success-message i {
+  font-size: 24px;
+}
+
+.venta-success-message span {
+  line-height: 1.5;
+}
+
+.venta-success-message strong {
+  color: #0c5128;
+  font-size: 15px;
+}
+
+.payment-modal-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}

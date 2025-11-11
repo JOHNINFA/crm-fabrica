@@ -619,6 +619,49 @@ class CargueID3(models.Model):
     def __str__(self):
         return f"ID3 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
 
+class ConfiguracionImpresion(models.Model):
+    """Modelo para configuración de impresión de tickets"""
+    
+    ANCHO_PAPEL_CHOICES = [
+        ('58mm', '58mm'),
+        ('80mm', '80mm'),
+    ]
+    
+    # Información del negocio
+    nombre_negocio = models.CharField(max_length=255, default='MI NEGOCIO')
+    nit_negocio = models.CharField(max_length=50, blank=True, null=True)
+    direccion_negocio = models.TextField(blank=True, null=True)
+    telefono_negocio = models.CharField(max_length=100, blank=True, null=True)
+    email_negocio = models.EmailField(blank=True, null=True)
+    
+    # Textos personalizables
+    encabezado_ticket = models.TextField(blank=True, null=True, help_text='Texto que aparece al inicio del ticket')
+    pie_pagina_ticket = models.TextField(blank=True, null=True, help_text='Texto que aparece al final del ticket')
+    mensaje_agradecimiento = models.CharField(max_length=255, default='¡Gracias por su compra!')
+    
+    # Configuración de impresión
+    logo = models.ImageField(upload_to='configuracion/', null=True, blank=True)
+    ancho_papel = models.CharField(max_length=10, choices=ANCHO_PAPEL_CHOICES, default='80mm')
+    mostrar_logo = models.BooleanField(default=True)
+    mostrar_codigo_barras = models.BooleanField(default=False)
+    impresora_predeterminada = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Información adicional
+    resolucion_facturacion = models.CharField(max_length=255, blank=True, null=True)
+    regimen_tributario = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Control
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Configuración de Impresión'
+        verbose_name_plural = 'Configuraciones de Impresión'
+    
+    def __str__(self):
+        return f"Configuración de Impresión - {self.nombre_negocio}"
+
 class CargueID4(models.Model):
     """Modelo simplificado para cargue ID4 - Toda la información en una tabla"""
     

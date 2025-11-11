@@ -526,11 +526,29 @@ export const UnifiedProductProvider = ({ children }) => {
             console.log('🚀 Inicializando contexto unificado de productos...');
             setIsInitialLoading(true);
 
-            // No sincronizar al cargar para evitar salto visual
-            // await loadFromBackend();
+            // 1. Cargar PRIMERO desde localStorage (instantáneo)
+            const localProducts = getFromLocalStorage('products', []);
+            const localCategories = getFromLocalStorage('categories', ['General', 'Servicios']);
 
-            setIsInitialLoading(false);
-            console.log('✅ Contexto unificado inicializado (sin sync inicial)');
+            if (localProducts.length > 0) {
+                console.log(`⚡ ${localProducts.length} productos cargados desde caché local`);
+                setProducts(localProducts);
+                setCategories(localCategories);
+                setIsInitialLoading(false);
+
+                // 2. Sincronizar con backend en segundo plano (sin bloquear UI)
+                setTimeout(() => {
+                    console.log('🔄 Sincronizando con backend en segundo plano...');
+                    loadFromBackend();
+                }, 100);
+            } else {
+                // Si no hay caché, cargar desde backend
+                console.log('📡 No hay caché local, cargando desde backend...');
+                await loadFromBackend();
+                setIsInitialLoading(false);
+            }
+
+            console.log('✅ Contexto unificado inicializado');
         };
 
         initialize();

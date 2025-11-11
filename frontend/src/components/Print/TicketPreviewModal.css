@@ -1,0 +1,96 @@
+/* Estilos para el modal de vista previa */
+
+.ticket-preview-modal {
+    z-index: 10100 !important;
+}
+
+.ticket-preview-modal .modal-backdrop {
+    z-index: 10099 !important;
+}
+
+.ticket-preview-modal .modal-dialog {
+    max-width: 500px;
+    z-index: 10100;
+}
+
+.ticket-preview-modal .modal-content {
+    z-index: 10100;
+}
+
+.ticket-preview-modal .modal-body {
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+.preview-container {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.ticket-preview-modal .modal-footer {
+    border-top: 1px solid #dee2e6;
+    padding: 15px;
+}
+
+/* Ocultar el footer al imprimir */
+@media print {
+
+    /* Ocultar todo excepto el ticket */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Hacer visible solo el modal y su contenido */
+    .ticket-preview-modal,
+    .ticket-preview-modal * {
+        visibility: visible;
+    }
+
+    /* Ocultar header y footer del modal */
+    .ticket-preview-modal .modal-header,
+    .ticket-preview-modal .modal-footer,
+    .no-print {
+        display: none !important;
+    }
+
+    /* Posicionar el modal para impresión */
+    .ticket-preview-modal .modal-dialog {
+        position: absolute;
+        left: 0;
+        top: 0;
+        max-width: 100%;
+        margin: 0;
+        width: 80mm;
+    }
+
+    .ticket-preview-modal .modal-content {
+        border: none;
+        box-shadow: none;
+        background: white;
+    }
+
+    .ticket-preview-modal .modal-body {
+        padding: 0;
+        background: white;
+    }
+
+    .preview-container {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        max-height: none;
+        overflow: visible;
+        background: white;
+    }
+
+    /* Asegurar que el ticket sea visible */
+    .ticket-container,
+    .ticket-container * {
+        visibility: visible !important;
+    }
+}

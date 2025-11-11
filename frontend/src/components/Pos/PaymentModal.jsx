@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ventaService } from '../../services/api';
 import './PaymentModal.css';
 
@@ -17,6 +17,7 @@ const PaymentModal = ({
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [processing, setProcessing] = useState(false);
   const [showNotaModal, setShowNotaModal] = useState(false);
+
 
   // Cargar bancos desde localStorage
   useEffect(() => {
@@ -114,9 +115,35 @@ const PaymentModal = ({
 
       if (result && !result.error) {
         console.log('✅ Venta creada exitosamente:', result);
+
+        // Verificar si debe imprimir automáticamente
+        if (impresion === 'Tirilla' || impresion === 'Carta') {
+          // Preparar datos del ticket
+          const ticketData = {
+            tipo: 'venta',
+            numero: result.numero_factura,
+            fecha: result.fecha,
+            cliente: client,
+            vendedor: seller,
+            items: cart,
+            subtotal: subtotal,
+            impuestos: impuestos,
+            descuentos: descuentos,
+            total: safeTotal,
+            metodoPago: metodoPago,
+            dineroEntregado: entregado,
+            devuelta: devuelta,
+            formatoImpresion: impresion // 'Tirilla' o 'Carta'
+          };
+
+          // Imprimir automáticamente
+          imprimirTicket(ticketData);
+        }
+
+        // Mostrar mensaje de éxito
         alert(`¡Venta procesada exitosamente!\nFactura: ${result.numero_factura}\nTotal: $${safeTotal.toLocaleString()}`);
 
-        // Limpiar carrito y cerrar modal
+        // Limpiar y cerrar
         clearCart();
         onClose();
       } else {
@@ -146,6 +173,248 @@ const PaymentModal = ({
   // Función para actualizar el dinero entregado al valor del total
   const setDineroExacto = () => {
     setEntregado(safeTotal);
+  };
+
+  // Función para imprimir el ticket
+  const imprimirTicket = (ticketData) => {
+    const { formatoImpresion } = ticketData;
+    const anchoPapel = formatoImpresion === 'Tirilla' ? '80mm' : '210mm'; // Tirilla = 80mm, Carta = A4
+
+    // Crear el HTML del ticket
+    const ticketHTML = generarHTMLTicket(ticketData, anchoPapel);
+
+    // Abrir ventana de impresión
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+    if (!printWindow) {
+      alert('Por favor, permite las ventanas emergentes para imprimir');
+      return;
+    }
+
+    printWindow.document.write(ticketHTML);
+    printWindow.document.close();
+
+    // Esperar a que cargue y luego imprimir
+    printWindow.onload = function () {
+      printWindow.focus();
+      printWindow.print();
+    };
+  };
+
+  // Función para generar el HTML del ticket
+  const generarHTMLTicket = (data, anchoPapel) => {
+    const formatCurrency = (amount) => `$${parseFloat(amount || 0).toLocaleString('es-CO')}`;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Ticket - ${data.numero}</title>
+        <style>
+          @page {
+            size: ${anchoPapel} auto;
+            margin: 0;
+          }
+          
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            margin: 0;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: white;
+            color: black;
+          }
+          
+          .ticket-container {
+            width: ${anchoPapel};
+            max-width: ${anchoPapel};
+            margin: 0 auto;
+            padding: 5mm;
+            background: white;
+            color: black;
+          }
+          
+          .ticket-header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          
+          .ticket-business-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px 0;
+            text-transform: uppercase;
+          }
+          
+          .ticket-divider {
+            text-align: center;
+            margin: 8px 0;
+            font-size: 10px;
+          }
+          
+          .ticket-info p {
+            margin: 3px 0;
+            font-size: 11px;
+            line-height: 1.4;
+          }
+          
+          .ticket-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin: 10px 0;
+          }
+          
+          .ticket-table th {
+            text-align: left;
+            border-bottom: 1px dashed #000;
+            padding: 3px 2px;
+            font-weight: bold;
+          }
+          
+          .ticket-table td {
+            padding: 3px 2px;
+            vertical-align: top;
+          }
+          
+          .ticket-table th:first-child,
+          .ticket-table td:first-child {
+            width: 30px;
+            text-align: center;
+          }
+          
+          .ticket-table th:last-child,
+          .ticket-table td:last-child {
+            width: 60px;
+            text-align: right;
+          }
+          
+          .ticket-totals {
+            margin: 10px 0;
+            font-size: 11px;
+          }
+          
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+          }
+          
+          .total-final {
+            font-size: 13px;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px dashed #000;
+            font-weight: bold;
+          }
+          
+          .ticket-payment {
+            margin: 10px 0;
+            font-size: 11px;
+          }
+          
+          .ticket-footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 11px;
+          }
+          
+          @media print {
+            body {
+              padding: 0;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="ticket-container">
+          <div class="ticket-header">
+            <div class="ticket-business-name">MI NEGOCIO</div>
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-info">
+            <p><strong>FACTURA:</strong> ${data.numero}</p>
+            <p><strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-CO')}</p>
+            <p><strong>Cliente:</strong> ${data.cliente}</p>
+            <p><strong>Vendedor:</strong> ${data.vendedor}</p>
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <table class="ticket-table">
+            <thead>
+              <tr>
+                <th>Cant</th>
+                <th>Producto</th>
+                <th>P.Unit</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.items.map(item => `
+                <tr>
+                  <td>${item.qty}</td>
+                  <td>${item.name}</td>
+                  <td>${formatCurrency(item.price)}</td>
+                  <td>${formatCurrency(item.qty * item.price)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-totals">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(data.subtotal)}</span>
+            </div>
+            ${data.impuestos > 0 ? `
+              <div class="total-row">
+                <span>Impuestos:</span>
+                <span>${formatCurrency(data.impuestos)}</span>
+              </div>
+            ` : ''}
+            ${data.descuentos > 0 ? `
+              <div class="total-row">
+                <span>Descuentos:</span>
+                <span>${formatCurrency(data.descuentos)}</span>
+              </div>
+            ` : ''}
+            <div class="total-row total-final">
+              <span><strong>TOTAL:</strong></span>
+              <span><strong>${formatCurrency(data.total)}</strong></span>
+            </div>
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-payment">
+            <p><strong>Método de Pago:</strong> ${data.metodoPago}</p>
+            ${data.dineroEntregado > 0 ? `
+              <p><strong>Efectivo Recibido:</strong> ${formatCurrency(data.dineroEntregado)}</p>
+              <p><strong>Cambio:</strong> ${formatCurrency(data.devuelta)}</p>
+            ` : ''}
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-footer">
+            <p><strong>¡Gracias por su compra!</strong></p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   };
 
   return (

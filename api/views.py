@@ -8,13 +8,13 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja, ArqueoCaja
+from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -1671,6 +1671,57 @@ class ArqueoCajaViewSet(viewsets.ModelViewSet):
             
             return Response(estadisticas)
             
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# ========================================
+# VIEWSET PARA CONFIGURACIÓN DE IMPRESIÓN
+# ========================================
+
+class ConfiguracionImpresionViewSet(viewsets.ModelViewSet):
+    """ViewSet para configuración de impresión de tickets"""
+    queryset = ConfiguracionImpresion.objects.all()
+    serializer_class = ConfiguracionImpresionSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        """Obtener configuración activa"""
+        queryset = ConfiguracionImpresion.objects.filter(activo=True)
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def activa(self, request):
+        """Obtener la configuración activa (solo una)"""
+        try:
+            config = ConfiguracionImpresion.objects.filter(activo=True).first()
+            if config:
+                serializer = self.get_serializer(config)
+                return Response(serializer.data)
+            else:
+                # Retornar configuración por defecto si no existe
+                return Response({
+                    'id': None,
+                    'nombre_negocio': 'MI NEGOCIO',
+                    'nit_negocio': '',
+                    'direccion_negocio': '',
+                    'telefono_negocio': '',
+                    'email_negocio': '',
+                    'encabezado_ticket': '',
+                    'pie_pagina_ticket': '',
+                    'mensaje_agradecimiento': '¡Gracias por su compra!',
+                    'logo': None,
+                    'ancho_papel': '80mm',
+                    'mostrar_logo': True,
+                    'mostrar_codigo_barras': False,
+                    'impresora_predeterminada': '',
+                    'resolucion_facturacion': '',
+                    'regimen_tributario': '',
+                    'activo': True
+                })
         except Exception as e:
             return Response(
                 {'error': str(e)},

@@ -26,6 +26,14 @@ const OtrosScreen = () => {
             action: () => setActiveModule('usuarios')
         },
         {
+            id: 'impresion',
+            title: 'Configuración de Impresión',
+            description: 'Configurar tickets, logo y datos del negocio',
+            icon: 'print',
+            color: 'warning',
+            route: '/configuracion/impresion'
+        },
+        {
             id: 'configuracion',
             title: 'Configuración',
             description: 'Configuraciones generales del sistema',

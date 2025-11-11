@@ -953,3 +953,128 @@ export const pedidoService = {
   }
 };
 
+
+
+// ========================================
+// SERVICIO PARA CONFIGURACIÓN DE IMPRESIÓN
+// ========================================
+
+export const configuracionImpresionService = {
+  // Obtener configuración activa
+  getActiva: async () => {
+    try {
+      const response = await fetch(`${API_URL}/configuracion-impresion/activa/`);
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error al obtener configuración de impresión:', error);
+      // Retornar configuración por defecto
+      return {
+        id: null,
+        nombre_negocio: 'MI NEGOCIO',
+        nit_negocio: '',
+        direccion_negocio: '',
+        telefono_negocio: '',
+        email_negocio: '',
+        encabezado_ticket: '',
+        pie_pagina_ticket: '',
+        mensaje_agradecimiento: '¡Gracias por su compra!',
+        logo: null,
+        ancho_papel: '80mm',
+        mostrar_logo: true,
+        mostrar_codigo_barras: false,
+        impresora_predeterminada: '',
+        resolucion_facturacion: '',
+        regimen_tributario: '',
+        activo: true
+      };
+    }
+  },
+
+  // Obtener todas las configuraciones
+  getAll: async () => {
+    try {
+      const response = await fetch(`${API_URL}/configuracion-impresion/`);
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error al obtener configuraciones:', error);
+      return [];
+    }
+  },
+
+  // Crear nueva configuración
+  create: async (configData) => {
+    try {
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      Object.keys(configData).forEach(key => {
+        if (key !== 'logo' && configData[key] !== null && configData[key] !== undefined) {
+          formData.append(key, configData[key]);
+        }
+      });
+      
+      // Agregar logo si existe
+      if (configData.logo && configData.logo instanceof File) {
+        formData.append('logo', configData.logo);
+      }
+      
+      const response = await fetch(`${API_URL}/configuracion-impresion/`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error al crear configuración:', error);
+      return { error: true, message: error.message };
+    }
+  },
+
+  // Actualizar configuración existente
+  update: async (id, configData) => {
+    try {
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      Object.keys(configData).forEach(key => {
+        if (key !== 'logo' && configData[key] !== null && configData[key] !== undefined) {
+          formData.append(key, configData[key]);
+        }
+      });
+      
+      // Agregar logo si existe y es un archivo nuevo
+      if (configData.logo && configData.logo instanceof File) {
+        formData.append('logo', configData.logo);
+      }
+      
+      const response = await fetch(`${API_URL}/configuracion-impresion/${id}/`, {
+        method: 'PUT',
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Error al actualizar configuración:', error);
+      return { error: true, message: error.message };
+    }
+  },
+
+  // Eliminar configuración
+  delete: async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/configuracion-impresion/${id}/`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error al eliminar configuración:', error);
+      return { error: true, message: error.message };
+    }
+  }
+};

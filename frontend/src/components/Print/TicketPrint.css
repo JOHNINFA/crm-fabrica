@@ -1,0 +1,235 @@
+/* Estilos para impresión de tickets térmicos */
+
+.ticket-container {
+    width: 100%;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: white;
+    color: black;
+}
+
+.ticket-content {
+    width: 100%;
+}
+
+/* ENCABEZADO */
+.ticket-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.ticket-logo {
+    max-width: 120px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.ticket-business-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 5px 0;
+    text-transform: uppercase;
+}
+
+.ticket-nit,
+.ticket-address,
+.ticket-phone,
+.ticket-email,
+.ticket-regimen,
+.ticket-resolucion,
+.ticket-custom-header {
+    margin: 2px 0;
+    font-size: 11px;
+}
+
+/* DIVISOR */
+.ticket-divider {
+    text-align: center;
+    margin: 8px 0;
+    font-size: 10px;
+    overflow: hidden;
+}
+
+/* INFORMACIÓN DEL DOCUMENTO */
+.ticket-info {
+    margin: 10px 0;
+    font-size: 11px;
+}
+
+.ticket-info p {
+    margin: 3px 0;
+    line-height: 1.4;
+}
+
+/* TABLA DE PRODUCTOS */
+.ticket-items {
+    margin: 10px 0;
+}
+
+.ticket-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+}
+
+.ticket-table th {
+    text-align: left;
+    border-bottom: 1px dashed #000;
+    padding: 3px 2px;
+    font-weight: bold;
+}
+
+.ticket-table td {
+    padding: 3px 2px;
+    vertical-align: top;
+}
+
+.ticket-table .item-name {
+    max-width: 120px;
+    word-wrap: break-word;
+}
+
+.ticket-table th:first-child,
+.ticket-table td:first-child {
+    width: 30px;
+    text-align: center;
+}
+
+.ticket-table th:last-child,
+.ticket-table td:last-child {
+    width: 60px;
+    text-align: right;
+}
+
+.ticket-table th:nth-child(3),
+.ticket-table td:nth-child(3) {
+    width: 60px;
+    text-align: right;
+}
+
+/* TOTALES */
+.ticket-totals {
+    margin: 10px 0;
+    font-size: 11px;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+}
+
+.total-final {
+    font-size: 13px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed #000;
+}
+
+/* INFORMACIÓN DE PAGO */
+.ticket-payment {
+    margin: 10px 0;
+    font-size: 11px;
+}
+
+.ticket-payment p {
+    margin: 3px 0;
+}
+
+/* NOTA */
+.ticket-note {
+    margin: 10px 0;
+    font-size: 10px;
+}
+
+.ticket-note p {
+    margin: 3px 0;
+}
+
+/* PIE DE PÁGINA */
+.ticket-footer {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 11px;
+}
+
+.ticket-thanks {
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.ticket-custom-footer {
+    margin: 5px 0;
+    font-size: 10px;
+}
+
+.ticket-barcode {
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+/* ESTILOS PARA IMPRESIÓN */
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: white;
+    }
+
+    .ticket-container {
+        width: 80mm;
+        max-width: 80mm;
+        margin: 0;
+        padding: 5mm;
+        background: white;
+        position: relative;
+    }
+
+    /* Evitar saltos de página */
+    .ticket-content {
+        page-break-inside: avoid;
+    }
+
+    /* Ocultar botones y elementos de UI */
+    button,
+    .no-print,
+    .modal-header,
+    .modal-footer {
+        display: none !important;
+    }
+}
+
+/* Variante para papel de 58mm */
+.ticket-container.paper-58mm {
+    max-width: 58mm;
+    font-size: 10px;
+}
+
+.ticket-container.paper-58mm .ticket-business-name {
+    font-size: 14px;
+}
+
+.ticket-container.paper-58mm .ticket-table {
+    font-size: 9px;
+}
+
+.ticket-container.paper-58mm .ticket-logo {
+    max-width: 80px;
+}
+
+@media print {
+    .ticket-container.paper-58mm {
+        width: 58mm;
+        max-width: 58mm;
+    }
+}
