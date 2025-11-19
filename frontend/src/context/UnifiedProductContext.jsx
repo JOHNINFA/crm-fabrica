@@ -325,10 +325,10 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const deleteProduct = useCallback(async (productId) => {
         try {
-            console.log('🗑️ Eliminando producto:', productId);
+            console.log('🗑️ Eliminando producto FÍSICAMENTE:', productId);
 
-            // Marcar como inactivo en backend
-            await productoService.update(productId, { activo: false });
+            // 🔥 ELIMINAR FÍSICAMENTE del backend (DELETE)
+            await productoService.delete(productId);
 
             // Eliminar del estado local
             const updatedProducts = products.filter(p => p.id !== productId);
@@ -336,7 +336,7 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('✅ Producto eliminado de todos los módulos');
+            console.log('✅ Producto eliminado PERMANENTEMENTE de la BD');
             return true;
         } catch (error) {
             console.error('❌ Error eliminando producto:', error);

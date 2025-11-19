@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, ConfiguracionImpresion
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, ConfiguracionImpresion
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -7,19 +7,29 @@ class CategoriaSerializer(serializers.ModelSerializer):
         model = Categoria
         fields = ['id', 'nombre']
 
+class StockSerializer(serializers.ModelSerializer):
+    """Serializer para stock de productos"""
+    producto_id = serializers.IntegerField(source='producto.id', read_only=True)
+    
+    class Meta:
+        model = Stock
+        fields = ['producto', 'producto_id', 'producto_nombre', 'producto_descripcion', 'cantidad_actual', 'fecha_actualizacion']
+        read_only_fields = ('fecha_actualizacion', 'producto_nombre', 'producto_descripcion')
+
 class ProductoSerializer(serializers.ModelSerializer):
     """Serializer para productos"""
     categoria_nombre = serializers.ReadOnlyField(source='categoria.nombre')
+    stock_actual = serializers.IntegerField(read_only=True)
     
     class Meta:
         model = Producto
         fields = [
             'id', 'nombre', 'descripcion', 'precio', 'precio_compra', 
-            'stock_total', 'categoria', 'categoria_nombre', 'imagen', 
+            'stock_total', 'stock_actual', 'categoria', 'categoria_nombre', 'imagen', 
             'codigo_barras', 'marca', 'impuesto', 'orden', 'ubicacion_inventario',
             'fecha_creacion', 'activo'
         ]
-        read_only_fields = ('fecha_creacion',)
+        read_only_fields = ('fecha_creacion', 'stock_actual')
 
 class LoteSerializer(serializers.ModelSerializer):
     """Serializer para lotes"""

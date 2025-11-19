@@ -184,21 +184,34 @@ const InventarioMaquilas = () => {
     // 🎯 Cargar datos de confirmación del día actual
     cargarDatosConfirmacionActual();
 
-    // Event listeners para sincronización
+    // Event listeners con debounce para evitar recargas mientras se edita
+    let debounceTimer = null;
+
     const handleStorageChange = (e) => {
       if (e.key === "productos" || e.key === "products") {
-        setTimeout(() => cargarProductosMaquila(), 100);
+        // Debounce de 2 segundos - solo recarga si no hay actividad
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          console.log('🔄 Recargando productos maquila por cambio en storage...');
+          cargarProductosMaquila();
+        }, 2000);
       }
     };
 
     const handleProductosUpdated = () => {
-      setTimeout(() => cargarProductosMaquila(), 100);
+      // Debounce de 2 segundos
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log('🔄 Recargando productos maquila por evento productosUpdated...');
+        cargarProductosMaquila();
+      }, 2000);
     };
 
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("productosUpdated", handleProductosUpdated);
 
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("productosUpdated", handleProductosUpdated);
     };

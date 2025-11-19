@@ -350,6 +350,13 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   // 🚀 NUEVO: Función para guardar solicitadas en BD
   const guardarSolicitadasEnBD = async () => {
     try {
+      // 🔒 VALIDACIÓN: No guardar si el estado está congelado
+      const estadosBloqueados = ['ALISTAMIENTO_ACTIVO', 'FINALIZAR', 'COMPLETADO'];
+      if (estadosBloqueados.includes(estadoBoton)) {
+        console.log('❄️ GUARDADO BLOQUEADO - Solicitadas congeladas en estado:', estadoBoton);
+        return;
+      }
+
       console.log('💾 GUARDANDO SOLICITADAS EN BD...');
       console.log(`📅 Fecha: ${fechaSeleccionada}`);
       console.log(`📅 Día: ${dia}`);
@@ -378,9 +385,14 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       });
 
       // ✅ Guardar para la MISMA fecha seleccionada
+      // Convertir fecha a formato YYYY-MM-DD
+      const fechaFormateada = fechaSeleccionada instanceof Date
+        ? fechaSeleccionada.toISOString().split('T')[0]
+        : fechaSeleccionada;
+
       const datosParaGuardar = {
         dia: dia,
-        fecha: fechaSeleccionada,
+        fecha: fechaFormateada,
         productos: productosParaGuardar.map(p => ({
           producto_nombre: p.producto,
           cantidad_solicitada: p.cantidad
@@ -418,42 +430,52 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
     }
   };
 
-  // 🚀 NUEVO: Detectar cambios en totales
+  // 🚀 NUEVO: Detectar cambios en totales (incluyendo cambios en localStorage de CARGUE)
   useEffect(() => {
     if (products.length === 0) return;
 
-    const totalesActuales = {};
-    products.forEach(producto => {
-      const totalProductos = calcularTotalDirecto(producto.name);
-      const pedidosProducto = pedidos[producto.name] || 0;
-      const totalFinal = totalProductos + pedidosProducto;
-      totalesActuales[producto.name] = totalFinal;
-    });
+    const detectarCambios = () => {
+      const totalesActuales = {};
+      products.forEach(producto => {
+        const totalProductos = calcularTotalDirecto(producto.name);
+        const pedidosProducto = pedidos[producto.name] || 0;
+        const totalFinal = totalProductos + pedidosProducto;
+        totalesActuales[producto.name] = totalFinal;
+      });
 
-    // Comparar con últimos guardados
-    const hayDiferencias = JSON.stringify(totalesActuales) !== JSON.stringify(ultimosTotalesGuardados);
+      // Comparar con últimos guardados
+      const hayDiferencias = JSON.stringify(totalesActuales) !== JSON.stringify(ultimosTotalesGuardados);
 
-    if (hayDiferencias && Object.keys(ultimosTotalesGuardados).length > 0) {
-      console.log('🔄 Cambios detectados en totales de producción');
-      setHayDatosNuevos(true);
-    }
+      if (hayDiferencias && Object.keys(ultimosTotalesGuardados).length > 0) {
+        console.log('🔄 Cambios detectados en totales de producción');
+        console.log('📊 Totales actuales:', totalesActuales);
+        console.log('📊 Últimos guardados:', ultimosTotalesGuardados);
+        setHayDatosNuevos(true);
+      }
 
-    // 🚀 NUEVO: Si hay totales > 0 y no hay datos guardados, marcar como nuevos
-    const hayTotalesPositivos = Object.values(totalesActuales).some(total => total > 0);
-    const noHayGuardados = Object.keys(ultimosTotalesGuardados).length === 0;
+      // 🚀 NUEVO: Si hay totales > 0 y no hay datos guardados, marcar como nuevos
+      const hayTotalesPositivos = Object.values(totalesActuales).some(total => total > 0);
+      const noHayGuardados = Object.keys(ultimosTotalesGuardados).length === 0;
 
-    if (hayTotalesPositivos && noHayGuardados) {
-      console.log('🆕 DATOS INICIALES DETECTADOS - Marcando como nuevos');
-      console.log('📊 Totales detectados:', totalesActuales);
-      setHayDatosNuevos(true);
-    }
+      if (hayTotalesPositivos && noHayGuardados) {
+        console.log('🆕 DATOS INICIALES DETECTADOS - Marcando como nuevos');
+        console.log('📊 Totales detectados:', totalesActuales);
+        setHayDatosNuevos(true);
+      }
 
-    // Guardar referencia inicial si no existe
-    if (Object.keys(ultimosTotalesGuardados).length === 0) {
-      setUltimosTotalesGuardados({ ...totalesActuales });
-    }
+      // Guardar referencia inicial si no existe
+      if (Object.keys(ultimosTotalesGuardados).length === 0) {
+        setUltimosTotalesGuardados({ ...totalesActuales });
+      }
+    };
 
-  }, [products, pedidos, sugeridos]);
+    detectarCambios();
+
+    // 🚀 NUEVO: Monitorear cambios en localStorage cada 500ms
+    const interval = setInterval(detectarCambios, 500);
+    return () => clearInterval(interval);
+
+  }, [products, pedidos, sugeridos, ultimosTotalesGuardados]);
 
   // 🚀 Guardado automático inteligente con debounce
   useEffect(() => {
@@ -464,7 +486,18 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
     console.log(`   - Fecha seleccionada: ${fechaSeleccionada}`);
     console.log(`   - Día: ${dia}`);
 
-    // Solo guardar si está en estado SUGERIDO y hay datos nuevos
+    // 🔒 NUEVO: Solo guardar si está en estado SUGERIDO (ALISTAMIENTO en código)
+    // Estados bloqueados: ALISTAMIENTO_ACTIVO, FINALIZAR, COMPLETADO
+    const estadosBloqueados = ['ALISTAMIENTO_ACTIVO', 'FINALIZAR', 'COMPLETADO'];
+    const estadoCongelado = estadosBloqueados.includes(estadoBoton);
+
+    if (estadoCongelado) {
+      console.log('❄️ SOLICITADAS CONGELADAS - Estado bloqueado:', estadoBoton);
+      console.log('   - No se guardarán más cambios en solicitadas para este día');
+      return;
+    }
+
+    // Solo guardar si está en estado SUGERIDO (ALISTAMIENTO) y hay datos nuevos
     if (estadoBoton === 'SUGERIDO' && hayDatosNuevos && fechaSeleccionada) {
       console.log('⏳ Programando guardado automático en 3 segundos...');
       console.log(`📅 Guardará para fecha: ${fechaSeleccionada} (día: ${dia})`);
@@ -555,11 +588,21 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   // Datos para la tabla de porciones
   const datosPorciones = Array(22).fill({});
 
+  // 🔒 Verificar si las solicitadas están congeladas
+  const estadosBloqueados = ['ALISTAMIENTO_ACTIVO', 'FINALIZAR', 'COMPLETADO'];
+  const solicitadasCongeladas = estadosBloqueados.includes(estadoBoton);
+
   return (
     <div className="container-fluid mt-4 produccion-container">
       {produccionCongelada && (
         <div className="alert alert-warning mb-3" role="alert">
           <strong>❄️ PRODUCCIÓN CONGELADA</strong> - Los datos están bloqueados durante el proceso de alistamiento y despacho.
+        </div>
+      )}
+
+      {solicitadasCongeladas && (
+        <div className="alert alert-info mb-3" role="alert">
+          <strong>🔒 SOLICITADAS CONGELADAS</strong> - Los cambios en CARGUE ya no afectarán las solicitadas de Planeación para este día.
         </div>
       )}
 

@@ -303,6 +303,26 @@ export const productoService = {
       console.error('Error en uploadImage:', error);
       return handleApiError(error);
     }
+  },
+
+  // Eliminar un producto FÍSICAMENTE
+  delete: async (id) => {
+    try {
+      console.log('🔥 Eliminando producto FÍSICAMENTE:', id);
+      const response = await fetch(`${API_URL}/productos/${id}/`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al eliminar producto: ${response.status}`);
+      }
+
+      console.log('✅ Producto eliminado de la BD');
+      return true;
+    } catch (error) {
+      console.error('Error en delete:', error);
+      return handleApiError(error);
+    }
   }
 };
 

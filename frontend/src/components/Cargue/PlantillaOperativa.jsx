@@ -10,6 +10,7 @@ import BotonLimpiar from './BotonLimpiar';
 import ControlCumplimiento from './ControlCumplimiento';
 import RegistroLotes from './RegistroLotes';
 import BotonCorreccionNuevo from './BotonCorreccionNuevo';
+import BotonVerPedidos from './BotonVerPedidos';
 import './PlantillaOperativa.css';
 
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
@@ -924,6 +925,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             />
                         )}
                     </div>
+
+                    <BotonVerPedidos
+                        dia={dia}
+                        idSheet={idSheet}
+                        fechaSeleccionada={fechaSeleccionada}
+                    />
 
                     <BotonCorreccionNuevo
                         dia={dia}

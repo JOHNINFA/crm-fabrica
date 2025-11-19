@@ -33,10 +33,12 @@ const ProductFormScreenContent = () => {
         await loadProductsFromBackend();
     };
 
-    // Filtrar productos según búsqueda y pestaña activa
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filtrar productos según búsqueda (solo activos)
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const isActive = product.activo !== false;
+        return matchesSearch && isActive;
+    });
 
     const handleAddProduct = (product = null) => {
         setSelectedProduct(product);
@@ -79,27 +81,7 @@ const ProductFormScreenContent = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="tabs-section">
-                <ul className="nav nav-tabs">
-                    <li className="nav-item">
-                        <button
-                            className={`nav-link ${activeTab === 'Activos' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('Activos')}
-                        >
-                            Activos
-                        </button>
-                    </li>
-                    <li className="nav-item">
-                        <button
-                            className={`nav-link ${activeTab === 'Inactivos' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('Inactivos')}
-                        >
-                            Inactivos
-                        </button>
-                    </li>
-                </ul>
-            </div>
+            {/* Tabs - Removido, ya no es necesario */}
 
             {/* Actions Toolbar */}
             <div className="actions-section">
@@ -199,7 +181,24 @@ const ProductFormScreenContent = () => {
                         </div>
                         <div className="modal-body-confirm">
                             <p>¿Estás seguro de que deseas eliminar el producto <strong>{productToDelete.name}</strong>?</p>
-                            <p className="text-danger">Esta acción no se puede deshacer.</p>
+
+                            {/* Advertencia de stock */}
+                            {productToDelete.stock > 0 && (
+                                <div className="alert alert-warning mb-2">
+                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Advertencia:</strong> Este producto tiene <strong>{productToDelete.stock} unidades</strong> en stock.
+                                </div>
+                            )}
+
+                            <div className="alert alert-danger mb-0">
+                                <i className="bi bi-trash-fill me-2"></i>
+                                <strong>Esta acción es PERMANENTE:</strong>
+                                <ul className="mb-0 mt-2">
+                                    <li>Se eliminará el producto de la base de datos</li>
+                                    <li>Se eliminará el registro de stock</li>
+                                    <li>No se podrá recuperar</li>
+                                </ul>
+                            </div>
                         </div>
                         <div className="modal-footer-confirm">
                             <button

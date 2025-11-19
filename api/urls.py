@@ -1,7 +1,7 @@
 # api/urls.py
 from rest_framework.routers import DefaultRouter
 from .views import (
-    RegistroViewSet, ProductoViewSet, CategoriaViewSet,
+    RegistroViewSet, ProductoViewSet, CategoriaViewSet, StockViewSet,
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
     VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
@@ -16,6 +16,7 @@ router = DefaultRouter()
 router.register(r'registros', RegistroViewSet, basename='registro')
 router.register(r'productos', ProductoViewSet, basename='producto')
 router.register(r'categorias', CategoriaViewSet, basename='categoria')
+router.register(r'stock', StockViewSet, basename='stock')
 router.register(r'lotes', LoteViewSet, basename='lote')
 router.register(r'movimientos', MovimientoInventarioViewSet, basename='movimiento')
 router.register(r'registro-inventario', RegistroInventarioViewSet, basename='registro-inventario')

@@ -257,7 +257,7 @@ export const cargueService = {
       
       console.log(`📍 Usando endpoint: ${endpoint} para vendedor: ${vendedorId}`);
       
-      // Para cada producto, crear un registro separado (como tabla plana)
+      // Para cada producto, crear o actualizar un registro separado (como tabla plana)
       const productos = datosParaGuardar.productos || [];
       const resultados = [];
       
@@ -318,8 +318,33 @@ export const cargueService = {
           
           console.log(`💾 Guardando producto: ${producto.producto_nombre}`, datosTransformados);
           
-          const response = await fetch(`${API_URL}/${endpoint}/`, {
-            method: 'POST',
+          // 🚀 NUEVO: Buscar si ya existe un registro para este día, fecha y producto
+          const queryParams = new URLSearchParams({
+            dia: datosParaGuardar.dia_semana,
+            fecha: datosParaGuardar.fecha,
+            producto: producto.producto_nombre
+          });
+          
+          const getResponse = await fetch(`${API_URL}/${endpoint}/?${queryParams.toString()}`);
+          const existentes = await getResponse.json();
+          
+          let response;
+          let metodo = 'POST';
+          let url = `${API_URL}/${endpoint}/`;
+          
+          if (existentes && existentes.length > 0) {
+            // ✅ ACTUALIZAR registro existente
+            const registroExistente = existentes[0];
+            metodo = 'PATCH';
+            url = `${API_URL}/${endpoint}/${registroExistente.id}/`;
+            console.log(`🔄 Actualizando registro existente ID: ${registroExistente.id}`);
+          } else {
+            // ✅ CREAR nuevo registro
+            console.log(`✨ Creando nuevo registro`);
+          }
+          
+          response = await fetch(url, {
+            method: metodo,
             headers: {
               'Content-Type': 'application/json',
             },
@@ -339,6 +364,31 @@ export const cargueService = {
       }
       
       console.log('🎉 Todos los productos guardados exitosamente:', resultados.length);
+      
+      // 🚀 NUEVO: Calcular y guardar SOLICITADAS (suma de todos los IDs)
+      try {
+        console.log('📊 Calculando SOLICITADAS desde CARGUE...');
+        const solicitadasResponse = await fetch(`${API_URL}/produccion-solicitadas/calcular_desde_cargue/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            dia: datosParaGuardar.dia_semana,
+            fecha: datosParaGuardar.fecha
+          }),
+        });
+
+        if (solicitadasResponse.ok) {
+          const solicitadasResult = await solicitadasResponse.json();
+          console.log('✅ SOLICITADAS calculadas:', solicitadasResult);
+        } else {
+          console.warn('⚠️ Error calculando SOLICITADAS:', await solicitadasResponse.text());
+        }
+      } catch (errorSolicitadas) {
+        console.warn('⚠️ Error calculando SOLICITADAS:', errorSolicitadas);
+      }
+      
       return { success: true, resultados, count: resultados.length };
       
     } catch (error) {

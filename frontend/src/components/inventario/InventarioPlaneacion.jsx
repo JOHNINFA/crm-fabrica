@@ -27,9 +27,9 @@ const InventarioPlaneacion = () => {
   const CACHE_DURATION = 15000; // 15 segundos
   const [cargando, setCargando] = useState(false); // Para evitar salto visual
 
-  // 🚀 Cargar datos desde localStorage al iniciar
+  // 🚀 Cargar datos desde localStorage al iniciar Y actualizar existencias en tiempo real
   useEffect(() => {
-    const cargarDesdeLocalStorage = () => {
+    const cargarDesdeLocalStorage = async () => {
       try {
         const year = fechaSeleccionada.getFullYear();
         const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
@@ -42,14 +42,51 @@ const InventarioPlaneacion = () => {
         if (datosGuardados) {
           const { productos: productosGuardados, timestamp } = JSON.parse(datosGuardados);
           console.log('⚡ Cargando desde localStorage (instantáneo):', productosGuardados.length, 'productos');
-          setProductos(productosGuardados);
 
-          // Actualizar cache en memoria también
-          setCache({
-            datos: productosGuardados,
-            timestamp: timestamp,
-            fecha: fechaFormateada
-          });
+          // 🔥 ACTUALIZAR EXISTENCIAS EN TIEMPO REAL desde api_stock
+          try {
+            const stockResponse = await fetch(`${API_URL}/stock/`);
+            if (stockResponse.ok) {
+              const stocksBD = await stockResponse.json();
+              const stockMap = {};
+              stocksBD.forEach(s => {
+                stockMap[s.producto_id] = s.cantidad_actual;
+              });
+
+              // Actualizar existencias en productos guardados
+              const productosActualizados = productosGuardados.map(p => ({
+                ...p,
+                existencias: stockMap[p.id] !== undefined ? stockMap[p.id] : p.existencias
+              }));
+
+              console.log('✅ Existencias actualizadas desde api_stock en tiempo real');
+              setProductos(productosActualizados);
+
+              // Actualizar cache con existencias frescas
+              setCache({
+                datos: productosActualizados,
+                timestamp: timestamp,
+                fecha: fechaFormateada
+              });
+            } else {
+              // Si falla la actualización, usar datos guardados
+              setProductos(productosGuardados);
+              setCache({
+                datos: productosGuardados,
+                timestamp: timestamp,
+                fecha: fechaFormateada
+              });
+            }
+          } catch (error) {
+            console.error('Error actualizando existencias:', error);
+            // Si falla, usar datos guardados
+            setProductos(productosGuardados);
+            setCache({
+              datos: productosGuardados,
+              timestamp: timestamp,
+              fecha: fechaFormateada
+            });
+          }
         }
       } catch (error) {
         console.error('Error al cargar desde localStorage:', error);
@@ -80,7 +117,7 @@ const InventarioPlaneacion = () => {
       }
     };
 
-    cargarDesdeLocalStorage();
+    cargarDesdeLocalStorage(); // Ahora es async pero no necesitamos await aquí
     limpiarLocalStorageViejo();
   }, [fechaSeleccionada]);
 
@@ -113,6 +150,7 @@ const InventarioPlaneacion = () => {
       }
 
       console.log('🔄 Cargando datos desde servidor...', new Date().toLocaleTimeString());
+      console.log('📅 Fecha consultada:', fechaFormateada);
 
       // 🎯 Marcar como cargando solo si no hay productos
       if (productos.length === 0) {
@@ -122,19 +160,27 @@ const InventarioPlaneacion = () => {
       // 🎯 NO limpiar productos mientras carga - mantener datos anteriores
       // Esto evita el salto visual de "No hay productos disponibles"
 
-      // 🚀 CARGA PARALELA - Todas las llamadas al mismo tiempo
-      const [planeacionResponse, productosResponse, solicitadasResponse, pedidosResponse] = await Promise.all([
-        fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`),
-        fetch(`${API_URL}/productos/`),
-        fetch(`${API_URL}/produccion-solicitadas/?fecha=${fechaFormateada}`),
-        fetch(`${API_URL}/pedidos/`)
-      ]);
+      // 🚀 CARGA PARALELA - Consultar todas las fuentes de datos
+      console.log('🔍 Consultando APIs de cargue para fecha:', fechaFormateada);
+      const [planeacionResponse, stockResponse, pedidosResponse,
+        cargueId1Response, cargueId2Response, cargueId3Response,
+        cargueId4Response, cargueId5Response, cargueId6Response] = await Promise.all([
+          fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/stock/`),
+          fetch(`${API_URL}/pedidos/`),
+          fetch(`${API_URL}/cargue-id1/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id2/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id3/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id4/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id5/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id6/?fecha=${fechaFormateada}`)
+        ]);
 
-      // Procesar planeación
+      // Procesar planeación guardada
       let planeacionMap = {};
       if (planeacionResponse.ok) {
         const planeacionData = await planeacionResponse.json();
-        console.log('✅ Planeación:', planeacionData.length, 'productos');
+        console.log('✅ Planeación guardada:', planeacionData.length, 'productos');
         planeacionData.forEach(item => {
           planeacionMap[item.producto_nombre] = {
             existencias: item.existencias,
@@ -146,87 +192,167 @@ const InventarioPlaneacion = () => {
         });
       }
 
-      // Procesar productos
-      if (!productosResponse.ok) throw new Error('Error al obtener productos');
-      const productosFromBD = await productosResponse.json();
-      console.log('✅ Productos:', productosFromBD.length);
+      // 🎯 USAR api_stock COMO FUENTE PRINCIPAL
+      if (!stockResponse.ok) throw new Error('Error al obtener stocks');
+      const stocksBD = await stockResponse.json();
+      console.log('✅ Stocks:', stocksBD.length);
 
-      // Procesar solicitadas
+      // Crear mapa de stocks
+      const stockMap = {};
+      stocksBD.forEach(s => {
+        stockMap[s.producto_id] = s.cantidad_actual;
+      });
+
+      // 🔥 SUMAR SOLICITADAS desde TODAS las tablas de CARGUE (ID1 a ID6)
       let solicitadasMap = {};
-      if (solicitadasResponse.ok && Object.keys(planeacionMap).length === 0) {
-        const solicitadas = await solicitadasResponse.json();
-        console.log('✅ Solicitadas:', solicitadas.length);
-        solicitadas.forEach(item => {
-          solicitadasMap[item.producto_nombre] = item.cantidad_solicitada;
-        });
-      }
 
-      // Procesar pedidos
-      const pedidosMap = {};
-      if (pedidosResponse.ok) {
-        const pedidos = await pedidosResponse.json();
-        const pedidosFecha = pedidos.filter(p =>
-          p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
-        );
-        console.log('✅ Pedidos activos:', pedidosFecha.length);
+      const cargueResponses = [
+        { response: cargueId1Response, id: 'ID1' },
+        { response: cargueId2Response, id: 'ID2' },
+        { response: cargueId3Response, id: 'ID3' },
+        { response: cargueId4Response, id: 'ID4' },
+        { response: cargueId5Response, id: 'ID5' },
+        { response: cargueId6Response, id: 'ID6' }
+      ];
 
-        for (const pedido of pedidosFecha) {
-          if (pedido.detalles && pedido.detalles.length > 0) {
-            for (const detalle of pedido.detalles) {
-              const nombreProducto = detalle.producto_nombre;
-              if (!pedidosMap[nombreProducto]) {
-                pedidosMap[nombreProducto] = 0;
-              }
-              pedidosMap[nombreProducto] += detalle.cantidad;
+      for (const { response, id } of cargueResponses) {
+        if (response.ok) {
+          const cargueData = await response.json();
+          console.log(`✅ Cargue ${id}:`, cargueData.length, 'registros');
+
+          // Sumar cantidades por producto con logs detallados
+          cargueData.forEach(item => {
+            const producto = item.producto_nombre || item.producto;
+            const cantidad = item.cantidad || 0;
+
+            if (cantidad > 0) {
+              console.log(`   🔍 ${id} - ${producto}: ${cantidad} und (Fecha: ${item.fecha}, Día: ${item.dia_semana})`);
             }
-          }
+
+            if (!solicitadasMap[producto]) {
+              solicitadasMap[producto] = 0;
+            }
+            solicitadasMap[producto] += cantidad;
+          });
         }
       }
 
-      // Filtrar solo productos de PRODUCCION
-      const productosProduccion = productosFromBD.filter(p =>
-        !p.ubicacion_inventario || p.ubicacion_inventario === 'PRODUCCION'
-      );
+      console.log('📊 SOLICITADAS TOTALES (suma de todos los IDs):', solicitadasMap);
 
-      // Preparar productos con planeación
+      // Log detallado de cada producto con solicitadas
+      Object.entries(solicitadasMap).forEach(([producto, cantidad]) => {
+        if (cantidad > 0) {
+          console.log(`   📦 ${producto}: ${cantidad} und TOTAL`);
+        }
+      });
+
+      // 🔒 Procesar pedidos - PRIORIDAD: Planeación guardada (congelados) > Pedidos dinámicos
+      const pedidosMap = {};
+
+      // Verificar si hay pedidos congelados en planeación guardada
+      let pedidosCongelados = false;
+      Object.values(planeacionMap).forEach(item => {
+        if (item.pedidos && item.pedidos > 0) {
+          pedidosCongelados = true;
+        }
+      });
+
+      // Si hay pedidos congelados, usarlos desde planeacionMap
+      if (pedidosCongelados) {
+        console.log('❄️ Usando PEDIDOS CONGELADOS desde planeación');
+        Object.keys(planeacionMap).forEach(productoNombre => {
+          if (planeacionMap[productoNombre].pedidos > 0) {
+            pedidosMap[productoNombre] = planeacionMap[productoNombre].pedidos;
+          }
+        });
+      }
+      // Si no hay congelados, cargar dinámicamente desde api/pedidos
+      else if (pedidosResponse.ok) {
+        console.log('📊 Cargando PEDIDOS DINÁMICOS desde api/pedidos');
+        const pedidos = await pedidosResponse.json();
+
+        // Filtrar pedidos por fecha (comparar solo la parte de fecha, sin hora)
+        const pedidosFecha = pedidos.filter(p => {
+          if (p.estado === 'ANULADA') return false;
+
+          // Normalizar fechas para comparación
+          const fechaEntrega = p.fecha_entrega ? p.fecha_entrega.split('T')[0] : null;
+          return fechaEntrega === fechaFormateada;
+        });
+
+        console.log(`✅ Pedidos activos para ${fechaFormateada}:`, pedidosFecha.length);
+
+        // Sumar cantidades por producto
+        for (const pedido of pedidosFecha) {
+          console.log(`   📦 Pedido ${pedido.numero || pedido.id}:`, pedido.detalles?.length || 0, 'productos');
+
+          if (pedido.detalles && pedido.detalles.length > 0) {
+            for (const detalle of pedido.detalles) {
+              const nombreProducto = detalle.producto_nombre;
+              const cantidad = detalle.cantidad || 0;
+
+              if (!pedidosMap[nombreProducto]) {
+                pedidosMap[nombreProducto] = 0;
+              }
+              pedidosMap[nombreProducto] += cantidad;
+
+              console.log(`      - ${nombreProducto}: +${cantidad} (total: ${pedidosMap[nombreProducto]})`);
+            }
+          }
+        }
+
+        console.log('📊 PEDIDOS TOTALES:', pedidosMap);
+      }
+
+      // 🎯 Usar stocks como productos (api_stock ya tiene todos los de PRODUCCION)
+      const productosProduccion = stocksBD.map(s => ({
+        id: s.producto_id,
+        nombre: s.producto_nombre,
+        descripcion: s.producto_descripcion,
+        stock_total: s.cantidad_actual
+      }));
+
+      console.log(`📦 Productos desde api_stock: ${productosProduccion.length}`);
+      console.log('📋 Lista de productos:', productosProduccion.map(p => p.nombre));
+
+      // Preparar productos con planeación - SOLO usar productos de la BD
       const productosConPlaneacion = productosProduccion.map(p => {
-        const productoExistente = productos.find(prod => prod.id === p.id);
         const planeacionGuardada = planeacionMap[p.nombre];
 
-        // Prioridad: 1) Planeación guardada, 2) Solicitadas, 3) Existentes
+        // 🚀 PRIORIDAD: Solicitadas desde CARGUE (suma de todos los IDs)
+        let solicitadoFinal = solicitadasMap[p.nombre] || 0;
+
+        if (solicitadoFinal > 0) {
+          console.log(`📊 ${p.nombre}: Solicitadas desde CARGUE = ${solicitadoFinal}`);
+        }
+
+        const pedidosProducto = pedidosMap[p.nombre] || 0;
+
+        // Obtener existencias desde stockMap (prioridad) o stock_total (fallback)
+        const existencias = stockMap[p.id] !== undefined ? stockMap[p.id] : (p.stock_total || 0);
+
+        // Si hay planeación guardada, usar sus valores
         if (planeacionGuardada) {
-          console.log(`💾 Cargando planeación guardada para ${p.nombre}`);
           return {
             id: p.id,
             nombre: p.nombre,
-            existencias: p.stock_total || 0,
-            solicitado: planeacionGuardada.solicitadas,
+            existencias: existencias,
+            solicitado: solicitadoFinal,
             pedidos: planeacionGuardada.pedidos,
             orden: planeacionGuardada.orden,
             ia: planeacionGuardada.ia
           };
         }
 
-        // Si no hay planeación, usar solicitadas
-        let solicitadoFinal = 0;
-        if (solicitadasMap[p.nombre] !== undefined) {
-          solicitadoFinal = solicitadasMap[p.nombre];
-        } else if (productoExistente && productoExistente.solicitado > 0) {
-          solicitadoFinal = productoExistente.solicitado;
-        }
-
-        const pedidosProducto = pedidosMap[p.nombre] || 0;
-        if (pedidosProducto > 0) {
-          console.log(`✅ Producto ${p.nombre} tiene ${pedidosProducto} pedidos`);
-        }
+        // Si no hay planeación, crear registro nuevo
         return {
           id: p.id,
           nombre: p.nombre,
-          existencias: p.stock_total || 0,
+          existencias: existencias,
           solicitado: solicitadoFinal,
           pedidos: pedidosProducto,
-          orden: productoExistente ? (productoExistente.orden || 0) : 0,
-          ia: productoExistente ? (productoExistente.ia || 0) : 0
+          orden: 0,
+          ia: 0
         };
       });
 

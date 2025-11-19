@@ -1,314 +1,279 @@
-# 🏭 CRM-FÁBRICA - Sistema de Gestión Integral
+# 📱 Sistema Integrado de Gestión - Documentación Completa
 
-## 📋 ¿Qué es este proyecto?
-Un sistema completo para gestionar una fábrica de arepas que incluye:
-- **POS (Punto de Venta)** - Para vender productos
-- **Pedidos** - Sistema de gestión de pedidos por cliente y fecha de entrega
-- **Inventario** - Para controlar existencias y producción
-- **Kardex** - Para ver movimientos de productos
-- **Cargue** - Sistema operativo para control diario de vendedores y producción
-- **Sincronización** - Entre frontend y backend
+## 🎯 Bienvenido
 
-## 🏗️ Arquitectura del Sistema
+Este es un **sistema empresarial completo** construido con **Django REST Framework** (backend) y **React** (frontend) que integra múltiples módulos de negocio para una fábrica/distribuidora de productos.
+
+---
+
+## 📚 Documentación
+
+Toda la documentación está disponible en la carpeta `DOCUMENTACION/`:
+
+### 🚀 Comienza Aquí
+- **[INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)** - Guía de 5 minutos para entender el sistema
+- **[INDICE.md](DOCUMENTACION/INDICE.md)** - Índice completo de documentación
+
+### 📖 Documentación General
+- **[README_GENERAL.md](DOCUMENTACION/README_GENERAL.md)** - Arquitectura, estructura y flujos generales
+
+### 🔧 Módulos Específicos
+- **[README_POS.md](DOCUMENTACION/README_POS.md)** - Módulo de Punto de Venta
+- **[README_CARGUE.md](DOCUMENTACION/README_CARGUE.md)** - Módulo de Cargue Operativo
+- **[README_INVENTARIO.md](DOCUMENTACION/README_INVENTARIO.md)** - Módulo de Inventario
+- **[README_PEDIDOS.md](DOCUMENTACION/README_PEDIDOS.md)** - Módulo de Pedidos
+- **[README_OTROS.md](DOCUMENTACION/README_OTROS.md)** - Módulo de Administración y Configuración
+
+---
+
+## 🏗️ Estructura del Proyecto
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    FRONTEND     │◄──►│    BACKEND      │◄──►│   BASE DATOS    │
-│   (React.js)    │    │   (Django)      │    │  (SQLite/PG)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-    ┌────▼────┐             ┌────▼────┐             ┌────▼────┐
-    │   POS   │             │   API   │             │ Tablas  │
-    │ Pedidos │             │REST API │             │Productos│
-    │Inventario│             │Endpoints│             │ Pedidos │
-    │ Kardex  │             │         │             │ Lotes   │
-    │ Cargue  │             │         │             │Categorías│
-    └─────────┘             └─────────┘             │ Cargue  │
-                                                    └─────────┘
+proyecto/
+├── DOCUMENTACION/                 # 📚 Documentación completa
+│   ├── INICIO_RAPIDO.md          # Guía rápida
+│   ├── INDICE.md                 # Índice de documentación
+│   ├── README_GENERAL.md         # Visión general
+│   ├── README_POS.md             # Módulo POS
+│   ├── README_CARGUE.md          # Módulo Cargue
+│   ├── README_INVENTARIO.md      # Módulo Inventario
+│   ├── README_PEDIDOS.md         # Módulo Pedidos
+│   └── README_OTROS.md           # Módulo Otros (Administración)
+│
+├── backend_crm/                   # 🔧 Backend Django
+│   ├── settings.py               # Configuración
+│   ├── urls.py                   # Rutas principales
+│   ├── wsgi.py                   # Servidor WSGI
+│   └── asgi.py                   # Servidor ASGI
+│
+├── api/                           # 📡 API REST
+│   ├── models.py                 # Modelos de datos
+│   ├── views.py                  # Endpoints
+│   ├── serializers.py            # Serializadores
+│   ├── urls.py                   # Rutas de API
+│   ├── admin.py                  # Panel administrativo
+│   └── migrations/               # Migraciones BD
+│
+├── frontend/                      # 🎨 Frontend React
+│   ├── src/
+│   │   ├── pages/                # Pantallas principales
+│   │   ├── components/           # Componentes
+│   │   ├── services/             # Servicios API
+│   │   ├── context/              # Estado global
+│   │   ├── hooks/                # Custom hooks
+│   │   ├── utils/                # Utilidades
+│   │   └── styles/               # Estilos CSS
+│   ├── public/                   # Archivos estáticos
+│   └── package.json              # Dependencias
+│
+├── manage.py                      # Gestor de Django
+└── README.md                      # Este archivo
 ```
 
-## 🚀 Cómo crear este proyecto desde cero
+---
 
-### PASO 1: Configurar el Backend (Django)
+## 🚀 Inicio Rápido
+
+### Backend
 ```bash
-# 1. Crear proyecto Django
-django-admin startproject backend_crm
-cd backend_crm
-
-# 2. Crear app para la API
-python manage.py startapp api
-
-# 3. Instalar dependencias
-pip install django djangorestframework django-cors-headers pillow
-
-# 4. Configurar settings.py
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'rest_framework',
-    'corsheaders',
-    'api',
-]
-
-# 5. Crear modelos (Producto, Categoria, Lote, etc.)
-# 6. Hacer migraciones
-python manage.py makemigrations
-python manage.py migrate
-```
-
-### PASO 2: Configurar el Frontend (React)
-```bash
-# 1. Crear app React
-npx create-react-app frontend
-cd frontend
+# 1. Crear entorno virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
 
 # 2. Instalar dependencias
-npm install react-router-dom bootstrap react-bootstrap uuid
+pip install -r requirements.txt
 
-# 3. Crear estructura de carpetas
-src/
-├── components/     # Componentes UI
-├── context/       # Estados globales
-├── services/      # Comunicación con API
-├── pages/         # Páginas principales
-└── styles/        # Estilos CSS
-```
+# 3. Configurar base de datos
+# Editar backend_crm/settings.py con credenciales PostgreSQL
 
-### PASO 3: Crear la Estructura de Datos
-```sql
--- Tabla de Categorías
-CREATE TABLE api_categoria (
-    id INTEGER PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE
-);
+# 4. Ejecutar migraciones
+python manage.py migrate
 
--- Tabla de Productos
-CREATE TABLE api_producto (
-    id INTEGER PRIMARY KEY,
-    nombre VARCHAR(255) UNIQUE,
-    precio DECIMAL(10,2),
-    stock_total INTEGER,
-    categoria_id INTEGER,
-    imagen VARCHAR(200),
-    activo BOOLEAN
-);
+# 5. Crear superusuario
+python manage.py createsuperuser
 
--- Tabla de Lotes
-CREATE TABLE api_lote (
-    id INTEGER PRIMARY KEY,
-    lote VARCHAR(100),
-    fecha_produccion DATE,
-    usuario VARCHAR(100)
-);
-```
-
-### PASO 4: Crear los Servicios de API
-```javascript
-// services/api.js
-export const productoService = {
-    getAll: () => fetch('/api/productos/'),
-    create: (data) => fetch('/api/productos/', {method: 'POST', body: data}),
-    update: (id, data) => fetch(`/api/productos/${id}/`, {method: 'PUT', body: data})
-};
-```
-
-### PASO 5: Crear los Contextos (Estados Globales)
-```javascript
-// context/ProductContext.jsx
-export const ProductProvider = ({ children }) => {
-    const [products, setProducts] = useState([]);
-    // Lógica para manejar productos
-    return <ProductContext.Provider value={{products}}>{children}</ProductContext.Provider>;
-};
-```
-
-### PASO 6: Crear los Componentes
-```javascript
-// components/Pos/ProductList.jsx - Lista de productos para vender
-// components/inventario/InventarioProduccion.jsx - Control de producción
-// components/inventario/TablaKardex.jsx - Historial de movimientos
-```
-
-## 📁 Estructura del Proyecto Actual
-
-```
-crm-fabrica/
-├── 📂 backend_crm/          # Configuración Django
-│   ├── settings.py          # Configuración del servidor
-│   ├── urls.py             # Rutas principales
-│   └── wsgi.py             # Servidor web
-│
-├── 📂 api/                  # API REST (Backend)
-│   ├── models.py           # 🗃️ Modelos de datos (Producto, Categoria, Lote)
-│   ├── views.py            # 🔧 Lógica de negocio (CRUD operations)
-│   ├── serializers.py      # 🔄 Conversión JSON ↔ Python
-│   └── urls.py             # 🛣️ Rutas de la API
-│
-├── 📂 frontend/             # Interfaz de Usuario (React)
-│   ├── 📂 src/
-│   │   ├── 📂 components/   # Componentes UI
-│   │   │   ├── 📂 Pos/      # 🛒 Punto de Venta
-│   │   │   │   ├── ProductList.jsx    # Lista de productos
-│   │   │   │   ├── Cart.jsx           # Carrito de compras
-│   │   │   │   └── ProductCard.jsx    # Tarjeta de producto
-│   │   │   │
-│   │   │   ├── 📂 inventario/         # 📦 Control de Inventario
-│   │   │   │   ├── InventarioProduccion.jsx  # Registro de producción
-│   │   │   │   ├── TablaKardex.jsx           # Historial de movimientos
-│   │   │   │   └── TablaInventario.jsx       # Tabla de existencias
-│   │   │   │
-│   │   │   └── 📂 Cargue/             # 🏭 Sistema Operativo de Cargue
-│   │   │       ├── MenuSheets.jsx            # Navegación por días e IDs
-│   │   │       ├── PlantillaOperativa.jsx    # Plantilla principal de vendedores
-│   │   │       ├── TablaProductos.jsx        # Tabla de productos operativa
-│   │   │       ├── ResumenVentas.jsx         # Resumen de pagos y totales
-│   │   │       ├── Produccion.jsx            # Módulo de producción
-│   │   │       ├── SelectorDia.jsx           # Selector de días de la semana
-│   │   │       ├── PlantillaOperativa.css    # Estilos de tablas operativas
-│   │   │       └── Produccion.css            # Estilos de producción
-│   │   │
-│   │   ├── 📂 context/      # 🌐 Estados Globales
-│   │   │   ├── ProductContext.jsx     # Estado de productos
-│   │   │   └── 📂 product/            # Módulos del contexto
-│   │   │       ├── 📂 hooks/          # Lógica de operaciones
-│   │   │       ├── 📂 services/       # Sincronización
-│   │   │       └── 📂 utils/          # Utilidades
-│   │   │
-│   │   ├── 📂 services/     # 🔗 Comunicación con API
-│   │   │   ├── api.js              # Servicios REST
-│   │   │   ├── syncService.js      # Sincronización
-│   │   │   └── loteService.js      # Gestión de lotes
-│   │   │
-│   │   └── 📂 pages/        # 📄 Páginas principales
-│   │       ├── PosScreen.jsx       # Pantalla POS
-│   │       ├── InventarioScreen.jsx # Pantalla Inventario
-│   │       ├── SelectorDia.jsx     # Pantalla de selección de días
-│   │       └── MainMenu.jsx        # Menú principal
-│   │
-│   └── 📂 public/           # Archivos estáticos
-│       └── 📂 images/       # Imágenes de productos
-│
-└── 📂 media/                # Archivos subidos (Django)
-    └── 📂 productos/        # Imágenes de productos
-```
-
-## 🔄 Flujo de Datos del Sistema
-
-### 1. 🛒 Flujo del POS (Punto de Venta)
-```
-Usuario selecciona producto → Se agrega al carrito → Se reduce stock → Se sincroniza con BD
-```
-
-### 2. 📦 Flujo del Inventario
-```
-Usuario ingresa producción → Se registra en BD → Se actualiza stock → Se sincroniza con POS
-```
-
-### 3. 📊 Flujo del Kardex
-```
-Cualquier movimiento → Se registra automáticamente → Se muestra en historial
-```
-
-### 4. 📦 Flujo de Pedidos
-```
-Selección de día → Cliente → Productos → Generar pedido → Se registra en BD → Aparece en Planeación
-```
-
-### 5. 🏭 Flujo del Cargue (Sistema Operativo)
-```
-Selección de día → Elección de vendedor (ID1-ID6) → Registro operativo → Control de producción
-```
-
-## 🔧 Tecnologías Utilizadas
-
-### Frontend
-- **React.js** - Interfaz de usuario
-- **React Context** - Manejo de estado global
-- **Bootstrap** - Estilos y componentes UI
-- **Fetch API** - Comunicación con backend
-
-### Backend
-- **Django** - Framework web
-- **Django REST Framework** - API REST
-- **SQLite/PostgreSQL** - Base de datos
-- **Pillow** - Manejo de imágenes
-
-## 🚀 Cómo ejecutar el proyecto
-
-### Backend
-```bash
-cd backend_crm
+# 6. Ejecutar servidor
 python manage.py runserver
-# Servidor en: http://localhost:8000
+# Acceder a: http://localhost:8000/api/
 ```
 
 ### Frontend
 ```bash
+# 1. Instalar dependencias
 cd frontend
+npm install
+
+# 2. Configurar API
+# Editar frontend/src/config/api.js si es necesario
+
+# 3. Ejecutar servidor
 npm start
-# Aplicación en: http://localhost:3000
+# Acceder a: http://localhost:3000
 ```
 
-## 📝 Funcionalidades Principales
+---
+
+## 📊 Módulos Principales
 
 ### 🛒 POS (Punto de Venta)
-- ✅ Ver productos disponibles
-- ✅ Agregar productos al carrito
-- ✅ Procesar ventas
-- ✅ Control de stock en tiempo real
+- Búsqueda y selección de productos
+- Carrito de compras
+- Múltiples métodos de pago
+- Generación de facturas
+- **Gestión de Caja**: Apertura/cierre de turno, arqueo
+- **Historial de Ventas**: Registro de transacciones
 
-### 📦 Inventario
-- ✅ Registrar producción diaria
-- ✅ Controlar existencias
-- ✅ Gestionar lotes y fechas de vencimiento
-- ✅ Sincronización automática
+### 📦 CARGUE (Operativo de Vendedores)
+- Registro de productos despachados
+- Control de devoluciones y vencidas
+- Registro de pagos
+- Control de cumplimiento
+- Múltiples rutas (ID1-ID6)
 
-### 📊 Kardex
-- ✅ Historial completo de movimientos
-- ✅ Filtros por fecha y producto
-- ✅ Saldos actualizados automáticamente
+### 📊 INVENTARIO
+- Visualización de stock
+- Movimientos de entrada/salida
+- Gestión de lotes
+- **Kardex**: Historial de movimientos (trazabilidad)
+- Planeación de producción
 
-### 📦 Pedidos
-- ✅ Gestión de pedidos por cliente
-- ✅ Asignación de fecha de entrega
-- ✅ Integración con Planeación de Inventario
-- ✅ Informe general de pedidos
-- ✅ Filtrado por día de la semana
+### 📋 PEDIDOS
+- Creación de pedidos
+- **Gestión de Clientes**: Información y configuración
+- **Historial de Pedidos**: Seguimiento de estado
+- Generación de remisiones
+- Integración con inventario
 
-### 🔄 Sincronización
-- ✅ Datos en tiempo real entre POS e Inventario
-- ✅ Respaldo en localStorage
-- ✅ Sincronización automática con backend
+---
 
-## 🎯 Conceptos Clave para Entender
+## 🔌 Endpoints API Principales
 
-### 1. **Context API (React)**
-- Es como una "caja mágica" que guarda información y la comparte con toda la aplicación
-- Ejemplo: Los productos se guardan aquí y cualquier pantalla puede verlos
+### Productos
+```
+GET    /api/productos/
+POST   /api/productos/
+GET    /api/productos/{id}/
+PUT    /api/productos/{id}/
+DELETE /api/productos/{id}/
+```
 
-### 2. **Hooks Personalizados**
-- Son funciones que contienen lógica reutilizable
-- Ejemplo: `useProductOperations` maneja todas las operaciones de productos
+### Ventas
+```
+GET    /api/ventas/
+POST   /api/ventas/
+GET    /api/ventas/{id}/
+```
 
-### 3. **Servicios**
-- Son funciones que se comunican con el backend
-- Ejemplo: `productoService.getAll()` trae todos los productos de la base de datos
+### Cargue
+```
+GET    /api/cargue-id1/
+POST   /api/cargue-id1/
+GET    /api/cargue-id1/{id}/
+```
 
-### 4. **Sincronización**
-- Mantiene los datos iguales entre frontend y backend
-- Si cambias algo en inventario, se actualiza automáticamente en POS
+### Pedidos
+```
+GET    /api/pedidos/
+POST   /api/pedidos/
+GET    /api/pedidos/{id}/
+```
 
-## 🔍 Para Desarrolladores
+### Inventario
+```
+GET    /api/movimientos-inventario/
+POST   /api/movimientos-inventario/
+GET    /api/lotes/
+```
 
-### Agregar una nueva funcionalidad:
-1. **Backend**: Crear endpoint en `views.py`
-2. **Frontend**: Crear servicio en `services/`
-3. **UI**: Crear componente en `components/`
-4. **Estado**: Agregar al contexto si es necesario
+---
 
-### Debugging:
-- **Backend**: Ver logs en terminal de Django
-- **Frontend**: Usar DevTools del navegador (F12)
-- **Base de datos**: Usar Django Admin o herramientas SQL
+## 🛠️ Tecnologías
 
-¡Este README te da una visión completa de cómo funciona y cómo recrear el sistema! 🚀
+### Backend
+- **Django 5.1.7** - Framework web
+- **Django REST Framework** - API REST
+- **PostgreSQL** - Base de datos
+- **Python 3.x** - Lenguaje
+
+### Frontend
+- **React 19.1.0** - Framework UI
+- **React Router 7.5.0** - Enrutamiento
+- **Bootstrap 5.3.6** - Framework CSS
+- **Node.js** - Runtime
+
+---
+
+## 📖 Guía de Lectura
+
+### Para Desarrolladores
+1. Leer [INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)
+2. Leer [README_GENERAL.md](DOCUMENTACION/README_GENERAL.md)
+3. Seleccionar módulo y leer su README
+4. Revisar código en repositorio
+5. Implementar cambios
+
+### Para Product Managers
+1. Leer [INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)
+2. Leer [README_GENERAL.md](DOCUMENTACION/README_GENERAL.md)
+3. Revisar funcionalidades en cada módulo
+
+### Para QA/Testers
+1. Leer [INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)
+2. Leer funcionalidades de cada módulo
+3. Revisar validaciones
+4. Probar flujos de negocio
+
+---
+
+## 🔐 Seguridad
+
+- Validación en cliente y servidor
+- CORS configurado
+- Autenticación token-based (en producción)
+- Encriptación de contraseñas
+- Auditoría de cambios
+
+---
+
+## 📞 Soporte
+
+Para reportar bugs, sugerencias o preguntas:
+- Contactar al equipo de desarrollo
+- Crear issue en el repositorio
+- Revisar la documentación en `DOCUMENTACION/`
+
+---
+
+## 📝 Licencia
+
+[Especificar licencia]
+
+---
+
+## 👥 Contribuidores
+
+[Listar contribuidores]
+
+---
+
+## 📅 Última Actualización
+
+17 de Noviembre de 2025
+
+---
+
+## ✅ Estado del Proyecto
+
+- ✅ Documentación completa
+- ✅ Módulos implementados
+- ✅ API funcional
+- ✅ Frontend operativo
+- ⏳ Tests en progreso
+- ⏳ Deployment en progreso
+
+---
+
+**¡Gracias por usar nuestro sistema! 🎉**
+
+Para más información, consulta la [documentación completa](DOCUMENTACION/INDICE.md).

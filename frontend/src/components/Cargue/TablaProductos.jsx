@@ -162,8 +162,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || estadoBoton === 'ALISTAMIENTO'}
+                  style={(esCompletado || estadoBoton === 'ALISTAMIENTO') ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
                 />
               </td>
               <td>
@@ -174,8 +174,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={esCompletado || estadoBoton === 'ALISTAMIENTO'}
+                  style={(esCompletado || estadoBoton === 'ALISTAMIENTO') ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
                 />
               </td>
               <td>

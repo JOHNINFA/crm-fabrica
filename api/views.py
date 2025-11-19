@@ -8,10 +8,10 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion
 from .serializers import (
     PlaneacionSerializer,
-    RegistroSerializer, ProductoSerializer, CategoriaSerializer,
+    RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
     CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer
@@ -124,6 +124,36 @@ class ProductoViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"❌ Error general: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class StockViewSet(viewsets.ModelViewSet):
+    """API para gestionar stock de productos"""
+    queryset = Stock.objects.select_related('producto').all()
+    serializer_class = StockSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Stock.objects.select_related('producto').all()
+        
+        # 🎯 SOLO productos activos por defecto
+        queryset = queryset.filter(producto__activo=True)
+        
+        # Filtrar por producto_id
+        producto_id = self.request.query_params.get('producto_id')
+        if producto_id:
+            queryset = queryset.filter(producto_id=producto_id)
+        
+        # Filtrar por ubicación de inventario
+        ubicacion = self.request.query_params.get('ubicacion')
+        if ubicacion:
+            # Incluir productos con ubicacion=PRODUCCION O sin ubicacion (NULL)
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(producto__ubicacion_inventario=ubicacion) | 
+                Q(producto__ubicacion_inventario__isnull=True) |
+                Q(producto__ubicacion_inventario='')
+            )
+            
+        return queryset.order_by('producto__orden', 'producto__id')
 
 class LoteViewSet(viewsets.ModelViewSet):
     queryset = Lote.objects.all()
@@ -350,12 +380,15 @@ class CargueID1ViewSet(viewsets.ModelViewSet):
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         fecha = self.request.query_params.get('fecha')
+        producto = self.request.query_params.get('producto')
         activo = self.request.query_params.get('activo')
         
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto:
+            queryset = queryset.filter(producto=producto)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -373,12 +406,15 @@ class CargueID2ViewSet(viewsets.ModelViewSet):
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         fecha = self.request.query_params.get('fecha')
+        producto = self.request.query_params.get('producto')
         activo = self.request.query_params.get('activo')
         
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto:
+            queryset = queryset.filter(producto=producto)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -396,12 +432,15 @@ class CargueID3ViewSet(viewsets.ModelViewSet):
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         fecha = self.request.query_params.get('fecha')
+        producto = self.request.query_params.get('producto')
         activo = self.request.query_params.get('activo')
         
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto:
+            queryset = queryset.filter(producto=producto)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -419,12 +458,15 @@ class CargueID4ViewSet(viewsets.ModelViewSet):
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         fecha = self.request.query_params.get('fecha')
+        producto = self.request.query_params.get('producto')
         activo = self.request.query_params.get('activo')
         
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto:
+            queryset = queryset.filter(producto=producto)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -442,12 +484,15 @@ class CargueID5ViewSet(viewsets.ModelViewSet):
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         fecha = self.request.query_params.get('fecha')
+        producto = self.request.query_params.get('producto')
         activo = self.request.query_params.get('activo')
         
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto:
+            queryset = queryset.filter(producto=producto)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -465,12 +510,15 @@ class CargueID6ViewSet(viewsets.ModelViewSet):
         # Filtros opcionales
         dia = self.request.query_params.get('dia')
         fecha = self.request.query_params.get('fecha')
+        producto = self.request.query_params.get('producto')
         activo = self.request.query_params.get('activo')
         
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto:
+            queryset = queryset.filter(producto=producto)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -771,6 +819,75 @@ class ProduccionSolicitadaViewSet(viewsets.ViewSet):
         serializer = ProduccionSolicitadaSerializer(queryset, many=True)
         
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def calcular_desde_cargue(self, request):
+        """Calcular y guardar solicitadas sumando todos los IDs de cargue"""
+        try:
+            dia = request.data.get('dia')
+            fecha = request.data.get('fecha')
+            
+            if not dia or not fecha:
+                return Response(
+                    {'error': 'Día y fecha son requeridos'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Obtener todos los registros de cargue para esta fecha
+            from django.db.models import Sum
+            
+            # Diccionario para acumular cantidades por producto
+            productos_suma = {}
+            
+            # Obtener lista de productos válidos (que existen en la BD)
+            productos_validos = set(Producto.objects.values_list('name', flat=True))
+            
+            # Consultar cada tabla de cargue (ID1 a ID6)
+            for modelo in [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]:
+                registros = modelo.objects.filter(dia=dia.upper(), fecha=fecha)
+                
+                for registro in registros:
+                    producto = registro.producto
+                    # Forzar conversión a int para evitar concatenación de strings
+                    cantidad = int(registro.cantidad or 0)
+                    
+                    # Solo procesar si el producto existe en la BD y tiene cantidad > 0
+                    if producto and cantidad > 0 and producto in productos_validos:
+                        if producto in productos_suma:
+                            productos_suma[producto] += cantidad
+                        else:
+                            productos_suma[producto] = cantidad
+            
+            # Limpiar registros existentes para este día/fecha
+            ProduccionSolicitada.objects.filter(dia=dia.upper(), fecha=fecha).delete()
+            
+            # Crear nuevos registros con las sumas
+            registros_creados = []
+            for producto_nombre, cantidad_total in productos_suma.items():
+                if cantidad_total > 0:
+                    registro = ProduccionSolicitada.objects.create(
+                        dia=dia.upper(),
+                        fecha=fecha,
+                        producto_nombre=producto_nombre,
+                        cantidad_solicitada=cantidad_total
+                    )
+                    registros_creados.append(registro)
+            
+            serializer = ProduccionSolicitadaSerializer(registros_creados, many=True)
+            
+            return Response({
+                'success': True,
+                'message': f'Calculadas {len(registros_creados)} solicitadas para {dia} {fecha}',
+                'productos_procesados': len(productos_suma),
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            import traceback
+            return Response(
+                {'error': str(e), 'traceback': traceback.format_exc()}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # ========================================
 # VISTAS PARA SISTEMA POS - CAJEROS

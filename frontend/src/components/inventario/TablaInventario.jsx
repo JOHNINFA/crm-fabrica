@@ -6,13 +6,6 @@ import '../../styles/EditButtons.css';
 const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {}, yaSeGrabo = false }) => {
   const handleChange = (id, value) => handleCantidadChange(id, value);
 
-  const handleEliminar = async (producto) => {
-    if (window.confirm(`¿Estás seguro de eliminar el producto "${producto.nombre}"?`)) {
-      const utils = await import('../../utils/inventarioUtils');
-      utils.eliminarProductoInventario(producto.id);
-    }
-  };
-
   return (
     <div className="table-container">
       <Table className="align-middle mb-0 table-kardex">
@@ -56,19 +49,6 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                       <i className="bi bi-pencil me-1"></i>
                       Editar
                     </Button>
-
-                    {producto.id > 39 && (
-                      <Button
-                        variant="outline-danger"
-                        onClick={() => handleEliminar(producto)}
-                        className="rounded-pill-sm"
-                        style={{ backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fecaca', boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.95rem', minWidth: '100px' }}
-                        title={`Eliminar ${producto.nombre}`}
-                      >
-                        <i className="bi bi-trash me-1"></i>
-                        Eliminar
-                      </Button>
-                    )}
                   </div>
                 </td>
               </tr>

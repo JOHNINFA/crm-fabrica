@@ -307,6 +307,216 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
+  // 📋 NUEVA FUNCIÓN: Cargar pedidos PENDIENTES del día
+  const cargarPedidosPendientes = async (fecha) => {
+    try {
+      // Convertir fecha a formato YYYY-MM-DD si es un objeto Date
+      let fechaFormateada = fecha;
+      if (fecha instanceof Date) {
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        fechaFormateada = `${year}-${month}-${day}`;
+      }
+
+      console.log('📋 Cargando pedidos PENDIENTES para fecha:', fechaFormateada);
+
+      // 🔥 CARGAR TODOS LOS PEDIDOS y filtrar en el frontend (más seguro)
+      const response = await fetch(`http://localhost:8000/api/pedidos/`);
+
+      if (!response.ok) {
+        console.warn('⚠️ No se pudieron cargar pedidos');
+        return { pedidosAgrupados: {}, pedidosIds: [] };
+      }
+
+      const todosPedidos = await response.json();
+      console.log(`📦 Total de pedidos en BD: ${todosPedidos.length}`);
+
+      // 🔥 FILTRAR SOLO PEDIDOS PENDIENTES DE LA FECHA ESPECÍFICA
+      const pedidosFiltrados = todosPedidos.filter(p => {
+        const fechaEntrega = p.fecha_entrega ? p.fecha_entrega.split('T')[0] : null;
+        const esPendiente = p.estado === 'PENDIENTE';
+        const esFechaCorrecta = fechaEntrega === fechaFormateada;
+
+        if (esFechaCorrecta && esPendiente) {
+          console.log(`✅ Pedido incluido: ${p.numero || p.id} - Fecha: ${fechaEntrega} - Estado: ${p.estado}`);
+        }
+
+        return esPendiente && esFechaCorrecta;
+      });
+
+      console.log(`✅ Pedidos PENDIENTES para ${fechaFormateada}: ${pedidosFiltrados.length}`);
+
+      // Agrupar productos por nombre y sumar cantidades
+      const pedidosAgrupados = {};
+      const pedidosIds = [];
+
+      for (const pedido of pedidosFiltrados) {
+        pedidosIds.push(pedido.id);
+
+        if (pedido.detalles && pedido.detalles.length > 0) {
+          for (const detalle of pedido.detalles) {
+            const nombreProducto = detalle.producto_nombre;
+            const cantidad = detalle.cantidad;
+
+            if (!pedidosAgrupados[nombreProducto]) {
+              pedidosAgrupados[nombreProducto] = {
+                nombre: nombreProducto,
+                cantidad: 0,
+                productoId: null // Se buscará después
+              };
+            }
+
+            pedidosAgrupados[nombreProducto].cantidad += cantidad;
+            console.log(`   📦 ${nombreProducto}: +${cantidad} (total: ${pedidosAgrupados[nombreProducto].cantidad})`);
+          }
+        }
+      }
+
+      console.log('📊 Productos agrupados de pedidos:', pedidosAgrupados);
+      console.log(`📊 Total de pedidos a marcar como ENTREGADA: ${pedidosIds.length}`);
+
+      return { pedidosAgrupados, pedidosIds };
+
+    } catch (error) {
+      console.error('❌ Error cargando pedidos:', error);
+      return { pedidosAgrupados: {}, pedidosIds: [] };
+    }
+  };
+
+  // 📋 NUEVA FUNCIÓN: Marcar pedidos como ENTREGADA
+  const marcarPedidosComoEntregados = async (pedidosIds) => {
+    try {
+      console.log(`📦 Marcando ${pedidosIds.length} pedidos como ENTREGADA...`);
+
+      let exitosos = 0;
+      let errores = 0;
+
+      for (const pedidoId of pedidosIds) {
+        try {
+          const response = await fetch(`http://localhost:8000/api/pedidos/${pedidoId}/`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ estado: 'ENTREGADA' })
+          });
+
+          if (response.ok) {
+            exitosos++;
+            console.log(`✅ Pedido ${pedidoId} marcado como ENTREGADA`);
+          } else {
+            errores++;
+            console.error(`❌ Error marcando pedido ${pedidoId}`);
+          }
+        } catch (error) {
+          errores++;
+          console.error(`❌ Error en pedido ${pedidoId}:`, error);
+        }
+      }
+
+      console.log(`✅ Pedidos actualizados: ${exitosos} exitosos, ${errores} errores`);
+      return { exitosos, errores };
+
+    } catch (error) {
+      console.error('❌ Error marcando pedidos:', error);
+      return { exitosos: 0, errores: pedidosIds.length };
+    }
+  };
+
+  // 🔒 NUEVA FUNCIÓN: Congelar PEDIDOS en Planeación
+  const congelarPedidosEnPlaneacion = async () => {
+    try {
+      console.log('❄️ CONGELANDO PEDIDOS EN PLANEACIÓN...');
+
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      // Obtener pedidos actuales de la BD
+      const response = await fetch(`http://localhost:8000/api/pedidos/`);
+      if (!response.ok) {
+        console.warn('⚠️ No se pudieron cargar pedidos para congelar');
+        return;
+      }
+
+      const todosPedidos = await response.json();
+
+      // Filtrar pedidos de esta fecha que no estén anulados
+      const pedidosFecha = todosPedidos.filter(p =>
+        p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
+      );
+
+      console.log(`📦 Pedidos encontrados para ${fechaFormateada}:`, pedidosFecha.length);
+
+      // Agrupar pedidos por producto
+      const pedidosMap = {};
+      for (const pedido of pedidosFecha) {
+        if (pedido.detalles && pedido.detalles.length > 0) {
+          for (const detalle of pedido.detalles) {
+            const nombreProducto = detalle.producto_nombre;
+            if (!pedidosMap[nombreProducto]) {
+              pedidosMap[nombreProducto] = 0;
+            }
+            pedidosMap[nombreProducto] += detalle.cantidad;
+          }
+        }
+      }
+
+      console.log('📊 Pedidos agrupados por producto:', pedidosMap);
+
+      // Guardar/actualizar en api_planeacion con los pedidos congelados
+      for (const [nombreProducto, cantidadPedidos] of Object.entries(pedidosMap)) {
+        if (cantidadPedidos > 0) {
+          // Verificar si ya existe un registro de planeación para este producto y fecha
+          const planeacionResponse = await fetch(
+            `http://localhost:8000/api/planeacion/?fecha=${fechaFormateada}&producto_nombre=${encodeURIComponent(nombreProducto)}`
+          );
+
+          let datosPlaneacion = {
+            fecha: fechaFormateada,
+            producto_nombre: nombreProducto,
+            pedidos: cantidadPedidos,
+            existencias: 0,
+            solicitadas: 0,
+            orden: 0,
+            ia: 0
+          };
+
+          if (planeacionResponse.ok) {
+            const planeacionExistente = await planeacionResponse.json();
+            if (planeacionExistente.length > 0) {
+              // Actualizar registro existente, manteniendo otros valores
+              const registro = planeacionExistente[0];
+              datosPlaneacion = {
+                ...datosPlaneacion,
+                existencias: registro.existencias || 0,
+                solicitadas: registro.solicitadas || 0,
+                orden: registro.orden || 0,
+                ia: registro.ia || 0
+              };
+            }
+          }
+
+          // Guardar en BD
+          await fetch(`http://localhost:8000/api/planeacion/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datosPlaneacion)
+          });
+
+          console.log(`✅ Pedidos congelados para ${nombreProducto}: ${cantidadPedidos} und`);
+        }
+      }
+
+      console.log('✅ PEDIDOS CONGELADOS EN PLANEACIÓN');
+
+    } catch (error) {
+      console.error('❌ Error congelando pedidos:', error);
+    }
+  };
+
   // 🚀 NUEVA FUNCIÓN: Guardar datos de un ID específico
   const guardarDatosDelID = async (fechaAUsar, idVendedor) => {
     try {
@@ -335,7 +545,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         return false;
       }
 
-      // Obtener responsable real
+      // Obtener responsable real - PRIORIDAD: responsableStorage > localStorage > datos > default
       const { responsableStorage } = await import('../../utils/responsableStorage');
       let responsableReal = 'RESPONSABLE';
 
@@ -343,12 +553,16 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const responsableLS = localStorage.getItem(`responsable_${idVendedor}`);
       const responsableFromDatos = datos.responsable;
 
-      if (responsableFromDatos && responsableFromDatos !== 'RESPONSABLE' && responsableFromDatos.trim() !== '') {
-        responsableReal = responsableFromDatos.trim();
-      } else if (responsableRS && responsableRS !== 'RESPONSABLE' && responsableRS.trim() !== '') {
+      // 🚀 PRIORIDAD CORRECTA: responsableStorage es la fuente de verdad
+      if (responsableRS && responsableRS !== 'RESPONSABLE' && responsableRS.trim() !== '') {
         responsableReal = responsableRS.trim();
+        console.log(`✅ Responsable desde responsableStorage: "${responsableReal}"`);
       } else if (responsableLS && responsableLS !== 'RESPONSABLE' && responsableLS.trim() !== '') {
         responsableReal = responsableLS.trim();
+        console.log(`✅ Responsable desde localStorage: "${responsableReal}"`);
+      } else if (responsableFromDatos && responsableFromDatos !== 'RESPONSABLE' && responsableFromDatos.trim() !== '') {
+        responsableReal = responsableFromDatos.trim();
+        console.log(`✅ Responsable desde datos: "${responsableReal}"`);
       }
 
       console.log(`📝 ${idVendedor} - RESPONSABLE FINAL: "${responsableReal}"`);
@@ -1161,45 +1375,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       totalDevoluciones = 0;
       totalVencidas = 0;
 
-      // 🚀 PASO 0: DESPACHO - Afectar inventario (ahora incluido en FINALIZAR)
-      console.log('🚚 PASO 0: DESPACHANDO - Afectando inventario...');
-
-      // Validar que todos los productos tengan V y D marcados
-      if (productosPendientes.length > 0) {
-        const listaPendientes = productosPendientes.map(p => {
-          const checksFaltantes = [];
-          if (!p.vendedor) checksFaltantes.push('V');
-          if (!p.despachador) checksFaltantes.push('D');
-          return `• ${p.nombre} (${p.totalCantidad} und) - Faltan: ${checksFaltantes.join(', ')}`;
-        }).join('\n');
-
-        alert(
-          `❌ NO SE PUEDE FINALIZAR\n\n` +
-          `Los siguientes productos tienen cantidades pero NO están completamente verificados:\n\n` +
-          `${listaPendientes}\n\n` +
-          `🔧 SOLUCIÓN: Marque los checkboxes V (Vendedor) y D (Despachador) faltantes.`
-        );
-        setLoading(false);
-        return;
-      }
-
-      // Afectar inventario de productos validados
-      for (const producto of productosValidados) {
-        console.log(`🔥 DESPACHANDO: ${producto.nombre}`);
-        const productoId = producto.id || null;
-
-        if (productoId) {
-          console.log(`   - Producto ID: ${productoId}`);
-          console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
-
-          const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
-          console.log(`✅ DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
-        } else {
-          console.error(`❌ Producto ID NO encontrado para: ${producto.nombre}`);
-        }
-      }
-
-      console.log('✅ DESPACHO COMPLETADO - Continuando con devoluciones/vencidas...');
+      // 🚀 PASO 0: VALIDACIÓN - El inventario YA FUE DESCONTADO en DESPACHO
+      console.log('✅ INVENTARIO YA DESCONTADO EN DESPACHO - Saltando descuento...');
+      console.log('📋 Productos que ya fueron descontados:', productosValidados.length);
 
       // PASO 1: Procesar devoluciones y vencidas
       console.log('📦 PASO 1: Procesando devoluciones y vencidas...');
@@ -1337,94 +1515,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     setLoading(false);
   };
 
-  // Manejar despacho (SÍ afectar inventario según README original) - FUNCIÓN ORIGINAL - mantener para compatibilidad
-  const manejarDespacho = async () => {
-    console.log('🚚 EJECUTANDO DESPACHO - AFECTANDO INVENTARIO (según README)');
-
-    // 🚀 VALIDACIÓN ESTRICTA: NO permitir avanzar si hay productos pendientes
-    if (productosPendientes.length > 0) {
-      const listaPendientes = productosPendientes.map(p => {
-        const checksFaltantes = [];
-        if (!p.vendedor) checksFaltantes.push('V');
-        if (!p.despachador) checksFaltantes.push('D');
-
-        return `• ${p.nombre} (${p.totalCantidad} und) - Faltan: ${checksFaltantes.join(', ')}`;
-      }).join('\n');
-
-      const confirmar = window.confirm(
-        `❌ NO SE PUEDE REALIZAR EL DESPACHO\n\n` +
-        `Los siguientes productos tienen cantidades pero NO están completamente verificados:\n\n` +
-        `${listaPendientes}\n\n` +
-        `🔧 SOLUCIÓN: Marque los checkboxes V (Vendedor) y D (Despachador) faltantes para todos los productos con cantidad.\n\n` +
-        `⚠️ TODOS los productos con cantidad deben tener ambos checkboxes marcados antes de continuar.\n\n` +
-        `✅ ACEPTAR: Volver a revisar y marcar checkboxes\n` +
-        `❌ CANCELAR: Quedarse en esta pantalla`
-      );
-
-      if (confirmar) {
-        console.log('🔄 Usuario eligió volver a revisar checkboxes');
-      } else {
-        console.log('🚫 Usuario eligió quedarse en la pantalla actual');
-      }
-
-      console.log('🚫 DESPACHO BLOQUEADO - Hay productos sin verificar completamente');
-      return; // Salir sin hacer despacho
-    }
-
-    setLoading(true);
-
-    try {
-      console.log('📋 Productos validados para despacho:', productosValidados.length);
-
-      // DESCONTAR del inventario (según README: "Actualización de inventario solo en DESPACHO")
-      for (const producto of productosValidados) {
-        console.log(`🔥 PROCESANDO: ${producto.nombre}`);
-
-        const productoId = producto.id || null;
-
-        if (productoId) {
-          console.log(`   - Producto ID: ${productoId}`);
-          console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
-
-          const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
-
-          console.log(`✅ DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
-        } else {
-          console.error(`❌ Producto ID NO encontrado para: ${producto.nombre}`);
-        }
-      }
-
-      // 🔒 Congelar producción al cambiar a FINALIZAR
-      congelarProduccion('FINALIZAR INICIADO');
-
-      // Cambiar estado a FINALIZAR
-      setEstado('FINALIZAR');
-      localStorage.setItem(`estado_despacho_${dia}_${fechaSeleccionada}`, 'DESPACHO');
-      localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'FINALIZAR');
-
-      console.log('✅ DESPACHO COMPLETADO - Inventario afectado según README');
-
-      // Mostrar resumen con advertencia si hay pendientes
-      const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
-      const totalGeneral = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
-
-      let mensaje = `✅ Despacho Realizado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`;
-
-      if (productosPendientes.length > 0) {
-        const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
-        mensaje += `\n\n⚠️ PRODUCTOS NO DESPACHADOS: ${productosPendientes.length} productos (${totalPendientes} unidades)\n(Falta marcar checkboxes V y/o D)`;
-      }
-
-      alert(mensaje);
-
-    } catch (error) {
-      console.error('❌ Error en despacho:', error);
-      alert(`❌ Error en despacho: ${error.message}`);
-    }
-
-    setLoading(false);
-  };
-
   const obtenerConfigBoton = () => {
     const listos = productosValidados;
     const pendientes = productosPendientes;
@@ -1435,9 +1525,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           texto: '📦 SUGERIDO',
           variant: 'outline-secondary',
           disabled: loading,
-          onClick: () => {
+          onClick: async () => {
             // 🔒 Congelar producción al activar alistamiento
             congelarProduccion('ALISTAMIENTO ACTIVADO');
+
+            // 🔒 NUEVO: Congelar PEDIDOS en Planeación
+            await congelarPedidosEnPlaneacion();
 
             setEstado('ALISTAMIENTO_ACTIVO');
             localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO_ACTIVO');
@@ -1453,18 +1546,33 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             setLoading(true);
 
             try {
-              // 🎯 MOSTRAR CONFIRMACIÓN ANTES de descontar inventario
+              // 🚨 VALIDACIÓN ESTRICTA: NO permitir despacho si hay productos pendientes
+              if (productosPendientes.length > 0) {
+                const listaPendientes = productosPendientes.map(p =>
+                  `• ${p.nombre}: ${p.totalCantidad} und (V:${p.vendedor ? '✓' : '✗'} D:${p.despachador ? '✓' : '✗'})`
+                ).join('\n');
+
+                const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
+
+                alert(
+                  `❌ NO SE PUEDE REALIZAR EL DESPACHO\n\n` +
+                  `Los siguientes productos tienen cantidades pero NO están completamente verificados:\n\n` +
+                  `${listaPendientes}\n\n` +
+                  `🔧 SOLUCIÓN: Marque los checkboxes V (Vendedor) y D (Despachador) faltantes.\n\n` +
+                  `⚠️ TODOS los productos con cantidad deben tener ambos checkboxes marcados antes de continuar.\n\n` +
+                  `Total pendiente: ${totalPendientes} unidades en ${productosPendientes.length} productos`
+                );
+
+                console.log('🚫 DESPACHO BLOQUEADO - Hay productos sin verificar completamente');
+                setLoading(false);
+                return; // Salir sin hacer despacho
+              }
+
+              // 🎯 CONFIRMACIÓN: Mostrar resumen antes de descontar inventario
               const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
               const totalGeneral = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
 
-              let mensaje = `🚚 ¿Confirmar Despacho?\n\n${resumen}\n\n🎯 TOTAL A DESCONTAR DEL INVENTARIO: ${totalGeneral} unidades`;
-
-              if (productosPendientes.length > 0) {
-                const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
-                mensaje += `\n\n⚠️ PRODUCTOS NO DESPACHADOS: ${productosPendientes.length} productos (${totalPendientes} unidades)\n(Falta marcar checkboxes V y/o D)`;
-              }
-
-              mensaje += `\n\n¿Desea continuar con el despacho?`;
+              const mensaje = `🚚 ¿Confirmar Despacho?\n\n${resumen}\n\n🎯 TOTAL A DESCONTAR DEL INVENTARIO: ${totalGeneral} unidades\n\n¿Desea continuar?`;
 
               // 🚨 CONFIRMACIÓN: Solo continuar si el usuario acepta
               const confirmar = window.confirm(mensaje);
@@ -1478,9 +1586,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               // 🚀 PROCEDER CON EL DESPACHO: Afectar inventario
               console.log('🚚 ALISTAMIENTO_ACTIVO → Afectando inventario...');
 
-              // Afectar inventario de productos validados
+              // ========== PASO 1: DESCONTAR CARGUE DEL INVENTARIO ==========
+              console.log('📦 PASO 1: Descontando productos de CARGUE...');
+
               for (const producto of productosValidados) {
-                console.log(`🔥 PROCESANDO: ${producto.nombre}`);
+                console.log(`🔥 PROCESANDO CARGUE: ${producto.nombre}`);
                 const productoId = producto.id || null;
 
                 if (productoId) {
@@ -1488,10 +1598,69 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                   console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
 
                   const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
-                  console.log(`✅ DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
+                  console.log(`✅ DESCONTADO CARGUE: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
                 } else {
                   console.error(`❌ Producto ID NO encontrado para: ${producto.nombre}`);
                 }
+              }
+
+              const totalCargue = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
+              console.log(`✅ TOTAL CARGUE DESCONTADO: ${totalCargue} unidades`);
+
+              // ========== PASO 2: DESCONTAR PEDIDOS DEL INVENTARIO ==========
+              console.log('📋 PASO 2: Descontando productos de PEDIDOS PENDIENTES...');
+
+              const { pedidosAgrupados, pedidosIds } = await cargarPedidosPendientes(fechaSeleccionada);
+              const productosPedidos = Object.values(pedidosAgrupados);
+              let totalPedidos = 0;
+
+              if (productosPedidos.length > 0) {
+                // Cargar todos los productos desde la API para obtener IDs
+                const productosResponse = await fetch('http://localhost:8000/api/productos/');
+                const todosLosProductos = productosResponse.ok ? await productosResponse.json() : [];
+
+                for (const productoPedido of productosPedidos) {
+                  // Buscar el ID del producto por nombre
+                  let productoId = null;
+
+                  // Opción 1: Buscar en productosValidados (productos de CARGUE)
+                  const productoEnCargue = productosValidados.find(p =>
+                    p.nombre.toUpperCase() === productoPedido.nombre.toUpperCase()
+                  );
+
+                  if (productoEnCargue) {
+                    productoId = productoEnCargue.id;
+                  }
+                  // Opción 2: Buscar en todos los productos de la API
+                  else {
+                    const productoEnAPI = todosLosProductos.find(p =>
+                      p.nombre.toUpperCase() === productoPedido.nombre.toUpperCase()
+                    );
+                    productoId = productoEnAPI?.id;
+                  }
+
+                  if (productoId) {
+                    console.log(`🔥 PROCESANDO PEDIDO: ${productoPedido.nombre}`);
+                    console.log(`   - Producto ID: ${productoId}`);
+                    console.log(`   - Cantidad a descontar: ${productoPedido.cantidad}`);
+
+                    const resultado = await actualizarInventario(productoId, productoPedido.cantidad, 'RESTAR');
+
+                    console.log(`✅ DESCONTADO PEDIDO: ${productoPedido.nombre} - Stock actualizado: ${resultado.stock_actual}`);
+                    totalPedidos += productoPedido.cantidad;
+                  } else {
+                    console.error(`❌ Producto ID NO encontrado para pedido: ${productoPedido.nombre}`);
+                  }
+                }
+
+                console.log(`✅ TOTAL PEDIDOS DESCONTADO: ${totalPedidos} unidades`);
+
+                // ========== PASO 3: MARCAR PEDIDOS COMO ENTREGADA ==========
+                console.log('📦 PASO 3: Marcando pedidos como ENTREGADA...');
+                const { exitosos, errores } = await marcarPedidosComoEntregados(pedidosIds);
+                console.log(`✅ Pedidos actualizados: ${exitosos} exitosos, ${errores} errores`);
+              } else {
+                console.log('ℹ️ No hay pedidos PENDIENTES para este día');
               }
 
               // 🔒 Congelar producción al cambiar a FINALIZAR
@@ -1500,10 +1669,23 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               // Cambiar a FINALIZAR (ahora solo lectura)
               setEstado('FINALIZAR');
               localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'FINALIZAR');
-              console.log('✅ Inventario afectado → Cambiando a FINALIZAR (solo lectura)');
+              console.log('✅ Inventario afectado (CARGUE + PEDIDOS) → Cambiando a FINALIZAR (solo lectura)');
 
               // 🎯 Mostrar confirmación del despacho realizado
-              alert(`✅ Despacho Completado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`);
+              const resumenCargue = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
+              const resumenPedidos = productosPedidos.length > 0
+                ? productosPedidos.map(p => `${p.nombre}: ${p.cantidad} und`).join('\n')
+                : 'Sin pedidos pendientes';
+
+              const totalGeneralFinal = totalCargue + totalPedidos;
+
+              const mensajeFinal = `✅ Despacho Completado\n\n` +
+                `📦 CARGUE:\n${resumenCargue}\nTotal: ${totalCargue} und\n\n` +
+                `📋 PEDIDOS:\n${resumenPedidos}\nTotal: ${totalPedidos} und\n\n` +
+                `🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneralFinal} unidades\n\n` +
+                `✅ ${pedidosIds.length} pedidos marcados como ENTREGADA`;
+
+              alert(mensajeFinal);
 
             } catch (error) {
               console.error('❌ Error afectando inventario:', error);

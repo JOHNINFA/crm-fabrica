@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Producto, Registro, Categoria, Lote, MovimientoInventario, RegistroInventario, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion
+from .models import Producto, Registro, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
@@ -11,6 +11,25 @@ class ProductoAdmin(admin.ModelAdmin):
     list_display = ('id', 'nombre', 'categoria', 'precio', 'stock_total', 'activo')
     list_filter = ('categoria', 'activo')
     search_fields = ('nombre', 'descripcion')
+
+@admin.register(Stock)
+class StockAdmin(admin.ModelAdmin):
+    list_display = ('get_producto_nombre', 'get_descripcion_corta', 'cantidad_actual', 'fecha_actualizacion')
+    search_fields = ('producto__nombre', 'producto_nombre', 'producto_descripcion')
+    readonly_fields = ('fecha_actualizacion', 'producto_nombre', 'producto_descripcion')
+    ordering = ('producto__orden', 'producto__id')
+    
+    def get_producto_nombre(self, obj):
+        """Mostrar nombre del producto"""
+        return obj.producto_nombre or obj.producto.nombre
+    get_producto_nombre.short_description = 'Producto'
+    get_producto_nombre.admin_order_field = 'producto__nombre'
+    
+    def get_descripcion_corta(self, obj):
+        """Mostrar descripción corta (primeros 50 caracteres)"""
+        desc = obj.producto_descripcion or obj.producto.descripcion or ''
+        return desc[:50] + '...' if len(desc) > 50 else desc
+    get_descripcion_corta.short_description = 'Descripción'
 
 @admin.register(Lote)
 class LoteAdmin(admin.ModelAdmin):

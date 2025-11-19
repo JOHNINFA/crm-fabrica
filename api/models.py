@@ -34,7 +34,9 @@ class Producto(models.Model):
         ordering = ['orden', 'id']  # Ordenar por orden personalizado, luego por ID
 
     def save(self, *args, **kwargs):
-        """Eliminar imagen antigua al actualizar con una nueva"""
+        """Eliminar imagen antigua al actualizar con una nueva y crear/actualizar Stock"""
+        es_nuevo = self.pk is None
+        
         if self.pk:  # Solo si es actualización
             try:
                 old_producto = Producto.objects.get(pk=self.pk)
@@ -47,6 +49,30 @@ class Producto(models.Model):
                 print(f"⚠️ Error al eliminar imagen antigua: {e}")
         
         super().save(*args, **kwargs)
+        
+        # 🚀 AUTO-CREAR/ACTUALIZAR STOCK
+        if es_nuevo:
+            # Crear registro en Stock para producto nuevo
+            from api.models import Stock
+            Stock.objects.create(
+                producto=self,
+                cantidad_actual=self.stock_total or 0
+            )
+            print(f"✅ Stock creado automáticamente para: {self.nombre}")
+        else:
+            # Actualizar stock existente
+            try:
+                from api.models import Stock
+                stock_obj = Stock.objects.get(producto=self)
+                stock_obj.cantidad_actual = self.stock_total or 0
+                stock_obj.save()
+            except Stock.DoesNotExist:
+                # Si no existe, crearlo
+                Stock.objects.create(
+                    producto=self,
+                    cantidad_actual=self.stock_total or 0
+                )
+                print(f"✅ Stock creado para producto existente: {self.nombre}")
     
     def delete(self, *args, **kwargs):
         """Eliminar imagen al borrar el producto"""
@@ -80,8 +106,44 @@ class Producto(models.Model):
         except Exception as e:
             print(f"⚠️ Error al eliminar archivos de imagen: {e}")
 
+    @property
+    def stock_actual(self):
+        """Obtener stock actual desde tabla Stock"""
+        try:
+            return self.stock.cantidad_actual
+        except:
+            return self.stock_total or 0
+    
     def __str__(self):
         return f"{self.nombre} - Stock: {self.stock_total}"
+
+class Stock(models.Model):
+    """Modelo para almacenar stock actual de productos"""
+    producto = models.OneToOneField(
+        Producto, 
+        on_delete=models.CASCADE, 
+        related_name='stock',
+        primary_key=True
+    )
+    producto_nombre = models.CharField(max_length=255, blank=True)
+    producto_descripcion = models.TextField(blank=True, null=True)
+    cantidad_actual = models.IntegerField(default=0)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_stock'
+        verbose_name = 'Stock'
+        verbose_name_plural = 'Stocks'
+    
+    def save(self, *args, **kwargs):
+        """Auto-llenar nombre y descripción del producto"""
+        if self.producto:
+            self.producto_nombre = self.producto.nombre
+            self.producto_descripcion = self.producto.descripcion
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.producto.nombre}: {self.cantidad_actual}"
 
 class Lote(models.Model):
     """Modelo para registro de lotes por fecha"""

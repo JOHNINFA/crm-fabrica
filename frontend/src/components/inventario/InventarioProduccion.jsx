@@ -320,23 +320,34 @@ const InventarioProduccion = () => {
     // 🎯 NUEVO: Cargar datos de confirmación del día actual
     cargarDatosConfirmacionActual();
 
-    // Event listeners - solo recargar si realmente cambió el storage
+    // Event listeners con debounce para evitar recargas mientras se edita
+    let debounceTimer = null;
+
     const handleStorageChange = (e) => {
       if (e.key === "productos") {
-        // Pequeño delay para evitar múltiples recargas
-        setTimeout(() => cargarProductos(), 100);
+        // Debounce de 2 segundos - solo recarga si no hay actividad
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          console.log('🔄 Recargando productos por cambio en storage...');
+          cargarProductos();
+        }, 2000);
       }
     };
 
     const handleProductosUpdated = () => {
-      // Pequeño delay para evitar múltiples recargas
-      setTimeout(() => cargarProductos(), 100);
+      // Debounce de 2 segundos
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log('🔄 Recargando productos por evento productosUpdated...');
+        cargarProductos();
+      }, 2000);
     };
 
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("productosUpdated", handleProductosUpdated);
 
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("productosUpdated", handleProductosUpdated);
     };

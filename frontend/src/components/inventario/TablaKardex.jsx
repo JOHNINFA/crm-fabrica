@@ -87,74 +87,67 @@ const TablaKardex = () => {
       if (movimientosFromBD.length === 0) {
         setCargando(true);
       }
-      // Obtener productos actuales de la BD para tener datos precisos
-      const productosResponse = await fetch('http://localhost:8000/api/productos/');
-      if (!productosResponse.ok) throw new Error('Error al obtener productos');
-      const productosBD = await productosResponse.json();
 
-      // Filtrar solo productos de PRODUCCION
-      const productosProduccion = productosBD.filter(p =>
-        !p.ubicacion_inventario || p.ubicacion_inventario === 'PRODUCCION'
-      );
+      // 🚀 USAR api_stock COMO FUENTE PRINCIPAL (TODOS los productos activos)
+      const stockResponse = await fetch('http://localhost:8000/api/stock/');
 
-      // Crear un mapa de productos por ID para referencia rápida
-      const productosMap = {};
-      productosProduccion.forEach(p => {
-        productosMap[p.id] = {
-          id: p.id,
-          nombre: p.nombre,
-          existencias: p.stock_total || 0
-        };
+      if (!stockResponse.ok) throw new Error('Error al obtener stocks');
+      const stocksBD = await stockResponse.json();
+
+      console.log('🔍 KARDEX - Productos desde api_stock:', stocksBD.length);
+      console.log('📋 Lista:', stocksBD.map(s => s.producto_nombre));
+
+      // Crear mapa de stocks
+      const stockMap = {};
+      stocksBD.forEach(s => {
+        stockMap[s.producto_id] = s.cantidad_actual;
       });
 
-      // Obtener registros de inventario
+      // 🎯 Usar stocks como productos (ya tiene todo lo necesario)
+      const productosProduccion = stocksBD.map(s => ({
+        id: s.producto_id,
+        nombre: s.producto_nombre,
+        descripcion: s.producto_descripcion,
+        stock_total: s.cantidad_actual
+      }));
+
+      // Obtener registros de inventario para información adicional
       const response = await fetch('http://localhost:8000/api/registro-inventario/');
       const todosLosRegistros = response.ok ? await response.json() : [];
 
-      const existenciasPorProducto = {};
-
-      // Procesar registros para obtener el más reciente por producto
+      // Crear mapa de último movimiento por producto
+      const ultimoMovimientoPorProducto = {};
       todosLosRegistros.forEach(registro => {
         const productoId = registro.producto_id;
-
-        // Solo procesar si el producto está en producción
-        if (productosMap[productoId]) {
-          if (!existenciasPorProducto[productoId] ||
-            new Date(registro.fecha_creacion) > new Date(existenciasPorProducto[productoId].ultimaFecha)) {
-            existenciasPorProducto[productoId] = {
-              nombre: registro.producto_nombre,
-              existencias: productosMap[productoId]?.existencias || 0,
-              ultimaFecha: registro.fecha_creacion,
-              ultimoMovimiento: registro
-            };
-          }
+        if (!ultimoMovimientoPorProducto[productoId] ||
+          new Date(registro.fecha_creacion) > new Date(ultimoMovimientoPorProducto[productoId].fecha_creacion)) {
+          ultimoMovimientoPorProducto[productoId] = registro;
         }
       });
 
-      // Convertir a formato para mostrar - INCLUIR TODOS LOS PRODUCTOS
+      // 🎯 MOSTRAR TODOS LOS PRODUCTOS DE api_stock
       const movimientosConvertidos = productosProduccion.map(producto => {
-        const data = existenciasPorProducto[producto.id];
+        const ultimoMov = ultimoMovimientoPorProducto[producto.id];
 
-        if (data && data.ultimoMovimiento) {
-          // Producto con movimientos
-          const mov = data.ultimoMovimiento;
+        if (ultimoMov) {
+          // Producto con movimientos registrados
           return {
-            id: mov.id,
-            productoId: mov.producto_id,
-            fecha: new Date(mov.fecha_produccion).toLocaleDateString('es-ES'),
-            hora: new Date(mov.fecha_creacion).toLocaleTimeString('es-ES'),
-            producto: data.nombre,
-            cantidad: mov.cantidad,
-            existencias: producto.stock_total || 0,
-            tipo: mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' :
-              mov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
-            usuario: mov.usuario,
+            id: ultimoMov.id,
+            productoId: producto.id,
+            fecha: new Date(ultimoMov.fecha_produccion).toLocaleDateString('es-ES'),
+            hora: new Date(ultimoMov.fecha_creacion).toLocaleTimeString('es-ES'),
+            producto: producto.nombre,
+            cantidad: ultimoMov.cantidad,
+            existencias: stockMap[producto.id] || 0,
+            tipo: ultimoMov.tipo_movimiento === 'ENTRADA' ? 'Entrada' :
+              ultimoMov.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Sin movimiento',
+            usuario: ultimoMov.usuario,
             lote: '-',
             fechaVencimiento: '-',
             registrado: true
           };
         } else {
-          // Producto sin movimientos
+          // Producto sin movimientos (nuevo o sin registros)
           return {
             id: `no-mov-${producto.id}`,
             productoId: producto.id,
@@ -162,7 +155,7 @@ const TablaKardex = () => {
             hora: '--:--',
             producto: producto.nombre,
             cantidad: 0,
-            existencias: producto.stock_total || 0,
+            existencias: stockMap[producto.id] || 0,
             tipo: 'Sin movimiento',
             usuario: 'Sin usuario',
             lote: '-',
@@ -175,24 +168,7 @@ const TablaKardex = () => {
       setMovimientosFromBD(movimientosConvertidos);
       setCargando(false);
 
-      // 🚀 Guardar en localStorage
-      try {
-        const year = fechaSeleccionada.getFullYear();
-        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-        const fechaFormateada = `${year}-${month}-${day}`;
-        const key = `kardex_${fechaFormateada}`;
-
-        const datosParaGuardar = {
-          movimientos: movimientosConvertidos,
-          timestamp: Date.now(),
-          fecha: fechaFormateada
-        };
-        localStorage.setItem(key, JSON.stringify(datosParaGuardar));
-        console.log('📊 Kardex actualizado y guardado:', movimientosConvertidos.length, 'movimientos');
-      } catch (error) {
-        console.error('Error al guardar en localStorage:', error);
-      }
+      console.log('✅ Kardex cargado:', movimientosConvertidos.length, 'productos');
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
       setMovimientosFromBD([]);
@@ -200,67 +176,19 @@ const TablaKardex = () => {
     }
   };
 
-  // 🚀 Cargar desde localStorage al iniciar
+  // 🚀 CARGA DIRECTA DESDE BACKEND (SIN CACHE)
   useEffect(() => {
-    const cargarDesdeLocalStorage = () => {
-      try {
-        const year = fechaSeleccionada.getFullYear();
-        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-        const fechaFormateada = `${year}-${month}-${day}`;
-        const key = `kardex_${fechaFormateada}`;
+    console.log('🚀 KARDEX: Cargando DIRECTO desde backend...');
 
-        const datosGuardados = localStorage.getItem(key);
+    // Cargar inmediatamente desde servidor
+    cargarMovimientosFromBD();
 
-        if (datosGuardados) {
-          const { movimientos } = JSON.parse(datosGuardados);
-          console.log('⚡ Kardex cargado desde localStorage (instantáneo):', movimientos.length);
-          setMovimientosFromBD(movimientos);
-        }
-      } catch (error) {
-        console.error('Error al cargar Kardex desde localStorage:', error);
-      }
-    };
-
-    // 🗑️ Limpiar localStorage viejo (más de 7 días)
-    const limpiarLocalStorageViejo = () => {
-      try {
-        const ahora = Date.now();
-        const SIETE_DIAS = 7 * 24 * 60 * 60 * 1000;
-
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('kardex_')) {
-            try {
-              const datos = JSON.parse(localStorage.getItem(key));
-              if (datos.timestamp && (ahora - datos.timestamp) > SIETE_DIAS) {
-                localStorage.removeItem(key);
-                console.log('🗑️ Limpiado localStorage viejo:', key);
-              }
-            } catch (e) {
-              localStorage.removeItem(key);
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error al limpiar localStorage:', error);
-      }
-    };
-
-    cargarDesdeLocalStorage();
-    limpiarLocalStorageViejo();
-
-    // 🚀 Cargar desde servidor en segundo plano (con delay para evitar rebote)
-    const timeoutCarga = setTimeout(() => {
-      cargarMovimientosFromBD();
-    }, 500); // Delay de 500ms para que localStorage se muestre primero
-
-    // 🔄 Configurar actualización periódica cada 30 segundos
+    // 🔄 Actualización periódica cada 30 segundos
     const interval = setInterval(() => {
       cargarMovimientosFromBD();
     }, 30000);
 
     return () => {
-      clearTimeout(timeoutCarga);
       clearInterval(interval);
     };
   }, [fechaSeleccionada]);

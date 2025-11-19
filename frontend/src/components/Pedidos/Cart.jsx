@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Cart.css";
 import PaymentModal from "./PaymentModal";
@@ -23,7 +23,16 @@ export default function Cart({
     const navigate = useNavigate();
     const [nota, setNota] = useState("");
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [volverGestion, setVolverGestion] = useState(false);
+    // Estado persistente para el toggle
+    const [volverGestion, setVolverGestion] = useState(() => {
+        const saved = localStorage.getItem('pedidos_volverGestion');
+        return saved === 'true';
+    });
+
+    // Guardar en localStorage cuando cambie
+    useEffect(() => {
+        localStorage.setItem('pedidos_volverGestion', volverGestion);
+    }, [volverGestion]);
 
     // Estado para drag scroll
     const [isDragging, setIsDragging] = useState(false);
