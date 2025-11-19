@@ -1,0 +1,283 @@
+/* Estilos basados en Tailwind convertidos a CSS estándar */
+.reportes-screen {
+    min-height: 100vh;
+    background-color: #f8fafc;
+}
+
+/* Header oscuro (mismo azul del sidebar) */
+.header-dark {
+    background-color: #0c2c53;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.header-dark h5 {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+/* Info de fecha */
+.fecha-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.fecha-info strong {
+    color: #1f2937;
+}
+
+/* Estadísticas grandes */
+.stats-large {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-value.text-info {
+    color: #3b82f6;
+}
+
+.stat-value.text-warning {
+    color: #f59e0b;
+}
+
+.stat-value.text-success {
+    color: #10b981;
+}
+
+.stat-value.text-primary {
+    color: #6366f1;
+}
+
+/* Wrapper de tabla */
+.table-wrapper {
+    background: #ffffff;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Tabla moderna */
+.table-modern {
+    margin-bottom: 0 !important;
+    font-size: 0.875rem;
+}
+
+.table-modern thead {
+    background-color: #f9fafb;
+}
+
+.table-modern thead th {
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: #6b7280;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.table-modern tbody {
+    background-color: #ffffff;
+}
+
+.table-modern tbody td {
+    padding: 0.6rem 1.5rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.table-modern tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.table-modern tbody tr td:first-child {
+    color: #6b7280;
+}
+
+.table-modern tbody tr td:nth-child(2) {
+    font-weight: 500;
+    color: #111827;
+}
+
+/* Badges tipo píldora con colores claros */
+.badge-pill {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    text-align: center;
+}
+
+/* Cyan - Existencias */
+.badge-pill.bg-info {
+    background-color: #cffafe !important;
+    color: #155e75 !important;
+}
+
+/* Amber - Solicitadas */
+.badge-pill.bg-warning {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+}
+
+/* Emerald - Pedidos */
+.badge-pill.bg-success {
+    background-color: #d1fae5 !important;
+    color: #065f46 !important;
+}
+
+/* Blue - Total */
+.badge-pill.bg-primary {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+}
+
+/* Gray - IA */
+.badge-pill.bg-secondary {
+    background-color: #e5e7eb !important;
+    color: #1f2937 !important;
+}
+
+/* Botón consultar - mismo azul del sidebar */
+.btn-consultar {
+    background-color: #0c2c53;
+    border: none;
+    font-weight: 700;
+}
+
+.btn-consultar:hover {
+    background-color: #163864;
+}
+
+/* Card contenedor */
+.card-wrapper {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Estado vacío */
+.empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    background: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Link volver */
+.link-volver {
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.link-volver:hover {
+    color: #0d6efd;
+}
+
+/* Inputs */
+.form-control-sm {
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+}
+
+.form-control-sm:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.15rem rgba(0, 123, 255, 0.15);
+}
+
+/* Cards de selección de reportes */
+.reporte-card {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    text-align: center;
+    height: 100%;
+    border: 2px solid transparent;
+}
+
+.reporte-card:not(.disabled):hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(12, 44, 83, 0.15);
+    border-color: #0c2c53;
+}
+
+.reporte-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reporte-card-icon {
+    margin-bottom: 1rem;
+}
+
+.reporte-card h5 {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.reporte-card p {
+    line-height: 1.5;
+}
+
+
+/* Responsive */
+@media (max-width: 992px) {
+    .stats-large {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-large {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .table-modern thead th,
+    .table-modern tbody td {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    .badge-pill {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
+    }
+}

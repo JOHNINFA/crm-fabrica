@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Form } from 'react-bootstrap';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Tooltip from 'react-bootstrap/Tooltip';
 
 const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
 
@@ -369,12 +371,30 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
         <div className="bg-lightgreen p-2 mb-2">
           <strong>VENTA:</strong>
-          <div className="text-end">{formatCurrency(calcularTotalDespacho() - calcularTotal('descuentos'))}</div>
+          <div className="text-end">{formatCurrency(baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0) - calcularTotal('descuentos'))}</div>
         </div>
 
         <div className="bg-light p-2">
           <strong>TOTAL EFECTIVO:</strong>
-          <div className="text-end">{formatCurrency((calcularTotalDespacho() - calcularTotal('descuentos')) - calcularTotal('nequi') - calcularTotal('daviplata'))}</div>
+          <div className="text-end d-flex justify-content-end align-items-center">
+            {(calcularTotal('nequi') > 0 || calcularTotal('daviplata') > 0) && (
+              <OverlayTrigger
+                placement="top"
+                overlay={
+                  <Tooltip>
+                    Se descontaron pagos digitales:<br />
+                    Nequi: {formatCurrency(calcularTotal('nequi'))}<br />
+                    Daviplata: {formatCurrency(calcularTotal('daviplata'))}
+                  </Tooltip>
+                }
+              >
+                <span className="text-primary me-3 d-flex align-items-center" style={{ cursor: 'pointer', marginTop: '2px' }}>
+                  <i className="bi bi-eye-fill"></i>
+                </span>
+              </OverlayTrigger>
+            )}
+            {formatCurrency((baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0) - calcularTotal('descuentos')) - calcularTotal('nequi') - calcularTotal('daviplata'))}
+          </div>
         </div>
       </div>
     </div>

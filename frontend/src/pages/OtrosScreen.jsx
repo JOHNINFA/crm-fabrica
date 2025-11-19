@@ -47,7 +47,7 @@ const OtrosScreen = () => {
             description: 'Reportes detallados por cajero y sucursal',
             icon: 'analytics',
             color: 'info',
-            route: '/reportes'
+            route: '/reportes-avanzados'
         }
     ];
 

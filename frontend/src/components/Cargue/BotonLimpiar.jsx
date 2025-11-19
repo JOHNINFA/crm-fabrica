@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from 'react-bootstrap';
+import { Button, Modal } from 'react-bootstrap';
 import VerificarGuardado from './VerificarGuardado';
 import { useVendedores } from '../../context/VendedoresContext';
 
@@ -8,6 +8,23 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   const [loading, setLoading] = useState(false);
   const [productosValidados, setProductosValidados] = useState([]);
   const [productosPendientes, setProductosPendientes] = useState([]);
+
+  // Estados para el Modal de Confirmación
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState({
+    totalDevoluciones: 0,
+    totalVencidas: 0,
+    resumenDevoluciones: [],
+    resumenVencidas: []
+  });
+
+  // Estados para el Modal de Éxito
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalData, setSuccessModalData] = useState({
+    titulo: '',
+    mensaje: '',
+    detalles: ''
+  });
 
   // Obtener datos frescos del contexto de vendedores
   const { datosVendedores } = useVendedores();
@@ -680,6 +697,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         console.log(`✅ Responsable desde datos: "${responsableReal}"`);
       }
 
+      // 🚀 NUEVO: Intentar obtener del contexto de vendedores si aún es el default
+      if (responsableReal === 'RESPONSABLE' && datosVendedores && datosVendedores[idVendedor]) {
+        const nombreContexto = datosVendedores[idVendedor].nombre;
+        if (nombreContexto && nombreContexto.trim() !== '') {
+          responsableReal = nombreContexto.trim();
+          console.log(`✅ Responsable desde Contexto Vendedores: "${responsableReal}"`);
+        }
+      }
+
       console.log(`📝 ${idVendedor} - RESPONSABLE FINAL: "${responsableReal}"`);
 
       // 🚀 CORREGIDO: Recopilar datos de pagos específicos del ID
@@ -718,14 +744,22 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       console.log(`💰 ${idVendedor} - Buscando base caja en: ${baseCajaKey} = ${baseCaja}`);
 
+      // 🚀 CORREGIDO: Obtener TOTAL PEDIDOS del contexto
+      const datosContexto = datosVendedores[idVendedor];
+      const totalPedidos = datosContexto?.totalPedidos || 0;
+      console.log(`📦 ${idVendedor} - Total Pedidos obtenido: ${totalPedidos}`);
+
       // 🚀 CORREGIDO: Calcular VENTA y TOTAL EFECTIVO correctamente
-      const ventaCalculada = totalProductos - totalDctos - (pagosData.descuentos || 0);
+      // VENTA = BASE_CAJA + TOTAL_DESPACHO + TOTAL_PEDIDOS - TOTAL_DCTOS
+      const ventaCalculada = baseCaja + totalProductos + totalPedidos - (totalDctos + (pagosData.descuentos || 0));
+
+      // TOTAL_EFECTIVO = VENTA - NEQUI - DAVIPLATA
       const totalEfectivoCalculado = ventaCalculada - (pagosData.nequi || 0) - (pagosData.daviplata || 0);
 
       const resumenData = {
         base_caja: baseCaja,
         total_despacho: totalProductos,
-        total_pedidos: 0,
+        total_pedidos: totalPedidos,
         total_dctos: totalDctos + (pagosData.descuentos || 0), // Incluir descuentos de pagos
         venta: ventaCalculada,
         total_efectivo: totalEfectivoCalculado
@@ -1390,11 +1424,18 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaSeleccionada}`, 'COMPLETADO');
 
       console.log(`🎉 ${idSheet} - FINALIZACIÓN COMPLETADA EXITOSAMENTE`);
-      alert(`✅ ${idSheet} - Jornada Finalizada y Guardada\n\n📊 Datos guardados en base de datos\n⬆️ Devoluciones: ${totalDevoluciones}\n🗑️ Vencidas: ${totalVencidas}\n🧹 LocalStorage limpiado`);
+
+      // ✅ MOSTRAR MODAL DE ÉXITO EN LUGAR DE ALERT
+      setSuccessModalData({
+        titulo: '¡Jornada Finalizada!',
+        mensaje: 'Los datos se han guardado correctamente en la base de datos.',
+        detalles: `⬆️ Devoluciones: ${totalDevoluciones}\n🗑️ Vencidas: ${totalVencidas}\n🧹 LocalStorage limpiado`
+      });
+      setShowSuccessModal(true);
 
     } catch (error) {
       console.error(`❌ ${idSheet} - Error en finalización:`, error);
-      alert(`❌ ${idSheet} - Error en finalización: ${error.message}\n\nLos datos pueden no haberse guardado correctamente.`);
+      alert(`❌ ${idSheet} - Error en finalización: ${error.message}`);
     }
 
     setLoading(false);
@@ -1446,31 +1487,34 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      // 🚨 CONFIRMACIÓN ANTES de procesar devoluciones y vencidas
-      let mensaje = `🚚 ¿Confirmar Finalización de Jornada?\n\n`;
+      // 🚨 CONFIRMACIÓN: Abrir Modal en lugar de window.confirm
+      setConfirmModalData({
+        totalDevoluciones,
+        totalVencidas,
+        resumenDevoluciones,
+        resumenVencidas
+      });
+      setShowConfirmModal(true);
+      setLoading(false); // Detener loading mientras confirma
+      return;
 
-      if (totalDevoluciones > 0) {
-        mensaje += `⬆️ DEVOLUCIONES (${totalDevoluciones} unidades):\n${resumenDevoluciones.join('\n')}\n\n`;
-      }
+    } catch (error) {
+      console.error('❌ Error preparando finalización:', error);
+      alert(`❌ Error: ${error.message}`);
+      setLoading(false);
+    }
+  };
 
-      if (totalVencidas > 0) {
-        mensaje += `🗑️ VENCIDAS (${totalVencidas} unidades):\n${resumenVencidas.join('\n')}\n\n`;
-      }
+  // 🚀 NUEVA FUNCIÓN: Ejecutar finalización después de confirmar en el modal
+  const ejecutarFinalizacion = async () => {
+    setShowConfirmModal(false);
+    setLoading(true);
 
-      if (totalDevoluciones === 0 && totalVencidas === 0) {
-        mensaje += `📋 No hay devoluciones ni vencidas para procesar\n\n`;
-      }
-
-      mensaje += `📊 Se guardarán todos los datos en la base de datos\n🧹 Se limpiará el localStorage\n\n¿Desea continuar?`;
-
-      // 🚨 CONFIRMACIÓN: Solo continuar si el usuario acepta
-      const confirmar = window.confirm(mensaje);
-
-      if (!confirmar) {
-        console.log('❌ Finalización cancelada por el usuario');
-        setLoading(false);
-        return; // Salir sin hacer nada
-      }
+    try {
+      // Recalcular variables necesarias (ya que es un nuevo scope)
+      const { simpleStorage } = await import('../../services/simpleStorage');
+      const fechaAUsar = fechaSeleccionada;
+      const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
       console.log('🏁 INICIANDO FINALIZACIÓN COMPLETA');
       console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
@@ -1487,8 +1531,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log('✅ VALIDACIÓN COMPLETADA - Continuando con finalización...');
 
       // Resetear contadores para el procesamiento real
-      totalDevoluciones = 0;
-      totalVencidas = 0;
+      let totalDevoluciones = 0;
+      let totalVencidas = 0;
 
       // 🚀 PASO 0: VALIDACIÓN - El inventario YA FUE DESCONTADO en DESPACHO
       console.log('✅ INVENTARIO YA DESCONTADO EN DESPACHO - Saltando descuento...');
@@ -1861,6 +1905,106 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           {loading ? '⏳ Procesando...' : config.texto}
         </Button>
       </div>
+
+      {/* Modal de Confirmación - ESTILO PREMIUM */}
+      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered backdrop="static" size="lg">
+        <Modal.Header closeButton className="bg-dark text-white border-0">
+          <Modal.Title className="d-flex align-items-center">
+            <i className="bi bi-truck me-2"></i> Confirmar Finalización
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-light">
+          <div className="text-center mb-4">
+            <h5 className="fw-bold text-dark">¿Está seguro de finalizar la jornada?</h5>
+            <p className="text-muted">Esta acción guardará todos los registros y cerrará el día.</p>
+          </div>
+
+          <div className="row g-3">
+            {confirmModalData.totalDevoluciones > 0 && (
+              <div className="col-12">
+                <div className="card border-warning shadow-sm h-100">
+                  <div className="card-body d-flex align-items-start">
+                    <div className="bg-warning-subtle p-3 rounded-circle me-3 text-warning-emphasis">
+                      <i className="bi bi-arrow-up-circle-fill fs-4"></i>
+                    </div>
+                    <div>
+                      <h6 className="fw-bold text-warning-emphasis mb-1">Devoluciones ({confirmModalData.totalDevoluciones} und)</h6>
+                      <ul className="mb-0 ps-3 small text-muted">
+                        {confirmModalData.resumenDevoluciones.map((item, idx) => (
+                          <li key={idx}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {confirmModalData.totalVencidas > 0 && (
+              <div className="col-12">
+                <div className="card border-danger shadow-sm h-100">
+                  <div className="card-body d-flex align-items-start">
+                    <div className="bg-danger-subtle p-3 rounded-circle me-3 text-danger-emphasis">
+                      <i className="bi bi-trash-fill fs-4"></i>
+                    </div>
+                    <div>
+                      <h6 className="fw-bold text-danger-emphasis mb-1">Vencidas ({confirmModalData.totalVencidas} und)</h6>
+                      <ul className="mb-0 ps-3 small text-muted">
+                        {confirmModalData.resumenVencidas.map((item, idx) => (
+                          <li key={idx}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="col-12">
+              <div className="card border-info shadow-sm">
+                <div className="card-body d-flex align-items-center">
+                  <div className="bg-info-subtle p-2 rounded-circle me-3 text-info-emphasis">
+                    <i className="bi bi-database-check fs-5"></i>
+                  </div>
+                  <div>
+                    <h6 className="fw-bold text-info-emphasis mb-0">Resumen de Acción</h6>
+                    <small className="text-muted">Se guardarán los datos en BD y se limpiará el dispositivo.</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="bg-light border-top-0">
+          <Button variant="outline-secondary" onClick={() => setShowConfirmModal(false)} className="px-4 rounded-pill">
+            Cancelar
+          </Button>
+          <Button variant="dark" onClick={ejecutarFinalizacion} className="px-4 rounded-pill">
+            ✅ Confirmar Finalización
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal de Éxito - ESTILO PREMIUM */}
+      <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered backdrop="static">
+        <Modal.Body className="text-center p-5">
+          <div className="mb-4 text-success">
+            <i className="bi bi-check-circle-fill" style={{ fontSize: '4rem' }}></i>
+          </div>
+          <h2 className="fw-bold mb-3 text-dark">{successModalData.titulo}</h2>
+          <p className="text-muted fs-5 mb-4">{successModalData.mensaje}</p>
+
+          <div className="bg-light p-3 rounded border mb-4 text-start">
+            <pre className="mb-0 text-secondary" style={{ fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
+              {successModalData.detalles}
+            </pre>
+          </div>
+
+          <Button variant="success" size="lg" className="w-100 rounded-pill" onClick={() => setShowSuccessModal(false)}>
+            Entendido
+          </Button>
+        </Modal.Body>
+      </Modal>
 
       {/* Indicador de productos pendientes */}
       {idSheet === 'ID1' && productosPendientes.length > 0 && (
