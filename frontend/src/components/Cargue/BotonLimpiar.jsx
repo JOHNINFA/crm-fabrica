@@ -424,6 +424,121 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
+  // 🔒 NUEVA FUNCIÓN: Guardar SOLICITADAS en Planeación
+  const guardarSolicitadasEnPlaneacion = async () => {
+    try {
+      console.log('💾 GUARDANDO SOLICITADAS EN PLANEACIÓN...');
+
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      // Obtener solicitadas desde todas las tablas de cargue
+      const solicitadasMap = {};
+      const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+
+      for (const id of idsVendedores) {
+        const response = await fetch(`http://localhost:8000/api/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
+        if (response.ok) {
+          const cargueData = await response.json();
+          cargueData.forEach(item => {
+            const producto = item.producto_nombre || item.producto;
+            const cantidad = item.cantidad || 0;
+
+            if (!solicitadasMap[producto]) {
+              solicitadasMap[producto] = 0;
+            }
+            solicitadasMap[producto] += cantidad;
+          });
+        }
+      }
+
+      console.log('📊 Solicitadas a guardar:', solicitadasMap);
+
+      // 📸 GUARDAR SNAPSHOT (foto del momento) - Solo si NO existe ya
+      // Verificar si ya hay snapshot guardado para este día
+      const checkSnapshot = await fetch(`http://localhost:8000/api/planeacion/?fecha=${fechaFormateada}`);
+      const snapshotExistente = checkSnapshot.ok ? await checkSnapshot.json() : [];
+
+      if (snapshotExistente.length > 0) {
+        console.log('📸 Snapshot ya existe para este día - NO se sobrescribe');
+        return; // Salir sin guardar
+      }
+
+      console.log('📸 Guardando SNAPSHOT del día (primera vez)...');
+
+      // Obtener existencias actuales desde api_stock
+      const stockResponse = await fetch('http://localhost:8000/api/stock/');
+      const stocks = stockResponse.ok ? await stockResponse.json() : [];
+      const stockMap = {};
+      stocks.forEach(s => {
+        stockMap[s.producto_nombre] = s.cantidad_actual;
+      });
+
+      // Obtener pedidos del día
+      const pedidosResponse = await fetch(`http://localhost:8000/api/pedidos/`);
+      const todosPedidos = pedidosResponse.ok ? await pedidosResponse.json() : [];
+      const pedidosFecha = todosPedidos.filter(p =>
+        p.fecha_entrega && p.fecha_entrega.split('T')[0] === fechaFormateada && p.estado !== 'ANULADA'
+      );
+
+      const pedidosMap = {};
+      pedidosFecha.forEach(pedido => {
+        if (pedido.detalles) {
+          pedido.detalles.forEach(detalle => {
+            const nombre = detalle.producto_nombre;
+            if (!pedidosMap[nombre]) pedidosMap[nombre] = 0;
+            pedidosMap[nombre] += detalle.cantidad;
+          });
+        }
+      });
+
+      // Guardar snapshot para cada producto con datos
+      const productosConDatos = new Set([
+        ...Object.keys(solicitadasMap),
+        ...Object.keys(pedidosMap)
+      ]);
+
+      for (const nombreProducto of productosConDatos) {
+        const solicitadas = solicitadasMap[nombreProducto] || 0;
+        const pedidos = pedidosMap[nombreProducto] || 0;
+        const existencias = stockMap[nombreProducto] || 0;
+
+        if (solicitadas > 0 || pedidos > 0) {
+          const snapshot = {
+            fecha: fechaFormateada,
+            producto_nombre: nombreProducto,
+            existencias: existencias,
+            solicitadas: solicitadas,
+            pedidos: pedidos,
+            total: solicitadas + pedidos,
+            orden: 0,
+            ia: 0,
+            usuario: 'Sistema'
+          };
+
+          const response = await fetch(`http://localhost:8000/api/planeacion/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(snapshot)
+          });
+
+          if (response.ok) {
+            console.log(`📸 Snapshot guardado: ${nombreProducto} (S:${solicitadas}, P:${pedidos}, E:${existencias})`);
+          } else {
+            console.error(`❌ Error guardando snapshot de ${nombreProducto}`);
+          }
+        }
+      }
+
+      console.log('✅ SOLICITADAS GUARDADAS EN PLANEACIÓN');
+
+    } catch (error) {
+      console.error('❌ Error guardando solicitadas:', error);
+    }
+  };
+
   // 🔒 NUEVA FUNCIÓN: Congelar PEDIDOS en Planeación
   const congelarPedidosEnPlaneacion = async () => {
     try {
@@ -1418,9 +1533,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       // PASO 4: Cambiar estado a COMPLETADO
       setEstado('COMPLETADO');
-      localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'COMPLETADO');
+      // 🔥 IMPORTANTE: Convertir fecha a string YYYY-MM-DD para consistencia
+      const fechaKey = fechaSeleccionada instanceof Date
+        ? fechaSeleccionada.toISOString().split('T')[0]
+        : fechaSeleccionada;
+      localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'COMPLETADO');
 
-      console.log('🎉 FINALIZACIÓN COMPLETADA EXITOSAMENTE');
+      console.log(`🎉 FINALIZACIÓN COMPLETADA - Estado guardado en: estado_boton_${dia}_${fechaKey}`);
       alert(`✅ Jornada Finalizada y Guardada\n\n📊 Datos guardados en base de datos\n⬆️ Devoluciones: ${totalDevoluciones}\n🗑️ Vencidas: ${totalVencidas}\n🧹 LocalStorage limpiado`);
 
     } catch (error) {
@@ -1531,6 +1650,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
             // 🔒 NUEVO: Congelar PEDIDOS en Planeación
             await congelarPedidosEnPlaneacion();
+
+            // 🔒 NUEVO: Guardar SOLICITADAS en Planeación automáticamente
+            await guardarSolicitadasEnPlaneacion();
 
             setEstado('ALISTAMIENTO_ACTIVO');
             localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO_ACTIVO');
@@ -1668,8 +1790,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
               // Cambiar a FINALIZAR (ahora solo lectura)
               setEstado('FINALIZAR');
-              localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'FINALIZAR');
-              console.log('✅ Inventario afectado (CARGUE + PEDIDOS) → Cambiando a FINALIZAR (solo lectura)');
+              const fechaKey = fechaSeleccionada instanceof Date
+                ? fechaSeleccionada.toISOString().split('T')[0]
+                : fechaSeleccionada;
+              localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'FINALIZAR');
+              console.log(`✅ Inventario afectado (CARGUE + PEDIDOS) → Cambiando a FINALIZAR - Estado guardado en: estado_boton_${dia}_${fechaKey}`);
 
               // 🎯 Mostrar confirmación del despacho realizado
               const resumenCargue = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');

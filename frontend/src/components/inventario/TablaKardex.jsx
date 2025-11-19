@@ -111,8 +111,8 @@ const TablaKardex = () => {
         stock_total: s.cantidad_actual
       }));
 
-      // Obtener registros de inventario para información adicional
-      const response = await fetch('http://localhost:8000/api/registro-inventario/');
+      // 🚀 OPTIMIZADO: Solo obtener últimos registros (limitar a 100)
+      const response = await fetch('http://localhost:8000/api/registro-inventario/?limit=100&ordering=-fecha_creacion');
       const todosLosRegistros = response.ok ? await response.json() : [];
 
       // Crear mapa de último movimiento por producto

@@ -17,6 +17,8 @@ const InventarioPlaneacion = () => {
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const [planeacion, setPlaneacion] = useState([]);
   const [solicitadasCargadas, setSolicitadasCargadas] = useState(false);
+  const [snapshotGuardado, setSnapshotGuardado] = useState(false);
+  const [diaCongelado, setDiaCongelado] = useState(false); // 🔒 Estado de congelación
 
   // 🚀 Cache para optimización
   const [cache, setCache] = useState({
@@ -24,8 +26,36 @@ const InventarioPlaneacion = () => {
     timestamp: null,
     fecha: null
   });
-  const CACHE_DURATION = 15000; // 15 segundos
+  const CACHE_DURATION = 30000; // 30 segundos (aumentado para reducir llamadas)
   const [cargando, setCargando] = useState(false); // Para evitar salto visual
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(Date.now()); // Para forzar actualizaciones
+
+  // 🔒 Verificar si el día está congelado (ALISTAMIENTO activado)
+  useEffect(() => {
+    const verificarCongelacion = () => {
+      const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+      const diaSemana = diasSemana[fechaSeleccionada.getDay()];
+      const fechaParaKey = fechaSeleccionada.toISOString().split('T')[0];
+      const estadoBoton = localStorage.getItem(`estado_boton_${diaSemana}_${fechaParaKey}`);
+
+      // 🔒 Día congelado si está en ALISTAMIENTO_ACTIVO o COMPLETADO
+      const congelado = estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'COMPLETADO';
+      setDiaCongelado(congelado);
+
+      if (congelado) {
+        console.log(`🔒 DÍA CONGELADO - Estado: ${estadoBoton} - No se permiten modificaciones`);
+      } else {
+        console.log(`✏️ DÍA EDITABLE - Estado: ${estadoBoton || 'No iniciado'}`);
+      }
+    };
+
+    verificarCongelacion();
+
+    // Verificar cada 2 segundos por si cambia el estado
+    const interval = setInterval(verificarCongelacion, 2000);
+
+    return () => clearInterval(interval);
+  }, [fechaSeleccionada]);
 
   // 🚀 Cargar datos desde localStorage al iniciar Y actualizar existencias en tiempo real
   useEffect(() => {
@@ -160,36 +190,63 @@ const InventarioPlaneacion = () => {
       // 🎯 NO limpiar productos mientras carga - mantener datos anteriores
       // Esto evita el salto visual de "No hay productos disponibles"
 
-      // 🚀 CARGA PARALELA - Consultar todas las fuentes de datos
-      console.log('🔍 Consultando APIs de cargue para fecha:', fechaFormateada);
-      const [planeacionResponse, stockResponse, pedidosResponse,
-        cargueId1Response, cargueId2Response, cargueId3Response,
-        cargueId4Response, cargueId5Response, cargueId6Response] = await Promise.all([
+      // 🔍 VERIFICAR SI EL DÍA ESTÁ COMPLETADO
+      const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+      const diaSemana = diasSemana[fechaSeleccionada.getDay()];
+
+      // 🔥 IMPORTANTE: Usar el mismo formato que BotonLimpiar (objeto Date convertido a string)
+      const fechaParaKey = fechaSeleccionada.toISOString().split('T')[0]; // YYYY-MM-DD
+      const estadoBoton = localStorage.getItem(`estado_boton_${diaSemana}_${fechaParaKey}`);
+      const diaCompletado = estadoBoton === 'COMPLETADO';
+
+      console.log(`🔍 Buscando estado en: estado_boton_${diaSemana}_${fechaParaKey}`);
+      console.log(`🔍 Estado del día ${diaSemana} (${fechaFormateada}): ${estadoBoton || 'No iniciado'}`);
+
+      // 🚀 OPTIMIZACIÓN: Si el día está COMPLETADO, solo cargar planeación y stock
+      let planeacionResponse, stockResponse, pedidosResponse;
+      let cargueId1Response, cargueId2Response, cargueId3Response;
+      let cargueId4Response, cargueId5Response, cargueId6Response;
+
+      if (diaCompletado) {
+        console.log('✅ DÍA COMPLETADO - Cargando solo desde planeación guardada (optimizado)');
+        [planeacionResponse, stockResponse] = await Promise.all([
           fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`),
-          fetch(`${API_URL}/stock/`),
-          fetch(`${API_URL}/pedidos/`),
-          fetch(`${API_URL}/cargue-id1/?fecha=${fechaFormateada}`),
-          fetch(`${API_URL}/cargue-id2/?fecha=${fechaFormateada}`),
-          fetch(`${API_URL}/cargue-id3/?fecha=${fechaFormateada}`),
-          fetch(`${API_URL}/cargue-id4/?fecha=${fechaFormateada}`),
-          fetch(`${API_URL}/cargue-id5/?fecha=${fechaFormateada}`),
-          fetch(`${API_URL}/cargue-id6/?fecha=${fechaFormateada}`)
+          fetch(`${API_URL}/stock/`)
         ]);
 
-      // Procesar planeación guardada
-      let planeacionMap = {};
+        // Crear respuestas vacías para cargue y pedidos (no se necesitan)
+        const emptyResponse = { ok: true, json: async () => [] };
+        pedidosResponse = emptyResponse;
+        cargueId1Response = cargueId2Response = cargueId3Response = emptyResponse;
+        cargueId4Response = cargueId5Response = cargueId6Response = emptyResponse;
+      } else {
+        console.log('🔍 DÍA ACTIVO - Consultando APIs de cargue y pedidos (dinámico)');
+        [planeacionResponse, stockResponse, pedidosResponse,
+          cargueId1Response, cargueId2Response, cargueId3Response,
+          cargueId4Response, cargueId5Response, cargueId6Response] = await Promise.all([
+            fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`),
+            fetch(`${API_URL}/stock/`),
+            fetch(`${API_URL}/pedidos/`),
+            fetch(`${API_URL}/cargue-id1/?fecha=${fechaFormateada}`),
+            fetch(`${API_URL}/cargue-id2/?fecha=${fechaFormateada}`),
+            fetch(`${API_URL}/cargue-id3/?fecha=${fechaFormateada}`),
+            fetch(`${API_URL}/cargue-id4/?fecha=${fechaFormateada}`),
+            fetch(`${API_URL}/cargue-id5/?fecha=${fechaFormateada}`),
+            fetch(`${API_URL}/cargue-id6/?fecha=${fechaFormateada}`)
+          ]);
+      }
+
+      // 📸 Verificar si existe snapshot guardado y cargar ORDEN e IA
+      let planeacionData = [];
       if (planeacionResponse.ok) {
-        const planeacionData = await planeacionResponse.json();
-        console.log('✅ Planeación guardada:', planeacionData.length, 'productos');
-        planeacionData.forEach(item => {
-          planeacionMap[item.producto_nombre] = {
-            existencias: item.existencias,
-            solicitadas: item.solicitadas,
-            pedidos: item.pedidos,
-            orden: item.orden,
-            ia: item.ia
-          };
-        });
+        planeacionData = await planeacionResponse.json();
+        const haySnapshot = planeacionData.length > 0;
+        setSnapshotGuardado(haySnapshot);
+        if (haySnapshot) {
+          console.log('📸 Snapshot encontrado para este día:', planeacionData.length, 'productos');
+        }
+      } else {
+        setSnapshotGuardado(false);
       }
 
       // 🎯 USAR api_stock COMO FUENTE PRINCIPAL
@@ -246,28 +303,10 @@ const InventarioPlaneacion = () => {
         }
       });
 
-      // 🔒 Procesar pedidos - PRIORIDAD: Planeación guardada (congelados) > Pedidos dinámicos
+      // 🚀 Procesar pedidos dinámicamente desde api/pedidos
       const pedidosMap = {};
 
-      // Verificar si hay pedidos congelados en planeación guardada
-      let pedidosCongelados = false;
-      Object.values(planeacionMap).forEach(item => {
-        if (item.pedidos && item.pedidos > 0) {
-          pedidosCongelados = true;
-        }
-      });
-
-      // Si hay pedidos congelados, usarlos desde planeacionMap
-      if (pedidosCongelados) {
-        console.log('❄️ Usando PEDIDOS CONGELADOS desde planeación');
-        Object.keys(planeacionMap).forEach(productoNombre => {
-          if (planeacionMap[productoNombre].pedidos > 0) {
-            pedidosMap[productoNombre] = planeacionMap[productoNombre].pedidos;
-          }
-        });
-      }
-      // Si no hay congelados, cargar dinámicamente desde api/pedidos
-      else if (pedidosResponse.ok) {
+      if (pedidosResponse.ok) {
         console.log('📊 Cargando PEDIDOS DINÁMICOS desde api/pedidos');
         const pedidos = await pedidosResponse.json();
 
@@ -315,44 +354,43 @@ const InventarioPlaneacion = () => {
       console.log(`📦 Productos desde api_stock: ${productosProduccion.length}`);
       console.log('📋 Lista de productos:', productosProduccion.map(p => p.nombre));
 
-      // Preparar productos con planeación - SOLO usar productos de la BD
+      // 🚀 SIEMPRE calcular dinámicamente desde CARGUE y PEDIDOS (datos en tiempo real)
+      // 📊 Cargar ORDEN e IA desde planeación guardada (ya cargada arriba)
+      const planeacionMap = {};
+      planeacionData.forEach(item => {
+        planeacionMap[item.producto_nombre] = {
+          orden: item.orden || 0,
+          ia: item.ia || 0
+        };
+      });
+
       const productosConPlaneacion = productosProduccion.map(p => {
-        const planeacionGuardada = planeacionMap[p.nombre];
-
-        // 🚀 PRIORIDAD: Solicitadas desde CARGUE (suma de todos los IDs)
-        let solicitadoFinal = solicitadasMap[p.nombre] || 0;
-
-        if (solicitadoFinal > 0) {
-          console.log(`📊 ${p.nombre}: Solicitadas desde CARGUE = ${solicitadoFinal}`);
-        }
-
-        const pedidosProducto = pedidosMap[p.nombre] || 0;
-
-        // Obtener existencias desde stockMap (prioridad) o stock_total (fallback)
+        // Obtener existencias desde stockMap
         const existencias = stockMap[p.id] !== undefined ? stockMap[p.id] : (p.stock_total || 0);
 
-        // Si hay planeación guardada, usar sus valores
-        if (planeacionGuardada) {
-          return {
-            id: p.id,
-            nombre: p.nombre,
-            existencias: existencias,
-            solicitado: solicitadoFinal,
-            pedidos: planeacionGuardada.pedidos,
-            orden: planeacionGuardada.orden,
-            ia: planeacionGuardada.ia
-          };
+        // Solicitadas desde cargue (suma de todos los IDs)
+        const solicitadoFinal = solicitadasMap[p.nombre] || 0;
+
+        // Pedidos del día
+        const pedidosProducto = pedidosMap[p.nombre] || 0;
+
+        // ORDEN e IA desde planeación guardada
+        const planeacionGuardada = planeacionMap[p.nombre];
+        const orden = planeacionGuardada ? planeacionGuardada.orden : 0;
+        const ia = planeacionGuardada ? planeacionGuardada.ia : 0;
+
+        if (solicitadoFinal > 0) {
+          console.log(`📊 ${p.nombre}: Solicitadas=${solicitadoFinal}, Pedidos=${pedidosProducto}`);
         }
 
-        // Si no hay planeación, crear registro nuevo
         return {
           id: p.id,
           nombre: p.nombre,
           existencias: existencias,
           solicitado: solicitadoFinal,
           pedidos: pedidosProducto,
-          orden: 0,
-          ia: 0
+          orden: orden,
+          ia: ia
         };
       });
 
@@ -383,8 +421,48 @@ const InventarioPlaneacion = () => {
         }
       });
 
-      // 🎯 Actualizar productos solo cuando los datos están listos
-      setProductos(productosConPlaneacion);
+      // 🎯 Actualizar productos preservando ORDEN e IA editados por el usuario
+      setProductos(prevProductos => {
+        // Si no hay productos previos, usar los nuevos directamente
+        if (prevProductos.length === 0) {
+          // 🚀 Guardar automáticamente en BD cuando llegan datos nuevos
+          if (!diaCompletado) {
+            productosConPlaneacion.forEach(producto => {
+              guardarEnBD(producto);
+            });
+          }
+          return productosConPlaneacion;
+        }
+
+        // Preservar ORDEN e IA de productos existentes
+        const productosActualizados = productosConPlaneacion.map(nuevoProducto => {
+          const productoExistente = prevProductos.find(p => p.id === nuevoProducto.id);
+          if (productoExistente) {
+            return {
+              ...nuevoProducto,
+              orden: productoExistente.orden || 0, // Preservar ORDEN editado
+              ia: productoExistente.ia || 0 // Preservar IA editado
+            };
+          }
+          return nuevoProducto;
+        });
+
+        // 🚀 Guardar automáticamente en BD cuando cambian SOLICITADAS o PEDIDOS
+        if (!diaCompletado) {
+          productosActualizados.forEach(producto => {
+            const productoAnterior = prevProductos.find(p => p.id === producto.id);
+            // Solo guardar si cambió algo relevante
+            if (!productoAnterior ||
+              productoAnterior.solicitado !== producto.solicitado ||
+              productoAnterior.pedidos !== producto.pedidos ||
+              productoAnterior.existencias !== producto.existencias) {
+              guardarEnBD(producto);
+            }
+          });
+        }
+
+        return productosActualizados;
+      });
       setCargando(false);
 
       const timestamp = Date.now();
@@ -431,14 +509,110 @@ const InventarioPlaneacion = () => {
     return existencias > 0 ? 'bg-light-green' : 'bg-light-red';
   };
 
+  // 🚀 Guardar TODO en BD automáticamente (ORDEN, IA, SOLICITADAS, PEDIDOS, EXISTENCIAS)
+  const guardarEnBD = async (producto) => {
+    try {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      const datosPlaneacion = {
+        fecha: fechaFormateada,
+        producto_nombre: producto.nombre,
+        existencias: producto.existencias || 0,
+        solicitadas: producto.solicitado || 0,
+        pedidos: producto.pedidos || 0,
+        total: (producto.solicitado || 0) + (producto.pedidos || 0),
+        orden: producto.orden || 0,
+        ia: producto.ia || 0,
+        usuario: 'Usuario'
+      };
+
+      // 🔍 Verificar si ya existe el registro
+      const checkResponse = await fetch(
+        `${API_URL}/planeacion/?fecha=${fechaFormateada}&producto_nombre=${encodeURIComponent(producto.nombre)}`
+      );
+
+      let method = 'POST';
+      let url = `${API_URL}/planeacion/`;
+
+      if (checkResponse.ok) {
+        const registrosExistentes = await checkResponse.json();
+        if (registrosExistentes.length > 0) {
+          // Ya existe, usar PATCH
+          method = 'PATCH';
+          url = `${API_URL}/planeacion/${registrosExistentes[0].id}/`;
+        }
+      }
+
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datosPlaneacion)
+      });
+
+      if (response.ok) {
+        console.log(`✅ ${method === 'POST' ? 'Creado' : 'Actualizado'}: ${producto.nombre} - Orden: ${producto.orden}, IA: ${producto.ia}, Solicitadas: ${producto.solicitado}, Pedidos: ${producto.pedidos}`);
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error(`❌ Error guardando ${producto.nombre}:`, errorText);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error guardando en BD:', error);
+      return false;
+    }
+  };
+
+  // Timers para debounce
+  const [saveTimers, setSaveTimers] = useState({});
+  const [guardandoIndicadores, setGuardandoIndicadores] = useState({}); // 💾 Indicadores de guardado
+
   const updateProducto = (id, field, value) => {
+    // 🔒 BLOQUEAR si el día está congelado
+    if (diaCongelado) {
+      mostrarMensaje('⚠️ No se pueden modificar datos después de activar ALISTAMIENTO', 'warning');
+      return;
+    }
+
     const nuevosProductos = productos.map(producto =>
       producto.id === id ? { ...producto, [field]: parseInt(value) || 0 } : producto
     );
     setProductos(nuevosProductos);
+
+    // 🚀 Guardar en BD después de 1 segundo sin cambios (para ORDEN e IA)
+    if (field === 'orden' || field === 'ia') {
+      const producto = productos.find(p => p.id === id);
+      if (producto) {
+        // Mostrar indicador de "guardando..."
+        setGuardandoIndicadores(prev => ({ ...prev, [id]: true }));
+
+        // Cancelar timer anterior si existe
+        if (saveTimers[id]) {
+          clearTimeout(saveTimers[id]);
+        }
+
+        // Crear nuevo timer
+        const timer = setTimeout(async () => {
+          const productoActualizado = nuevosProductos.find(p => p.id === id);
+          if (productoActualizado) {
+            await guardarEnBD(productoActualizado);
+            // Ocultar indicador después de guardar
+            setGuardandoIndicadores(prev => ({ ...prev, [id]: false }));
+          }
+        }, 1000); // Esperar 1 segundo después de que el usuario deje de escribir
+
+        setSaveTimers({ ...saveTimers, [id]: timer });
+      }
+    }
+
+    // 🔒 Pausar actualización automática mientras el usuario edita
+    setCache({ ...cache, timestamp: Date.now() });
   };
 
-  // Effects - Carga inicial y actualización automática
+  // Effects - Carga inicial (sin polling automático)
   useEffect(() => {
     if (fechaSeleccionada) {
       const year = fechaSeleccionada.getFullYear();
@@ -449,11 +623,14 @@ const InventarioPlaneacion = () => {
       cargarExistenciasReales();
     }
 
-    // 🚀 Actualización automática cada 15 segundos (silenciosa)
-    const intervalo = setInterval(() => {
-      console.log('🔄 Actualización automática en segundo plano...');
-      cargarExistenciasReales(true); // Forzar recarga
-    }, 15000);
+    // ❌ POLLING DESACTIVADO: Genera demasiadas llamadas al backend
+    // Solo se actualiza:
+    // 1. Al cargar la página
+    // 2. Al cambiar de fecha
+    // 3. Al hacer clic en "Sincronizar"
+    // 4. Cuando se recibe evento de Cargue/Pedidos
+    console.log('✅ Actualización solo por eventos o manual (sin polling)');
+    let intervalo = null; // No hay intervalo
 
     // 🚀 Escuchar eventos de otros módulos
     const handlePedidoGuardado = () => {
@@ -471,17 +648,51 @@ const InventarioPlaneacion = () => {
       cargarExistenciasReales(true);
     };
 
+    const handleCargueActualizado = (event) => {
+      console.log('🚚 Cargue actualizado - Evento recibido:', event.detail);
+      // Los datos vienen en event.detail
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaActual = `${year}-${month}-${day}`;
+
+      console.log(`🔍 Comparando fechas: evento=${event.detail?.fecha}, actual=${fechaActual}`);
+
+      if (event.detail && event.detail.fecha === fechaActual) {
+        console.log('✅ Fechas coinciden - Actualizando Planeación por evento...');
+
+        // 🔥 Limpiar cache para forzar recarga desde servidor
+        setCache({ datos: null, timestamp: null, fecha: null });
+
+        // 🔥 Limpiar localStorage para forzar recarga
+        const key = `planeacion_${fechaActual}`;
+        localStorage.removeItem(key);
+
+        // 🚀 Marcar timestamp de actualización
+        setUltimaActualizacion(Date.now());
+
+        // 🚀 Delay de 300ms para evitar múltiples llamadas
+        setTimeout(() => {
+          cargarExistenciasReales(true);
+        }, 300); // 300ms para agrupar eventos múltiples
+      } else {
+        console.log('⚠️ Fechas NO coinciden - No se actualiza');
+      }
+    };
+
     window.addEventListener('pedidoGuardado', handlePedidoGuardado);
     window.addEventListener('inventarioActualizado', handleInventarioActualizado);
     window.addEventListener('productosUpdated', handleProductosUpdated);
+    window.addEventListener('cargueActualizado', handleCargueActualizado);
 
     return () => {
-      clearInterval(intervalo);
+      // No hay intervalo que limpiar
       window.removeEventListener('pedidoGuardado', handlePedidoGuardado);
       window.removeEventListener('inventarioActualizado', handleInventarioActualizado);
       window.removeEventListener('productosUpdated', handleProductosUpdated);
+      window.removeEventListener('cargueActualizado', handleCargueActualizado);
     };
-  }, [fechaSeleccionada]);
+  }, [fechaSeleccionada]); // Sin diaCongelado porque no hay polling
 
   // const handleSolicitadoChange = (id, cantidad) => updateProducto(id, 'solicitado', cantidad); // No editable
   const handleOrdenChange = (id, cantidad) => updateProducto(id, 'orden', cantidad);
@@ -562,14 +773,19 @@ const InventarioPlaneacion = () => {
         </Col>
         <Col xs={12} md={6} className="d-flex justify-content-end align-items-center">
           <Button
-            variant="outline-info"
+            variant="outline-primary"
+            size="sm"
             className="mb-2 mb-md-0"
             onClick={() => {
-              cargarExistenciasReales(true); // Forzar recarga
-              mostrarMensaje('Datos actualizados correctamente', 'info');
+              console.log('🔄 Sincronización manual solicitada');
+              setCache({ datos: null, timestamp: null, fecha: null });
+              cargarExistenciasReales(true);
+              mostrarMensaje('Sincronizando datos...', 'info');
             }}
+            disabled={cargando}
           >
-            <i className="bi bi-arrow-repeat me-1"></i> Actualizar Datos
+            <i className="bi bi-arrow-repeat me-1"></i>
+            {cargando ? 'Sincronizando...' : 'Sincronizar'}
           </Button>
         </Col>
       </Row>
@@ -584,6 +800,20 @@ const InventarioPlaneacion = () => {
           </Col>
         </Row>
       )}
+
+      {/* 🔒 Indicador de día congelado */}
+      {diaCongelado && (
+        <Row className="mb-3">
+          <Col>
+            <Alert variant="warning" className="d-flex align-items-center">
+              <i className="bi bi-lock-fill me-2"></i>
+              <strong>Día congelado:</strong>&nbsp;Los datos están bloqueados porque el ALISTAMIENTO ya fue activado. No se permiten modificaciones.
+            </Alert>
+          </Col>
+        </Row>
+      )}
+
+
 
       {/* Tabla de planeación */}
       <Row className="mb-4">
@@ -634,15 +864,27 @@ const InventarioPlaneacion = () => {
                         </div>
                       </td>
                       <td className="text-center">
-                        <div className="d-flex justify-content-center">
+                        <div className="d-flex justify-content-center align-items-center position-relative">
                           <input
                             type="number"
                             min="0"
                             value={producto.orden || 0}
                             onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
                             className="solicitadas-display"
-                            style={{ cursor: 'text', maxWidth: '60px' }}
+                            style={{
+                              cursor: diaCongelado ? 'not-allowed' : 'text',
+                              maxWidth: '60px',
+                              backgroundColor: diaCongelado ? '#f8f9fa' : 'white',
+                              opacity: diaCongelado ? 0.6 : 1
+                            }}
+                            disabled={diaCongelado}
+                            title={diaCongelado ? 'Bloqueado - Día congelado' : 'Editable'}
                           />
+                          {guardandoIndicadores[producto.id] && (
+                            <span className="ms-1 text-muted" style={{ fontSize: '0.75rem' }}>
+                              <i className="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="text-center">
@@ -680,18 +922,7 @@ const InventarioPlaneacion = () => {
         </Col>
       </Row>
 
-      {/* Botón guardar planeación */}
-      <Row className="mb-4">
-        <Col className="text-end">
-          <Button
-            variant="success"
-            className="action-button"
-            onClick={handleGuardarPlaneacion}
-          >
-            <i className="bi bi-save me-2"></i> Guardar Planeación
-          </Button>
-        </Col>
-      </Row>
+
 
       {/* Historial de planeación */}
       {planeacion.length > 0 && (

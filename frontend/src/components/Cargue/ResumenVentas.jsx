@@ -91,31 +91,25 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                 });
               }
 
-              // 🚀 CORREGIDO: Procesar conceptos con datos válidos (incluyendo concepto vacío si hay montos)
+              // 🚀 CORREGIDO: Tomar solo el primer registro con datos de pagos
+              // Los datos de pagos solo se guardan en el primer producto para evitar duplicación
               const tieneConcepto = item.concepto && item.concepto.trim();
               const tieneMontos = parseFloat(item.descuentos) > 0 || parseFloat(item.nequi) > 0 || parseFloat(item.daviplata) > 0;
 
-              if (tieneConcepto || tieneMontos) {
+              if ((tieneConcepto || tieneMontos) && conceptosMap.size === 0) {
+                // Solo tomar el primer registro con datos de pagos
+                conceptosMap.set('PAGOS', {
+                  concepto: item.concepto || '',
+                  descuentos: parseFloat(item.descuentos) || 0,
+                  nequi: parseFloat(item.nequi) || 0,
+                  daviplata: parseFloat(item.daviplata) || 0
+                });
 
-                const key = item.concepto ? item.concepto.trim() : 'SIN_CONCEPTO';
-                if (!conceptosMap.has(key)) {
-                  conceptosMap.set(key, {
-                    concepto: key === 'SIN_CONCEPTO' ? '' : key,
-                    descuentos: 0,
-                    nequi: 0,
-                    daviplata: 0
-                  });
-                }
-                const concepto = conceptosMap.get(key);
-                concepto.descuentos += parseFloat(item.descuentos) || 0;
-                concepto.nequi += parseFloat(item.nequi) || 0;
-                concepto.daviplata += parseFloat(item.daviplata) || 0;
-
-                console.log(`🔍 RESUMEN - Procesando concepto "${key}" para ${idSheet}:`, {
+                console.log(`🔍 RESUMEN - Datos de pagos cargados para ${idSheet}:`, {
+                  concepto: item.concepto,
                   descuentos: item.descuentos,
                   nequi: item.nequi,
-                  daviplata: item.daviplata,
-                  acumulado: concepto
+                  daviplata: item.daviplata
                 });
               }
 

@@ -272,23 +272,22 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             });
 
             const fechaAUsar = fechaSeleccionada;
-            const { cargueService } = await import('../../services/cargueService');
 
-            // Cargar datos desde la BD
-            const response = await cargueService.getAll({
-                vendedor_id: idSheet,
-                dia: dia.toUpperCase(),
-                fecha: fechaAUsar
-            });
+            // ❌ CÓDIGO OBSOLETO COMENTADO - Ahora usamos cargueHybridService
+            // const { cargueService } = await import('../../services/cargueService');
+            // const response = await cargueService.getAll({
+            //     vendedor_id: idSheet,
+            //     dia: dia.toUpperCase(),
+            //     fecha: fechaAUsar
+            // });
 
-            console.warn(`🔍 ${idSheet} - Respuesta completa de BD:`, response);
-            console.warn(`🔍 ${idSheet} - Tipo de respuesta:`, typeof response);
-            console.warn(`🔍 ${idSheet} - Es array:`, Array.isArray(response));
+            console.warn(`🔍 ${idSheet} - Cargando datos desde cargueHybridService (nuevo sistema)`);
+            const response = null; // Ya no usamos este endpoint viejo
 
-            // 🚀 CORREGIDO: Manejar la respuesta real de la API
+            // ❌ CÓDIGO OBSOLETO COMENTADO - Ya no procesamos respuesta del endpoint viejo
             let productosDesdeDB = [];
 
-            if (Array.isArray(response)) {
+            if (false && Array.isArray(response)) { // Deshabilitado
                 // La API devuelve un array directo de productos
                 console.warn(`✅ ${idSheet} - Procesando array directo con ${response.length} productos`);
 
@@ -763,6 +762,30 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 return p;
             })
         );
+
+        // 🚀 EMITIR EVENTO: Notificar a Planeación cuando cambia CANTIDAD
+        if (campo === 'cantidad' || campo === 'adicional' || campo === 'dctos') {
+            // Convertir fechaSeleccionada a formato YYYY-MM-DD
+            let fechaFormateada;
+            if (fechaSeleccionada instanceof Date) {
+                const year = fechaSeleccionada.getFullYear();
+                const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+                const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+                fechaFormateada = `${year}-${month}-${day}`;
+            } else {
+                // Ya es string, usarlo directamente
+                fechaFormateada = fechaSeleccionada;
+            }
+
+            window.dispatchEvent(new CustomEvent('cargueActualizado', {
+                detail: {
+                    fecha: fechaFormateada,
+                    idSheet: idSheet,
+                    campo: campo
+                }
+            }));
+            console.log(`📡 Evento emitido: cargueActualizado (${campo} cambió en ${fechaFormateada})`);
+        }
     };
 
     // 🚀 NUEVA FUNCIÓN: Actualizar inventario basado en cambio de TOTAL

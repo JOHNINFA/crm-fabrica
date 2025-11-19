@@ -840,7 +840,7 @@ class ProduccionSolicitadaViewSet(viewsets.ViewSet):
             productos_suma = {}
             
             # Obtener lista de productos válidos (que existen en la BD)
-            productos_validos = set(Producto.objects.values_list('name', flat=True))
+            productos_validos = set(Producto.objects.values_list('nombre', flat=True))
             
             # Consultar cada tabla de cargue (ID1 a ID6)
             for modelo in [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]:
@@ -1535,9 +1535,35 @@ class PlaneacionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         fecha = self.request.query_params.get('fecha')
+        producto_nombre = self.request.query_params.get('producto_nombre')
+        
         if fecha:
             queryset = queryset.filter(fecha=fecha)
+        if producto_nombre:
+            queryset = queryset.filter(producto_nombre=producto_nombre)
+            
         return queryset.order_by('producto_nombre')
+    
+    def create(self, request, *args, **kwargs):
+        """Crear o actualizar registro de planeación (upsert)"""
+        fecha = request.data.get('fecha')
+        producto_nombre = request.data.get('producto_nombre')
+        
+        if fecha and producto_nombre:
+            # Buscar si ya existe
+            try:
+                planeacion = Planeacion.objects.get(fecha=fecha, producto_nombre=producto_nombre)
+                # Ya existe, actualizar
+                serializer = self.get_serializer(planeacion, data=request.data, partial=False)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Planeacion.DoesNotExist:
+                # No existe, crear nuevo
+                pass
+        
+        # Crear nuevo registro
+        return super().create(request, *args, **kwargs)
 
 
 class VendedorViewSet(viewsets.ModelViewSet):
