@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Modal, Button } from 'react-bootstrap';
+import { pedidoService } from '../services/api';
 import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
 
 export default function PedidosDiaScreen() {
@@ -45,6 +47,12 @@ export default function PedidosDiaScreen() {
   const [notas, setNotas] = useState({});
   const [clientesOrdenados, setClientesOrdenados] = useState([]);
   const [draggedIndex, setDraggedIndex] = useState(null);
+
+  // Estados para el modal de anulación
+  const [showAnularModal, setShowAnularModal] = useState(false);
+  const [pedidoAAnular, setPedidoAAnular] = useState(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState('Anulado desde gestión de pedidos');
+  const [anulando, setAnulando] = useState(false);
 
 
   useEffect(() => {
@@ -186,7 +194,7 @@ export default function PedidosDiaScreen() {
     }));
   };
 
-  const anularPedido = async (cliente) => {
+  const abrirModalAnular = (cliente) => {
     const pedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
 
     if (!pedido) {
@@ -194,39 +202,40 @@ export default function PedidosDiaScreen() {
       return;
     }
 
-    const confirmar = window.confirm(
-      `¿Estás seguro de anular el pedido de ${cliente.nombre_completo}?\n\n` +
-      `Esto hará lo siguiente:\n` +
-      `- Cambiará el estado a ANULADO\n` +
-      `- Revertirá las cantidades en Planeación\n` +
-      `- Devolverá el dinero en Cargue\n` +
-      `- El pedido volverá a estado Pendiente`
-    );
+    setPedidoAAnular(pedido);
+    setShowAnularModal(true);
+  };
 
-    if (!confirmar) return;
+  const confirmarAnulacion = async () => {
+    if (!motivoAnulacion || motivoAnulacion.trim() === '') {
+      alert('Debe ingresar un motivo para anular el pedido');
+      return;
+    }
+
+    setAnulando(true);
 
     try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/pedidos/${pedido.id}/anular/`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      console.log('🔴 Anulando pedido:', pedidoAAnular.id);
+      const result = await pedidoService.anularPedido(pedidoAAnular.id, motivoAnulacion);
 
-      if (response.ok) {
-        alert('Pedido anulado exitosamente');
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+
+        // Cerrar modal de anulación
+        setShowAnularModal(false);
+        setMotivoAnulacion('Anulado desde gestión de pedidos');
+        setPedidoAAnular(null);
+
         // Recargar pedidos para actualizar la vista
-        cargarPedidos();
+        await cargarPedidos();
       } else {
-        const error = await response.json();
-        alert(`Error al anular pedido: ${error.detail || 'Error desconocido'}`);
+        alert(`❌ Error: ${result.message}`);
       }
     } catch (error) {
-      console.error('Error anulando pedido:', error);
-      alert('Error de conexión al anular el pedido');
+      console.error('❌ Error al anular pedido:', error);
+      alert(`❌ Error al anular el pedido: ${error.message}`);
+    } finally {
+      setAnulando(false);
     }
   };
 
@@ -477,7 +486,7 @@ export default function PedidosDiaScreen() {
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              anularPedido(cliente);
+                              abrirModalAnular(cliente);
                             }}
                             title="Anular pedido"
                           >
@@ -534,6 +543,84 @@ export default function PedidosDiaScreen() {
         onClose={() => setShowModal(false)}
         pedido={pedidoSeleccionado}
       />
+
+      {/* Modal de Confirmación de Anulación */}
+      <Modal
+        show={showAnularModal}
+        onHide={() => {
+          setShowAnularModal(false);
+          setMotivoAnulacion('Anulado desde gestión de pedidos');
+          setPedidoAAnular(null);
+        }}
+        centered
+      >
+        <Modal.Header closeButton style={{ backgroundColor: '#dc3545', color: 'white' }}>
+          <Modal.Title>
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            Confirmar Anulación de Pedido
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="d-flex align-items-start p-3" style={{ backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+            <i className="bi bi-info-circle-fill me-2 mt-1" style={{ fontSize: '1.2rem', color: '#6c757d' }}></i>
+            <div>
+              <strong style={{ color: '#212529' }}>¿Está seguro que desea anular el pedido {pedidoAAnular?.numero_pedido}?</strong>
+              <p className="mb-0 mt-2 small" style={{ color: '#495057' }}>Esta acción:</p>
+              <ul className="small mb-0" style={{ color: '#495057' }}>
+                <li>Cambiará el estado del pedido a ANULADA</li>
+                <li>Revertirá las cantidades en Planeación</li>
+                <li>Revertirá los totales en Cargue</li>
+              </ul>
+              <p className="mb-0 mt-2 small" style={{ color: '#dc3545' }}><strong>Esta acción NO se puede deshacer.</strong></p>
+            </div>
+          </div>
+
+          <div className="mb-3 mt-3">
+            <label htmlFor="motivoAnulacion" className="form-label">
+              <strong>Motivo de la anulación:</strong> <span className="text-danger">*</span>
+            </label>
+            <textarea
+              id="motivoAnulacion"
+              className="form-control"
+              rows="3"
+              value={motivoAnulacion}
+              onChange={(e) => setMotivoAnulacion(e.target.value)}
+              placeholder="Ingrese el motivo de la anulación..."
+              disabled={anulando}
+            />
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowAnularModal(false);
+              setMotivoAnulacion('Anulado desde gestión de pedidos');
+              setPedidoAAnular(null);
+            }}
+            disabled={anulando}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={confirmarAnulacion}
+            disabled={anulando || !motivoAnulacion.trim()}
+          >
+            {anulando ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Anulando...
+              </>
+            ) : (
+              <>
+                <i className="bi bi-x-circle me-2"></i>
+                Confirmar Anulación
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div >
   );
 }

@@ -189,7 +189,19 @@ export default function Cart({
 
                 {/* Toggle para volver a gestión */}
                 <div className="d-flex align-items-center justify-content-between" style={{ fontSize: '12px', marginBottom: '8px' }}>
-                    <span style={{ color: '#666' }}>Volver a gestión del día</span>
+                    <span
+                        style={{
+                            color: '#666',
+                            cursor: 'pointer',
+                            transition: 'color 0.2s'
+                        }}
+                        onClick={() => navigate(-1)}
+                        onMouseEnter={(e) => e.target.style.color = '#1D4ED8'}
+                        onMouseLeave={(e) => e.target.style.color = '#666'}
+                        title="Regresar a la lista de clientes"
+                    >
+                        Volver a gestión del día
+                    </span>
                     <div className="form-check form-switch">
                         <input
                             className="form-check-input"

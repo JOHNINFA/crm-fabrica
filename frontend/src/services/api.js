@@ -893,57 +893,51 @@ export const pedidoService = {
     }
   },
 
-  // Anular una remisión
-  anularRemision: async (id) => {
+  // Anular un pedido (remisión)
+  anularPedido: async (id, motivo = 'Anulado desde gestión de pedidos') => {
     try {
-      console.log('Intentando anular remisión:', id);
+      console.log('🔴 Intentando anular pedido:', id, 'Motivo:', motivo);
       
-      // Intentar con API primero
+      // Intentar con el endpoint específico de anulación
       try {
-        const response = await fetch(`${API_URL}/pedidos/${id}/`, {
-          method: 'PATCH',
+        const response = await fetch(`${API_URL}/pedidos/${id}/anular/`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ estado: 'ANULADA' })
+          body: JSON.stringify({ motivo })
         });
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Remisión anulada exitosamente con API:', result);
+          console.log('✅ Pedido anulado exitosamente con API:', result);
           return { 
             success: true, 
-            message: 'Remisión anulada exitosamente en base de datos',
-            remision: result
+            message: result.message || 'Pedido anulado exitosamente',
+            pedido: result.pedido
           };
+        } else {
+          const errorData = await response.json();
+          console.error('❌ Error al anular pedido:', errorData);
+          throw new Error(errorData.detail || `Error ${response.status}`);
         }
       } catch (apiError) {
-        console.warn('API no disponible para anular remisión:', apiError);
+        console.error('❌ Error en API al anular pedido:', apiError);
+        throw apiError;
       }
-
-      // Fallback: marcar como anulada localmente
-      console.log('⚠️ API no disponible, usando fallback local temporal');
-      
-      const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
-      if (!remisionesAnuladas.includes(parseInt(id))) {
-        remisionesAnuladas.push(parseInt(id));
-        localStorage.setItem('remisiones_anuladas', JSON.stringify(remisionesAnuladas));
-        console.log('✅ Remisión marcada como anulada localmente:', id);
-      }
-      
-      return { 
-        success: true, 
-        message: 'Remisión anulada exitosamente (pendiente sincronización con base de datos)',
-        remision: { id: parseInt(id), estado: 'ANULADA' }
-      };
       
     } catch (error) {
-      console.error('Error en anularRemision:', error);
+      console.error('❌ Error en anularPedido:', error);
       return { 
         error: true, 
-        message: error.message || 'Error al anular la remisión'
+        message: error.message || 'Error al anular el pedido'
       };
     }
+  },
+
+  // Anular una remisión (alias para compatibilidad)
+  anularRemision: async (id, motivo) => {
+    return pedidoService.anularPedido(id, motivo);
   },
 
   // Actualizar estado de remisión

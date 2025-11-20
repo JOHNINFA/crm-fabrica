@@ -569,3 +569,8 @@ ilos para mensaje de éxito después de crear venta */
   gap: 10px;
   align-items: center;
 }
+
+/* Asegurar que SweetAlert se vea sobre el modal */
+.swal2-container-high-zindex {
+  z-index: 20000 !important;
+}

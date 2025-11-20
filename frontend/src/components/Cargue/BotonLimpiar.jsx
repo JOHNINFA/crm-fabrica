@@ -2009,7 +2009,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       {/* Indicador de productos pendientes */}
       {idSheet === 'ID1' && productosPendientes.length > 0 && (
         <div className="mt-2">
-          <div className="alert alert-warning py-2 px-3" style={{ fontSize: '0.85em' }}>
+          <div className="py-2 px-3" style={{
+            fontSize: '0.85em',
+            color: '#495057'
+          }}>
             <strong>⚠️ {estado === 'ALISTAMIENTO_ACTIVO' ? 'ALISTAMIENTO BLOQUEADO' : 'DESPACHO BLOQUEADO'}</strong><br />
             {productosPendientes.length} producto(s) con cantidad necesitan verificación completa (checkboxes V y D)
           </div>

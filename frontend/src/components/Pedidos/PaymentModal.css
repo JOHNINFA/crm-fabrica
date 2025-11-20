@@ -16,12 +16,12 @@
 .payment-modal {
     background: white;
     border-radius: 8px;
-    padding: 8px;
     width: 100%;
     max-width: 900px;
-    max-height: 92vh;
-    overflow-y: auto;
+    max-height: 90vh;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
 }
 
 /* Header */
@@ -29,10 +29,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    padding: 8px 8px 5px 8px;
+    margin-bottom: 0;
     font-size: 14px;
     font-weight: 500;
     color: #333;
+    flex-shrink: 0;
 }
 
 .close-button {
@@ -51,12 +53,20 @@
     color: #bd2130;
 }
 
+/* Body con scroll */
+.payment-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px 8px 8px;
+    min-height: 0;
+}
+
 /* Sección de totales - Adaptado para remisiones */
 .payment-summary {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 2px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     background-color: #e9ecef;
     padding: 1px;
     border-radius: 4px;
@@ -99,7 +109,7 @@
     display: flex;
     flex-wrap: nowrap;
     gap: 4px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     overflow-x: auto;
     padding: 5px 0;
 }
@@ -144,7 +154,7 @@
 
 /* Formularios */
 .payment-form {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .form-row {
@@ -156,7 +166,7 @@
 
 .compact-row {
     gap: 5px;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
 }
 
 .form-group {
@@ -241,18 +251,18 @@
 }
 
 .compact-textarea {
-    min-height: 35px;
+    min-height: 50px;
     font-size: 11px;
     resize: none;
 }
 
 /* Resumen de productos */
 .payment-summary-detail {
-    padding: 4px 6px;
+    padding: 8px 6px;
     background-color: #f8f9fa;
     border: 1px solid #ced4da;
     border-radius: 4px;
-    height: auto;
+    min-height: 52px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -280,9 +290,10 @@
     display: flex;
     gap: 8px;
     justify-content: flex-end;
-    margin-top: -5px;
-    padding-top: 5px;
-    border-top: none;
+    padding: 8px;
+    border-top: 1px solid #e9ecef;
+    flex-shrink: 0;
+    background-color: white;
 }
 
 .btn {
@@ -321,6 +332,24 @@
 .btn-outline-secondary:hover {
     background-color: #f8f9fa;
     color: #1e7e34;
+}
+
+/* Mensaje de éxito */
+.venta-success-message {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    color: #155724;
+    font-size: 13px;
+    margin-right: 8px;
+}
+
+.venta-success-message i {
+    font-size: 24px;
 }
 
 /* Responsive */
@@ -434,4 +463,22 @@ Responsive mejorado para móvil */
         font-size: 11px !important;
         padding: 6px 10px !important;
     }
+}
+
+/* Ajustes específicos para el modal de Pedidos para reducir espacios */
+.pedidos-modal .form-row {
+    margin-bottom: 3px;
+}
+
+.pedidos-modal .compact-row {
+    margin-top: 0;
+    margin-bottom: 2px;
+}
+
+.pedidos-modal .form-label {
+    margin-bottom: 1px;
+}
+
+.pedidos-modal .form-group {
+    margin-bottom: 0;
 }

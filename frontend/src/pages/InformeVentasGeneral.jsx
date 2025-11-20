@@ -310,6 +310,257 @@ const InformeVentasGeneral = () => {
   };
   const metricIconStyle = { fontSize: '24px', color: '#0c2c53' };
 
+  // Función para imprimir el ticket
+  const imprimirTicket = (ticketData) => {
+    // Por defecto usamos formato tirilla para POS
+    const anchoPapel = '80mm';
+
+    // Crear el HTML del ticket
+    const ticketHTML = generarHTMLTicket(ticketData, anchoPapel);
+
+    // Crear un iframe oculto para imprimir
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(ticketHTML);
+    frameDoc.close();
+
+    // Esperar a que cargue y luego imprimir
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+
+      // Eliminar el iframe después de imprimir
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 500);
+    }, 500);
+  };
+
+  // Función para generar el HTML del ticket
+  const generarHTMLTicket = (data, anchoPapel) => {
+    const formatCurrency = (amount) => `$${parseFloat(amount || 0).toLocaleString('es-CO')}`;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Ticket - ${data.numero}</title>
+        <style>
+          @page {
+            size: ${anchoPapel} auto;
+            margin: 0;
+          }
+          
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            margin: 0;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: white;
+            color: black;
+          }
+          
+          .ticket-container {
+            width: ${anchoPapel};
+            max-width: ${anchoPapel};
+            margin: 0 auto;
+            padding: 5mm;
+            background: white;
+            color: black;
+          }
+          
+          .ticket-header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          
+          .ticket-business-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px 0;
+            text-transform: uppercase;
+          }
+          
+          .ticket-divider {
+            text-align: center;
+            margin: 8px 0;
+            font-size: 10px;
+          }
+          
+          .ticket-info p {
+            margin: 3px 0;
+            font-size: 11px;
+            line-height: 1.4;
+          }
+          
+          .ticket-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin: 10px 0;
+          }
+          
+          .ticket-table th {
+            text-align: left;
+            border-bottom: 1px dashed #000;
+            padding: 3px 2px;
+            font-weight: bold;
+          }
+          
+          .ticket-table td {
+            padding: 3px 2px;
+            vertical-align: top;
+          }
+          
+          .ticket-table th:first-child,
+          .ticket-table td:first-child {
+            width: 30px;
+            text-align: center;
+          }
+          
+          .ticket-table th:last-child,
+          .ticket-table td:last-child {
+            width: 60px;
+            text-align: right;
+          }
+          
+          .ticket-totals {
+            margin: 10px 0;
+            font-size: 11px;
+          }
+          
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+          }
+          
+          .total-final {
+            font-size: 13px;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px dashed #000;
+            font-weight: bold;
+          }
+          
+          .ticket-payment {
+            margin: 10px 0;
+            font-size: 11px;
+          }
+          
+          .ticket-footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 11px;
+          }
+          
+          @media print {
+            body {
+              padding: 0;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="ticket-container">
+          <div class="ticket-header">
+            <div class="ticket-business-name">MI NEGOCIO</div>
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-info">
+            <p><strong>FACTURA:</strong> ${data.numero}</p>
+            <p><strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-CO')}</p>
+            <p><strong>Cliente:</strong> ${data.cliente}</p>
+            <p><strong>Vendedor:</strong> ${data.vendedor}</p>
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <table class="ticket-table">
+            <thead>
+              <tr>
+                <th>Cant</th>
+                <th>Producto</th>
+                <th>P.Unit</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.items.map(item => `
+                <tr>
+                  <td>${item.qty}</td>
+                  <td>${item.name}</td>
+                  <td>${formatCurrency(item.price)}</td>
+                  <td>${formatCurrency(item.qty * item.price)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-totals">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(data.subtotal)}</span>
+            </div>
+            ${data.impuestos > 0 ? `
+              <div class="total-row">
+                <span>Impuestos:</span>
+                <span>${formatCurrency(data.impuestos)}</span>
+              </div>
+            ` : ''}
+            ${data.descuentos > 0 ? `
+              <div class="total-row">
+                <span>Descuentos:</span>
+                <span>${formatCurrency(data.descuentos)}</span>
+              </div>
+            ` : ''}
+            <div class="total-row total-final">
+              <span><strong>TOTAL:</strong></span>
+              <span><strong>${formatCurrency(data.total)}</strong></span>
+            </div>
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-payment">
+            <p><strong>Método de Pago:</strong> ${data.metodoPago}</p>
+            ${data.dineroEntregado > 0 ? `
+              <p><strong>Efectivo Recibido:</strong> ${formatCurrency(data.dineroEntregado)}</p>
+              <p><strong>Cambio:</strong> ${formatCurrency(data.devuelta)}</p>
+            ` : ''}
+          </div>
+          
+          <div class="ticket-divider">================================</div>
+          
+          <div class="ticket-footer">
+            <p><strong>¡Gracias por su compra!</strong></p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   return (
     <div className="bg-light min-vh-100" style={{ fontFamily: 'Arial, sans-serif' }}>
       <style>
@@ -828,11 +1079,33 @@ const InformeVentasGeneral = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <div className="d-flex justify-content-between w-100">
+          <div className="d-flex justify-content-between w-100 align-items-center">
             <div>
               <Button
                 variant="primary"
-                onClick={() => console.log('Imprimir venta:', ventaSeleccionada?.id)}
+                onClick={() => {
+                  if (ventaSeleccionada) {
+                    const ticketData = {
+                      numero: ventaSeleccionada.numero_factura || ventaSeleccionada.id,
+                      fecha: ventaSeleccionada.fecha,
+                      cliente: ventaSeleccionada.cliente || 'CONSUMIDOR FINAL',
+                      vendedor: ventaSeleccionada.vendedor || 'Sistema',
+                      items: ventaSeleccionada.detalles ? ventaSeleccionada.detalles.map(d => ({
+                        qty: d.cantidad,
+                        name: d.producto_nombre,
+                        price: d.precio_unitario
+                      })) : [],
+                      subtotal: ventaSeleccionada.subtotal,
+                      impuestos: ventaSeleccionada.impuestos,
+                      descuentos: ventaSeleccionada.descuentos,
+                      total: ventaSeleccionada.total,
+                      metodoPago: ventaSeleccionada.metodo_pago,
+                      dineroEntregado: ventaSeleccionada.dinero_entregado,
+                      devuelta: ventaSeleccionada.devuelta
+                    };
+                    imprimirTicket(ticketData);
+                  }
+                }}
                 style={{ backgroundColor: '#0c2c53', borderColor: '#0c2c53' }}
               >
                 <i className="bi bi-printer me-2"></i>
@@ -841,24 +1114,10 @@ const InformeVentasGeneral = () => {
             </div>
             <div className="d-flex gap-2">
               <Button
+                variant="outline-danger"
                 onClick={abrirModalAnular}
                 disabled={ventaSeleccionada?.estado === 'ANULADA'}
-                style={{
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  color: ventaSeleccionada?.estado === 'ANULADA' ? '#6c757d' : '#dc3545',
-                  fontSize: '16px',
-                  fontWeight: '500'
-                }}
-                onMouseEnter={(e) => {
-                  if (ventaSeleccionada?.estado !== 'ANULADA') {
-                    e.target.style.backgroundColor = '#f8d7da';
-                    e.target.style.borderRadius = '4px';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                }}
+                className="d-flex align-items-center"
               >
                 <i className="bi bi-x-circle me-2"></i>
                 {ventaSeleccionada?.estado === 'ANULADA' ? 'Ya Anulada' : 'Anular Venta'}

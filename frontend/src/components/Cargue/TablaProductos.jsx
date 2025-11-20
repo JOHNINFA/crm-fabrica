@@ -25,7 +25,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
     };
 
     actualizarEstado();
-    const interval = setInterval(actualizarEstado, 500); // Verificar cada 500ms
+    const interval = setInterval(actualizarEstado, 1500); // Optimizado: cada 1.5s
     return () => clearInterval(interval);
   }, [dia, fechaSeleccionada]);
   const [editingValor, setEditingValor] = useState(null);

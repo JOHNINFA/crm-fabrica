@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { ventaService } from '../../services/api';
 import './PaymentModal.css';
 
@@ -65,7 +66,12 @@ const PaymentModal = ({
     e.preventDefault();
 
     if (cart.length === 0) {
-      alert('El carrito está vacío');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Carrito vacío',
+        text: 'No hay productos para procesar la venta',
+        confirmButtonColor: '#f39c12'
+      });
       return;
     }
 
@@ -118,41 +124,53 @@ const PaymentModal = ({
 
         // Verificar si debe imprimir automáticamente
         if (impresion === 'Tirilla' || impresion === 'Carta') {
-          // Preparar datos del ticket
-          const ticketData = {
-            tipo: 'venta',
-            numero: result.numero_factura,
-            fecha: result.fecha,
-            cliente: client,
-            vendedor: seller,
-            items: cart,
-            subtotal: subtotal,
-            impuestos: impuestos,
-            descuentos: descuentos,
-            total: safeTotal,
-            metodoPago: metodoPago,
-            dineroEntregado: entregado,
-            devuelta: devuelta,
-            formatoImpresion: impresion // 'Tirilla' o 'Carta'
-          };
+          try {
+            // Preparar datos del ticket
+            const ticketData = {
+              tipo: 'venta',
+              numero: result.numero_factura,
+              fecha: result.fecha,
+              cliente: client,
+              vendedor: seller,
+              items: cart,
+              subtotal: subtotal,
+              impuestos: impuestos,
+              descuentos: descuentos,
+              total: safeTotal,
+              metodoPago: metodoPago,
+              dineroEntregado: entregado,
+              devuelta: devuelta,
+              formatoImpresion: impresion // 'Tirilla' o 'Carta'
+            };
 
-          // Imprimir automáticamente
-          imprimirTicket(ticketData);
+            // Imprimir automáticamente
+            imprimirTicket(ticketData);
+          } catch (printError) {
+            console.error('Error al intentar imprimir:', printError);
+            // No detenemos el flujo, mostramos el mensaje de éxito igual
+          }
         }
-
-        // Mostrar mensaje de éxito
-        alert(`¡Venta procesada exitosamente!\nFactura: ${result.numero_factura}\nTotal: $${safeTotal.toLocaleString()}`);
 
         // Limpiar y cerrar
         clearCart();
         onClose();
       } else {
         console.error('❌ Error al crear venta:', result);
-        alert('Error al procesar la venta. Intente nuevamente.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error al procesar la venta. Intente nuevamente.',
+          confirmButtonColor: '#d33'
+        });
       }
     } catch (error) {
       console.error('❌ Error al procesar venta:', error);
-      alert('Error al procesar la venta. Intente nuevamente.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error inesperado al procesar la venta.',
+        confirmButtonColor: '#d33'
+      });
     } finally {
       setProcessing(false);
     }
@@ -183,22 +201,31 @@ const PaymentModal = ({
     // Crear el HTML del ticket
     const ticketHTML = generarHTMLTicket(ticketData, anchoPapel);
 
-    // Abrir ventana de impresión
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    // Crear un iframe oculto para imprimir
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    document.body.appendChild(printFrame);
 
-    if (!printWindow) {
-      alert('Por favor, permite las ventanas emergentes para imprimir');
-      return;
-    }
-
-    printWindow.document.write(ticketHTML);
-    printWindow.document.close();
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(ticketHTML);
+    frameDoc.close();
 
     // Esperar a que cargue y luego imprimir
-    printWindow.onload = function () {
-      printWindow.focus();
-      printWindow.print();
-    };
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+
+      // Eliminar el iframe después de imprimir
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 500);
+    }, 500);
   };
 
   // Función para generar el HTML del ticket

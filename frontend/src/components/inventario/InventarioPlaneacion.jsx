@@ -51,8 +51,8 @@ const InventarioPlaneacion = () => {
 
     verificarCongelacion();
 
-    // Verificar cada 2 segundos por si cambia el estado
-    const interval = setInterval(verificarCongelacion, 2000);
+    // Verificar cada 5 segundos por si cambia el estado (optimizado)
+    const interval = setInterval(verificarCongelacion, 5000);
 
     return () => clearInterval(interval);
   }, [fechaSeleccionada]);
@@ -343,6 +343,27 @@ const InventarioPlaneacion = () => {
         console.log('📊 PEDIDOS TOTALES:', pedidosMap);
       }
 
+      // 🧠 CONSULTAR PREDICCIONES DE IA
+      console.log('🧠 Consultando predicciones de IA...');
+      let prediccionesIAMap = {};
+      try {
+        const iaResponse = await fetch(`${API_URL}/prediccion-ia/?fecha=${fechaFormateada}`);
+        if (iaResponse.ok) {
+          const iaData = await iaResponse.json();
+          if (iaData.predicciones && iaData.predicciones.length > 0) {
+            iaData.predicciones.forEach(pred => {
+              prediccionesIAMap[pred.producto] = {
+                ia_sugerido: pred.ia_sugerido,
+                confianza: pred.confianza
+              };
+            });
+            console.log(`✅ IA: ${iaData.predicciones.length} productos analizados`);
+          }
+        }
+      } catch (iaError) {
+        console.error('⚠️ Error consultando IA (no crítico):', iaError);
+      }
+
       // 🎯 Usar stocks como productos (api_stock ya tiene todos los de PRODUCCION)
       const productosProduccion = stocksBD.map(s => ({
         id: s.producto_id,
@@ -376,8 +397,14 @@ const InventarioPlaneacion = () => {
 
         // ORDEN e IA desde planeación guardada
         const planeacionGuardada = planeacionMap[p.nombre];
-        const orden = planeacionGuardada ? planeacionGuardada.orden : 0;
-        const ia = planeacionGuardada ? planeacionGuardada.ia : 0;
+        let orden = planeacionGuardada ? planeacionGuardada.orden : 0;
+        let ia = planeacionGuardada ? planeacionGuardada.ia : 0;
+
+        // 🧠 Si no hay IA guardada, usar predicción del cerebro
+        if (ia === 0 && prediccionesIAMap[p.nombre]) {
+          ia = prediccionesIAMap[p.nombre].ia_sugerido;
+          console.log(`🧠 IA sugerida para ${p.nombre}: ${ia} (${prediccionesIAMap[p.nombre].confianza})`);
+        }
 
         if (solicitadoFinal > 0) {
           console.log(`📊 ${p.nombre}: Solicitadas=${solicitadoFinal}, Pedidos=${pedidosProducto}`);
@@ -771,7 +798,7 @@ const InventarioPlaneacion = () => {
         <Col xs={12} md={6}>
           <DateSelector onDateSelect={handleDateSelect} />
         </Col>
-        <Col xs={12} md={6} className="d-flex justify-content-end align-items-center">
+        <Col xs={12} md={6} className="d-flex justify-content-end align-items-center gap-2">
           <Button
             variant="outline-primary"
             size="sm"
@@ -786,6 +813,38 @@ const InventarioPlaneacion = () => {
           >
             <i className="bi bi-arrow-repeat me-1"></i>
             {cargando ? 'Sincronizando...' : 'Sincronizar'}
+          </Button>
+
+          <Button
+            variant="outline-success"
+            size="sm"
+            className="mb-2 mb-md-0"
+            onClick={() => {
+              const productosConIA = productos.filter(p => p.ia > 0);
+              if (productosConIA.length === 0) {
+                mostrarMensaje('No hay sugerencias de IA disponibles', 'warning');
+                return;
+              }
+
+              const nuevosProductos = productos.map(p => ({
+                ...p,
+                orden: p.ia > 0 ? p.ia : p.orden
+              }));
+
+              setProductos(nuevosProductos);
+
+              // Guardar automáticamente en BD
+              nuevosProductos.forEach(p => {
+                if (p.ia > 0) guardarEnBD(p);
+              });
+
+              mostrarMensaje(`🤖 ${productosConIA.length} sugerencias de IA aplicadas a ORDEN`, 'success');
+            }}
+            disabled={diaCongelado || cargando}
+            title={diaCongelado ? 'Bloqueado - Día congelado' : 'Copiar valores de IA a Orden'}
+          >
+            <i className="bi bi-robot me-1"></i>
+            Aplicar IA
           </Button>
         </Col>
       </Row>
@@ -889,7 +948,14 @@ const InventarioPlaneacion = () => {
                       </td>
                       <td className="text-center">
                         <div className="d-flex justify-content-center">
-                          <span className={`solicitadas-display ${(producto.ia || 0) > 0 ? 'has-data' : ''}`}>
+                          <span
+                            className="solicitadas-display"
+                            style={{
+                              color: (producto.ia || 0) > 0 ? '#6c757d' : '#adb5bd',
+                              fontWeight: (producto.ia || 0) > 0 ? '500' : '400'
+                            }}
+                            title={(producto.ia || 0) > 0 ? "Sugerencia de IA" : ""}
+                          >
                             {producto.ia || 0}
                           </span>
                         </div>

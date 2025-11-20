@@ -472,7 +472,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
     detectarCambios();
 
     // 🚀 NUEVO: Monitorear cambios en localStorage cada 500ms
-    const interval = setInterval(detectarCambios, 500);
+    const interval = setInterval(detectarCambios, 2000); // Optimizado: cada 2s
     return () => clearInterval(interval);
 
   }, [products, pedidos, sugeridos, ultimosTotalesGuardados]);

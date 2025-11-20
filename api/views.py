@@ -1870,3 +1870,77 @@ class ConfiguracionImpresionViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+# ========================================
+# VIEWSET PARA INTELIGENCIA ARTIFICIAL
+# ========================================
+
+class PrediccionIAView(viewsets.ViewSet):
+    """
+    API para generar predicciones de producción usando IA.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def list(self, request):
+        """
+        Genera una predicción de producción CONTEXTUAL para una fecha específica.
+        Uso: GET /api/prediccion-ia/?fecha=2025-05-24
+        
+        La IA considera:
+        - Histórico de ventas
+        - Existencias actuales (si están reportadas en Planeación)
+        - Solicitadas del día
+        - Pedidos del día
+        """
+        try:
+            fecha_objetivo = request.query_params.get('fecha')
+            
+            if not fecha_objetivo:
+                return Response(
+                    {'error': 'El parámetro "fecha" es requerido (YYYY-MM-DD)'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 📊 Obtener datos contextuales de la Planeación (si existen)
+            from api.models import Planeacion
+            datos_contextuales = {}
+            
+            try:
+                planeacion_registros = Planeacion.objects.filter(fecha=fecha_objetivo)
+                for registro in planeacion_registros:
+                    datos_contextuales[registro.producto_nombre] = {
+                        'existencias': registro.existencias or 0,
+                        'solicitadas': registro.solicitadas or 0,
+                        'pedidos': registro.pedidos or 0
+                    }
+                print(f"📊 Datos contextuales cargados para {len(datos_contextuales)} productos")
+            except Exception as e:
+                print(f"⚠️ No se pudieron cargar datos contextuales: {e}")
+                # Continuar sin datos contextuales (IA usará solo histórico)
+            
+            # Importar el servicio aquí para evitar ciclos de importación
+            from api.services.ia_service import IAService
+            
+            # Instanciar servicio y generar predicción con contexto
+            ia_service = IAService()
+            predicciones = ia_service.predecir_produccion(
+                fecha_objetivo,
+                datos_contextuales=datos_contextuales if datos_contextuales else None
+            )
+            
+            return Response({
+                'success': True,
+                'fecha_objetivo': fecha_objetivo,
+                'total_productos_analizados': len(predicciones),
+                'con_datos_contextuales': len(datos_contextuales) > 0,
+                'predicciones': predicciones
+            })
+            
+        except Exception as e:
+            print(f"❌ Error en PrediccionIAView: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

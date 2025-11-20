@@ -51,11 +51,37 @@ const ReportesAvanzadosScreen = () => {
     const [vistaActual, setVistaActual] = useState('menu'); // 'menu' o 'planeacion'
     const [selectedDate, setSelectedDate] = useState('');
     const [planeacionData, setPlaneacionData] = useState([]);
+    const [prediccionesIA, setPrediccionesIA] = useState({});
     const [loading, setLoading] = useState(false);
+    const [loadingIA, setLoadingIA] = useState(false);
     const [error, setError] = useState('');
     const [searched, setSearched] = useState(false);
 
     const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+    const fetchPrediccionesIA = async (fecha) => {
+        setLoadingIA(true);
+        try {
+            const response = await fetch(`${API_URL}/prediccion-ia/?fecha=${fecha}`);
+            if (response.ok) {
+                const data = await response.json();
+                // Convertir array a objeto para búsqueda rápida por nombre de producto
+                const mapPredicciones = {};
+                if (data.predicciones) {
+                    data.predicciones.forEach(p => {
+                        mapPredicciones[p.producto] = p;
+                    });
+                }
+                setPrediccionesIA(mapPredicciones);
+                return mapPredicciones;
+            }
+        } catch (err) {
+            console.error('Error consultando IA:', err);
+        } finally {
+            setLoadingIA(false);
+        }
+        return {};
+    };
 
     const handleConsultar = async () => {
         if (!selectedDate) {
@@ -66,8 +92,10 @@ const ReportesAvanzadosScreen = () => {
         setLoading(true);
         setError('');
         setSearched(true);
+        setPrediccionesIA({}); // Limpiar anteriores
 
         try {
+            // 1. Consultar Planeación
             const response = await fetch(`${API_URL}/planeacion/?fecha=${selectedDate}`);
 
             if (!response.ok) {
@@ -75,6 +103,19 @@ const ReportesAvanzadosScreen = () => {
             }
 
             let data = await response.json();
+
+            // 2. Consultar IA en paralelo
+            const predicciones = await fetchPrediccionesIA(selectedDate);
+
+            // 3. Combinar datos
+            data = data.map(item => {
+                const pred = predicciones[item.producto_nombre];
+                return {
+                    ...item,
+                    ia: pred ? pred.ia_sugerido : 0,
+                    ia_confianza: pred ? pred.confianza : null
+                };
+            });
 
             // Ordenar productos según el orden de Cargue
             data = sortProductos(data);
@@ -91,6 +132,15 @@ const ReportesAvanzadosScreen = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleAplicarIA = () => {
+        const newData = planeacionData.map(item => ({
+            ...item,
+            orden: item.ia || item.orden // Copiar IA a Orden si existe
+        }));
+        setPlaneacionData(newData);
+        alert('🤖 Sugerencias de IA aplicadas a la columna Orden');
     };
 
     const formatDate = (dateString) => {
@@ -343,6 +393,21 @@ const ReportesAvanzadosScreen = () => {
                             <span className="text-muted">{planeacionData.length} productos</span>
                         </div>
 
+                        {/* Botón Aplicar IA */}
+                        <div className="d-flex justify-content-end mb-3 px-3">
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={handleAplicarIA}
+                                disabled={loadingIA}
+                                className="d-flex align-items-center"
+                                style={{ borderColor: '#6f42c1', color: '#6f42c1' }}
+                            >
+                                <i className="bi bi-robot me-2"></i>
+                                Aplicar Sugerencias IA
+                            </Button>
+                        </div>
+
                         {/* Tabla */}
                         <div className="table-wrapper">
                             <div className="table-responsive">
@@ -378,7 +443,17 @@ const ReportesAvanzadosScreen = () => {
                                                 </td>
                                                 <td className="text-center">{item.orden || 0}</td>
                                                 <td className="text-center">
-                                                    <span className="badge-pill bg-secondary">{item.ia || 0}</span>
+                                                    {item.ia > 0 ? (
+                                                        <span
+                                                            className="badge-pill"
+                                                            style={{ backgroundColor: '#6f42c1', color: 'white', cursor: 'help' }}
+                                                            title={`Confianza: ${item.ia_confianza || 'N/A'}`}
+                                                        >
+                                                            {item.ia}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-muted">-</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

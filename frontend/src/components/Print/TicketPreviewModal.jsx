@@ -6,7 +6,8 @@ import './TicketPreviewModal.css';
 export default function TicketPreviewModal({
     show,
     onClose,
-    ticketData
+    ticketData,
+    autoPrint = false
 }) {
     const handlePrint = () => {
         // Obtener el contenido del ticket
@@ -54,7 +55,7 @@ export default function TicketPreviewModal({
                     .ticket-container {
                         width: 80mm;
                         max-width: 80mm;
-                        margin: 0;
+                        margin: 0 auto;
                         padding: 5mm;
                         background: white;
                     }
@@ -70,16 +71,33 @@ export default function TicketPreviewModal({
         frameDoc.close();
 
         // Esperar a que se cargue el contenido y luego imprimir
+        // Esperar a que se cargue el contenido y luego imprimir
         setTimeout(() => {
             printFrame.contentWindow.focus();
             printFrame.contentWindow.print();
 
             // Eliminar el iframe después de imprimir
             setTimeout(() => {
-                document.body.removeChild(printFrame);
-            }, 100);
-        }, 250);
+                if (document.body.contains(printFrame)) {
+                    document.body.removeChild(printFrame);
+                }
+                if (autoPrint) {
+                    onClose();
+                }
+            }, 500);
+        }, 100);
     };
+
+    // Efecto para impresión automática
+    React.useEffect(() => {
+        if (show && autoPrint) {
+            // Pequeño delay para asegurar que el contenido se renderizó
+            const timer = setTimeout(() => {
+                handlePrint();
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [show, autoPrint]);
 
     if (!ticketData) {
         return null;
@@ -92,8 +110,9 @@ export default function TicketPreviewModal({
             size="lg"
             centered
             className="ticket-preview-modal"
+            style={autoPrint ? { opacity: 0, pointerEvents: 'none' } : {}}
         >
-            <Modal.Header closeButton>
+            <Modal.Header closeButton={!autoPrint}>
                 <Modal.Title>
                     <i className="bi bi-printer me-2"></i>
                     Vista Previa del Ticket
@@ -106,16 +125,18 @@ export default function TicketPreviewModal({
                 </div>
             </Modal.Body>
 
-            <Modal.Footer className="no-print">
-                <Button variant="secondary" onClick={onClose}>
-                    <i className="bi bi-x-circle me-2"></i>
-                    Cerrar
-                </Button>
-                <Button variant="primary" onClick={handlePrint}>
-                    <i className="bi bi-printer me-2"></i>
-                    Imprimir
-                </Button>
-            </Modal.Footer>
+            {!autoPrint && (
+                <Modal.Footer className="no-print">
+                    <Button variant="secondary" onClick={onClose}>
+                        <i className="bi bi-x-circle me-2"></i>
+                        Cerrar
+                    </Button>
+                    <Button variant="primary" onClick={handlePrint}>
+                        <i className="bi bi-printer me-2"></i>
+                        Imprimir
+                    </Button>
+                </Modal.Footer>
+            )}
         </Modal>
     );
 }

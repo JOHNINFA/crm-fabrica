@@ -7,7 +7,8 @@ from .views import (
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
     VendedorViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
-    PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet
+    PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
+    PrediccionIAView
 )
 
 router = DefaultRouter()
@@ -41,6 +42,9 @@ router.register(r'vendedores', VendedorViewSet, basename='vendedor')
 # ===== API PARA PRODUCCIÓN SOLICITADA =====
 router.register(r'produccion-solicitadas', ProduccionSolicitadaViewSet, basename='produccion-solicitada')
 router.register(r'planeacion', PlaneacionViewSet, basename='planeacion')
+
+# ===== API PARA INTELIGENCIA ARTIFICIAL =====
+router.register(r'prediccion-ia', PrediccionIAView, basename='prediccion-ia')
 
 # ===== NUEVAS APIs PARA SISTEMA POS - CAJEROS =====
 router.register(r'sucursales', SucursalViewSet, basename='sucursal')
