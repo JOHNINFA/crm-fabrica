@@ -197,8 +197,10 @@ function PedidosMainContent() {
                                         setDate={setDate}
                                         setSeller={setSeller}
                                         setClient={setClient}
+                                        setClientData={setClientData}
                                         setPriceList={setPriceList}
                                         sellers={sellers}
+                                        setSellers={setSellers}
                                     />
                                     <Cart
                                         cart={cart}

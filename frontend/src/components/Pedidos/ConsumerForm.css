@@ -29,27 +29,33 @@
 }
 
 .cliente-suggestion-item {
-    padding: 3px 4px;
+    padding: 6px 10px;
     cursor: pointer;
-    background-color: #28a745;
-    border-bottom: 1px solid #1e7e34;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e9ecef;
     display: flex;
     flex-direction: column;
-    color: white;
+    color: #343a40;
+    transition: background-color 0.2s;
+}
+
+.cliente-suggestion-item:hover {
+    background-color: #f8f9fa;
 }
 
 .cliente-name {
-    font-weight: bold;
+    font-weight: 600;
     font-size: 13px;
+    color: #212529;
 }
 
 .cliente-id {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.85);
+    color: #6c757d;
 }
 
 .cliente-suggestion-item:hover .cliente-id {
-    color: rgba(255, 255, 255, 0.95);
+    color: #495057;
 }
 
 .consumer-form {

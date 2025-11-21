@@ -20,6 +20,7 @@ import ListaPreciosScreen from './pages/ListaPreciosScreen';
 import MaestroListaPreciosScreen from './pages/MaestroListaPreciosScreen';
 import InformeListaPreciosScreen from './pages/InformeListaPreciosScreen';
 import VendedoresScreen from './pages/VendedoresScreen';
+import DomiciliariosScreen from './pages/DomiciliariosScreen';
 import CajaScreen from './pages/CajaScreen';
 import CajeroScreen from './pages/CajeroScreen';
 import SucursalesScreen from './pages/SucursalesScreen';
@@ -57,6 +58,7 @@ function App() {
               <Route path="/editar-lista-precios/:id" element={<ListaPreciosScreen />} />
               <Route path="/informe-lista-precios" element={<InformeListaPreciosScreen />} />
               <Route path="/vendedores" element={<VendedoresScreen />} />
+              <Route path="/domiciliarios" element={<DomiciliariosScreen />} />
               <Route path="/caja" element={<CajaScreen />} />
               <Route path="/cajero" element={<CajeroScreen />} />
               <Route path="/sucursales" element={<SucursalesScreen />} />

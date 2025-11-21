@@ -8,14 +8,7 @@ export default function ProductCard({ product, onClick, priceList }) {
     const [precioEspecifico, setPrecioEspecifico] = useState(null);
     const [isClicked, setIsClicked] = useState(false);
 
-    // Debug: verificar precio del producto
-    useEffect(() => {
-        if (!product.price || product.price === 0) {
-            console.log('Producto sin precio base:', product.name, 'precio:', product.price);
-        }
-    }, [product]);
-
-    // Cargar imagen local si no está disponible
+    // Cargar imagen local si no está disponible - EXACTAMENTE IGUAL QUE POS
     useEffect(() => {
         if (imageSource) return;
 
@@ -30,6 +23,13 @@ export default function ProductCard({ product, onClick, priceList }) {
 
         loadLocalImage();
     }, [product.id, imageSource]);
+
+    // Debug: verificar precio del producto
+    useEffect(() => {
+        if (!product.price || product.price === 0) {
+            console.log('Producto sin precio base:', product.name, 'precio:', product.price);
+        }
+    }, [product]);
 
     // Cargar precio específico según lista seleccionada (solo para obtener el precio al agregar al carrito)
     useEffect(() => {
@@ -97,22 +97,27 @@ export default function ProductCard({ product, onClick, priceList }) {
             onKeyDown={handleKeyDown}
         >
             <div className="card-body d-flex flex-column align-items-center text-center">
-                {/* Imagen o icono por defecto */}
+                {/* Imagen o icono por defecto - EXACTAMENTE IGUAL QUE POS */}
                 {imageSource ? (
                     <img
                         src={imageSource}
                         alt={product.name || 'Producto'}
-                        className="product-image"
+                        style={{
+                            maxHeight: 45,
+                            maxWidth: '100%',
+                            objectFit: 'contain',
+                            marginBottom: '3px'
+                        }}
                     />
                 ) : (
-                    <span className="material-icons product-icon">
-                        inventory_2
+                    <span style={{ fontSize: 22, marginBottom: '3px' }} className="material-icons">
+                        paid
                     </span>
                 )}
 
                 {/* Precio */}
                 <div className="product-price">
-                    <strong>{formatPrice(product.price || 0)}</strong>
+                    <strong>{formatPrice(precioEspecifico !== null ? precioEspecifico : (product.price || 0))}</strong>
                 </div>
 
                 {/* Nombre del producto */}

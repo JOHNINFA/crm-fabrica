@@ -8,13 +8,13 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -1373,13 +1373,12 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def anular(self, request, pk=None):
         """Anular pedido y revertir en Planeación y Cargue"""
         pedido = self.get_object()
-        
         if pedido.estado == 'ANULADA':
+            # Si ya está anulado, devolvemos una respuesta exitosa para que el frontend no quede bloqueado
             return Response(
-                {'detail': 'El pedido ya está anulado'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+                {'success': True, 'message': 'El pedido ya estaba anulado'},
+                status=status.HTTP_200_OK
+            )  
         try:
             with transaction.atomic():
                 print(f"\n{'='*60}")
@@ -1433,7 +1432,37 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 else:
                     print(f"⚠️ Sin fecha de entrega, no se revierte en Planeación")
                 
-                # 3. Revertir en Cargue (solo si existe fecha_entrega y vendedor)
+                # 3. Revertir Inventario (si fue afectado)
+                if pedido.inventario_afectado:
+                    print(f"\n⚡ REVIRTIENDO INVENTARIO")
+                    print(f"{'='*60}")
+                    
+                    from .models import MovimientoInventario
+                    
+                    for detalle in pedido.detalles.all():
+                        try:
+                            producto = detalle.producto
+                            cantidad_a_devolver = detalle.cantidad
+                            
+                            # Crear movimiento de inventario (Devolución) - Esto actualiza el stock automáticamente
+                            MovimientoInventario.objects.create(
+                                producto=producto,
+                                tipo='ENTRADA',
+                                cantidad=cantidad_a_devolver,
+                                usuario=request.data.get('usuario', 'Sistema'),
+                                nota=f'Anulación Pedido #{pedido.numero_pedido} - Devolución de stock'
+                            )
+                            print(f"✅ Movimiento de entrada creado para {producto.nombre} (+{cantidad_a_devolver})")
+                            
+                        except Exception as e:
+                            print(f"  ❌ Error devolviendo stock para {detalle.producto.nombre}: {str(e)}")
+                            continue
+                    
+                    pedido.inventario_afectado = False
+                    pedido.save()
+                    print(f"✅ Inventario revertido correctamente")
+                
+                # 4. Revertir en Cargue (solo si existe fecha_entrega y vendedor)
                 if pedido.fecha_entrega and pedido.vendedor:
                     print(f"\n💰 REVIRTIENDO EN CARGUE")
                     print(f"{'='*60}")
@@ -1485,16 +1514,18 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 else:
                     print(f"⚠️ Sin fecha de entrega o vendedor, no se revierte en Cargue")
                 
+                # Fin de la transacción - todo se completó exitosamente
                 print(f"\n{'='*60}")
                 print(f"✅ PEDIDO ANULADO EXITOSAMENTE")
                 print(f"{'='*60}\n")
-                
-                serializer = self.get_serializer(pedido)
-                return Response({
-                    'success': True,
-                    'message': 'Pedido anulado exitosamente. Se revirtieron las cantidades en Planeación y el dinero en Cargue.',
-                    'pedido': serializer.data
-                })
+            
+            # Fuera del transaction.atomic() - devolver respuesta exitosa
+            serializer = self.get_serializer(pedido)
+            return Response({
+                'success': True,
+                'message': 'Pedido anulado exitosamente. Se revirtieron las cantidades en Planeación y el dinero en Cargue.',
+                'pedido': serializer.data
+            })
                 
         except Exception as e:
             import traceback
@@ -1506,7 +1537,93 @@ class PedidoViewSet(viewsets.ModelViewSet):
             print(f"{'='*60}\n")
             
             return Response(
-                {'detail': f'Error al anular pedido: {str(e)}'}, 
+                {'detail': f'Error al anular pedido: {str(e)}'}, \
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def afectar_inventario(self, request, pk=None):
+        """Afectar inventario de un pedido manualmente (para corrección)"""
+        pedido = self.get_object()
+        
+        # Validar que no esté ya afectado
+        if pedido.inventario_afectado:
+            return Response(
+                {'detail': 'El inventario de este pedido ya fue afectado'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar que no esté anulado
+        if pedido.estado == 'ANULADA':
+            return Response(
+                {'detail': 'No se puede afectar inventario de un pedido anulado'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            with transaction.atomic():
+                from .models import Producto, MovimientoInventario
+                
+                print(f"\n{'='*60}")
+                print(f"⚡ AFECTANDO INVENTARIO MANUALMENTE")
+                print(f"Pedido: #{pedido.numero_pedido}")
+                print(f"{'='*60}")
+                
+                for detalle in pedido.detalles.all():
+                    try:
+                        producto = detalle.producto
+                        cantidad_a_descontar = detalle.cantidad
+                        
+                        # Verificar stock disponible
+                        if producto.stock_total < cantidad_a_descontar:
+                            print(f"⚠️ ADVERTENCIA: {producto.nombre} - Stock insuficiente ({producto.stock_total} < {cantidad_a_descontar})")
+                        
+                        # Descontar del stock
+                        stock_anterior = producto.stock_total
+                        producto.stock_total -= cantidad_a_descontar
+                        producto.save()
+                        
+                        print(f"✅ {producto.nombre}: {stock_anterior} → {producto.stock_total} (-{cantidad_a_descontar})")
+                        
+                        # Crear movimiento de inventario
+                        MovimientoInventario.objects.create(
+                            producto=producto,
+                            tipo='SALIDA',
+                            cantidad=cantidad_a_descontar,
+                            usuario=request.data.get('usuario', 'Sistema'),
+                            nota=f'Corrección manual - Pedido #{pedido.numero_pedido} - {pedido.destinatario}'
+                        )
+                        
+                    except Exception as e:
+                        print(f"❌ Error afectando inventario para {detalle.producto.nombre}: {str(e)}")
+                        raise e
+                
+                # Marcar como inventario afectado
+                pedido.inventario_afectado = True
+                pedido.afectar_inventario_inmediato = True  # Actualizar también este campo
+                pedido.save()
+                
+                print(f"✅ Inventario afectado y marcado")
+                print(f"{'='*60}\n")
+                
+                serializer = self.get_serializer(pedido)
+                return Response({
+                    'success': True,
+                    'message': 'Inventario afectado exitosamente',
+                    'pedido': serializer.data
+                })
+                
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"\n{'='*60}")
+            print(f"❌ ERROR AL AFECTAR INVENTARIO")
+            print(f"{'='*60}")
+            print(error_detail)
+            print(f"{'='*60}\n")
+            
+            return Response(
+                {'detail': f'Error al afectar inventario: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1564,6 +1681,60 @@ class PlaneacionViewSet(viewsets.ModelViewSet):
         
         # Crear nuevo registro
         return super().create(request, *args, **kwargs)
+    
+    @action(detail=False, methods=['post'])
+    def prediccion_ia(self, request):
+        """
+        Obtiene predicciones de IA (con Redes Neuronales) para una fecha específica.
+        
+        POST /api/planeacion/prediccion_ia/
+        Body: {
+            "fecha": "2025-11-20",
+            "datos_contextuales": {
+                "AREPA TIPO OBLEA 500Gr": {
+                    "existencias": 266,
+                    "solicitadas": 0,
+                    "pedidos": 0
+                },
+                ...
+            }
+        }
+        """
+        from api.services.ia_service import IAService
+        
+        fecha = request.data.get('fecha')
+        datos_contextuales = request.data.get('datos_contextuales', {})
+        
+        if not fecha:
+            return Response(
+                {'error': 'Fecha es requerida'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Inicializar servicio de IA
+            ia_service = IAService()
+            
+            # Obtener predicciones
+            predicciones = ia_service.predecir_produccion(
+                fecha_objetivo=fecha,
+                datos_contextuales=datos_contextuales
+            )
+            
+            return Response({
+                'fecha': fecha,
+                'predicciones': predicciones,
+                'total_productos': len(predicciones)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"❌ Error en predicción IA: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Error generando predicciones: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class VendedorViewSet(viewsets.ModelViewSet):
@@ -1620,6 +1791,60 @@ class VendedorViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class DomiciliarioViewSet(viewsets.ModelViewSet):
+    """API para gestionar domiciliarios"""
+    queryset = Domiciliario.objects.all()
+    serializer_class = DomiciliarioSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'codigo'  # Usar codigo en lugar de pk
+    
+    def get_queryset(self):
+        """Filtrar domiciliarios por parámetros"""
+        queryset = Domiciliario.objects.all()
+        activo = self.request.query_params.get('activo', None)
+        
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+            
+        return queryset.order_by('codigo')
+    
+    @action(detail=True, methods=['get'])
+    def pedidos(self, request, codigo=None):
+        """Obtener pedidos asignados a un domiciliario"""
+        domiciliario = self.get_object()
+        fecha = request.query_params.get('fecha')
+        estado = request.query_params.get('estado')
+        
+        pedidos_query = Pedido.objects.filter(
+            asignado_a_tipo='DOMICILIARIO',
+            asignado_a_id=domiciliario.codigo
+        )
+        
+        if fecha:
+            pedidos_query = pedidos_query.filter(fecha_entrega=fecha)
+        if estado:
+            pedidos_query = pedidos_query.filter(estado=estado.upper())
+        
+        pedidos = pedidos_query.order_by('-fecha_creacion')
+        serializer = PedidoSerializer(pedidos, many=True)
+        
+        # Calcular totales
+        total_pedidos = pedidos.count()
+        total_monto = sum(p.total for p in pedidos)
+        
+        return Response({
+            'domiciliario': {
+                'codigo': domiciliario.codigo,
+                'nombre': domiciliario.nombre
+            },
+            'pedidos': serializer.data,
+            'resumen': {
+                'total_pedidos': total_pedidos,
+                'total_monto': float(total_monto)
+            }
+        })
 
 
 class MovimientoCajaViewSet(viewsets.ModelViewSet):

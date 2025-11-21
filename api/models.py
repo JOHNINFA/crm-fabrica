@@ -1302,6 +1302,12 @@ class Pedido(models.Model):
         ('MUESTRA', 'Muestra'),
     ]
     
+    ASIGNADO_A_TIPO_CHOICES = [
+        ('VENDEDOR', 'Vendedor'),
+        ('DOMICILIARIO', 'Domiciliario'),
+        ('NINGUNO', 'Ninguno'),
+    ]
+    
     # Información básica
     numero_pedido = models.CharField(max_length=50, unique=True, verbose_name='Número de Pedido', db_column='numero_remision')
     fecha = models.DateTimeField(default=timezone.now)
@@ -1322,6 +1328,22 @@ class Pedido(models.Model):
     impuestos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # ===== NUEVOS CAMPOS PARA AFECTAR INVENTARIO =====
+    afectar_inventario_inmediato = models.BooleanField(default=False, verbose_name='Afectar inventario inmediatamente')
+    asignado_a_tipo = models.CharField(
+        max_length=20, 
+        choices=ASIGNADO_A_TIPO_CHOICES, 
+        default='NINGUNO',
+        verbose_name='Tipo de asignación'
+    )
+    asignado_a_id = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True,
+        verbose_name='ID del vendedor o domiciliario'
+    )  # Ej: 'ID1', 'ID2', 'DOM1', 'DOM2', etc.
+    inventario_afectado = models.BooleanField(default=False, verbose_name='Inventario ya afectado')
     
     # Estado y control
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
@@ -1425,6 +1447,30 @@ class Vendedor(models.Model):
         verbose_name = "Vendedor"
         verbose_name_plural = "Vendedores"
         ordering = ['id_vendedor']
+
+
+class Domiciliario(models.Model):
+    """Modelo para gestionar domiciliarios"""
+    codigo = models.CharField(max_length=20, unique=True, primary_key=True)  # DOM1, DOM2, etc.
+    nombre = models.CharField(max_length=100)
+    identificacion = models.CharField(max_length=50, blank=True, null=True)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    direccion = models.TextField(blank=True, null=True)
+    vehiculo = models.CharField(max_length=100, blank=True, null=True)  # Tipo de vehículo
+    placa = models.CharField(max_length=20, blank=True, null=True)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+    
+    class Meta:
+        verbose_name = "Domiciliario"
+        verbose_name_plural = "Domiciliarios"
+        ordering = ['codigo']
+
 
 
 class MovimientoCaja(models.Model):

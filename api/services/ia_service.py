@@ -3,96 +3,308 @@ import numpy as np
 from datetime import datetime, timedelta
 from django.db.models import Sum
 from api.models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
+import os
+import pickle
+
+# Machine Learning
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split
+
+# Deep Learning - TensorFlow/Keras
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    from tensorflow.keras import layers
+    TENSORFLOW_DISPONIBLE = True
+    print("✅ TensorFlow disponible - Redes neuronales activas")
+except ImportError:
+    TENSORFLOW_DISPONIBLE = False
+    print("⚠️ TensorFlow no disponible - Usando algoritmo simple")
+
 
 class IAService:
     def __init__(self):
-        self.modelos = {} # Aquí guardaremos los modelos entrenados por producto
+        self.modelos = {}  # Aquí guardaremos los modelos entrenados por producto
+        self.scaler = StandardScaler()
+        self.label_encoder = LabelEncoder()
+        self.models_dir = 'api/ml_models/'
+        
+        # Crear carpeta para modelos si no existe
+        if not os.path.exists(self.models_dir):
+            os.makedirs(self.models_dir)
 
     def obtener_historial_ventas(self):
         """
-        Recolecta y unifica las ventas de todas las tablas de CargueID.
-        Retorna un DataFrame de Pandas listo para el análisis.
+        Obtiene el historial de ventas NETAS desde todos los cargues.
+        
+        VENTA NETA = cantidad - devoluciones - vencidas
+        
+        Esto optimiza la producción evitando:
+        - Devoluciones (productos que regresan)
+        - Vencidas (productos que se pierden)
         """
-        # print("🧠 IA: Recolectando historial de ventas...")  # Debug desactivado
+        from api.models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         
-        # Lista de modelos de cargue
-        modelos_cargue = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+        registros = []
         
-        todos_los_datos = []
-
-        for modelo in modelos_cargue:
-            # Obtener ventas confirmadas (donde hay fecha y producto)
-            registros = modelo.objects.filter(
-                fecha__isnull=False,
-                producto__isnull=False
-            ).exclude(producto='').values('fecha', 'producto', 'cantidad', 'adicional', 'devoluciones')
+        # Obtener de todos los IDs
+        for modelo in [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]:
+            cargues = modelo.objects.filter(activo=True).values(
+                'fecha', 'dia', 'producto', 'cantidad', 'devoluciones', 'vencidas'
+            )
             
-            for registro in registros:
-                fecha = registro['fecha']
-                if not fecha:
-                    continue
+            for c in cargues:
+                if c['producto']:  # Solo si tiene producto
+                    # 🧠 VENTA NETA = Lo que realmente se vendió
+                    venta_neta = c['cantidad'] - c['devoluciones'] - c['vencidas']
                     
-                # Convertir fecha a datetime si es string
-                if isinstance(fecha, str):
-                    try:
-                        fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
-                    except:
-                        continue
-
-                # Procesar datos del registro
-                nombre = registro['producto']
-                cantidad = int(registro.get('cantidad', 0) or 0)
-                adicional = int(registro.get('adicional', 0) or 0)
-                devoluciones = int(registro.get('devoluciones', 0) or 0)
-                
-                # La venta real es lo que salió (cantidad + adicional - devoluciones)
-                total_venta = cantidad + adicional - devoluciones
-                
-                if total_venta > 0 and nombre:
-                    todos_los_datos.append({
-                        'fecha': fecha,
-                        'producto': nombre,
-                        'venta': total_venta,
-                        'dia_semana': fecha.weekday() # 0=Lunes, 5=Sábado, 6=Domingo
+                    registros.append({
+                        'fecha': c['fecha'],
+                        'dia_nombre': c['dia'],
+                        'producto': c['producto'],
+                        'cantidad_cargada': c['cantidad'],
+                        'devoluciones': c['devoluciones'],
+                        'vencidas': c['vencidas'],
+                        'venta': max(0, venta_neta)  # No permitir negativos, usar 'venta' para compatibilidad
                     })
-
-        # Crear DataFrame
-        df = pd.DataFrame(todos_los_datos)
         
-        if not df.empty:
-            # Agrupar por fecha y producto (sumar ventas de todos los vendedores)
-            df = df.groupby(['fecha', 'producto', 'dia_semana'])['venta'].sum().reset_index()
-            print(f"✅ IA: {len(df)} registros históricos analizados")  # Solo resumen
-        else:
-            print("⚠️ IA: Sin datos históricos")
-            
+        if not registros:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(registros)
+        
+        # Convertir fecha a datetime
+        df['fecha'] = pd.to_datetime(df['fecha'])
+        
+        # Agregar día de la semana (0=Lunes, 6=Domingo)
+        df['dia_semana'] = df['fecha'].dt.dayofweek
+        
+        # Agregar más features temporales
+        df['dia_mes'] = df['fecha'].dt.day
+        df['mes'] = df['fecha'].dt.month
+        df['semana_año'] = df['fecha'].dt.isocalendar().week
+        
+        # Ordenar por fecha
+        df = df.sort_values('fecha')
+        
+        print(f"✅ IA: {len(df)} registros históricos analizados")
+        print(f"   📊 Productos únicos: {df['producto'].nunique()}")
+        print(f"   📅 Rango: {df['fecha'].min()} a {df['fecha'].max()}")
+        
         return df
+
+    def preparar_datos_para_ml(self, df, producto_nombre):
+        """
+        Prepara los datos para entrenar la red neuronal.
+        Crea características (features) a partir de los datos históricos.
+        """
+        if df.empty:
+            return None, None, None, None
+        
+        # Filtrar datos del producto
+        df_producto = df[df['producto'] == producto_nombre].copy()
+        
+        if len(df_producto) < 10:  # Necesitamos al menos 10 registros
+            return None, None, None, None
+        
+        # Ordenar por fecha
+        df_producto = df_producto.sort_values('fecha')
+        
+        # Crear características (features)
+        features = []
+        targets = []
+        
+        for i in range(len(df_producto) - 1):
+            # Features: datos históricos + contextuales
+            feature = [
+                df_producto.iloc[i]['dia_semana'],
+                df_producto.iloc[i]['dia_mes'],
+                df_producto.iloc[i]['mes'],
+                df_producto.iloc[i]['semana_año'],
+                df_producto.iloc[i]['venta'],  # Venta del día anterior
+            ]
+            
+            # Target: venta del día siguiente
+            target = df_producto.iloc[i + 1]['venta']
+            
+            features.append(feature)
+            targets.append(target)
+        
+        # Convertir a arrays numpy
+        X = np.array(features)
+        y = np.array(targets)
+        
+        # Normalizar features
+        X_scaled = self.scaler.fit_transform(X)
+        
+        return X_scaled, y, self.scaler, df_producto
+
+    def crear_modelo_neuronal(self, input_dim):
+        """
+        Crea una red neuronal para predicción de demanda.
+        Arquitectura: 3 capas ocultas con Dropout para evitar overfitting.
+        """
+        modelo = keras.Sequential([
+            # Capa de entrada
+            layers.Dense(64, activation='relu', input_dim=input_dim),
+            layers.Dropout(0.2),
+            
+            # Capas ocultas
+            layers.Dense(32, activation='relu'),
+            layers.Dropout(0.2),
+            
+            layers.Dense(16, activation='relu'),
+            
+            # Capa de salida (predicción)
+            layers.Dense(1, activation='linear')  # Regresión
+        ])
+        
+        # Compilar modelo
+        modelo.compile(
+            optimizer='adam',
+            loss='mse',  # Mean Squared Error
+            metrics=['mae']  # Mean Absolute Error
+        )
+        
+        return modelo
+
+    def entrenar_modelo_producto(self, producto_nombre):
+        """
+        Entrena una red neuronal específica para un producto.
+        """
+        if not TENSORFLOW_DISPONIBLE:
+            return None
+        
+        print(f"\n🧠 Entrenando red neuronal para: {producto_nombre}")
+        
+        # Obtener datos históricos
+        df = self.obtener_historial_ventas()
+        
+        # Preparar datos
+        X, y, scaler, df_producto = self.preparar_datos_para_ml(df, producto_nombre)
+        
+        if X is None:
+            print(f"   ⚠️ Datos insuficientes para {producto_nombre}")
+            return None
+        
+        # Dividir en train/test
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Crear modelo
+        modelo = self.crear_modelo_neuronal(input_dim=X.shape[1])
+        
+        # Entrenar (sin mostrar progreso detallado)
+        history = modelo.fit(
+            X_train, y_train,
+            epochs=50,
+            batch_size=8,
+            validation_split=0.2,
+            verbose=0  # Sin output detallado
+        )
+        
+        # Evaluar
+        loss, mae = modelo.evaluate(X_test, y_test, verbose=0)
+        print(f"   ✅ Modelo entrenado - MAE: {mae:.2f} unidades")
+        
+        # Guardar modelo en formato KERAS nativo (no HDF5 legacy)
+        modelo_path = os.path.join(self.models_dir, f'{producto_nombre.replace(" ", "_")}.keras')
+        scaler_path = os.path.join(self.models_dir, f'{producto_nombre.replace(" ", "_")}_scaler.pkl')
+        
+        modelo.save(modelo_path)
+        with open(scaler_path, 'wb') as f:
+            pickle.dump(scaler, f)
+        
+        return modelo, scaler
+
+    def cargar_modelo_producto(self, producto_nombre):
+        """
+        Carga un modelo previamente entrenado.
+        """
+        if not TENSORFLOW_DISPONIBLE:
+            return None, None
+        
+        modelo_path = os.path.join(self.models_dir, f'{producto_nombre.replace(" ", "_")}.keras')
+        scaler_path = os.path.join(self.models_dir, f'{producto_nombre.replace(" ", "_")}_scaler.pkl')
+        
+        if os.path.exists(modelo_path) and os.path.exists(scaler_path):
+            modelo = keras.models.load_model(modelo_path)
+            with open(scaler_path, 'rb') as f:
+                scaler = pickle.load(f)
+            return modelo, scaler
+        
+        return None, None
+
+    def predecir_con_red_neuronal(self, producto_nombre, fecha_objetivo, datos_contextuales=None):
+        """
+        Usa la red neuronal entrenada para predecir demanda.
+        Si no hay modelo, lo entrena primero.
+        """
+        if not TENSORFLOW_DISPONIBLE:
+            return None
+        
+        # Intentar cargar modelo existente
+        modelo, scaler = self.cargar_modelo_producto(producto_nombre)
+        
+        # Si no existe, entrenar
+        if modelo is None:
+            resultado = self.entrenar_modelo_producto(producto_nombre)
+            if resultado is None:
+                return None
+            modelo, scaler = resultado
+        
+        # Preparar features para predicción
+        if isinstance(fecha_objetivo, str):
+            fecha_objetivo = datetime.strptime(fecha_objetivo, '%Y-%m-%d').date()
+        
+        # Obtener última venta conocida
+        df = self.obtener_historial_ventas()
+        df_producto = df[df['producto'] == producto_nombre].sort_values('fecha')
+        
+        if df_producto.empty:
+            return None
+        
+        ultima_venta = df_producto.iloc[-1]['venta']
+        
+        # Crear features
+        features = np.array([[
+            fecha_objetivo.weekday(),
+            fecha_objetivo.day,
+            fecha_objetivo.month,
+            fecha_objetivo.isocalendar()[1],
+            ultima_venta
+        ]])
+        
+        # Normalizar
+        features_scaled = scaler.transform(features)
+        
+        # Predecir
+        prediccion = modelo.predict(features_scaled, verbose=0)[0][0]
+        
+        return max(0, int(prediccion))
 
     def predecir_produccion(self, fecha_objetivo, datos_contextuales=None):
         """
-        Genera una predicción de producción CONTEXTUAL para una fecha específica.
+        Genera predicciones de producción usando REDES NEURONALES.
         
-        V2: Considera:
-        - Existencias actuales
-        - Solicitadas del día (desde Cargue)
-        - Pedidos del día
-        - Histórico de ventas
+        Si no hay modelo entrenado para un producto, retorna 0.
         
         Args:
             fecha_objetivo: Fecha para la cual predecir
             datos_contextuales: Dict con {producto_nombre: {existencias, solicitadas, pedidos}}
         """
+        if not TENSORFLOW_DISPONIBLE:
+            print("❌ TensorFlow no disponible - No se pueden generar predicciones")
+            return []
+
         df = self.obtener_historial_ventas()
         
         if df.empty:
+            print("⚠️ Sin datos históricos")
             return []
 
         # Convertir fecha objetivo
         if isinstance(fecha_objetivo, str):
             fecha_objetivo = datetime.strptime(fecha_objetivo, '%Y-%m-%d').date()
-            
-        dia_semana_objetivo = fecha_objetivo.weekday()
-        # print(f"🧠 IA: Prediciendo para el día {dia_semana_objetivo} (0=Lunes)...")  # Debug off
 
         predicciones = []
         
@@ -110,63 +322,91 @@ class IAService:
                 solicitadas = datos_contextuales[producto].get('solicitadas', 0)
                 pedidos = datos_contextuales[producto].get('pedidos', 0)
             
-            # 📊 DATOS HISTÓRICOS (aprendizaje)
-            historia_producto = df[
-                (df['producto'] == producto) & 
-                (df['dia_semana'] == dia_semana_objetivo)
-            ]
-
-            # Calcular promedio histórico
-            promedio_historico = 0
-            confianza = 'Baja'
+            # 🧠 PREDICCIÓN CON RED NEURONAL
+            prediccion_neuronal = None
+            try:
+                prediccion_neuronal = self.predecir_con_red_neuronal(producto, fecha_objetivo, datos_contextuales)
+            except Exception as e:
+                print(f"   ⚠️ Error en red neuronal para {producto}: {str(e)}")
             
-            if not historia_producto.empty:
-                historia_producto = historia_producto.sort_values('fecha', ascending=False)
-                ultimos_registros = historia_producto.head(4)
-                promedio_historico = int(ultimos_registros['venta'].mean())
-                confianza = 'Alta' if len(ultimos_registros) >= 3 else 'Media'
-            else:
-                # Si no hay historia del día específico, usar promedio general
-                promedio_general = df[df['producto'] == producto]['venta'].mean()
-                promedio_historico = int(promedio_general or 0)
-                confianza = 'Baja (Promedio General)'
-
-            # 🧠 ALGORITMO INTELIGENTE V2
+            # Si no hay predicción neuronal, saltar este producto
+            if prediccion_neuronal is None:
+                print(f"   ⚠️ {producto}: Sin modelo entrenado (necesita 10+ registros)")
+                continue
+            
+            # 🧠 ALGORITMO CON RED NEURONAL
             # 1. Demanda del día = Solicitadas + Pedidos
-            demanda_actual = solicitadas + pedidos
+            demanda_conocida = solicitadas + pedidos
             
-            # 2. Usar la mayor entre demanda actual y promedio histórico
-            demanda_final = max(demanda_actual, promedio_historico)
+            # 2. Predicción de venta del día (Red Neuronal)
+            prediccion_venta = prediccion_neuronal
             
-            # 3. Calcular faltante
-            faltante = demanda_final - existencias
+            # 3. Demanda total esperada (la mayor entre conocida y predicha)
+            demanda_total = max(demanda_conocida, prediccion_venta)
             
-            # 4. Sugerencia con factor de seguridad (10%)
+            # 4. Calcular cuánto falta para cubrir la demanda
+            faltante = demanda_total - existencias
+            
+            # 5. Sugerencia de ORDEN
             if faltante > 0:
-                sugerido = int(faltante * 1.10)
-                motivo = f"Demanda: {demanda_final} - Stock: {existencias} = {faltante} (+10%)"
+                # Falta stock para cubrir la demanda
+                sugerido = int(faltante * 1.20)  # +20% margen de seguridad
+                motivo = f"Venta esperada: {int(demanda_total)} - Stock: {existencias} = Falta {int(faltante)} (+20% seguridad)"
             else:
-                # Si hay stock suficiente, sugerir solo el promedio histórico
-                sugerido = int(promedio_historico * 0.20)  # 20% del promedio como reposición
-                motivo = f"Stock suficiente. Reposición: {int(promedio_historico * 0.20)}"
+                # Hay stock suficiente, pero sugerir reposición basada en venta esperada
+                # Esto ayuda a mantener stock para días siguientes
+                sugerido = int(prediccion_venta * 0.30)  # 30% de la venta esperada
+                motivo = f"Stock suficiente para hoy. Reposición sugerida: {int(prediccion_venta * 0.30)} (30% de venta esperada: {int(prediccion_venta)})"
             
             predicciones.append({
                 'producto': producto,
                 'ia_sugerido': max(0, sugerido),
-                'confianza': confianza,
+                'confianza': 'IA (Red Neuronal)',
                 'detalle': {
                     'existencias': existencias,
                     'solicitadas': solicitadas,
                     'pedidos': pedidos,
-                    'demanda_final': demanda_final,
-                    'promedio_historico': promedio_historico,
+                    'demanda_conocida': demanda_conocida,
+                    'prediccion_venta': prediccion_neuronal,
+                    'demanda_total': demanda_total,
+                    'faltante': faltante,
+                    'usa_red_neuronal': True,
                     'motivo': motivo
                 }
             })
-            
-            # Log detallado (solo para debugging)
-            # if sugerido > 0:
-            #     print(f"   🧠 {producto}: {sugerido} und | {motivo}")
 
-        print(f"✅ IA: {len(predicciones)} productos con sugerencias")
+        print(f"✅ IA: {len(predicciones)} productos con predicciones de Red Neuronal")
         return predicciones
+
+    def entrenar_todos_los_modelos(self):
+        """
+        Entrena redes neuronales para todos los productos con suficientes datos.
+        Esto se puede ejecutar periódicamente (ej: cada noche).
+        """
+        if not TENSORFLOW_DISPONIBLE:
+            print("⚠️ TensorFlow no disponible - No se pueden entrenar modelos")
+            return
+        
+        print("\n🚀 Iniciando entrenamiento masivo de modelos...")
+        
+        df = self.obtener_historial_ventas()
+        productos_unicos = df['producto'].unique()
+        
+        entrenados = 0
+        fallidos = 0
+        
+        for producto in productos_unicos:
+            try:
+                resultado = self.entrenar_modelo_producto(producto)
+                if resultado is not None:
+                    entrenados += 1
+                else:
+                    fallidos += 1
+            except Exception as e:
+                print(f"   ❌ Error entrenando {producto}: {str(e)}")
+                fallidos += 1
+        
+        print(f"\n✅ Entrenamiento completado:")
+        print(f"   - Modelos entrenados: {entrenados}")
+        print(f"   - Fallidos/Insuficientes: {fallidos}")
+        print(f"   - Total productos: {len(productos_unicos)}\n")

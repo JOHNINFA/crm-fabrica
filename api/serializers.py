@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, ConfiguracionImpresion
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, ConfiguracionImpresion
+
 
 class CategoriaSerializer(serializers.ModelSerializer):
     """Serializer para categorías"""
@@ -519,21 +520,32 @@ class PedidoSerializer(serializers.ModelSerializer):
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
             'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
             'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
-            'fecha_actualizacion', 'detalles'
+            'fecha_actualizacion', 'detalles',
+            # Nuevos campos
+            'afectar_inventario_inmediato', 'asignado_a_tipo', 
+            'asignado_a_id', 'inventario_afectado'
         ]
-        read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion')
+        read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion', 'inventario_afectado')
     
     def create(self, validated_data):
         from django.db import transaction
+        from .models import Planeacion, Producto, MovimientoInventario, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         
         # Extraer detalles si vienen en los datos
         detalles_data = self.context['request'].data.get('detalles', [])
         
         with transaction.atomic():
-            # Crear el pedido
+            # ===== 1. CREAR EL PEDIDO =====
             pedido = Pedido.objects.create(**validated_data)
+            print(f"\n{'='*60}")
+            print(f"📦 CREANDO PEDIDO #{pedido.numero_pedido}")
+            print(f"{'='*60}")
+            print(f"💰 Total: ${pedido.total}")
+            print(f"📅 Fecha entrega: {pedido.fecha_entrega}")
+            print(f"🎯 Asignado a: {pedido.asignado_a_tipo} - {pedido.asignado_a_id or 'Ninguno'}")
+            print(f"⚡ Afectar inventario inmediato: {'SÍ' if pedido.afectar_inventario_inmediato else 'NO'}")
             
-            # Crear los detalles
+            # ===== 2. CREAR LOS DETALLES =====
             for detalle_data in detalles_data:
                 DetallePedido.objects.create(
                     pedido=pedido,
@@ -542,13 +554,47 @@ class PedidoSerializer(serializers.ModelSerializer):
                     precio_unitario=detalle_data['precio_unitario']
                 )
             
-            # Actualizar Planeación si hay fecha_entrega
+            # ===== 3. AFECTAR INVENTARIO SI CHECKBOX ESTÁ MARCADO =====
+            if pedido.afectar_inventario_inmediato and not pedido.inventario_afectado:
+                print(f"\n⚡ AFECTANDO INVENTARIO INMEDIATAMENTE")
+                print(f"{'='*60}")
+                
+                for detalle in pedido.detalles.all():
+                    try:
+                        producto = detalle.producto
+                        cantidad_a_descontar = detalle.cantidad
+                        
+                        # Verificar stock disponible
+                        if producto.stock_total < cantidad_a_descontar:
+                            print(f"⚠️ ADVERTENCIA: {producto.nombre} - Stock insuficiente ({producto.stock_total} < {cantidad_a_descontar})")
+                        
+                        # Descontar del stock
+                        # Crear movimiento de inventario (esto actualiza el stock automáticamente)
+                        MovimientoInventario.objects.create(
+                            producto=producto,
+                            tipo='SALIDA',
+                            cantidad=cantidad_a_descontar,
+                            usuario='Sistema',
+                            nota=f'Pedido urgente #{pedido.numero_pedido} - {pedido.destinatario}'
+                        )
+                        print(f"✅ Movimiento de salida creado para {producto.nombre} (-{cantidad_a_descontar})")
+                        
+                    except Exception as e:
+                        print(f"❌ Error afectando inventario para {detalle.producto.nombre}: {str(e)}")
+                        continue
+                
+                # Marcar como inventario afectado
+                pedido.inventario_afectado = True
+                pedido.save()
+                print(f"✅ Inventario marcado como afectado")
+            
+            # ===== 4. ACTUALIZAR PLANEACIÓN (siempre se hace) =====
             if pedido.fecha_entrega:
-                from .models import Planeacion, Producto
+                print(f"\n📊 ACTUALIZANDO PLANEACIÓN")
+                print(f"{'='*60}")
                 
                 for detalle_data in detalles_data:
                     try:
-                        # Obtener el producto para su nombre
                         producto = Producto.objects.get(id=detalle_data['producto'])
                         
                         # Buscar o crear registro en Planeación
@@ -567,49 +613,67 @@ class PedidoSerializer(serializers.ModelSerializer):
                         
                         # Sumar la cantidad del pedido
                         planeacion.pedidos += detalle_data['cantidad']
-                        # El total se calcula automáticamente en el save()
-                        planeacion.save()
+                        planeacion.save()  # El total se calcula automáticamente
                         
-                        print(f"✅ Planeación actualizada: {producto.nombre} +{detalle_data['cantidad']} = {planeacion.pedidos}")
+                        print(f"✅ {producto.nombre}: +{detalle_data['cantidad']} = {planeacion.pedidos}")
                         
                     except Producto.DoesNotExist:
-                        print(f"⚠️ Producto {detalle_data['producto']} no encontrado para actualizar Planeación")
+                        print(f"⚠️ Producto {detalle_data['producto']} no encontrado")
                         continue
                     except Exception as e:
                         print(f"⚠️ Error actualizando Planeación: {str(e)}")
                         continue
             
-            # Actualizar Cargue si hay fecha_entrega y vendedor
-            if pedido.fecha_entrega and pedido.vendedor:
-                from .models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
+            # ===== 5. ACTUALIZAR CARGUE SI ESTÁ ASIGNADO A VENDEDOR =====
+            if pedido.asignado_a_tipo == 'VENDEDOR' and pedido.asignado_a_id and pedido.fecha_entrega:
+                print(f"\n💼 ACTUALIZANDO CARGUE DEL VENDEDOR")
+                print(f"{'='*60}")
                 
-                # Mapear vendedores a modelos de cargue
-                cargue_models = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+                # Mapear ID del vendedor al modelo de cargue
+                cargue_models_map = {
+                    'ID1': CargueID1,
+                    'ID2': CargueID2,
+                    'ID3': CargueID3,
+                    'ID4': CargueID4,
+                    'ID5': CargueID5,
+                    'ID6': CargueID6
+                }
                 
-                for CargueModel in cargue_models:
+                CargueModel = cargue_models_map.get(pedido.asignado_a_id)
+                
+                if CargueModel:
                     try:
                         # Buscar registros de cargue por fecha
                         cargues = CargueModel.objects.filter(fecha=pedido.fecha_entrega)
                         
-                        for cargue in cargues:
-                            # Verificar si el vendedor coincide con el responsable
-                            if hasattr(cargue, 'responsable') and cargue.responsable:
-                                if pedido.vendedor.lower() in cargue.responsable.lower():
-                                    # Sumar al total_pedidos
-                                    if hasattr(cargue, 'total_pedidos'):
-                                        cargue.total_pedidos = float(cargue.total_pedidos or 0) + float(pedido.total)
-                                    
-                                    # Recalcular total_efectivo
-                                    if hasattr(cargue, 'total_efectivo') and hasattr(cargue, 'venta'):
-                                        if cargue.venta and cargue.total_pedidos:
-                                            cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
-                                    
-                                    cargue.save()
-                                    print(f"✅ Cargue actualizado: {CargueModel.__name__} +${pedido.total}")
-                                    break  # Solo actualizar un cargue por modelo
+                        if cargues.exists():
+                            for cargue in cargues:
+                                # Sumar al total_pedidos
+                                total_anterior = float(cargue.total_pedidos or 0)
+                                cargue.total_pedidos = total_anterior + float(pedido.total)
+                                
+                                # Recalcular total_efectivo
+                                if cargue.venta:
+                                    cargue.total_efectivo = float(cargue.venta) - float(cargue.total_pedidos)
+                                
+                                cargue.save()
+                                print(f"✅ {pedido.asignado_a_id}: Total pedidos ${total_anterior} → ${cargue.total_pedidos}")
+                        else:
+                            print(f"⚠️ No se encontró cargue para {pedido.asignado_a_id} en fecha {pedido.fecha_entrega}")
+                    
                     except Exception as e:
-                        print(f"⚠️ Error actualizando Cargue en {CargueModel.__name__}: {str(e)}")
-                        continue
+                        print(f"❌ Error actualizando Cargue {pedido.asignado_a_id}: {str(e)}")
+                else:
+                    print(f"⚠️ Modelo de cargue no encontrado para {pedido.asignado_a_id}")
+            
+            # ===== 6. REGISTRO PARA DOMICILIARIO =====
+            if pedido.asignado_a_tipo == 'DOMICILIARIO' and pedido.asignado_a_id:
+                print(f"\n🛵 PEDIDO ASIGNADO A DOMICILIARIO: {pedido.asignado_a_id}")
+                # El domiciliario solo necesita el registro, no afecta cargue
+            
+            print(f"\n{'='*60}")
+            print(f"✅ PEDIDO CREADO EXITOSAMENTE")
+            print(f"{'='*60}\n")
         
         return pedido
 class PlaneacionSerializer(serializers.ModelSerializer):
@@ -624,6 +688,19 @@ class VendedorSerializer(serializers.ModelSerializer):
         model = Vendedor
         fields = ['id_vendedor', 'nombre', 'ruta', 'activo', 'fecha_creacion', 'fecha_actualizacion']
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+
+class DomiciliarioSerializer(serializers.ModelSerializer):
+    """Serializer para domiciliarios"""
+    class Meta:
+        model = Domiciliario
+        fields = [
+            'codigo', 'nombre', 'identificacion', 'telefono', 'email',
+            'direccion', 'vehiculo', 'placa', 'activo',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
 
 
 class ConfiguracionImpresionSerializer(serializers.ModelSerializer):

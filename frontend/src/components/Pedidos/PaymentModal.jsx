@@ -27,6 +27,40 @@ const PaymentModal = ({
     const [pedidoCreado, setPedidoCreado] = useState(null);
     const [showTicketModal, setShowTicketModal] = useState(false);
 
+    // ===== NUEVOS ESTADOS PARA AFECTAR INVENTARIO =====
+    const [afectarInventario, setAfectarInventario] = useState(false);
+    const [asignadoATipo, setAsignadoATipo] = useState('NINGUNO');
+    const [asignadoAId, setAsignadoAId] = useState('');
+    const [showInventoryOptions, setShowInventoryOptions] = useState(false); // Estado para colapsar opciones de inventario
+    const [domiciliarios, setDomiciliarios] = useState([]);
+    const [vendedores, setVendedores] = useState([]); // ✅ Estado para vendedores
+
+    // Efecto para automatizar el check de inventario cuando se asigna vendedor o domiciliario
+    useEffect(() => {
+        // ✅ Cuando se selecciona "VENDEDOR", asignar el vendedor del cliente automáticamente
+        if (asignadoATipo === 'VENDEDOR' && !asignadoAId && clientData?.vendedor_asignado) {
+            console.log('👤 Vendedor asignado del cliente (original):', clientData.vendedor_asignado);
+
+            // Extraer el ID del vendedor del formato "Jose (ID2)" -> "ID2"
+            const match = clientData.vendedor_asignado.match(/\(([^)]+)\)/);
+            const vendedorId = match ? match[1] : clientData.vendedor_asignado;
+
+            console.log('👤 ID del vendedor extraído:', vendedorId);
+            setAsignadoAId(vendedorId);
+        }
+
+        // ✅ Activar checkbox automáticamente cuando se asigna un vendedor o domiciliario
+        if (asignadoATipo === 'DOMICILIARIO' && asignadoAId) {
+            setAfectarInventario(true);
+        } else if (asignadoATipo === 'VENDEDOR' && asignadoAId) {
+            setAfectarInventario(true);
+        } else if (asignadoATipo === 'NINGUNO') {
+            // Desmarcar si se vuelve a "Ninguno"
+            setAfectarInventario(false);
+            setAsignadoAId(''); // Limpiar el ID también
+        }
+    }, [asignadoATipo, asignadoAId, clientData]);
+
     // Cargar bancos desde localStorage
     useEffect(() => {
         const bancosGuardados = localStorage.getItem('bancos');
@@ -46,6 +80,40 @@ const PaymentModal = ({
         }
     }, []);
 
+    // Cargar vendedores desde la API
+    useEffect(() => {
+        const cargarVendedores = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/vendedores/');
+                if (response.ok) {
+                    const data = await response.json();
+                    setVendedores(data);
+                    console.log('✅ Vendedores cargados:', data);
+                }
+            } catch (error) {
+                console.error('❌ Error cargando vendedores:', error);
+            }
+        };
+        cargarVendedores();
+    }, []);
+
+    // Cargar domiciliarios desde la API
+    useEffect(() => {
+        const cargarDomiciliarios = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/domiciliarios/?activo=true');
+                if (response.ok) {
+                    const data = await response.json();
+                    setDomiciliarios(data);
+                    console.log('✅ Domiciliarios cargados:', data);
+                }
+            } catch (error) {
+                console.error('❌ Error cargando domiciliarios:', error);
+            }
+        };
+        cargarDomiciliarios();
+    }, []);
+
     // Actualizar destinatario cuando cambia el prop client
     useEffect(() => {
         setDestinatario(client);
@@ -62,9 +130,11 @@ const PaymentModal = ({
     useEffect(() => {
         if (clientData) {
             console.log('📋 Cargando datos del cliente en modal:', clientData);
+            console.log('👤 Vendedor asignado del cliente:', clientData.vendedor_asignado);
             if (clientData.direccion) setDireccionEntrega(clientData.direccion);
             if (clientData.telefono) setTelefonoContacto(clientData.telefono);
             if (clientData.fecha) setFechaEntrega(clientData.fecha);
+            // No asignamos vendedor automáticamente, el usuario debe hacerlo manualmente
         }
     }, [clientData]);
 
@@ -142,6 +212,10 @@ const PaymentModal = ({
                 total: safeTotal,
                 estado: 'PENDIENTE',
                 nota: nota,
+                // ===== NUEVOS CAMPOS =====
+                afectar_inventario_inmediato: afectarInventario,
+                asignado_a_tipo: asignadoATipo,
+                asignado_a_id: asignadoAId || null,
                 detalles: cart.map(item => ({
                     producto: item.id,
                     cantidad: item.qty,
@@ -158,6 +232,21 @@ const PaymentModal = ({
 
             if (result && !result.error) {
                 console.log('✅ Pedido creado exitosamente:', result);
+
+                // Construir mensaje de éxito
+                let mensaje = `✅ Pedido #${result.numero_pedido} creado exitosamente\n`;
+
+                if (afectarInventario) {
+                    mensaje += `\n⚡ Inventario afectado inmediatamente`;
+                }
+
+                if (asignadoATipo === 'VENDEDOR' && asignadoAId) {
+                    mensaje += `\n👤 Asignado al vendedor: ${asignadoAId}`;
+                } else if (asignadoATipo === 'DOMICILIARIO' && asignadoAId) {
+                    mensaje += `\n🛵 Asignado al domiciliario: ${asignadoAId}`;
+                }
+
+                alert(mensaje);
 
                 if (impresion === 'Tirilla') {
                     setPedidoCreado(result);
@@ -306,6 +395,155 @@ const PaymentModal = ({
                                 />
                             </div>
                         </div>
+
+                        {/* Botón para expandir opciones de inventario */}
+                        <div
+                            onClick={() => setShowInventoryOptions(!showInventoryOptions)}
+                            style={{
+                                marginTop: '15px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: '#0d6efd',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                userSelect: 'none'
+                            }}
+                        >
+                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '5px', transition: 'transform 0.2s', transform: showInventoryOptions ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                expand_more
+                            </span>
+                            Afectación de inventario
+                        </div>
+
+                        {/* Nueva sección: Opciones de Inventario y Asignación (Expandible) */}
+                        {showInventoryOptions && (
+                            <div style={{
+                                marginTop: '10px',
+                                padding: '15px',
+                                border: '1px solid #e9ecef',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                flexWrap: 'wrap',
+                                backgroundColor: '#f8f9fa',
+                                animation: 'fadeIn 0.3s ease-in-out'
+                            }}>
+                                {/* Checkbox: Afectar Inventario */}
+                                <div className="form-group" style={{ width: '48%', marginBottom: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                        <input
+                                            type="checkbox"
+                                            id="afectarInventario"
+                                            checked={afectarInventario}
+                                            onChange={(e) => setAfectarInventario(e.target.checked)}
+                                            style={{
+                                                width: '20px',
+                                                height: '20px',
+                                                cursor: 'pointer',
+                                                marginRight: '10px',
+                                                marginTop: 0,
+                                                position: 'relative',
+                                                boxShadow: 'none',
+                                                outline: 'none',
+                                                backgroundColor: 'transparent',
+                                                border: '1px solid #ced4da'
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="afectarInventario"
+                                            style={{
+                                                fontWeight: '600',
+                                                fontSize: '15px',
+                                                color: '#495057',
+                                                cursor: 'pointer',
+                                                margin: 0
+                                            }}
+                                        >
+                                            ⚡ Afectar inventario inmediatamente
+                                        </label>
+                                    </div>
+                                    <small style={{ color: '#6c757d', marginLeft: '30px', display: 'block' }}>
+                                        Si marcas esta opción, el inventario se descontará al crear el pedido
+                                    </small>
+                                </div>
+
+                                {/* Dropdown: Tipo de Asignación */}
+                                <div className="form-group" style={{ width: '48%' }}>
+                                    <label className="form-label" style={{ fontWeight: '600', color: '#495057' }}>
+                                        Asignar a:
+                                    </label>
+                                    <select
+                                        className="form-select"
+                                        value={asignadoATipo}
+                                        onChange={(e) => {
+                                            setAsignadoATipo(e.target.value);
+                                            setAsignadoAId(''); // Reset ID al cambiar tipo
+                                        }}
+                                        style={{ borderColor: '#ced4da', fontWeight: '500' }}
+                                    >
+                                        <option value="NINGUNO">Ninguno</option>
+                                        <option value="VENDEDOR">Vendedor</option>
+                                        <option value="DOMICILIARIO">Domiciliario</option>
+                                    </select>
+                                </div>
+
+                                {/* Dropdown condicional: Vendedor */}
+                                {asignadoATipo === 'VENDEDOR' && (
+                                    <div className="form-group" style={{ width: '48%', marginTop: '10px' }}>
+                                        <label className="form-label" style={{ fontWeight: '600', color: '#495057' }}>
+                                            Vendedor:
+                                        </label>
+                                        <select
+                                            className="form-select"
+                                            value={asignadoAId}
+                                            onChange={(e) => setAsignadoAId(e.target.value)}
+                                            style={{ borderColor: '#ced4da', fontWeight: '500' }}
+                                        >
+                                            <option value="">Seleccione vendedor</option>
+                                            {vendedores.map(vend => (
+                                                <option key={vend.id_vendedor} value={vend.id_vendedor}>
+                                                    {vend.id_vendedor} - {vend.nombre}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {vendedores.length === 0 && (
+                                            <small style={{ color: '#6c757d', display: 'block', marginTop: '5px' }}>
+                                                Cargando vendedores...
+                                            </small>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Dropdown condicional: Domiciliario */}
+                                {asignadoATipo === 'DOMICILIARIO' && (
+                                    <div className="form-group" style={{ width: '48%', marginTop: '10px' }}>
+                                        <label className="form-label" style={{ fontWeight: '600', color: '#495057' }}>
+                                            Domiciliario:
+                                        </label>
+                                        <select
+                                            className="form-select"
+                                            value={asignadoAId}
+                                            onChange={(e) => setAsignadoAId(e.target.value)}
+                                            style={{ borderColor: '#ced4da', fontWeight: '500' }}
+                                        >
+                                            <option value="">Seleccione domiciliario</option>
+                                            {domiciliarios.map(dom => (
+                                                <option key={dom.codigo} value={dom.codigo}>
+                                                    {dom.codigo} - {dom.nombre}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {domiciliarios.length === 0 && (
+                                            <small style={{ color: '#6c757d', display: 'block', marginTop: '5px' }}>
+                                                No hay domiciliarios registrados. Por favor créelos primero.
+                                            </small>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Opciones adicionales - Solo visible cuando se selecciona "Otros" */}
                         {showOtrosOptions && (

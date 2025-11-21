@@ -343,27 +343,6 @@ const InventarioPlaneacion = () => {
         console.log('📊 PEDIDOS TOTALES:', pedidosMap);
       }
 
-      // 🧠 CONSULTAR PREDICCIONES DE IA
-      console.log('🧠 Consultando predicciones de IA...');
-      let prediccionesIAMap = {};
-      try {
-        const iaResponse = await fetch(`${API_URL}/prediccion-ia/?fecha=${fechaFormateada}`);
-        if (iaResponse.ok) {
-          const iaData = await iaResponse.json();
-          if (iaData.predicciones && iaData.predicciones.length > 0) {
-            iaData.predicciones.forEach(pred => {
-              prediccionesIAMap[pred.producto] = {
-                ia_sugerido: pred.ia_sugerido,
-                confianza: pred.confianza
-              };
-            });
-            console.log(`✅ IA: ${iaData.predicciones.length} productos analizados`);
-          }
-        }
-      } catch (iaError) {
-        console.error('⚠️ Error consultando IA (no crítico):', iaError);
-      }
-
       // 🎯 Usar stocks como productos (api_stock ya tiene todos los de PRODUCCION)
       const productosProduccion = stocksBD.map(s => ({
         id: s.producto_id,
@@ -374,6 +353,59 @@ const InventarioPlaneacion = () => {
 
       console.log(`📦 Productos desde api_stock: ${productosProduccion.length}`);
       console.log('📋 Lista de productos:', productosProduccion.map(p => p.nombre));
+
+      // 🧠 CONSULTAR PREDICCIONES DE IA CON REDES NEURONALES
+      console.log('🧠 Consultando predicciones de IA (Redes Neuronales)...');
+      let prediccionesIAMap = {};
+      try {
+        // Preparar datos contextuales para la IA
+        const datosContextuales = {};
+        productosProduccion.forEach(p => {
+          const existencias = stockMap[p.id] !== undefined ? stockMap[p.id] : (p.stock_total || 0);
+          const solicitadas = solicitadasMap[p.nombre] || 0;
+          const pedidos = pedidosMap[p.nombre] || 0;
+
+          datosContextuales[p.nombre] = {
+            existencias: existencias,
+            solicitadas: solicitadas,
+            pedidos: pedidos
+          };
+        });
+
+        const iaResponse = await fetch(`${API_URL}/planeacion/prediccion_ia/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fecha: fechaFormateada,
+            datos_contextuales: datosContextuales
+          })
+        });
+
+        if (iaResponse.ok) {
+          const iaData = await iaResponse.json();
+          if (iaData.predicciones && iaData.predicciones.length > 0) {
+            iaData.predicciones.forEach(pred => {
+              prediccionesIAMap[pred.producto] = {
+                ia_sugerido: pred.ia_sugerido,
+                confianza: pred.confianza,
+                usa_red_neuronal: pred.detalle?.usa_red_neuronal || false
+              };
+            });
+            console.log(`✅ IA: ${iaData.predicciones.length} productos analizados`);
+
+            // Log de productos con Red Neuronal
+            const conRedNeuronal = iaData.predicciones.filter(p => p.detalle?.usa_red_neuronal);
+            if (conRedNeuronal.length > 0) {
+              console.log(`🧠 ${conRedNeuronal.length} productos usando Red Neuronal:`);
+              conRedNeuronal.forEach(p => {
+                console.log(`   - ${p.producto}: ${p.ia_sugerido} (${p.confianza})`);
+              });
+            }
+          }
+        }
+      } catch (iaError) {
+        console.error('⚠️ Error consultando IA (no crítico):', iaError);
+      }
 
       // 🚀 SIEMPRE calcular dinámicamente desde CARGUE y PEDIDOS (datos en tiempo real)
       // 📊 Cargar ORDEN e IA desde planeación guardada (ya cargada arriba)

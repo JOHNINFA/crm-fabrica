@@ -281,6 +281,14 @@ export default function Sidebar({ onWidthChange }) {
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>badge</span>
                             {isHovered && <span style={{ fontSize: '14px' }}>Vendedores</span>}
                         </li>
+                        <li
+                            className="nav-item sidebar-item py-2"
+                            onClick={() => navigate('/domiciliarios')}
+                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+                        >
+                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>delivery_dining</span>
+                            {isHovered && <span style={{ fontSize: '14px' }}>Domiciliarios</span>}
+                        </li>
                         <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person_search</span>
                             {isHovered && <span style={{ fontSize: '14px' }}>Proveedores</span>}

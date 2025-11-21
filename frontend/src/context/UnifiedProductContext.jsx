@@ -9,6 +9,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 import { v4 as uuidv4 } from 'uuid';
 import { productoService, categoriaService } from '../services/api';
 import { sincronizarConBD } from '../services/syncService';
+import { localImageService } from '../services/localImageService';
 
 const UnifiedProductContext = createContext();
 
@@ -26,6 +27,7 @@ export const UnifiedProductProvider = ({ children }) => {
     const [categories, setCategories] = useState(['General', 'Servicios']);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const [productImages, setProductImages] = useState({}); // Cache de imágenes en memoria
 
     // ============================================
     // UTILIDADES DE ALMACENAMIENTO
@@ -518,6 +520,28 @@ export const UnifiedProductProvider = ({ children }) => {
     }, [products, syncToLocalStorage]);
 
     // ============================================
+    // CARGA DE IMÁGENES LOCALES
+    // ============================================
+
+    const loadLocalImages = useCallback(async () => {
+        try {
+            const images = await localImageService.getAllImages();
+            const imagesMap = {};
+            if (images && Array.isArray(images)) {
+                images.forEach(img => {
+                    if (img.id && img.data) {
+                        imagesMap[img.id] = img.data;
+                    }
+                });
+            }
+            setProductImages(imagesMap);
+            console.log(`🖼️ ${Object.keys(imagesMap).length} imágenes cargadas en memoria`);
+        } catch (error) {
+            console.error('Error cargando imágenes locales:', error);
+        }
+    }, []);
+
+    // ============================================
     // INICIALIZACIÓN Y SINCRONIZACIÓN AUTOMÁTICA
     // ============================================
 
@@ -525,6 +549,9 @@ export const UnifiedProductProvider = ({ children }) => {
         const initialize = async () => {
             console.log('🚀 Inicializando contexto unificado de productos...');
             setIsInitialLoading(true);
+
+            // Cargar imágenes en paralelo
+            loadLocalImages();
 
             // 1. Cargar PRIMERO desde localStorage (instantáneo)
             const localProducts = getFromLocalStorage('products', []);
@@ -582,7 +609,7 @@ export const UnifiedProductProvider = ({ children }) => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('focus', handleFocus);
         };
-    }, [loadFromBackend]);
+    }, [loadFromBackend, loadLocalImages, getFromLocalStorage]);
 
     // ============================================
     // VALOR DEL CONTEXTO
@@ -594,6 +621,7 @@ export const UnifiedProductProvider = ({ children }) => {
         categories,
         isSyncing,
         isInitialLoading,
+        productImages, // Exponer imágenes
 
         // Operaciones CRUD
         addProduct,

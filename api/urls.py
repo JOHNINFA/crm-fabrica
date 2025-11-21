@@ -5,7 +5,7 @@ from .views import (
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
     VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
-    VendedorViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
+    VendedorViewSet, DomiciliarioViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
     PrediccionIAView
@@ -38,6 +38,9 @@ router.register(r'produccion', ProduccionViewSet, basename='produccion')
 
 # ===== API PARA VENDEDORES/RESPONSABLES =====
 router.register(r'vendedores', VendedorViewSet, basename='vendedor')
+
+# ===== API PARA DOMICILIARIOS =====
+router.register(r'domiciliarios', DomiciliarioViewSet, basename='domiciliario')
 
 # ===== API PARA PRODUCCIÓN SOLICITADA =====
 router.register(r'produccion-solicitadas', ProduccionSolicitadaViewSet, basename='produccion-solicitada')

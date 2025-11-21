@@ -4,7 +4,7 @@ import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
 import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
 
-export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers, priceList, setPriceList }) {
+export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, setClientData, sellers, priceList, setPriceList, setSellers }) {
     // Manejo seguro del contexto
     let cajeroLogueado, sucursalActiva, isAuthenticated;
 
@@ -58,6 +58,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
     const handleClientSearch = async (term) => {
         setSearchTerm(term);
         setClient(term);
+        if (setClientData) setClientData(null); // Limpiar datos al escribir manualmente
 
         if (term.length < 2) {
             setClienteSuggestions([]);
@@ -72,7 +73,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                 const filteredClientes = clientes.filter(c =>
                     c.nombre_completo.toLowerCase().includes(term.toLowerCase()) ||
                     c.identificacion.includes(term)
-                ).slice(0, 5); // Limitar a 5 resultados
+                ).slice(0, 20); // Limitar a 20 resultados con scroll
 
                 setClienteSuggestions(filteredClientes);
             }
@@ -83,7 +84,40 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
 
     // Seleccionar un cliente de las sugerencias
     const selectCliente = (cliente) => {
+        console.log('📋 Cliente seleccionado:', cliente);
         setClient(cliente.nombre_completo);
+        if (setClientData) setClientData(cliente); // Guardar datos completos
+
+        // ✅ Si el cliente tiene lista de precios asignada, actualizar el campo
+        if (cliente.tipo_lista_precio && setPriceList) {
+            console.log('💰 Asignando lista de precios del cliente:', cliente.tipo_lista_precio);
+            setPriceList(cliente.tipo_lista_precio);
+        }
+
+        // ✅ Si el cliente tiene vendedor asignado, actualizar el campo vendedor
+        if (cliente.vendedor_asignado && setSeller) {
+            console.log('👤 Asignando vendedor del cliente:', cliente.vendedor_asignado);
+            console.log('👥 Vendedores disponibles:', sellers);
+            // Extraer el nombre del vendedor del formato "Jose (ID2)" -> "Jose"
+            const nombreMatch = cliente.vendedor_asignado.match(/^([^(]+)/);
+            const vendedorNombre = nombreMatch ? nombreMatch[1].trim() : cliente.vendedor_asignado;
+            console.log('👤 Nombre del vendedor extraído:', vendedorNombre);
+
+            // Agregar el vendedor a la lista si no está (igual que en PedidosScreen)
+            if (setSellers) {
+                setSellers(prev => {
+                    if (!prev.includes(vendedorNombre)) {
+                        console.log('➕ Agregando vendedor a la lista:', vendedorNombre);
+                        return [...prev, vendedorNombre];
+                    }
+                    return prev;
+                });
+            }
+
+            console.log('✅ Asignando vendedor:', vendedorNombre);
+            setSeller(vendedorNombre);
+        }
+
         setClienteSuggestions([]);
         setIsSearching(false);
     };
@@ -145,7 +179,10 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                     </button>
                     <button
                         title="Limpiar"
-                        onClick={() => setClient("")}
+                        onClick={() => {
+                            setClient("");
+                            if (setClientData) setClientData(null);
+                        }}
                     >
                         <span className="material-icons" style={{ fontSize: '16px' }}>clear</span>
                     </button>
