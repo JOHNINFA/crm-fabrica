@@ -13,7 +13,7 @@
  * - Persistencia de datos en localStorage
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ModalProvider } from "../context/ModalContext";
 import { useProducts } from "../hooks/useUnifiedProducts";
@@ -31,7 +31,12 @@ import ImageSyncButton from "../components/common/ImageSyncButton";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PedidosMainContent() {
-    const { products } = useProducts();
+    const { products: allProducts, getProductsByModule } = useProducts();
+
+    const products = useMemo(() => {
+        return getProductsByModule ? getProductsByModule('pedidos') : allProducts;
+    }, [allProducts, getProductsByModule]);
+
     const { cajeroLogueado, isAuthenticated } = useCajeroPedidos();
     const [searchParams] = useSearchParams();
     const [search, setSearch] = useState("");

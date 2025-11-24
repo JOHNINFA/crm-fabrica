@@ -8,9 +8,24 @@ class CategoriaAdmin(admin.ModelAdmin):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre', 'categoria', 'precio', 'stock_total', 'activo')
-    list_filter = ('categoria', 'activo')
+    list_display = ('id', 'nombre', 'categoria', 'precio', 'stock_total', 'disponible_pos', 'disponible_cargue', 'disponible_pedidos', 'disponible_inventario', 'activo')
+    list_filter = ('categoria', 'activo', 'disponible_pos', 'disponible_cargue', 'disponible_pedidos', 'disponible_inventario')
     search_fields = ('nombre', 'descripcion')
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('nombre', 'descripcion', 'categoria', 'codigo_barras', 'marca', 'impuesto', 'orden')
+        }),
+        ('Precios y Stock', {
+            'fields': ('precio', 'precio_compra', 'stock_total')
+        }),
+        ('Disponibilidad por Módulo', {
+            'fields': ('disponible_pos', 'disponible_cargue', 'disponible_pedidos', 'disponible_inventario'),
+            'description': 'Selecciona en qué módulos estará disponible este producto'
+        }),
+        ('Configuración', {
+            'fields': ('ubicacion_inventario', 'imagen', 'activo')
+        }),
+    )
 
 @admin.register(Stock)
 class StockAdmin(admin.ModelAdmin):

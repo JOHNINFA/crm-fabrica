@@ -13,7 +13,7 @@
  * - Persistencia de datos en localStorage
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { ModalProvider } from "../context/ModalContext";
 import { useProducts } from "../hooks/useUnifiedProducts";
 import { CajeroProvider, useCajero } from "../context/CajeroContext";
@@ -27,7 +27,18 @@ import "./PosScreen.css";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PosMainContent() {
-  const { products } = useProducts();
+  const { products: allProducts, getProductsByModule } = useProducts();
+
+  const products = useMemo(() => {
+    return getProductsByModule ? getProductsByModule('pos') : allProducts;
+  }, [allProducts, getProductsByModule]);
+
+  // 🔍 DEBUG: Ver qué productos se están mostrando
+  console.log('🔍 POS - Total productos:', allProducts?.length);
+  console.log('🔍 POS - Productos filtrados:', products?.length);
+  console.log('🔍 POS - CANASTILLA en todos:', allProducts?.find(p => p.name?.includes('CANASTILLA')));
+  console.log('🔍 POS - CANASTILLA filtrado:', products?.find(p => p.name?.includes('CANASTILLA')));
+
   const { cajeroLogueado, isAuthenticated } = useCajero();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);

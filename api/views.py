@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.response import Response
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -124,6 +124,35 @@ class ProductoViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"❌ Error general: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # 🆕 ENDPOINTS FILTRADOS POR MÓDULO
+    @action(detail=False, methods=['get'], url_path='pos')
+    def productos_pos(self, request):
+        """Obtener productos disponibles para POS"""
+        productos = Producto.objects.filter(disponible_pos=True, activo=True).order_by('orden', 'id')
+        serializer = self.get_serializer(productos, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='cargue')
+    def productos_cargue(self, request):
+        """Obtener productos disponibles para Cargue"""
+        productos = Producto.objects.filter(disponible_cargue=True, activo=True).order_by('orden', 'id')
+        serializer = self.get_serializer(productos, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='pedidos')
+    def productos_pedidos(self, request):
+        """Obtener productos disponibles para Pedidos"""
+        productos = Producto.objects.filter(disponible_pedidos=True, activo=True).order_by('orden', 'id')
+        serializer = self.get_serializer(productos, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='inventario')
+    def productos_inventario(self, request):
+        """Obtener productos disponibles para Inventario"""
+        productos = Producto.objects.filter(disponible_inventario=True, activo=True).order_by('orden', 'id')
+        serializer = self.get_serializer(productos, many=True)
+        return Response(serializer.data)
 
 class StockViewSet(viewsets.ModelViewSet):
     """API para gestionar stock de productos"""
@@ -269,6 +298,7 @@ class VentaViewSet(viewsets.ModelViewSet):
                         precio_unitario=float(detalle_data['precio_unitario'])
                     )
                     print(f"✅ Detalle creado: {producto.nombre} x{detalle_data['cantidad']}")
+                    
                 except Producto.DoesNotExist:
                     print(f"❌ Producto no encontrado: {detalle_data['producto']}")
                     return Response(
@@ -393,6 +423,56 @@ class CargueID1ViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
         return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Crear registro con logging detallado"""
+        import traceback
+        import os
+        from datetime import datetime
+        
+        # Log a archivo
+        log_file = '/home/john/Escritorio/crm-fabrica/cargue_create.log'
+        with open(log_file, 'a') as f:
+            f.write("=" * 80 + "\n")
+            f.write(f"🆕 CREATE CargueID1 - {datetime.now()}\n")
+            f.write(f"   producto: {request.data.get('producto')}\n")
+            f.write(f"   cantidad: {request.data.get('cantidad')}\n")
+            f.write(f"   dctos: {request.data.get('dctos')}\n")
+            f.write(f"   adicional: {request.data.get('adicional')}\n")
+            f.write(f"   dia: {request.data.get('dia')}\n")
+            f.write(f"   fecha: {request.data.get('fecha')}\n")
+            f.write("STACK TRACE:\n")
+            f.write(''.join(traceback.format_stack()))
+            f.write("=" * 80 + "\n\n")
+        
+        print("=" * 80)
+        print(f"🆕 CREATE CargueID1 - Datos recibidos:")
+        print(f"   producto: {request.data.get('producto')}")
+        print(f"   cantidad: {request.data.get('cantidad')}")
+        print(f"   dctos: {request.data.get('dctos')}")
+        print(f"   adicional: {request.data.get('adicional')}")
+        print(f"   dia: {request.data.get('dia')}")
+        print(f"   fecha: {request.data.get('fecha')}")
+        print("=" * 80)
+        return super().create(request, *args, **kwargs)
+    
+    def update(self, request, *args, **kwargs):
+        """Actualizar registro con logging detallado"""
+        instance = self.get_object()
+        print(f"🔄 UPDATE CargueID1 - Producto: {instance.producto}")
+        print(f"   ANTES - cantidad: {instance.cantidad}, dctos: {instance.dctos}, adicional: {instance.adicional}")
+        print(f"   DATOS RECIBIDOS:")
+        print(f"   cantidad: {request.data.get('cantidad')}")
+        print(f"   dctos: {request.data.get('dctos')}")
+        print(f"   adicional: {request.data.get('adicional')}")
+        
+        response = super().update(request, *args, **kwargs)
+        
+        # Recargar para ver valores después del save()
+        instance.refresh_from_db()
+        print(f"   DESPUÉS - cantidad: {instance.cantidad}, dctos: {instance.dctos}, adicional: {instance.adicional}, total: {instance.total}")
+        
+        return response
 
 class CargueID2ViewSet(viewsets.ModelViewSet):
     """API simplificada para CargueID2 - Como api_vendedor"""
@@ -1770,11 +1850,34 @@ class VendedorViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Actualizar o crear vendedor
+            # Actualizar o crear vendedor en tabla Vendedor
             vendedor, created = Vendedor.objects.update_or_create(
                 id_vendedor=id_vendedor,
                 defaults={'nombre': responsable}
             )
+            
+            # ---------------------------------------------------------
+            # TAMBIÉN ACTUALIZAR EN TABLAS DE CARGUE (CargueID1, etc.)
+            # ---------------------------------------------------------
+            try:
+                # Mapear ID de vendedor a modelo correspondiente
+                modelos_vendedor = {
+                    'ID1': CargueID1,
+                    'ID2': CargueID2,
+                    'ID3': CargueID3,
+                    'ID4': CargueID4,
+                    'ID5': CargueID5,
+                    'ID6': CargueID6,
+                }
+                
+                modelo = modelos_vendedor.get(id_vendedor)
+                if modelo:
+                    # Actualizar todos los registros existentes de este vendedor
+                    modelo.objects.filter(activo=True).update(responsable=responsable)
+                    print(f"✅ Responsable actualizado en {modelo.__name__}: {responsable}")
+            except Exception as e:
+                print(f"⚠️ Error actualizando tablas de cargue: {str(e)}")
+            # ---------------------------------------------------------
             
             return Response({
                 'success': True,
@@ -2169,3 +2272,236 @@ class PrediccionIAView(viewsets.ViewSet):
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+@api_view(['POST'])
+def guardar_sugerido(request):
+    """
+    Endpoint para recibir Sugeridos/Cargue desde la App Móvil.
+    Recibe: { vendedor_id, dia, fecha, productos: [{nombre, cantidad}, ...] }
+    """
+    try:
+        data = request.data
+        vendedor_id = data.get('vendedor_id') # Ej: "ID1"
+        dia = data.get('dia', '').upper() # Ej: "LUNES"
+        fecha_raw = data.get('fecha') # Ej: "2025-11-29" o "2025-11-29T..."
+        
+        # Sanitizar fecha: tomar solo los primeros 10 caracteres (YYYY-MM-DD)
+        if fecha_raw and len(str(fecha_raw)) > 10:
+            fecha = str(fecha_raw)[:10]
+        else:
+            fecha = fecha_raw
+            
+        productos = data.get('productos', []) # Lista de {nombre, cantidad}
+        print(f"📱 Recibiendo Sugerido App: {vendedor_id} - {dia} - {fecha} (Raw: {fecha_raw})")
+
+        # Mapeo de ID a Modelo
+        modelos = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+
+        Modelo = modelos.get(vendedor_id)
+        if not Modelo:
+            return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
+
+        if not fecha:
+            return Response({'error': 'La fecha es requerida'}, status=400)
+
+        # ✅ VALIDACIÓN: Verificar si ya existe sugerido para este día/fecha/vendedor
+        registros_existentes = Modelo.objects.filter(dia=dia, fecha=fecha)
+        if registros_existentes.exists():
+            total_existente = registros_existentes.count()
+            print(f"⚠️ Ya existe sugerido para {vendedor_id} - {dia} - {fecha} ({total_existente} productos)")
+            return Response({
+                'error': 'YA_EXISTE_SUGERIDO',
+                'message': f'Ya existe un sugerido para {dia} {fecha}. No se puede enviar otro.',
+                'productos_existentes': total_existente
+            }, status=409)  # 409 Conflict
+
+        # Procesar cada producto
+        count = 0
+        for prod in productos:
+            nombre = prod.get('nombre')
+            cantidad_raw = prod.get('cantidad')
+            cantidad = int(cantidad_raw) if cantidad_raw is not None else 0
+            
+            print(f"  📦 Procesando: {nombre} - Cantidad raw: {cantidad_raw} - Cantidad int: {cantidad}")
+            
+            # Solo procesar si hay cantidad > 0 (o si se quiere resetear a 0)
+            # Asumiremos que la app envía todo, o solo lo modificado.
+            # Lo mejor es actualizar siempre si viene el dato.
+            
+            if nombre:
+                # 🔍 Buscar si ya existe un registro para obtener el responsable actual
+                registro_existente = Modelo.objects.filter(
+                    dia=dia,
+                    fecha=fecha,
+                    producto=nombre
+                ).first()
+                
+                # Si existe y tiene un responsable válido (no es ID1, ID2, etc.), mantenerlo
+                responsable_a_usar = vendedor_id  # Por defecto usar el ID
+                
+                if registro_existente and registro_existente.responsable:
+                    # Si el responsable existente NO es un ID (ID1, ID2, etc.), mantenerlo
+                    if not registro_existente.responsable.startswith('ID'):
+                        responsable_a_usar = registro_existente.responsable
+                        print(f"  ✅ Manteniendo responsable existente (de Cargue): {responsable_a_usar}")
+                else:
+                    # 🔍 Si no hay registro en Cargue, buscar en tabla Vendedor
+                    try:
+                        from .models import Vendedor
+                        vendedor_obj = Vendedor.objects.filter(id_vendedor=vendedor_id).first()
+                        if vendedor_obj and vendedor_obj.nombre:
+                            responsable_a_usar = vendedor_obj.nombre
+                            print(f"  ✅ Usando responsable de tabla Vendedor: {responsable_a_usar}")
+                    except Exception as e:
+                        print(f"  ⚠️ Error buscando en tabla Vendedor: {e}")
+                
+                # Buscar o crear
+                # Usamos update_or_create para ser más eficientes
+                obj, created = Modelo.objects.update_or_create(
+                    dia=dia,
+                    fecha=fecha,
+                    producto=nombre,
+                    defaults={
+                        'cantidad': cantidad,
+                        'total': cantidad,  # ✅ Total = cantidad (sin dctos ni adicionales desde app)
+                        'responsable': responsable_a_usar,
+                        'usuario': 'AppMovil'
+                    }
+                )
+                count += 1
+        
+        print(f"✅ Sugerido guardado: {count} productos actualizados para {vendedor_id}")
+        return Response({'success': True, 'message': f'Sugerido guardado correctamente ({count} productos)'})
+
+    except Exception as e:
+        print(f"❌ Error guardando sugerido: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+def actualizar_check_vendedor(request):
+    """
+    Endpoint para actualizar el check V (vendedor) desde la App Móvil.
+    Recibe: { vendedor_id, dia, fecha, producto, v (true/false) }
+    Validación: Solo permite marcar V si D ya está marcado y hay cantidad > 0
+    """
+    try:
+        data = request.data
+        vendedor_id = data.get('vendedor_id')
+        dia = data.get('dia', '').upper()
+        fecha = data.get('fecha')
+        producto = data.get('producto')
+        v_nuevo = data.get('v', False)
+        
+        print(f"📱 Actualizando check V: {vendedor_id} - {dia} - {fecha} - {producto} - V={v_nuevo}")
+        
+        # Mapeo de ID a Modelo
+        modelos = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+        
+        Modelo = modelos.get(vendedor_id)
+        if not Modelo:
+            return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
+        
+        # Buscar el registro
+        try:
+            registro = Modelo.objects.get(dia=dia, fecha=fecha, producto=producto)
+        except Modelo.DoesNotExist:
+            return Response({'error': 'Producto no encontrado en cargue'}, status=404)
+        
+        # ✅ VALIDACIÓN: Solo permitir marcar V si D está marcado y hay cantidad
+        if v_nuevo:
+            if not registro.d:
+                return Response({
+                    'error': 'CHECK_D_REQUERIDO',
+                    'message': 'No puedes marcar el check de Vendedor hasta que el Despachador lo haya marcado en el CRM.'
+                }, status=400)
+            
+            if (registro.total or 0) <= 0:
+                return Response({
+                    'error': 'SIN_CANTIDAD',
+                    'message': 'No puedes marcar el check sin cantidad de producto.'
+                }, status=400)
+        
+        # Actualizar el check V
+        registro.v = v_nuevo
+        registro.save()
+        
+        print(f"✅ Check V actualizado: {producto} - V={v_nuevo}")
+        return Response({
+            'success': True,
+            'message': 'Check actualizado correctamente',
+            'v': registro.v,
+            'd': registro.d,
+            'total': registro.total
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando check V: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+def obtener_cargue(request):
+    """
+    Endpoint para obtener Cargue desde la App Móvil.
+    Recibe params: vendedor_id, dia, fecha
+    Devuelve: cantidad, total, v (vendedor check), d (despachador check)
+    """
+    try:
+        vendedor_id = request.query_params.get('vendedor_id')
+        dia = request.query_params.get('dia', '').upper()
+        fecha = request.query_params.get('fecha') # YYYY-MM-DD
+
+        print(f"📱 Solicitando Cargue App: {vendedor_id} - {dia} - {fecha}")
+
+        # Mapeo de ID a Modelo
+        modelos = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+
+        Modelo = modelos.get(vendedor_id)
+        if not Modelo:
+            return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
+
+        # Construir filtro
+        filtros = {'dia': dia}
+        if fecha:
+            filtros['fecha'] = fecha
+        
+        # Obtener registros
+        registros = Modelo.objects.filter(**filtros)
+        
+        # Formatear respuesta para la App
+        data = {}
+        for reg in registros:
+            data[reg.producto] = {
+                'quantity': str(reg.total or reg.cantidad),  # Total calculado
+                'cantidad': reg.cantidad or 0,  # Cantidad base
+                'adicional': reg.adicional or 0,  # Adicionales
+                'dctos': reg.dctos or 0,  # Descuentos
+                'v': reg.v,  # Check vendedor
+                'd': reg.d   # Check despachador
+            }
+            
+        return Response(data)
+
+    except Exception as e:
+        print(f"❌ Error obteniendo cargue: {str(e)}")
+        return Response({'error': str(e)}, status=500)

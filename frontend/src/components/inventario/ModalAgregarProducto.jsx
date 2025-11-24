@@ -6,7 +6,11 @@ const ModalAgregarProducto = ({ show, onHide, onAgregar }) => {
   const [newProduct, setNewProduct] = useState({
     nombre: '',
     existencias: 0,
-    categoria: 'General'
+    categoria: 'General',
+    disponible_pos: true,
+    disponible_cargue: true,
+    disponible_pedidos: true,
+    disponible_inventario: true
   });
   const [productosExistentes, setProductosExistentes] = useState([]);
   const [nombreError, setNombreError] = useState('');
@@ -34,17 +38,17 @@ const ModalAgregarProducto = ({ show, onHide, onAgregar }) => {
   const validarNombre = (nombre) => {
     // Verificar si ya existe un producto con nombre similar
     const nombreNormalizado = nombre.trim().toUpperCase();
-    const productoExistente = productosExistentes.find(p => 
+    const productoExistente = productosExistentes.find(p =>
       p.nombre.trim().toUpperCase() === nombreNormalizado ||
       p.nombre.trim().toUpperCase().includes(nombreNormalizado) ||
       nombreNormalizado.includes(p.nombre.trim().toUpperCase())
     );
-    
+
     if (productoExistente) {
       setNombreError(`Ya existe un producto similar: "${productoExistente.nombre}". Usa exactamente este nombre para mantener consistencia.`);
       return false;
     }
-    
+
     setNombreError('');
     return true;
   };
@@ -55,20 +59,28 @@ const ModalAgregarProducto = ({ show, onHide, onAgregar }) => {
       setNombreError('El nombre del producto es obligatorio');
       return;
     }
-    
+
     // Validar que no exista un producto con nombre similar
     if (!validarNombre(newProduct.nombre)) {
       return;
     }
-    
+
     // Normalizar el nombre (mayúsculas para consistencia)
     const productoNormalizado = {
       ...newProduct,
       nombre: newProduct.nombre.trim().toUpperCase()
     };
-    
+
     onAgregar(productoNormalizado);
-    setNewProduct({ nombre: '', existencias: 0, categoria: 'General' });
+    setNewProduct({
+      nombre: '',
+      existencias: 0,
+      categoria: 'General',
+      disponible_pos: true,
+      disponible_cargue: true,
+      disponible_pedidos: true,
+      disponible_inventario: true
+    });
     setNombreError('');
     onHide();
   };
@@ -101,7 +113,7 @@ const ModalAgregarProducto = ({ show, onHide, onAgregar }) => {
               {nombreError}
             </Form.Control.Feedback>
           </Form.Group>
-          
+
           {loading && <Alert variant="info">Cargando productos existentes...</Alert>}
           <Form.Group className="mb-3">
             <Form.Label>Existencias Iniciales</Form.Label>
@@ -128,6 +140,47 @@ const ModalAgregarProducto = ({ show, onHide, onAgregar }) => {
                 setNewProduct({ ...newProduct, categoria: e.target.value })
               }
             />
+          </Form.Group>
+
+          {/* 🆕 DISPONIBILIDAD POR MÓDULO */}
+          <Form.Group className="mb-3">
+            <Form.Label className="fw-bold">Disponibilidad por Módulo</Form.Label>
+            <div className="border rounded p-3 bg-light">
+              <Form.Check
+                type="checkbox"
+                id="disponible_pos"
+                label="📱 Disponible en POS (Punto de Venta)"
+                checked={newProduct.disponible_pos}
+                onChange={(e) => setNewProduct({ ...newProduct, disponible_pos: e.target.checked })}
+                className="mb-2"
+              />
+              <Form.Check
+                type="checkbox"
+                id="disponible_cargue"
+                label="🚚 Disponible en Cargue"
+                checked={newProduct.disponible_cargue}
+                onChange={(e) => setNewProduct({ ...newProduct, disponible_cargue: e.target.checked })}
+                className="mb-2"
+              />
+              <Form.Check
+                type="checkbox"
+                id="disponible_pedidos"
+                label="📋 Disponible en Pedidos"
+                checked={newProduct.disponible_pedidos}
+                onChange={(e) => setNewProduct({ ...newProduct, disponible_pedidos: e.target.checked })}
+                className="mb-2"
+              />
+              <Form.Check
+                type="checkbox"
+                id="disponible_inventario"
+                label="📦 Disponible en Inventario"
+                checked={newProduct.disponible_inventario}
+                onChange={(e) => setNewProduct({ ...newProduct, disponible_inventario: e.target.checked })}
+              />
+              <Form.Text className="text-muted d-block mt-2">
+                Selecciona en qué módulos estará disponible este producto
+              </Form.Text>
+            </div>
           </Form.Group>
         </Form>
       </Modal.Body>

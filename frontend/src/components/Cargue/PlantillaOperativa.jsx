@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useProducts } from '../../hooks/useUnifiedProducts';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
@@ -14,7 +14,13 @@ import BotonVerPedidos from './BotonVerPedidos';
 import './PlantillaOperativa.css';
 
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
-    const { products } = useProducts();
+    const { products: allProducts, getProductsByModule } = useProducts();
+
+    // 🚀 OPTIMIZACIÓN: Memoizar productos para evitar bucles infinitos
+    const products = useMemo(() => {
+        return getProductsByModule ? getProductsByModule('cargue') : allProducts;
+    }, [allProducts, getProductsByModule]);
+
     const { actualizarDatosVendedor, actualizarResponsable, cargarResponsable } = useVendedores();
 
     // 🚀 SOLUCIÓN ANTI-REBOTE DEFINITIVA: Cargar inmediatamente desde localStorage
@@ -420,19 +426,21 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             console.log(`🔍 CARGANDO ${idSheet} - Key: ${key}`);
             console.log(`🔄 RECARGA SOLICITADA - Timestamp: ${Date.now()}`);
 
-            // Cargar desde localStorage (ya sea existente o recién restaurado)
-            const datosLocalString = localStorage.getItem(key);
+            // 🚀 NUEVO: Usar servicio híbrido que consulta servidor PRIMERO
+            console.log(`🔍 ${idSheet} - Usando cargueHybridService para cargar datos...`);
+            const resultado = await cargueHybridService.cargarDatos(dia, idSheet, fechaAUsar);
+
             let datos = null;
 
-            if (datosLocalString) {
-                try {
-                    datos = JSON.parse(datosLocalString);
-                    console.log(`📂 ${idSheet} - Datos encontrados:`, datos.productos ? datos.productos.length : 0, 'productos');
-                } catch (error) {
-                    console.error(`❌ ${idSheet} - Error parsing localStorage:`, error);
+            if (resultado.success && resultado.data) {
+                datos = resultado.data;
+                console.log(`✅ ${idSheet} - Datos cargados desde ${resultado.source}:`, datos.productos ? datos.productos.length : 0, 'productos');
+
+                if (resultado.source === 'app_movil') {
+                    console.log(`📱 ${idSheet} - Datos recibidos desde la app móvil!`);
                 }
             } else {
-                console.log(`⚠️ ${idSheet} - No hay datos en localStorage para ${key}`);
+                console.log(`⚠️ ${idSheet} - No hay datos disponibles para ${key}`);
             }
 
             if (datos && datos.productos) {
@@ -592,7 +600,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
     // ✅ ACTUALIZACIÓN SOLO CUANDO CAMBIA LA FECHA: Recargar si cambia día/fecha
     useEffect(() => {
-        console.log(`🔄 ${idSheet} - Cambio de fecha detectado, recargando...`);
+        console.log(`🔄 ${idSheet} - Cambio detectado (dia: ${dia}, fecha: ${fechaSeleccionada})`);
 
         // 🚀 NUEVO: Verificar si el día está COMPLETADO antes de cargar
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
@@ -601,10 +609,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             console.log(`🔍 ${idSheet} - Día COMPLETADO detectado, cargando desde BD...`);
             cargarDatosDesdeDB();
         } else {
-            console.log(`📂 ${idSheet} - Día no completado, cargando desde localStorage...`);
+            console.log(`📂 ${idSheet} - Día no completado, cargando desde localStorage (con merge si hay datos de app)...`);
             cargarDatosGuardados();
         }
     }, [dia, idSheet, fechaSeleccionada]);
+
+
 
     // 🚀 NUEVO: Cargar desde BD al montar si está COMPLETADO
     useEffect(() => {
@@ -846,6 +856,24 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             // 🚀 USAR SERVICIO HÍBRIDO CON DEBOUNCE
             if (cargueApiConfig.USAR_API) {
                 console.log(`🚀 Usando servicio híbrido con debounce para ${idSheet}`);
+
+                // 🔍 DEBUG: Ver valores antes de guardar (incluyendo lotes vencidos)
+                productosOperativos.forEach(p => {
+                    if (p.cantidad > 0 || p.adicional > 0 || p.dctos > 0 || p.devoluciones > 0 || p.vencidas > 0) {
+                        console.log(`💾 Guardando producto: ${p.producto}`, {
+                            cantidad: p.cantidad,
+                            dctos: p.dctos,
+                            adicional: p.adicional,
+                            devoluciones: p.devoluciones,
+                            vencidas: p.vencidas,
+                            lotesVencidos: p.lotesVencidos
+                        });
+                    }
+                });
+
+                // ✅ GUARDAR TODOS LOS PRODUCTOS (no filtrar) para preservar devoluciones, vencidas y lotes
+                console.log(`📊 ${idSheet} - Guardando TODOS los productos: ${productosOperativos.length}`);
+
                 cargueHybridService.guardarDatos(dia, idSheet, fechaAUsar, productosOperativos);
             } else {
                 // Fallback a localStorage directo si API está desactivada
@@ -870,8 +898,60 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             window.dispatchEvent(evento);
             console.log(`🔔 Evento cargueDataChanged disparado para ${idSheet}`);
         }
-    }, [productosOperativos, idSheet, dia, fechaSeleccionada]);
+    }, [productosOperativos, idSheet, dia, fechaSeleccionada, cargueApiConfig.USAR_API, nombreResponsable]);
 
+    // 🚀 NUEVO: Escuchar solicitud de guardado forzado (desde BotonLimpiar)
+    useEffect(() => {
+        const handleSolicitudGuardado = () => {
+            console.log(`💾 ${idSheet} - Solicitud de guardado forzado recibida`);
+            if (productosOperativos.length > 0) {
+                const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
+
+                // 🔍 DEBUG: Mostrar productos con devoluciones/vencidas
+                const productosConDevVenc = productosOperativos.filter(p =>
+                    p.devoluciones > 0 || p.vencidas > 0 || (p.lotesVencidos && p.lotesVencidos.length > 0)
+                );
+
+                if (productosConDevVenc.length > 0) {
+                    console.log(`🔍 ${idSheet} - Productos con devoluciones/vencidas/lotes:`,
+                        productosConDevVenc.map(p => ({
+                            producto: p.producto,
+                            devoluciones: p.devoluciones,
+                            vencidas: p.vencidas,
+                            lotesVencidos: p.lotesVencidos
+                        }))
+                    );
+                }
+
+                // Obtener responsable actual
+                let responsableAGuardar = nombreResponsable;
+                if (!responsableAGuardar || responsableAGuardar === 'RESPONSABLE') {
+                    const datosExistentes = localStorage.getItem(key);
+                    if (datosExistentes) {
+                        try {
+                            const parsed = JSON.parse(datosExistentes);
+                            responsableAGuardar = parsed.responsable || 'RESPONSABLE';
+                        } catch (e) { }
+                    }
+                }
+
+                const datos = {
+                    dia,
+                    idSheet,
+                    fecha: fechaSeleccionada,
+                    responsable: responsableAGuardar,
+                    productos: productosOperativos,
+                    timestamp: Date.now(),
+                    sincronizado: false
+                };
+                localStorage.setItem(key, JSON.stringify(datos));
+                console.log(`💾 ${idSheet} - Guardado forzado completado - ${productosOperativos.length} productos`);
+            }
+        };
+
+        window.addEventListener('solicitarGuardado', handleSolicitudGuardado);
+        return () => window.removeEventListener('solicitarGuardado', handleSolicitudGuardado);
+    }, [productosOperativos, dia, idSheet, fechaSeleccionada, nombreResponsable]);
     // Función limpiarDatos deshabilitada para debug
     const limpiarDatos = () => {
         console.log('⚠️ limpiarDatos llamada - DESHABILITADA para debug');

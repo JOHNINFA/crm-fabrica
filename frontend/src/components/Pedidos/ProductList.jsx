@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import { useProducts } from "../../hooks/useUnifiedProducts";
@@ -6,7 +6,12 @@ import CategoryManager from "./CategoryManager";
 import "./ProductList.css";
 
 export default function ProductList({ addProduct, search, setSearch, priceList }) {
-    const { products, categories } = useProducts();
+    const { products: allProducts, categories, getProductsByModule } = useProducts();
+
+    const products = useMemo(() => {
+        return getProductsByModule ? getProductsByModule('pedidos') : allProducts;
+    }, [allProducts, getProductsByModule]);
+
     const [selectedCategory, setSelectedCategory] = useState("Todos");
     const [showCategoryManager, setShowCategoryManager] = useState(false);
 
@@ -153,7 +158,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                     onMouseMove={handleMouseMove}
                 >
                     <button
-                        className={`category-button ${selectedCategory === "Todos" ? "active" : ""}`}
+                        className={`category-button ${selectedCategory === "Todos" ? "active" : ""} `}
                         onClick={() => setSelectedCategory("Todos")}
                         style={{ minWidth: 'fit-content', flexShrink: 0 }}
                     >
@@ -164,7 +169,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                     {categories.map(category => (
                         <button
                             key={category}
-                            className={`category-button ${selectedCategory === category ? "active" : ""}`}
+                            className={`category-button ${selectedCategory === category ? "active" : ""} `}
                             onClick={() => setSelectedCategory(category)}
                             style={{ minWidth: 'fit-content', flexShrink: 0 }}
                         >

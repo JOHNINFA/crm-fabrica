@@ -14,7 +14,7 @@ export const useUnifiedProducts = () => {
 // Alias para compatibilidad con ProductContext (POS/Pedidos)
 export const useProducts = () => {
   const context = useUnifiedProductsContext();
-  
+
   return {
     products: context.products,
     categories: context.categories,
@@ -39,20 +39,24 @@ export const useProducts = () => {
     addToCart: async (productId) => {
       const product = context.products.find(p => p.id === productId);
       if (!product || product.stock <= 0) return false;
-      
+
       await context.updateStock(productId, Math.max(0, product.stock - 1));
       return true;
-    }
+    },
+    getProductsByModule: context.getProductsByModule, // 🆕 Filtrar por módulo
   };
 };
 
 // Alias para compatibilidad con ProductosContext (Inventario)
 export const useProductos = () => {
   const context = useUnifiedProductsContext();
-  
+
+  // Filtrar productos por módulo inventario
+  const productosFiltrados = context.getProductsByModule ? context.getProductsByModule('inventario') : context.products;
+
   // Convertir productos a formato inventario
-  const productos = context.products.map(context.toInventoryFormat);
-  
+  const productos = productosFiltrados.map(context.toInventoryFormat);
+
   return {
     productos,
     movimientos: [], // Los movimientos se manejan por separado

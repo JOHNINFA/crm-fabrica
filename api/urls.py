@@ -1,5 +1,6 @@
 # api/urls.py
 from rest_framework.routers import DefaultRouter
+from django.urls import path
 from .views import (
     RegistroViewSet, ProductoViewSet, CategoriaViewSet, StockViewSet,
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
@@ -8,60 +9,33 @@ from .views import (
     VendedorViewSet, DomiciliarioViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
-    PrediccionIAView
+    PrediccionIAView, guardar_sugerido, obtener_cargue, actualizar_check_vendedor
 )
 
 router = DefaultRouter()
 
-# ===== APIs EXISTENTES (SIN CAMBIOS) =====
-router.register(r'registros', RegistroViewSet, basename='registro')
-router.register(r'productos', ProductoViewSet, basename='producto')
-router.register(r'categorias', CategoriaViewSet, basename='categoria')
-router.register(r'stock', StockViewSet, basename='stock')
-router.register(r'lotes', LoteViewSet, basename='lote')
-router.register(r'movimientos', MovimientoInventarioViewSet, basename='movimiento')
+# Registrar ViewSets
+router.register(r'vendedores', VendedorViewSet, basename='vendedores')
+router.register(r'productos', ProductoViewSet, basename='productos')
+router.register(r'categorias', CategoriaViewSet, basename='categorias')
+router.register(r'lotes', LoteViewSet, basename='lotes')
+router.register(r'movimientos', MovimientoInventarioViewSet, basename='movimientos')
 router.register(r'registro-inventario', RegistroInventarioViewSet, basename='registro-inventario')
-router.register(r'ventas', VentaViewSet, basename='venta')
-router.register(r'detalle-ventas', DetalleVentaViewSet, basename='detalle-venta')
-router.register(r'clientes', ClienteViewSet, basename='cliente')
-router.register(r'lista-precios', ListaPrecioViewSet, basename='lista-precio')
-router.register(r'precio-productos', PrecioProductoViewSet, basename='precio-producto')
-
-# ===== NUEVAS APIs SIMPLIFICADAS =====
+router.register(r'stock', StockViewSet, basename='stock')
+router.register(r'ventas', VentaViewSet, basename='ventas')
+router.register(r'pedidos', PedidoViewSet, basename='pedidos')
+router.register(r'clientes', ClienteViewSet, basename='clientes')
+router.register(r'lista-precios', ListaPrecioViewSet, basename='lista-precios')
 router.register(r'cargue-id1', CargueID1ViewSet, basename='cargue-id1')
 router.register(r'cargue-id2', CargueID2ViewSet, basename='cargue-id2')
 router.register(r'cargue-id3', CargueID3ViewSet, basename='cargue-id3')
 router.register(r'cargue-id4', CargueID4ViewSet, basename='cargue-id4')
 router.register(r'cargue-id5', CargueID5ViewSet, basename='cargue-id5')
 router.register(r'cargue-id6', CargueID6ViewSet, basename='cargue-id6')
-router.register(r'produccion', ProduccionViewSet, basename='produccion')
 
-# ===== API PARA VENDEDORES/RESPONSABLES =====
-router.register(r'vendedores', VendedorViewSet, basename='vendedor')
 
-# ===== API PARA DOMICILIARIOS =====
-router.register(r'domiciliarios', DomiciliarioViewSet, basename='domiciliario')
-
-# ===== API PARA PRODUCCIÓN SOLICITADA =====
-router.register(r'produccion-solicitadas', ProduccionSolicitadaViewSet, basename='produccion-solicitada')
-router.register(r'planeacion', PlaneacionViewSet, basename='planeacion')
-
-# ===== API PARA INTELIGENCIA ARTIFICIAL =====
-router.register(r'prediccion-ia', PrediccionIAView, basename='prediccion-ia')
-
-# ===== NUEVAS APIs PARA SISTEMA POS - CAJEROS =====
-router.register(r'sucursales', SucursalViewSet, basename='sucursal')
-router.register(r'cajeros', CajeroViewSet, basename='cajero')
-router.register(r'turnos', TurnoViewSet, basename='turno')
-router.register(r'ventas-cajero', VentaCajeroViewSet, basename='venta-cajero')
-router.register(r'arqueo-caja', ArqueoCajaViewSet, basename='arqueo-caja')
-router.register(r'movimientos-caja', MovimientoCajaViewSet, basename='movimiento-caja')
-
-# ===== APIs PARA SISTEMA DE PEDIDOS =====
-router.register(r'pedidos', PedidoViewSet, basename='pedido')
-router.register(r'detalle-pedidos', DetallePedidoViewSet, basename='detalle-pedido')
-
-# ===== API PARA CONFIGURACIÓN DE IMPRESIÓN =====
-router.register(r'configuracion-impresion', ConfiguracionImpresionViewSet, basename='configuracion-impresion')
-
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path('guardar-sugerido/', guardar_sugerido, name='guardar-sugerido'),
+    path('obtener-cargue/', obtener_cargue, name='obtener-cargue'),
+    path('actualizar-check-vendedor/', actualizar_check_vendedor, name='actualizar-check-vendedor'),
+]

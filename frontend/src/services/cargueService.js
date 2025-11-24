@@ -6,7 +6,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 // Mapeo de IDs a endpoints nuevos
 const ENDPOINT_MAP = {
   'ID1': 'cargue-id1',
-  'ID2': 'cargue-id2', 
+  'ID2': 'cargue-id2',
   'ID3': 'cargue-id3',
   'ID4': 'cargue-id4',
   'ID5': 'cargue-id5',
@@ -33,21 +33,21 @@ export const cargueService = {
       if (params.vendedor_id) {
         const endpoint = getEndpointForVendedor(params.vendedor_id);
         const queryParams = new URLSearchParams();
-        
+
         // Mapear parámetros al nuevo formato
         if (params.dia) queryParams.append('dia', params.dia);
         if (params.fecha) queryParams.append('fecha', params.fecha);
         if (params.activo !== undefined) queryParams.append('activo', params.activo);
-        
+
         const url = `${API_URL}/${endpoint}/?${queryParams.toString()}`;
         console.log('🔍 Consultando endpoint:', url);
-        
+
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Error al obtener cargues: ${response.status}`);
-        
+
         return await response.json();
       }
-      
+
       // Si no hay vendedor específico, consultar todos (para compatibilidad)
       const allResults = [];
       for (const vendedorId of Object.keys(ENDPOINT_MAP)) {
@@ -60,7 +60,7 @@ export const cargueService = {
           console.warn(`⚠️ Error consultando ${vendedorId}:`, error);
         }
       }
-      
+
       return allResults;
     } catch (error) {
       return handleApiError(error);
@@ -140,7 +140,7 @@ export const cargueService = {
         'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6
       };
       const vendedorNumerico = vendedorMap[vendedorId] || 1;
-      
+
       const params = { dia: dia.toUpperCase(), vendedor: vendedorNumerico };
       return await cargueService.getAll(params);
     } catch (error) {
@@ -156,9 +156,9 @@ export const cargueService = {
         'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6
       };
       const vendedorNumerico = vendedorMap[vendedorId] || 1;
-      
-      const params = { 
-        dia: dia.toUpperCase(), 
+
+      const params = {
+        dia: dia.toUpperCase(),
         vendedor: vendedorNumerico,
         fecha: fecha // YYYY-MM-DD
       };
@@ -172,15 +172,15 @@ export const cargueService = {
   guardarCargue: async (datosCompletos) => {
     try {
       console.log('🚀 INICIANDO GUARDADO DE CARGUE:', datosCompletos);
-      
+
       // ▼▼▼ LOG PARA DEBUGGEAR DATOS ENVIADOS AL BACKEND ▼▼▼
       console.log('🚀 ENVIANDO AL BACKEND (/api/cargues/):', JSON.stringify(datosCompletos, null, 2));
-      
+
       // Mapear vendedor_id a database ID
       const vendedorMap = {
         'ID1': 1, 'ID2': 2, 'ID3': 3, 'ID4': 4, 'ID5': 5, 'ID6': 6
       };
-      
+
       // Crear el cargue operativo
       const cargueData = {
         dia: datosCompletos.dia_semana,
@@ -190,28 +190,28 @@ export const cargueService = {
         estado: 'COMPLETADO',
         activo: true
       };
-      
+
       console.log('📤 Enviando datos de cargue:', cargueData);
       const cargue = await cargueService.create(cargueData);
-      
+
       console.log('📥 Respuesta del servidor:', cargue);
-      
+
       if (cargue.error) {
         console.error('❌ Error en respuesta:', cargue);
         throw new Error(cargue.message);
       }
-      
+
       console.log('✅ Cargue creado exitosamente con ID:', cargue.id);
-      
+
       // Guardar detalles de productos (solo los que tienen cantidad > 0)
       const productosConDatos = datosCompletos.productos.filter(p => p.cantidad > 0);
-      
+
       for (const producto of productosConDatos) {
         // Buscar el producto por nombre para obtener su ID
         const productoResponse = await fetch(`${API_URL}/productos/?name=${encodeURIComponent(producto.producto_nombre)}`);
         const productos = await productoResponse.json();
         const productoId = productos.length > 0 ? productos[0].id : null;
-        
+
         if (!productoId) {
           console.warn(`⚠️ Producto no encontrado: ${producto.producto_nombre}`);
           continue; // Saltar este producto si no se encuentra
@@ -231,16 +231,16 @@ export const cargueService = {
           valor: producto.valor || 0,
           neto: producto.neto || 0
         };
-        
+
         // Los lotes vencidos se guardarán en una tabla separada si es necesario
         console.log(`💾 Guardando producto: ${producto.producto_nombre} (ID: ${productoId})`);
         if (producto.lotes_vencidos && producto.lotes_vencidos.length > 0) {
           console.log(`🗂️ Lotes vencidos para ${producto.producto_nombre}:`, producto.lotes_vencidos);
         }
-        
+
         await detalleCargueService.create(detalleData);
       }
-      
+
       return cargue;
     } catch (error) {
       return handleApiError(error);
@@ -251,29 +251,30 @@ export const cargueService = {
   guardarCargueCompleto: async (datosParaGuardar) => {
     try {
       console.log('🚀 GUARDANDO CARGUE COMPLETO (NUEVO SISTEMA):', JSON.stringify(datosParaGuardar, null, 2));
-      
+
       const vendedorId = datosParaGuardar.vendedor_id;
       const endpoint = getEndpointForVendedor(vendedorId);
-      
+
       console.log(`📍 Usando endpoint: ${endpoint} para vendedor: ${vendedorId}`);
-      
+
       // Para cada producto, crear o actualizar un registro separado (como tabla plana)
       const productos = datosParaGuardar.productos || [];
       const resultados = [];
-      
+
       for (let index = 0; index < productos.length; index++) {
         const producto = productos[index];
         const esPrimerProducto = index === 0;
-        
+
         // Solo procesar productos con datos relevantes
-        if (producto.cantidad > 0 || producto.devoluciones > 0 || producto.vencidas > 0) {
+        if (producto.cantidad > 0 || producto.adicional > 0 || producto.dctos > 0 ||
+          producto.devoluciones > 0 || producto.vencidas > 0) {
           const datosTransformados = {
             dia: datosParaGuardar.dia_semana,
             fecha: datosParaGuardar.fecha,
             usuario: datosParaGuardar.responsable || 'Sistema',
             responsable: datosParaGuardar.responsable || 'RESPONSABLE',  // ✅ Campo responsable agregado
             activo: true,
-            
+
             // Datos del producto
             producto: producto.producto_nombre || '',
             cantidad: producto.cantidad || 0,
@@ -286,7 +287,7 @@ export const cargueService = {
             d: producto.despachador || false,
             lotes_vencidos: JSON.stringify(producto.lotes_vencidos || []),
             lotes_produccion: JSON.stringify(datosParaGuardar.lotes_produccion || []), // 🚀 NUEVO: Lotes de producción del día
-            
+
             // 🔥 CORREGIDO: Datos de pagos SOLO en el primer producto para evitar duplicación
             ...(esPrimerProducto && datosParaGuardar.pagos && {
               concepto: datosParaGuardar.pagos.concepto || '',
@@ -294,7 +295,7 @@ export const cargueService = {
               nequi: datosParaGuardar.pagos.nequi || 0,
               daviplata: datosParaGuardar.pagos.daviplata || 0
             }),
-            
+
             // 🔥 CORREGIDO: Datos de resumen SOLO en el primer producto para evitar duplicación
             ...(esPrimerProducto && datosParaGuardar.resumen && {
               base_caja: datosParaGuardar.resumen.base_caja || 0,
@@ -318,23 +319,23 @@ export const cargueService = {
               desinfeccion: datosParaGuardar.cumplimiento.desinfeccion || null
             })
           };
-          
+
           console.log(`💾 Guardando producto: ${producto.producto_nombre}`, datosTransformados);
-          
+
           // 🚀 NUEVO: Buscar si ya existe un registro para este día, fecha y producto
           const queryParams = new URLSearchParams({
             dia: datosParaGuardar.dia_semana,
             fecha: datosParaGuardar.fecha,
             producto: producto.producto_nombre
           });
-          
+
           const getResponse = await fetch(`${API_URL}/${endpoint}/?${queryParams.toString()}`);
           const existentes = await getResponse.json();
-          
+
           let response;
           let metodo = 'POST';
           let url = `${API_URL}/${endpoint}/`;
-          
+
           if (existentes && existentes.length > 0) {
             // ✅ ACTUALIZAR registro existente
             const registroExistente = existentes[0];
@@ -345,7 +346,7 @@ export const cargueService = {
             // ✅ CREAR nuevo registro
             console.log(`✨ Creando nuevo registro`);
           }
-          
+
           response = await fetch(url, {
             method: metodo,
             headers: {
@@ -359,15 +360,15 @@ export const cargueService = {
             console.error(`❌ Error guardando ${producto.producto_nombre}:`, errorText);
             return { error: true, message: `Error guardando ${producto.producto_nombre}: ${errorText}` };
           }
-          
+
           const resultado = await response.json();
           resultados.push(resultado);
           console.log(`✅ Producto guardado: ${producto.producto_nombre}`);
         }
       }
-      
+
       console.log('🎉 Todos los productos guardados exitosamente:', resultados.length);
-      
+
       // 🚀 NUEVO: Calcular y guardar SOLICITADAS (suma de todos los IDs)
       try {
         console.log('📊 Calculando SOLICITADAS desde CARGUE...');
@@ -391,9 +392,9 @@ export const cargueService = {
       } catch (errorSolicitadas) {
         console.warn('⚠️ Error calculando SOLICITADAS:', errorSolicitadas);
       }
-      
+
       return { success: true, resultados, count: resultados.length };
-      
+
     } catch (error) {
       console.error('❌ Error en guardarCargueCompleto:', error);
       return { error: true, message: error.message };
@@ -411,13 +412,13 @@ export const cargueService = {
         vendedor: 7, // ID especial para datos de resumen
         observaciones: JSON.stringify(datosResumen.datos_adicionales)
       };
-      
+
       const cargue = await cargueService.create(cargueData);
-      
+
       if (cargue.error) {
         throw new Error(cargue.message);
       }
-      
+
       return cargue;
     } catch (error) {
       return handleApiError(error);
@@ -434,10 +435,10 @@ export const detalleCargueService = {
       Object.keys(params).forEach(key => {
         if (params[key]) queryParams.append(key, params[key]);
       });
-      
+
       const url = `${API_URL}/detalle-cargues/?${queryParams.toString()}`;
       const response = await fetch(url);
-      
+
       if (!response.ok) throw new Error(`Error al obtener detalles: ${response.status}`);
       return await response.json();
     } catch (error) {

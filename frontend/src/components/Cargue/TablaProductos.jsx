@@ -43,6 +43,11 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
       return;
     }
 
+    // 🔍 DEBUG: Ver qué se está cambiando
+    if (campo === 'lotesVencidos') {
+      console.log(`🔍 LOTES: Actualizando lotes para producto ${id}:`, valor);
+    }
+
     onActualizarProducto(id, campo, valor);
   };
 
@@ -98,8 +103,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
       <Table bordered hover className="tabla-productos">
         <thead className="table-header">
           <tr>
-            <th>V</th>
-            <th>D</th>
+            <th style={{ textAlign: 'center' }}>V</th>
+            <th style={{ textAlign: 'center' }}>D</th>
             <th>PRODUCTOS</th>
             <th>CANTIDAD</th>
             <th>DCTOS.</th>
@@ -119,12 +124,13 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                 <input
                   type="checkbox"
                   checked={!!p.vendedor}
-                  onChange={(e) => handleCheckboxChange(p.id, 'vendedor', e.target.checked)}
-                  disabled={esCompletado}
+                  onChange={() => { }} // No hace nada al cambiar
+                  onClick={(e) => e.preventDefault()} // Evita que el usuario lo cambie
+                  title="Solo se puede marcar desde la App Móvil"
                   style={{
                     accentColor: '#06386d',
-                    opacity: esCompletado ? 0.4 : 1,
-                    cursor: esCompletado ? 'not-allowed' : 'pointer'
+                    cursor: 'default', // Cursor normal para indicar que es solo lectura
+                    opacity: 1 // Siempre visible al 100%
                   }}
                 />
               </td>
@@ -150,8 +156,10 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                  disabled={true}
+                  readOnly={true}
+                  style={{ backgroundColor: 'transparent', cursor: 'not-allowed', color: 'black', border: 'none' }}
+                  title="Solo se puede modificar desde la App Móvil"
                 />
               </td>
               <td>

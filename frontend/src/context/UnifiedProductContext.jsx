@@ -67,7 +67,11 @@ export const UnifiedProductProvider = ({ children }) => {
         image: product.imagen || product.image || null,
         purchasePrice: product.precio_compra || product.purchasePrice || 0,
         orden: product.orden || 0,
-        ubicacionInventario: product.ubicacionInventario || 'PRODUCCION' // Campo visual para Inventario
+        ubicacionInventario: product.ubicacionInventario || 'PRODUCCION', // Campo visual para Inventario
+        disponible_pos: product.disponible_pos !== undefined ? product.disponible_pos : true,
+        disponible_cargue: product.disponible_cargue !== undefined ? product.disponible_cargue : true,
+        disponible_pedidos: product.disponible_pedidos !== undefined ? product.disponible_pedidos : true,
+        disponible_inventario: product.disponible_inventario !== undefined ? product.disponible_inventario : true,
     }), []);
 
     // Convertir producto a formato Inventario/Cargue
@@ -141,7 +145,11 @@ export const UnifiedProductProvider = ({ children }) => {
                         image: p.imagen || null,
                         purchasePrice: parseFloat(p.precio_compra) || 0,
                         orden: p.orden || 0,
-                        ubicacionInventario: p.ubicacion_inventario || 'PRODUCCION'
+                        ubicacionInventario: p.ubicacion_inventario || 'PRODUCCION',
+                        disponible_pos: p.disponible_pos !== undefined ? p.disponible_pos : true,
+                        disponible_cargue: p.disponible_cargue !== undefined ? p.disponible_cargue : true,
+                        disponible_pedidos: p.disponible_pedidos !== undefined ? p.disponible_pedidos : true,
+                        disponible_inventario: p.disponible_inventario !== undefined ? p.disponible_inventario : true,
                     }));
 
                 setProducts(formattedProducts);
@@ -200,6 +208,10 @@ export const UnifiedProductProvider = ({ children }) => {
                 impuesto: productData.impuesto || 'IVA(0%)',
                 stock_total: productData.existencias || 0,
                 ubicacion_inventario: productData.ubicacionInventario || 'PRODUCCION',
+                disponible_pos: productData.disponible_pos !== undefined ? productData.disponible_pos : true,
+                disponible_cargue: productData.disponible_cargue !== undefined ? productData.disponible_cargue : true,
+                disponible_pedidos: productData.disponible_pedidos !== undefined ? productData.disponible_pedidos : true,
+                disponible_inventario: productData.disponible_inventario !== undefined ? productData.disponible_inventario : true,
                 activo: true
             };
 
@@ -612,6 +624,25 @@ export const UnifiedProductProvider = ({ children }) => {
     }, [loadFromBackend, loadLocalImages, getFromLocalStorage]);
 
     // ============================================
+    // FILTRADO POR MÓDULO
+    // ============================================
+
+    const getProductsByModule = useCallback((module) => {
+        switch (module) {
+            case 'pos':
+                return products.filter(p => p.disponible_pos !== false);
+            case 'cargue':
+                return products.filter(p => p.disponible_cargue !== false);
+            case 'pedidos':
+                return products.filter(p => p.disponible_pedidos !== false);
+            case 'inventario':
+                return products.filter(p => p.disponible_inventario !== false);
+            default:
+                return products;
+        }
+    }, [products]);
+
+    // ============================================
     // VALOR DEL CONTEXTO
     // ============================================
 
@@ -645,7 +676,8 @@ export const UnifiedProductProvider = ({ children }) => {
 
         // Utilidades
         toProductsFormat,
-        toInventoryFormat
+        toInventoryFormat,
+        getProductsByModule, // 🆕 Filtrar productos por módulo
     };
 
     return (

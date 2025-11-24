@@ -106,9 +106,12 @@ export default function MenuSheets() {
 
     let diferenciaDias = indiceDiaSeleccionado - diaActual;
 
+    // ✅ CORREGIDO: Si es el mismo día (diferencia = 0), usar hoy
+    // Si la diferencia es negativa, sumar 7 para ir a la próxima semana
     if (diferenciaDias < 0) {
       diferenciaDias += 7;
     }
+    // Si diferenciaDias === 0, significa que es HOY, no sumar nada
 
     const fechaCalculada = new Date(hoy);
     fechaCalculada.setDate(hoy.getDate() + diferenciaDias);

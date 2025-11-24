@@ -279,8 +279,8 @@ const InventarioPlaneacion = () => {
 
           // Sumar cantidades por producto con logs detallados
           cargueData.forEach(item => {
-            const producto = item.producto_nombre || item.producto;
-            const cantidad = item.cantidad || 0;
+            const producto = item.producto || item.producto_nombre;
+            const cantidad = item.total || item.cantidad || 0;  // ✅ Usar 'total' primero
 
             if (cantidad > 0) {
               console.log(`   🔍 ${id} - ${producto}: ${cantidad} und (Fecha: ${item.fecha}, Día: ${item.dia_semana})`);

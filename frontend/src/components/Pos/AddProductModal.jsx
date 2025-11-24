@@ -13,6 +13,7 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
   const { addProduct, categories, addCategory } = useProducts();
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [showDisponibilidad, setShowDisponibilidad] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -27,11 +28,22 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
     imagen: null,
     existencias: 0,
     ubicacionInventario: "PRODUCCION",
+    disponible_pos: true,
+    disponible_cargue: true,
+    disponible_pedidos: true,
+    disponible_inventario: true,
   });
 
   // Cargar datos del producto seleccionado
   useEffect(() => {
     if (productToEdit) {
+      console.log('📝 Producto a editar:', productToEdit);
+      console.log('Disponibilidad:', {
+        pos: productToEdit.disponible_pos,
+        cargue: productToEdit.disponible_cargue,
+        pedidos: productToEdit.disponible_pedidos,
+        inventario: productToEdit.disponible_inventario
+      });
       setFormData({
         nombre: productToEdit.name || "",
         precio: productToEdit.price || 0,
@@ -45,6 +57,10 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
         imagen: productToEdit.image || null,
         existencias: productToEdit.stock || 0,
         ubicacionInventario: productToEdit.ubicacionInventario || "PRODUCCION",
+        disponible_pos: productToEdit.disponible_pos !== undefined ? productToEdit.disponible_pos : true,
+        disponible_cargue: productToEdit.disponible_cargue !== undefined ? productToEdit.disponible_cargue : true,
+        disponible_pedidos: productToEdit.disponible_pedidos !== undefined ? productToEdit.disponible_pedidos : true,
+        disponible_inventario: productToEdit.disponible_inventario !== undefined ? productToEdit.disponible_inventario : true,
       });
     }
   }, [productToEdit]);
@@ -270,6 +286,86 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
               </select>
               <small className="text-muted">Define si este producto aparece en Producción o Maquilas en el módulo de Inventario</small>
             </div>
+          </div>
+
+          {/* 🆕 DISPONIBILIDAD POR MÓDULO - Expandible */}
+          <div className="form-group">
+            <div
+              className="d-flex align-items-center justify-content-between p-2 border rounded"
+              style={{ cursor: 'pointer', backgroundColor: '#f8f9fa' }}
+              onClick={() => setShowDisponibilidad(!showDisponibilidad)}
+            >
+              <span className="fw-bold">
+                <i className={`bi bi-${showDisponibilidad ? 'chevron-down' : 'chevron-right'} me-2`}></i>
+                Disponibilidad por Módulo
+              </span>
+              <span className="badge bg-secondary">
+                {[formData.disponible_pos, formData.disponible_cargue, formData.disponible_pedidos, formData.disponible_inventario].filter(Boolean).length}/4
+              </span>
+            </div>
+
+            {showDisponibilidad && (
+              <div className="border border-top-0 rounded-bottom p-3">
+                <div className="row g-2">
+                  <div className="col-6 col-md-3">
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="disponible_pos"
+                        checked={formData.disponible_pos}
+                        onChange={(e) => updateFormData('disponible_pos', e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="disponible_pos">
+                        POS
+                      </label>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="disponible_cargue"
+                        checked={formData.disponible_cargue}
+                        onChange={(e) => updateFormData('disponible_cargue', e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="disponible_cargue">
+                        Cargue
+                      </label>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="disponible_pedidos"
+                        checked={formData.disponible_pedidos}
+                        onChange={(e) => updateFormData('disponible_pedidos', e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="disponible_pedidos">
+                        Pedidos
+                      </label>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="disponible_inventario"
+                        checked={formData.disponible_inventario}
+                        onChange={(e) => updateFormData('disponible_inventario', e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="disponible_inventario">
+                        Inventario
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Precios */}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import GestionSucursales from '../components/common/GestionSucursales';
 import GestionUsuarios from '../components/common/GestionUsuarios';
+import Herramientas from '../components/common/Herramientas';
 
 const OtrosScreen = () => {
     const navigate = useNavigate();
@@ -48,6 +49,14 @@ const OtrosScreen = () => {
             icon: 'analytics',
             color: 'info',
             route: '/reportes-avanzados'
+        },
+        {
+            id: 'herramientas',
+            title: 'Herramientas de Sistema',
+            description: 'Control de sincronización y limpieza de datos',
+            icon: 'build',
+            color: 'danger',
+            action: () => setActiveModule('herramientas')
         }
     ];
 
@@ -113,6 +122,18 @@ const OtrosScreen = () => {
                             Volver al Menú de Otros
                         </Button>
                         <GestionUsuarios />
+                    </div>
+                ) : activeModule === 'herramientas' ? (
+                    <div>
+                        <Button
+                            variant="outline-secondary"
+                            className="mb-3"
+                            onClick={() => setActiveModule('')}
+                        >
+                            <i className="bi bi-arrow-left me-2"></i>
+                            Volver al Menú de Otros
+                        </Button>
+                        <Herramientas />
                     </div>
                 ) : (
                     <>

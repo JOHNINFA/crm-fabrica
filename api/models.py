@@ -28,6 +28,13 @@ class Producto(models.Model):
     orden = models.IntegerField(default=0, db_index=True)  # Campo para ordenamiento personalizado
     ubicacion_inventario = models.CharField(max_length=20, choices=UBICACION_INVENTARIO_CHOICES, default='PRODUCCION', db_index=True)  # Para filtrar en Inventario
     fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    # 🆕 DISPONIBILIDAD POR MÓDULO
+    disponible_pos = models.BooleanField(default=True, verbose_name="Disponible en POS")
+    disponible_cargue = models.BooleanField(default=True, verbose_name="Disponible en Cargue")
+    disponible_pedidos = models.BooleanField(default=True, verbose_name="Disponible en Pedidos")
+    disponible_inventario = models.BooleanField(default=True, verbose_name="Disponible en Inventario")
+    
     activo = models.BooleanField(default=True)
     
     class Meta:

@@ -1359,6 +1359,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     setLoading(true);
 
     try {
+      // 🚀 NUEVO: Forzar guardado de datos actuales de la pantalla antes de procesar
+      // Esto asegura que si el autoguardado está desactivado, los datos se guarden antes de leerlos
+      console.log(`💾 ${idSheet} - Forzando guardado de datos en pantalla...`);
+      window.dispatchEvent(new CustomEvent('solicitarGuardado'));
+      // Esperar para asegurar que el evento se procese y localStorage se actualice
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       console.log(`🏁 ${idSheet} - INICIANDO FINALIZACIÓN ESPECÍFICA`);
 
       const { simpleStorage } = await import('../../services/simpleStorage');
@@ -1450,6 +1457,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     setLoading(true);
 
     try {
+      // 🚀 NUEVO: Forzar guardado de datos actuales de la pantalla antes de procesar
+      console.log('💾 Forzando guardado de datos en pantalla...');
+      window.dispatchEvent(new CustomEvent('solicitarGuardado'));
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // 🚀 CORREGIDO: Validar que fechaSeleccionada existe y no usar fallback a fecha actual
       if (!fechaSeleccionada) {
         console.error('❌ ERROR: fechaSeleccionada no está definida');
@@ -1913,7 +1925,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             <i className="bi bi-truck me-2"></i> Confirmar Finalización
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-light">
+        <Modal.Body className="bg-light" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <div className="text-center mb-4">
             <h5 className="fw-bold text-dark">¿Está seguro de finalizar la jornada?</h5>
             <p className="text-muted">Esta acción guardará todos los registros y cerrará el día.</p>

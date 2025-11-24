@@ -25,7 +25,18 @@ SECRET_KEY = 'django-insecure-^zvl@rxk@+w1^4-s!ncx9dhopbzmvry0a1ybp0k#h8vha^&px3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+
+# ...
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React en desarrollo
+    "http://localhost:19006", # React Native con Expo, por ejemplo
+    "http://192.168.1.19:8081", # Expo Go
+    "https://casteless-floodless-clement.ngrok-free.dev",  # ngrok
+    # ...
+]
 
 
 # Application definition

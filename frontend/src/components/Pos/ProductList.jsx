@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import ProductCard from "./ProductCard";
 import { useProducts } from "../../hooks/useUnifiedProducts";
 import { usePriceList } from "../../hooks/usePriceList";
@@ -6,7 +6,12 @@ import CategoryManager from "./CategoryManager";
 import "./ProductList.css";
 
 export default function ProductList({ addProduct, search, setSearch, priceList, showCategoryManager, setShowCategoryManager }) {
-  const { products, categories, isInitialLoading } = useProducts();
+  const { products: allProducts, categories, isInitialLoading, getProductsByModule } = useProducts();
+
+  const products = useMemo(() => {
+    return getProductsByModule ? getProductsByModule('pos') : allProducts;
+  }, [allProducts, getProductsByModule]);
+
   const { precios } = usePriceList(priceList, products);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
 
@@ -176,7 +181,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
           onMouseMove={handleMouseMove}
         >
           <button
-            className={`category-button ${selectedCategory === "Todos" ? "active" : ""}`}
+            className={`category-button ${selectedCategory === "Todos" ? "active" : ""} `}
             onClick={() => setSelectedCategory("Todos")}
             style={{ minWidth: 'fit-content', flexShrink: 0 }}
           >
@@ -187,7 +192,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
           {categories.map(category => (
             <button
               key={category}
-              className={`category-button ${selectedCategory === category ? "active" : ""}`}
+              className={`category-button ${selectedCategory === category ? "active" : ""} `}
               onClick={() => setSelectedCategory(category)}
               style={{ minWidth: 'fit-content', flexShrink: 0 }}
             >

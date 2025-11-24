@@ -18,6 +18,7 @@ const ApiIntegrationWrapper = ({
         ultimaVerificacion: null,
         error: null
     });
+    const [cargaInicial, setCargaInicial] = useState(false);
 
     // 🚀 VERIFICAR CONEXIÓN AL MONTAR
     useEffect(() => {
@@ -26,12 +27,19 @@ const ApiIntegrationWrapper = ({
         }
     }, []);
 
-    // 🚀 CARGAR DATOS DESDE API CUANDO CAMBIE DIA/ID/FECHA
+    // 🚀 CARGAR DATOS DESDE API SOLO EN LA CARGA INICIAL
+    // NO recargar automáticamente para evitar sobrescribir datos mientras el usuario edita
     useEffect(() => {
-        if (cargueApiConfig.USAR_API && dia && idSheet && fechaSeleccionada) {
+        if (cargueApiConfig.USAR_API && dia && idSheet && fechaSeleccionada && !cargaInicial) {
             cargarDatosDesdeApi();
+            setCargaInicial(true);
         }
     }, [dia, idSheet, fechaSeleccionada]);
+
+    // 🚀 RESETEAR CARGA INICIAL CUANDO CAMBIE EL VENDEDOR O DÍA
+    useEffect(() => {
+        setCargaInicial(false);
+    }, [dia, idSheet]);
 
     // 🚀 VERIFICAR CONEXIÓN CON SERVIDOR
     const verificarConexionServidor = async () => {
