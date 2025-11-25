@@ -2505,3 +2505,116 @@ def obtener_cargue(request):
     except Exception as e:
         print(f"❌ Error obteniendo cargue: {str(e)}")
         return Response({'error': str(e)}, status=500)
+
+
+# ===== ENDPOINT: VERIFICAR ESTADO DEL DÍA =====
+# Agregado: 24 Nov 2025
+# Propósito: Permitir verificar si un día específico está completado o en qué estado se encuentra
+
+@api_view(['GET'])
+def verificar_estado_dia(request):
+    """
+    Verifica el estado de un día específico para un vendedor
+    
+    Parámetros (query params):
+        - vendedor_id: ID del vendedor (ID1, ID2, etc.)
+        - dia: Día de la semana (LUNES, MARTES, etc.)
+        - fecha: Fecha en formato YYYY-MM-DD
+    
+    Retorna:
+        {
+            "success": true,
+            "completado": false,
+            "estado": "SUGERIDO" | "DESPACHO" | "COMPLETADO",
+            "puede_editar": true,
+            "mensaje": "Este día está disponible para edición",
+            "fecha": "2025-11-24",
+            "dia": "LUNES",
+            "tiene_datos": false,
+            "total_productos": 0
+        }
+    """
+    try:
+        vendedor_id = request.GET.get('vendedor_id', '').upper()
+        dia = request.GET.get('dia', '').upper()
+        fecha = request.GET.get('fecha', '')
+        
+        # Validar parámetros
+        if not vendedor_id or not dia or not fecha:
+            return Response({
+                'success': False,
+                'error': 'Faltan parámetros requeridos: vendedor_id, dia, fecha'
+            }, status=400)
+        
+        # Mapear vendedor_id a modelo de tabla
+        modelos_cargue = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+        
+        modelo = modelos_cargue.get(vendedor_id)
+        if not modelo:
+            return Response({
+                'success': False,
+                'error': f'Vendedor ID inválido: {vendedor_id}'
+            }, status=400)
+        
+        # Buscar registros para este día y fecha
+        registros = modelo.objects.filter(dia=dia, fecha=fecha)
+        
+        tiene_datos = registros.exists()
+        total_productos = registros.count()
+        
+        # Determinar estado del día
+        # Nota: El estado "COMPLETADO" se maneja actualmente en localStorage del frontend
+        # Aquí solo podemos verificar si hay datos guardados
+        
+        estado = "SUGERIDO"  # Estado por defecto (día vacío)
+        completado = False
+        puede_editar = True
+        mensaje = "Este día está disponible para edición"
+        
+        if tiene_datos:
+            # Verificar si algún registro tiene checks marcados
+            tiene_checks_d = registros.filter(d=True).exists()
+            tiene_checks_v = registros.filter(v=True).exists()
+            
+            if tiene_checks_v:
+                estado = "DESPACHO"
+                mensaje = "Este día tiene datos con checks de vendedor marcados"
+            elif tiene_checks_d:
+                estado = "DESPACHO"
+                mensaje = "Este día tiene datos con checks de despachador marcados"
+            else:
+                estado = "SUGERIDO"
+                mensaje = "Este día tiene datos pero no está despachado"
+            
+            # Por ahora, siempre permitimos editar
+            # En el futuro, podríamos agregar un campo 'finalizado' en la tabla
+            puede_editar = True
+        
+        return Response({
+            'success': True,
+            'completado': completado,
+            'estado': estado,
+            'puede_editar': puede_editar,
+            'mensaje': mensaje,
+            'fecha': fecha,
+            'dia': dia,
+            'tiene_datos': tiene_datos,
+            'total_productos': total_productos,
+            'vendedor_id': vendedor_id
+        })
+        
+    except Exception as e:
+        print(f"❌ Error verificando estado del día: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=500)

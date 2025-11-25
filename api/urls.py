@@ -9,7 +9,7 @@ from .views import (
     VendedorViewSet, DomiciliarioViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
-    PrediccionIAView, guardar_sugerido, obtener_cargue, actualizar_check_vendedor
+    PrediccionIAView, guardar_sugerido, obtener_cargue, actualizar_check_vendedor, verificar_estado_dia
 )
 
 router = DefaultRouter()
@@ -38,4 +38,6 @@ urlpatterns = router.urls + [
     path('guardar-sugerido/', guardar_sugerido, name='guardar-sugerido'),
     path('obtener-cargue/', obtener_cargue, name='obtener-cargue'),
     path('actualizar-check-vendedor/', actualizar_check_vendedor, name='actualizar-check-vendedor'),
+    path('verificar-estado-dia/', verificar_estado_dia, name='verificar-estado-dia'),  # Nuevo endpoint
 ]
+
