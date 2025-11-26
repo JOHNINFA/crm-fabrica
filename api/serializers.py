@@ -718,3 +718,26 @@ class ConfiguracionImpresionSerializer(serializers.ModelSerializer):
             'regimen_tributario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+# ===== SERIALIZERS RUTAS Y VENTAS RUTA =====
+from .models import Ruta, ClienteRuta, VentaRuta
+
+class RutaSerializer(serializers.ModelSerializer):
+    vendedor_nombre = serializers.CharField(source='vendedor.nombre', read_only=True)
+    
+    class Meta:
+        model = Ruta
+        fields = '__all__'
+
+class ClienteRutaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClienteRuta
+        fields = '__all__'
+
+class VentaRutaSerializer(serializers.ModelSerializer):
+    vendedor_nombre = serializers.CharField(source='vendedor.nombre', read_only=True)
+    ruta_nombre = serializers.CharField(source='ruta.nombre', read_only=True)
+    
+    class Meta:
+        model = VentaRuta
+        fields = '__all__'

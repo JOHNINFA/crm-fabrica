@@ -4,6 +4,8 @@ import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import GestionSucursales from '../components/common/GestionSucursales';
 import GestionUsuarios from '../components/common/GestionUsuarios';
 import Herramientas from '../components/common/Herramientas';
+import GestionRutas from '../components/rutas/GestionRutas';
+import ReporteVentasRuta from '../components/rutas/ReporteVentasRuta';
 
 const OtrosScreen = () => {
     const navigate = useNavigate();
@@ -57,6 +59,22 @@ const OtrosScreen = () => {
             icon: 'build',
             color: 'danger',
             action: () => setActiveModule('herramientas')
+        },
+        {
+            id: 'rutas',
+            title: 'Gestión de Rutas',
+            description: 'Administrar rutas y clientes',
+            icon: 'map',
+            color: 'primary',
+            action: () => setActiveModule('rutas')
+        },
+        {
+            id: 'ventas_ruta',
+            title: 'Ventas de Ruta',
+            description: 'Ver ventas realizadas por vendedores',
+            icon: 'point_of_sale',
+            color: 'success',
+            action: () => setActiveModule('ventas_ruta')
         }
     ];
 
@@ -134,6 +152,30 @@ const OtrosScreen = () => {
                             Volver al Menú de Otros
                         </Button>
                         <Herramientas />
+                    </div>
+                ) : activeModule === 'rutas' ? (
+                    <div>
+                        <Button
+                            variant="outline-secondary"
+                            className="mb-3"
+                            onClick={() => setActiveModule('')}
+                        >
+                            <i className="bi bi-arrow-left me-2"></i>
+                            Volver al Menú de Otros
+                        </Button>
+                        <GestionRutas />
+                    </div>
+                ) : activeModule === 'ventas_ruta' ? (
+                    <div>
+                        <Button
+                            variant="outline-secondary"
+                            className="mb-3"
+                            onClick={() => setActiveModule('')}
+                        >
+                            <i className="bi bi-arrow-left me-2"></i>
+                            Volver al Menú de Otros
+                        </Button>
+                        <ReporteVentasRuta />
                     </div>
                 ) : (
                     <>

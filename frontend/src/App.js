@@ -30,6 +30,7 @@ import ProductFormScreen from './pages/ProductFormScreen';
 import ConfiguracionScreen from './pages/ConfiguracionScreen';
 import ConfiguracionImpresionScreen from './pages/ConfiguracionImpresionScreen';
 import ReportesAvanzadosScreen from './pages/ReportesAvanzadosScreen';
+import TrazabilidadScreen from './pages/TrazabilidadScreen';
 
 function App() {
   return (
@@ -67,6 +68,7 @@ function App() {
               <Route path="/configuracion" element={<ConfiguracionScreen />} />
               <Route path="/configuracion/impresion" element={<ConfiguracionImpresionScreen />} />
               <Route path="/reportes-avanzados" element={<ReportesAvanzadosScreen />} />
+              <Route path="/trazabilidad" element={<TrazabilidadScreen />} />
             </Routes>
           </div>
         </Router>

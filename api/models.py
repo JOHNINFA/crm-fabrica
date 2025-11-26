@@ -1503,3 +1503,48 @@ class MovimientoCaja(models.Model):
     
     def __str__(self):
         return f"{self.fecha} {self.hora} - {self.tipo} - ${self.monto} - {self.concepto}"
+
+
+# ===== MÓDULO RUTAS Y VENTAS RUTA =====
+
+class Ruta(models.Model):
+    """Modelo para definir rutas de venta"""
+    nombre = models.CharField(max_length=100)
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutas_asignadas')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return self.nombre
+
+class ClienteRuta(models.Model):
+    """Modelo para clientes asignados a una ruta"""
+    ruta = models.ForeignKey(Ruta, related_name='clientes', on_delete=models.CASCADE)
+    nombre_negocio = models.CharField(max_length=200)
+    nombre_contacto = models.CharField(max_length=200, blank=True, null=True)
+    direccion = models.CharField(max_length=255, blank=True, null=True)
+    telefono = models.CharField(max_length=50, blank=True, null=True)
+    tipo_negocio = models.CharField(max_length=100, blank=True, null=True) # Supermercado, Carniceria, etc.
+    dia_visita = models.CharField(max_length=20) # LUNES, MARTES, etc.
+    orden = models.IntegerField(default=0)
+    latitud = models.FloatField(null=True, blank=True)
+    longitud = models.FloatField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.nombre_negocio} ({self.dia_visita})"
+
+class VentaRuta(models.Model):
+    """Modelo para registrar ventas realizadas en ruta (App Móvil)"""
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='ventas_ruta')
+    ruta = models.ForeignKey(Ruta, on_delete=models.SET_NULL, null=True, blank=True)
+    cliente_nombre = models.CharField(max_length=200) # Guardamos nombre por si borran el cliente
+    cliente = models.ForeignKey(ClienteRuta, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha = models.DateTimeField(default=timezone.now)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    metodo_pago = models.CharField(max_length=50, default='EFECTIVO')
+    detalles = models.JSONField(default=list) # [{producto: "Arepa", cantidad: 10, precio: 2000, subtotal: 20000}, ...]
+    sincronizado = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"Venta {self.vendedor} - {self.cliente_nombre} - {self.fecha.strftime('%Y-%m-%d')}"

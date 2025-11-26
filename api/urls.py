@@ -9,7 +9,8 @@ from .views import (
     VendedorViewSet, DomiciliarioViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
-    PrediccionIAView, guardar_sugerido, obtener_cargue, actualizar_check_vendedor, verificar_estado_dia
+    PrediccionIAView, guardar_sugerido, obtener_cargue, actualizar_check_vendedor, verificar_estado_dia,
+    RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet
 )
 
 router = DefaultRouter()
@@ -32,6 +33,11 @@ router.register(r'cargue-id3', CargueID3ViewSet, basename='cargue-id3')
 router.register(r'cargue-id4', CargueID4ViewSet, basename='cargue-id4')
 router.register(r'cargue-id5', CargueID5ViewSet, basename='cargue-id5')
 router.register(r'cargue-id6', CargueID6ViewSet, basename='cargue-id6')
+
+# Rutas y Ventas Ruta
+router.register(r'rutas', RutaViewSet, basename='rutas')
+router.register(r'clientes-ruta', ClienteRutaViewSet, basename='clientes-ruta')
+router.register(r'ventas-ruta', VentaRutaViewSet, basename='ventas-ruta')
 
 
 urlpatterns = router.urls + [

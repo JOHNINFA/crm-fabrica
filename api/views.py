@@ -8,13 +8,14 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
-    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer
+    CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer,
+    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer
 )
 
 class RegistroViewSet(viewsets.ModelViewSet):
@@ -2618,3 +2619,57 @@ def verificar_estado_dia(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+# ===== VIEWSETS RUTAS Y VENTAS RUTA =====
+
+class RutaViewSet(viewsets.ModelViewSet):
+    queryset = Ruta.objects.all()
+    serializer_class = RutaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = Ruta.objects.all()
+        vendedor_id = self.request.query_params.get('vendedor_id', None)
+        if vendedor_id:
+            # Filtrar por ID de vendedor (ej: ID1)
+            queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
+        return queryset
+
+class ClienteRutaViewSet(viewsets.ModelViewSet):
+    queryset = ClienteRuta.objects.all()
+    serializer_class = ClienteRutaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ClienteRuta.objects.all()
+        ruta_id = self.request.query_params.get('ruta', None)
+        dia = self.request.query_params.get('dia', None)
+        
+        if ruta_id:
+            queryset = queryset.filter(ruta_id=ruta_id)
+        if dia:
+            # Buscar clientes que tengan este día en su lista (soporta múltiples días)
+            # Ej: Si dia="MIERCOLES", encuentra "LUNES,MIERCOLES,VIERNES"
+            queryset = queryset.filter(dia_visita__contains=dia.upper())
+            
+        return queryset.order_by('orden')
+
+class VentaRutaViewSet(viewsets.ModelViewSet):
+    queryset = VentaRuta.objects.all()
+    serializer_class = VentaRutaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = VentaRuta.objects.all()
+        vendedor_id = self.request.query_params.get('vendedor_id', None)
+        fecha = self.request.query_params.get('fecha', None)
+        
+        if vendedor_id:
+            queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
+        if fecha:
+            # Filtrar por fecha (YYYY-MM-DD)
+            queryset = queryset.filter(fecha__date=fecha)
+            
+        return queryset.order_by('-fecha')
+
