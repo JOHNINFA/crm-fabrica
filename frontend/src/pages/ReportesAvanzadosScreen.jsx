@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Button, Form, Table, Alert, Spinner } from 'react-bootstrap';
+import usePageTitle from '../hooks/usePageTitle';
 import './ReportesAvanzadosScreen.css';
 
 // Orden de productos según Cargue
@@ -47,6 +48,7 @@ const ordenProductos = [
 ];
 
 const ReportesAvanzadosScreen = () => {
+    usePageTitle('Reportes');
     const navigate = useNavigate();
     const [vistaActual, setVistaActual] = useState('menu'); // 'menu' o 'planeacion'
     const [selectedDate, setSelectedDate] = useState('');

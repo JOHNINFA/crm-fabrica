@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Container, Row, Col, Card, Nav } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import GestionBancos from '../components/Configuracion/GestionBancos';
+import usePageTitle from '../hooks/usePageTitle';
 
 const ConfiguracionScreen = () => {
+    usePageTitle('Configuración');
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('bancos');
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Modal, Form, Alert } from 'react-bootstrap';
+import usePageTitle from '../hooks/usePageTitle';
 
 const DomiciliariosScreen = () => {
+    usePageTitle('Domiciliarios');
     const navigate = useNavigate();
     const [domiciliarios, setDomiciliarios] = useState([]);
     const [showModal, setShowModal] = useState(false);

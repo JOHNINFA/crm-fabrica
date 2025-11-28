@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useUnifiedProducts';
 import AddProductModal from '../components/Pos/AddProductModal';
+import usePageTitle from '../hooks/usePageTitle';
 import './ProductFormScreen.css';
 
 const ProductFormScreenContent = () => {
+    usePageTitle('Productos');
     const navigate = useNavigate();
     const { products, deleteProduct, loadProductsFromBackend, isSyncing } = useProducts();
     const [activeTab, setActiveTab] = useState('Activos');

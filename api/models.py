@@ -1539,6 +1539,7 @@ class VentaRuta(models.Model):
     vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='ventas_ruta')
     ruta = models.ForeignKey(Ruta, on_delete=models.SET_NULL, null=True, blank=True)
     cliente_nombre = models.CharField(max_length=200) # Guardamos nombre por si borran el cliente
+    nombre_negocio = models.CharField(max_length=255, blank=True, default='') # Nombre del negocio
     cliente = models.ForeignKey(ClienteRuta, on_delete=models.SET_NULL, null=True, blank=True)
     fecha = models.DateTimeField(default=timezone.now)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)

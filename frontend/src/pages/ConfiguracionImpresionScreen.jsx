@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { configuracionImpresionService } from '../services/api';
+import usePageTitle from '../hooks/usePageTitle';
 import './ConfiguracionImpresionScreen.css';
 
 export default function ConfiguracionImpresionScreen() {
+    usePageTitle('Configuración de Impresión');
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

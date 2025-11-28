@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listaPrecioService } from '../services/listaPrecioService';
+import usePageTitle from '../hooks/usePageTitle';
 import './MaestroListaPreciosScreen.css';
 
 const MaestroListaPreciosScreen = () => {
+    usePageTitle('Lista de Precios');
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('activos');
     const [busqueda, setBusqueda] = useState('');

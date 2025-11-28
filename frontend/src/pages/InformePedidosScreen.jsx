@@ -6,8 +6,10 @@ import { CajeroPedidosProvider } from '../context/CajeroPedidosContext';
 import Sidebar from '../components/Pedidos/Sidebar';
 import Topbar from '../components/Pedidos/Topbar';
 import TicketPreviewModal from '../components/Print/TicketPreviewModal';
+import usePageTitle from '../hooks/usePageTitle';
 
 function InformePedidosContent() {
+    usePageTitle('Informe de Pedidos');
     const [pedidos, setPedidos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(210);

@@ -23,10 +23,12 @@ import ProductList from "../components/Pos/ProductList";
 import Cart from "../components/Pos/Cart";
 import ConsumerForm from "../components/Pos/ConsumerForm";
 import { usePriceList } from "../hooks/usePriceList";
+import usePageTitle from '../hooks/usePageTitle';
 import "./PosScreen.css";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PosMainContent() {
+  usePageTitle('POS');
   const { products: allProducts, getProductsByModule } = useProducts();
 
   const products = useMemo(() => {

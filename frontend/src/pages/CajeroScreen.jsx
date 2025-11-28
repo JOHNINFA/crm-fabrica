@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
+import usePageTitle from '../hooks/usePageTitle';
 
 const CajeroScreen = () => {
+    usePageTitle('Cajero');
     const navigate = useNavigate();
 
     return (

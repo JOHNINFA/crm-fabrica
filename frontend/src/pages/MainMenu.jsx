@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import '../styles/MainMenu.css';
 import icono from '../assets/images/icono.png';
 import bannermenu from '../assets/images/bannermenu.png';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function MainMenu() {
   const navigate = useNavigate();
+  usePageTitle('Menú Principal');
 
   return (
     <div className="main-menu" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundImage: `url(${bannermenu})`, backgroundSize: '120% auto', backgroundPosition: '50% 50%', backgroundRepeat: 'no-repeat' }}>

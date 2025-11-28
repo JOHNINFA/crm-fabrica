@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Form, Nav } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
+import usePageTitle from '../hooks/usePageTitle';
 import './ClientesScreen.css';
 
 // Componentes de pestañas
@@ -13,6 +14,7 @@ import Saldos from '../components/Clientes/tabs/Saldos';
 import Contactos from '../components/Clientes/tabs/Contactos';
 
 const ClientesScreen = () => {
+  usePageTitle('Cliente');
   const navigate = useNavigate();
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('informacionBasica');

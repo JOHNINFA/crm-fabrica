@@ -7,9 +7,11 @@ import InventarioProduccion from "../components/inventario/InventarioProduccion"
 import InventarioMaquilas from "../components/inventario/InventarioMaquilas";
 import InventarioPlaneacion from "../components/inventario/InventarioPlaneacion";
 import TablaKardex from "../components/inventario/TablaKardex";
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function InventarioScreen() {
   const navigate = useNavigate();
+  usePageTitle('Inventario');
   // Recuperar pestaña activa desde localStorage o usar "produccion" por defecto
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('inventarioActiveTab') || "produccion";

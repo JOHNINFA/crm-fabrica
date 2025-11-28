@@ -2660,6 +2660,98 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
     serializer_class = VentaRutaSerializer
     permission_classes = [permissions.AllowAny]
     
+    @action(detail=False, methods=['get'])
+    def reportes(self, request):
+        """Endpoint para reportes de ventas por período"""
+        from django.db.models import Sum, Count
+        from django.db.models.functions import TruncDate, TruncMonth
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        periodo = request.query_params.get('periodo', 'dia')  # dia, mes, trimestre, semestre, año
+        vendedor_id = request.query_params.get('vendedor_id', None)
+        fecha_inicio = request.query_params.get('fecha_inicio', None)
+        fecha_fin = request.query_params.get('fecha_fin', None)
+        
+        # Calcular fechas según período
+        hoy = datetime.now().date()
+        if periodo == 'dia':
+            fecha_inicio = fecha_inicio or str(hoy)
+            fecha_fin = fecha_fin or str(hoy)
+        elif periodo == 'semana':
+            fecha_inicio = fecha_inicio or str(hoy - timedelta(days=7))
+            fecha_fin = fecha_fin or str(hoy)
+        elif periodo == 'mes':
+            fecha_inicio = fecha_inicio or str(hoy.replace(day=1))
+            fecha_fin = fecha_fin or str(hoy)
+        elif periodo == 'trimestre':
+            fecha_inicio = fecha_inicio or str(hoy - relativedelta(months=3))
+            fecha_fin = fecha_fin or str(hoy)
+        elif periodo == 'semestre':
+            fecha_inicio = fecha_inicio or str(hoy - relativedelta(months=6))
+            fecha_fin = fecha_fin or str(hoy)
+        elif periodo == 'año':
+            fecha_inicio = fecha_inicio or str(hoy.replace(month=1, day=1))
+            fecha_fin = fecha_fin or str(hoy)
+        
+        # Filtrar ventas
+        queryset = VentaRuta.objects.filter(fecha__date__gte=fecha_inicio, fecha__date__lte=fecha_fin)
+        if vendedor_id:
+            queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
+        
+        # Total general
+        total_general = queryset.aggregate(total=Sum('total'))['total'] or 0
+        cantidad_ventas = queryset.count()
+        
+        # Ventas por vendedor
+        ventas_por_vendedor = queryset.values('vendedor__nombre', 'vendedor__id_vendedor').annotate(
+            total=Sum('total'),
+            cantidad=Count('id')
+        ).order_by('-total')
+        
+        # Ventas por cliente
+        ventas_por_cliente = queryset.values('cliente_nombre', 'nombre_negocio').annotate(
+            total=Sum('total'),
+            cantidad=Count('id')
+        ).order_by('-total')[:20]  # Top 20 clientes
+        
+        # Ventas por producto (necesita procesar JSON)
+        productos_dict = {}
+        for venta in queryset:
+            detalles = venta.detalles or []
+            for item in detalles:
+                nombre = item.get('nombre') or item.get('producto') or 'Sin nombre'
+                cantidad = item.get('cantidad', 0)
+                subtotal = item.get('subtotal', 0) or (cantidad * item.get('precio', 0))
+                if nombre in productos_dict:
+                    productos_dict[nombre]['cantidad'] += cantidad
+                    productos_dict[nombre]['total'] += subtotal
+                else:
+                    productos_dict[nombre] = {'cantidad': cantidad, 'total': subtotal}
+        
+        ventas_por_producto = [
+            {'producto': k, 'cantidad': v['cantidad'], 'total': v['total']}
+            for k, v in sorted(productos_dict.items(), key=lambda x: x[1]['total'], reverse=True)
+        ]
+        
+        # Ventas por día (para gráficos)
+        ventas_por_dia = queryset.annotate(dia=TruncDate('fecha')).values('dia').annotate(
+            total=Sum('total'),
+            cantidad=Count('id')
+        ).order_by('dia')
+        
+        return Response({
+            'periodo': periodo,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'total_general': float(total_general),
+            'cantidad_ventas': cantidad_ventas,
+            'ventas_por_vendedor': list(ventas_por_vendedor),
+            'ventas_por_cliente': list(ventas_por_cliente),
+            'ventas_por_producto': ventas_por_producto[:20],  # Top 20
+            'ventas_por_dia': list(ventas_por_dia)
+        })
+    
     def get_queryset(self):
         queryset = VentaRuta.objects.all()
         vendedor_id = self.request.query_params.get('vendedor_id', None)
@@ -2728,6 +2820,41 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             
         serializer.is_valid(raise_exception=True)
         venta = serializer.save()
+        
+        # ========== AUTO-CREAR CLIENTE SI NO EXISTE ==========
+        from .models import ClienteRuta, Ruta
+        nombre_negocio = data.get('nombre_negocio', '')
+        cliente_nombre = data.get('cliente_nombre', '')
+        
+        if nombre_negocio and nombre_negocio.strip():
+            # Buscar si ya existe el cliente por nombre de negocio
+            cliente_existente = ClienteRuta.objects.filter(nombre_negocio__iexact=nombre_negocio.strip()).first()
+            
+            if not cliente_existente:
+                # Buscar la ruta del vendedor
+                try:
+                    vendedor_obj = venta.vendedor
+                    ruta_vendedor = Ruta.objects.filter(vendedor=vendedor_obj).first()
+                    
+                    if ruta_vendedor:
+                        # Crear el cliente automáticamente
+                        nuevo_cliente = ClienteRuta.objects.create(
+                            ruta=ruta_vendedor,
+                            nombre_negocio=nombre_negocio.strip(),
+                            nombre_contacto=cliente_nombre.strip() if cliente_nombre else '',
+                            orden=ClienteRuta.objects.filter(ruta=ruta_vendedor).count() + 1
+                        )
+                        # Asociar el cliente a la venta
+                        venta.cliente = nuevo_cliente
+                        venta.save(update_fields=['cliente'])
+                        print(f"✅ Cliente creado automáticamente: {nombre_negocio}")
+                except Exception as e:
+                    print(f"⚠️ No se pudo crear cliente automático: {e}")
+            else:
+                # Asociar cliente existente a la venta
+                venta.cliente = cliente_existente
+                venta.save(update_fields=['cliente'])
+                print(f"✅ Cliente existente asociado: {nombre_negocio}")
         
         # Guardar las evidencias asociadas
         for evidencia_info in evidencias_data:

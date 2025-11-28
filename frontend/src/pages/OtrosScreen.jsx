@@ -6,8 +6,10 @@ import GestionUsuarios from '../components/common/GestionUsuarios';
 import Herramientas from '../components/common/Herramientas';
 import GestionRutas from '../components/rutas/GestionRutas';
 import ReporteVentasRuta from '../components/rutas/ReporteVentasRuta';
+import usePageTitle from '../hooks/usePageTitle';
 
 const OtrosScreen = () => {
+    usePageTitle('Otros');
     const navigate = useNavigate();
     const [activeModule, setActiveModule] = useState('');
 
@@ -100,12 +102,14 @@ const OtrosScreen = () => {
                                 <div>
                                     <h2 className="mb-1">
                                         <span className="material-icons me-2" style={{ verticalAlign: 'middle' }}>
-                                            settings
+                                            {activeModule === 'ventas_ruta' ? 'point_of_sale' : 'settings'}
                                         </span>
-                                        Otros - Configuraciones
+                                        {activeModule === 'ventas_ruta' ? 'Ventas de Ruta' : 'Otros - Configuraciones'}
                                     </h2>
                                     <small className="text-muted">
-                                        Administración y configuraciones del sistema
+                                        {activeModule === 'ventas_ruta'
+                                            ? 'Gestión de ventas realizadas por vendedores en ruta'
+                                            : 'Administración y configuraciones del sistema'}
                                     </small>
                                 </div>
                             </div>

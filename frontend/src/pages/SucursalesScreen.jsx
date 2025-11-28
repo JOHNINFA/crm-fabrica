@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Table, Modal, Form, Alert, Spinner, Badge } from 'react-bootstrap';
 import { sucursalService } from '../services/sucursalService';
+import usePageTitle from '../hooks/usePageTitle';
 
 const SucursalesScreen = () => {
+    usePageTitle('Sucursales');
     const navigate = useNavigate();
     const [sucursales, setSucursales] = useState([]);
     const [loading, setLoading] = useState(false);

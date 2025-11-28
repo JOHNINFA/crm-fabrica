@@ -3,10 +3,12 @@ import { Container, Row, Col, Card, Button, Table, Form, Badge, Dropdown, Modal 
 import { useNavigate } from 'react-router-dom';
 import { ventaService } from '../services/api';
 import { cajaService } from '../services/cajaService';
+import usePageTitle from '../hooks/usePageTitle';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
 const InformeVentasGeneral = () => {
+  usePageTitle('Informe de Ventas');
   const navigate = useNavigate();
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);

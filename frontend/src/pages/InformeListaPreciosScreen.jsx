@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { productoService } from '../services/api';
 import { listaPrecioService, precioProductoService } from '../services/listaPrecioService';
 import EditarProductoModal from '../components/modals/EditarProductoModal';
+import usePageTitle from '../hooks/usePageTitle';
 import './InformeListaPreciosScreen.css';
 
 const listasAjuste = [
@@ -13,6 +14,7 @@ const listasAjuste = [
 ];
 
 const InformeListaPreciosScreen = () => {
+    usePageTitle('Informe Lista de Precios');
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('actualizarMasivamente');
     const [sucursal, setSucursal] = useState('Principal');

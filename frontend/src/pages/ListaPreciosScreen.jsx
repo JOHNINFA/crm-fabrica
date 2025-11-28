@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { listaPrecioService } from '../services/listaPrecioService';
+import usePageTitle from '../hooks/usePageTitle';
 import './ListaPreciosScreen.css';
 
 const mockEmpleados = [
@@ -11,6 +12,7 @@ const mockEmpleados = [
 ];
 
 const ListaPreciosScreen = () => {
+    usePageTitle('Editar Lista de Precios');
     const navigate = useNavigate();
     const { id } = useParams();
     const [nombreLista, setNombreLista] = useState('');
@@ -55,14 +57,14 @@ const ListaPreciosScreen = () => {
         }
         setEmpleadosSeleccionados(nuevosSeleccionados);
     };
-    
-    const empleadosFiltrados = mockEmpleados.filter(emp => 
+
+    const empleadosFiltrados = mockEmpleados.filter(emp =>
         emp.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!nombreLista.trim()) {
             alert('El nombre de la lista es requerido');
             return;
@@ -70,8 +72,8 @@ const ListaPreciosScreen = () => {
 
         try {
             setLoading(true);
-            const empleadoSeleccionado = empleadosSeleccionados.size > 0 
-                ? mockEmpleados.find(emp => empleadosSeleccionados.has(emp.id))?.nombre 
+            const empleadoSeleccionado = empleadosSeleccionados.size > 0
+                ? mockEmpleados.find(emp => empleadosSeleccionados.has(emp.id))?.nombre
                 : null;
 
             const data = {
@@ -89,7 +91,7 @@ const ListaPreciosScreen = () => {
                 await listaPrecioService.create(data);
                 alert('Lista de precios creada exitosamente');
             }
-            
+
             navigate('/lista-precios');
         } catch (error) {
             console.error('Error guardando lista:', error);
@@ -105,7 +107,7 @@ const ListaPreciosScreen = () => {
                 <div className="card-body p-2">
                     <div className="d-flex justify-content-between align-items-center mb-2">
                         <h2 className="card-title h5 mb-0">{isEditing ? 'Editar' : 'Crear'} Lista de Precios</h2>
-                        <button 
+                        <button
                             className="btn btn-outline-secondary btn-regresar-pos-custom"
                             onClick={() => navigate('/pos')}
                         >
@@ -118,19 +120,19 @@ const ListaPreciosScreen = () => {
                             <div className="col-md-7">
                                 <div className="mb-2">
                                     <label htmlFor="nombreLista" className="form-label">Nombre Lista</label>
-                                    <input 
-                                        type="text" 
-                                        className="form-control form-control-sm" 
-                                        id="nombreLista" 
+                                    <input
+                                        type="text"
+                                        className="form-control form-control-sm"
+                                        id="nombreLista"
                                         value={nombreLista}
                                         onChange={(e) => setNombreLista(e.target.value)}
                                     />
                                 </div>
 
                                 <div className="form-check mb-2">
-                                    <input 
-                                        className="form-check-input" 
-                                        type="checkbox" 
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
                                         id="aumentarPrecio"
                                         checked={aumentarPrecio}
                                         onChange={(e) => setAumentarPrecio(e.target.checked)}
@@ -142,8 +144,8 @@ const ListaPreciosScreen = () => {
 
                                 <div className="mb-2">
                                     <label htmlFor="sucursal" className="form-label">Sucursal</label>
-                                    <select 
-                                        className="form-select form-select-sm" 
+                                    <select
+                                        className="form-select form-select-sm"
                                         id="sucursal"
                                         value={sucursal}
                                         onChange={(e) => setSucursal(e.target.value)}
@@ -153,11 +155,11 @@ const ListaPreciosScreen = () => {
                                         <option>Sucursal Norte</option>
                                     </select>
                                 </div>
-                                
+
                                 <div className="form-check mb-2">
-                                    <input 
-                                        className="form-check-input" 
-                                        type="checkbox" 
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
                                         id="activar"
                                         checked={activo}
                                         onChange={(e) => setActivo(e.target.checked)}
@@ -172,9 +174,9 @@ const ListaPreciosScreen = () => {
                                         Empleados (Si no selecciona empleado entonces sería todos)
                                     </div>
                                     <div className="p-3 border border-top-0">
-                                        <input 
-                                            type="text" 
-                                            className="form-control form-control-sm mb-2" 
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-sm mb-2"
                                             placeholder="Buscar"
                                             value={busqueda}
                                             onChange={(e) => setBusqueda(e.target.value)}
@@ -182,8 +184,8 @@ const ListaPreciosScreen = () => {
                                         <div className="employee-list-container">
                                             {empleadosFiltrados.map(emp => (
                                                 <div key={emp.id} className="form-check d-flex align-items-center mb-2">
-                                                    <input 
-                                                        className="form-check-input" 
+                                                    <input
+                                                        className="form-check-input"
                                                         type="checkbox"
                                                         id={`emp-${emp.id}`}
                                                         checked={empleadosSeleccionados.has(emp.id)}
@@ -203,8 +205,8 @@ const ListaPreciosScreen = () => {
                             <div className="col-md-5">
                                 <div className="mb-2">
                                     <label htmlFor="tipoPrecio" className="form-label">Tipo Lista Precio</label>
-                                    <select 
-                                        className="form-select form-select-sm" 
+                                    <select
+                                        className="form-select form-select-sm"
                                         id="tipoPrecio"
                                         value={tipoPrecio}
                                         onChange={(e) => setTipoPrecio(e.target.value)}

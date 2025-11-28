@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import icono from '../assets/images/icono.png';
+import usePageTitle from '../hooks/usePageTitle';
 
 const dias = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
 
 export default function SelectorDiasPedidosScreen() {
+  usePageTitle('Pedidos');
   const navigate = useNavigate();
 
   const handleDayClick = (dia) => {
@@ -22,11 +24,11 @@ export default function SelectorDiasPedidosScreen() {
           <h1 className="fw-bold text-center" style={{ color: '#8b95a1' }}>
             Selecciona el día para realizar pedido
           </h1>
-          
+
           <div className="row g-5 mb-4">
             {dias.map((dia) => (
               <div className="col-6 col-sm-4 col-md-2" key={dia}>
-                <button 
+                <button
                   className="btn btn-primary w-100 py-3 fw-semibold shadow-sm"
                   onClick={() => handleDayClick(dia)}
                 >
@@ -37,7 +39,7 @@ export default function SelectorDiasPedidosScreen() {
           </div>
 
           <div className="text-center" style={{ marginTop: '40px' }}>
-            <button 
+            <button
               className="btn btn-secondary py-3 px-4 d-inline-flex align-items-center shadow-sm"
               onClick={() => navigate('/remisiones')}
             >

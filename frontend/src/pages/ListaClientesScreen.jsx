@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Form, InputGroup } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
+import usePageTitle from '../hooks/usePageTitle';
 
 const ListaClientesScreen = () => {
+  usePageTitle('Clientes');
   const navigate = useNavigate();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,15 +43,15 @@ const ListaClientesScreen = () => {
             <div className="d-flex justify-content-between align-items-center">
               <h2 className="mb-0">Gestión de Clientes</h2>
               <div>
-                <Button 
-                  variant="success" 
+                <Button
+                  variant="success"
                   className="me-2"
                   onClick={() => navigate('/clientes/nuevo')}
                 >
                   <i className="bi bi-plus-circle me-2"></i>
                   Nuevo Cliente
                 </Button>
-                <Button 
+                <Button
                   variant="outline-secondary"
                   onClick={() => navigate('/remisiones')}
                 >

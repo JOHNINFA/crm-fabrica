@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Table, Modal, Form, Alert, Spinner, Badge } from 'react-bootstrap';
 import { cajeroService } from '../services/cajeroService';
 import { sucursalService } from '../services/sucursalService';
+import usePageTitle from '../hooks/usePageTitle';
 
 const CajerosScreen = () => {
+    usePageTitle('Cajeros');
     const navigate = useNavigate();
     const [cajeros, setCajeros] = useState([]);
     const [sucursales, setSucursales] = useState([]);

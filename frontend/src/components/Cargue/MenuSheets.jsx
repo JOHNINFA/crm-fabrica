@@ -4,6 +4,7 @@ import { VendedoresProvider, useVendedores } from "../../context/VendedoresConte
 import { responsableStorage } from "../../utils/responsableStorage";
 import PlantillaOperativa from "./PlantillaOperativa";
 import Produccion from "./Produccion";
+import usePageTitle from '../../hooks/usePageTitle';
 
 const productosPorDiaYId = {
   LUNES: {
@@ -92,6 +93,7 @@ const ids = ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6", "PRODUCCION"];
 export default function MenuSheets() {
   // Capturamos el parámetro :dia de la URL
   const { dia } = useParams();
+  usePageTitle(`Cargue ${dia || ''}`);
 
   // Estado solo para el ID de hoja
   const [idSeleccionado, setIdSeleccionado] = useState("ID1");

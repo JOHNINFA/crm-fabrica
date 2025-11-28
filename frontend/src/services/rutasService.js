@@ -52,6 +52,17 @@ const rutasService = {
         return response.data;
     },
 
+    // Reportes de Ventas
+    obtenerReportesVentas: async (periodo, vendedorId, fechaInicio, fechaFin) => {
+        let url = `${API_URL}/ventas-ruta/reportes/?periodo=${periodo}`;
+        if (vendedorId) url += `&vendedor_id=${vendedorId}`;
+        if (fechaInicio) url += `&fecha_inicio=${fechaInicio}`;
+        if (fechaFin) url += `&fecha_fin=${fechaFin}`;
+        
+        const response = await axios.get(url);
+        return response.data;
+    },
+
     // Vendedores (Auxiliar)
     obtenerVendedores: async () => {
         const response = await axios.get(`${API_URL}/vendedores/`);

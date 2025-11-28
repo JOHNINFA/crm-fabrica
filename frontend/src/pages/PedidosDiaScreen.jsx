@@ -3,9 +3,11 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import { pedidoService } from '../services/api';
 import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function PedidosDiaScreen() {
   const { dia } = useParams();
+  usePageTitle(`Pedidos ${dia || ''}`);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [fechaSeleccionada, setFechaSeleccionada] = useState(

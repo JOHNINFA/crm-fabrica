@@ -24,6 +24,7 @@ import ProductList from "../components/Pedidos/ProductList";
 import Cart from "../components/Pedidos/Cart";
 import ConsumerForm from "../components/Pedidos/ConsumerForm";
 import { usePriceList } from "../hooks/usePriceList";
+import usePageTitle from '../hooks/usePageTitle';
 import CategoryManager from "../components/Pos/CategoryManager";
 import "./PedidosScreen.css";
 
@@ -31,6 +32,7 @@ import ImageSyncButton from "../components/common/ImageSyncButton";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PedidosMainContent() {
+    usePageTitle('Remisiones');
     const { products: allProducts, getProductsByModule } = useProducts();
 
     const products = useMemo(() => {

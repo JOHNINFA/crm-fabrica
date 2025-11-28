@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Badge, Alert, Nav, Table } from 'react-bootstrap';
 import { FaSearch, FaBoxOpen, FaTruck, FaExclamationTriangle, FaCheckCircle, FaCalendar, FaFileExcel } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
+import usePageTitle from '../hooks/usePageTitle';
 import '../styles/TrazabilidadScreen.css';
 
 const TrazabilidadScreen = () => {
+    usePageTitle('Trazabilidad');
     const [activeTab, setActiveTab] = useState('lote'); // 'lote' | 'fecha'
 
     // Estados para búsqueda por lote

@@ -6,10 +6,12 @@ import { ventaService, productoService } from '../services/api';
 import { cajaValidaciones } from '../components/Pos/CajaValidaciones';
 
 import { CajeroProvider, useCajero } from '../context/CajeroContext';
+import usePageTitle from '../hooks/usePageTitle';
 import '../styles/CajaScreen.css';
 
 // Componente interno que usa el CajeroContext
 const CajaScreenContent = () => {
+    usePageTitle('Caja');
     const navigate = useNavigate();
     const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva } = useCajero();
     const [cajero, setCajero] = useState('jose');

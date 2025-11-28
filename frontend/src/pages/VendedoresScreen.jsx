@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Alert } from 'react-bootstrap';
+import usePageTitle from '../hooks/usePageTitle';
 
 const VendedoresScreen = () => {
+  usePageTitle('Vendedores');
   const [vendedores, setVendedores] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingVendedor, setEditingVendedor] = useState(null);
