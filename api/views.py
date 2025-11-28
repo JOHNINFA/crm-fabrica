@@ -2673,3 +2673,71 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             
         return queryset.order_by('-fecha')
 
+    def create(self, request, *args, **kwargs):
+        import json
+        from .models import Vendedor, EvidenciaVenta
+        from rest_framework import status
+        from django.http import QueryDict
+        
+        # Crear un QueryDict mutable o dict regular
+        if isinstance(request.data, QueryDict):
+            data = request.data.copy()
+        else:
+            data = dict(request.data)
+        
+        # NO parsear campos JSON aquí - el JSONField del serializer lo hace automáticamente
+        # Solo necesitamos ajustar el vendedor
+        
+        # Ajustar vendedor si viene solo el ID
+        if 'vendedor' in data and isinstance(data['vendedor'], str) and data['vendedor'].startswith('ID'):
+             try:
+                 vendedor = Vendedor.objects.get(id_vendedor=data['vendedor'])
+                 data['vendedor'] = vendedor.pk
+             except Vendedor.DoesNotExist:
+                 pass
+
+        # Extraer fotos de evidencia antes de crear la venta
+        evidencias_data = []
+        for key in request.FILES.keys():
+            if key.startswith('evidencia_'):
+                parts = key.split('_')
+                if len(parts) >= 3:
+                    producto_id = parts[1]
+                    evidencias_data.append({
+                        'producto_id': int(producto_id),
+                        'imagen': request.FILES[key]
+                    })
+
+        # Crear la venta con los datos procesados
+        print("=" * 60)
+        print("📦 DATOS A VALIDAR:")
+        print(f"data keys: {data.keys()}")
+        print(f"vendedor: {data.get('vendedor')}")
+        print(f"cliente_nombre: {data.get('cliente_nombre')}")
+        print(f"total: {data.get('total')}")
+        print(f"detalles type: {type(data.get('detalles'))}, valor: {data.get('detalles')}")
+        print(f"productos_vencidos type: {type(data.get('productos_vencidos'))}, valor: {data.get('productos_vencidos')}")
+        print("=" * 60)
+        
+        serializer = self.get_serializer(data=data)
+        
+        if not serializer.is_valid():
+            print("❌ ERRORES DE VALIDACIÓN:")
+            print(serializer.errors)
+            print("=" * 60)
+            
+        serializer.is_valid(raise_exception=True)
+        venta = serializer.save()
+        
+        # Guardar las evidencias asociadas
+        for evidencia_info in evidencias_data:
+            EvidenciaVenta.objects.create(
+                venta=venta,
+                producto_id=evidencia_info['producto_id'],
+                imagen=evidencia_info['imagen']
+            )
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+

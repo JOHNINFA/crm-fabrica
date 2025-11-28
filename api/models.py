@@ -1544,7 +1544,19 @@ class VentaRuta(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     metodo_pago = models.CharField(max_length=50, default='EFECTIVO')
     detalles = models.JSONField(default=list) # [{producto: "Arepa", cantidad: 10, precio: 2000, subtotal: 20000}, ...]
+    productos_vencidos = models.JSONField(default=list, blank=True) # [{producto: "Arepa", cantidad: 5, motivo: "Hongo"}, ...]
+    foto_vencidos = models.ImageField(upload_to='vencidos/%Y/%m/%d/', null=True, blank=True)
     sincronizado = models.BooleanField(default=False)
     
     def __str__(self):
         return f"Venta {self.vendedor} - {self.cliente_nombre} - {self.fecha.strftime('%Y-%m-%d')}"
+
+class EvidenciaVenta(models.Model):
+    """Modelo para guardar fotos de evidencia (vencidos) asociadas a una venta"""
+    venta = models.ForeignKey(VentaRuta, on_delete=models.CASCADE, related_name='evidencias')
+    producto_id = models.IntegerField(help_text="ID del producto al que corresponde la foto", null=True, blank=True)
+    imagen = models.ImageField(upload_to='vencidos/%Y/%m/%d/')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Evidencia Venta {self.venta.id} - Prod {self.producto_id}"

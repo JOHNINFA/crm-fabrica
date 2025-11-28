@@ -195,6 +195,76 @@ const ReporteVentasRuta = () => {
                             </Table>
                         </>
                     )}
+
+                    {/* Sección de Vencidos con Evidencias */}
+                    {selectedVenta && selectedVenta.productos_vencidos && selectedVenta.productos_vencidos.length > 0 && (
+                        <div className="mt-4">
+                            <h6 className="text-danger border-bottom pb-2">⚠️ Productos Vencidos Retornados</h6>
+                            <Table striped bordered size="sm">
+                                <thead className="table-danger">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Motivo</th>
+                                        <th>Evidencias</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {selectedVenta.productos_vencidos.map((item, idx) => {
+                                        // Filtrar evidencias de este producto
+                                        const evidenciasProducto = (selectedVenta.evidencias || []).filter(
+                                            ev => ev.producto_id === item.id
+                                        );
+
+                                        return (
+                                            <tr key={idx}>
+                                                <td>{item.producto}</td>
+                                                <td>{item.cantidad}</td>
+                                                <td>{item.motivo}</td>
+                                                <td>
+                                                    {evidenciasProducto.length > 0 ? (
+                                                        <div className="d-flex flex-wrap gap-2">
+                                                            {evidenciasProducto.map((evidencia, eIdx) => (
+                                                                <div key={eIdx} style={{ position: 'relative' }}>
+                                                                    <img
+                                                                        src={evidencia.imagen}
+                                                                        alt={`Evidencia ${eIdx + 1}`}
+                                                                        style={{
+                                                                            width: '80px',
+                                                                            height: '80px',
+                                                                            objectFit: 'cover',
+                                                                            borderRadius: '4px',
+                                                                            cursor: 'pointer',
+                                                                            border: '2px solid #dee2e6'
+                                                                        }}
+                                                                        onClick={() => window.open(evidencia.imagen, '_blank')}
+                                                                        title="Clic para ver en tamaño completo"
+                                                                    />
+                                                                    <small
+                                                                        className="badge bg-secondary"
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            bottom: '2px',
+                                                                            right: '2px',
+                                                                            fontSize: '10px'
+                                                                        }}
+                                                                    >
+                                                                        {eIdx + 1}
+                                                                    </small>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted">Sin fotos</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </Table>
+                        </div>
+                    )}
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Cerrar</Button>

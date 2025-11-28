@@ -720,7 +720,7 @@ class ConfiguracionImpresionSerializer(serializers.ModelSerializer):
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
 
 # ===== SERIALIZERS RUTAS Y VENTAS RUTA =====
-from .models import Ruta, ClienteRuta, VentaRuta
+from .models import Ruta, ClienteRuta, VentaRuta, EvidenciaVenta
 
 class RutaSerializer(serializers.ModelSerializer):
     vendedor_nombre = serializers.CharField(source='vendedor.nombre', read_only=True)
@@ -734,10 +734,17 @@ class ClienteRutaSerializer(serializers.ModelSerializer):
         model = ClienteRuta
         fields = '__all__'
 
+class EvidenciaVentaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EvidenciaVenta
+        fields = ['id', 'producto_id', 'imagen', 'fecha_creacion']
+
 class VentaRutaSerializer(serializers.ModelSerializer):
     vendedor_nombre = serializers.CharField(source='vendedor.nombre', read_only=True)
     ruta_nombre = serializers.CharField(source='ruta.nombre', read_only=True)
+    evidencias = EvidenciaVentaSerializer(many=True, read_only=True)
     
     class Meta:
         model = VentaRuta
         fields = '__all__'
+
