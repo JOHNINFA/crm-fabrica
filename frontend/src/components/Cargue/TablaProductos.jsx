@@ -218,7 +218,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                 />
               </td>
               <td className="text-center total-cell">{p.total || 0}</td>
-              <td className="text-end valor-cell" onDoubleClick={() => handleDoubleClickValor(p.id)}>
+              <td className="text-center valor-cell" onDoubleClick={() => handleDoubleClickValor(p.id)}>
                 {editingValor === p.id ? (
                   <input
                     type="text"
@@ -230,13 +230,13 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                     onBlur={handleBlurValor}
                     onKeyDown={handleKeyDownValor}
                     autoFocus
-                    className="text-end"
+                    className="text-center"
                     style={{
                       border: 'none',
                       background: 'transparent',
                       outline: 'none',
                       width: '100%',
-                      textAlign: 'right',
+                      textAlign: 'center',
                       color: '#cc0000',
                       fontWeight: 'bold'
                     }}
@@ -245,7 +245,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   p.valor ? `$${p.valor.toLocaleString()}` : ''
                 )}
               </td>
-              <td className="text-end neto-cell">
+              <td className="text-center neto-cell">
                 {p.neto ? `$${Math.round(p.neto).toLocaleString()}` : '$0'}
               </td>
             </tr>

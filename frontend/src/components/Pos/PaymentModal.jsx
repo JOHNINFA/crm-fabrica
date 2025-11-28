@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { ventaService } from '../../services/api';
+import { ventaService, configuracionImpresionService } from '../../services/api';
 import './PaymentModal.css';
 
 const PaymentModal = ({
@@ -18,26 +18,41 @@ const PaymentModal = ({
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [processing, setProcessing] = useState(false);
   const [showNotaModal, setShowNotaModal] = useState(false);
+  const [configImpresion, setConfigImpresion] = useState(null);
 
 
-  // Cargar bancos desde localStorage
+  // Cargar bancos y configuración de impresión
   useEffect(() => {
-    const bancosGuardados = localStorage.getItem('bancos');
-    if (bancosGuardados) {
-      const bancosList = JSON.parse(bancosGuardados);
-      const bancosActivos = bancosList.filter(b => b.activo);
-      setBancos(bancosActivos);
-      if (bancosActivos.length > 0) {
-        setBanco(bancosActivos[0].nombre);
+    const cargarDatos = async () => {
+      // Bancos
+      const bancosGuardados = localStorage.getItem('bancos');
+      if (bancosGuardados) {
+        const bancosList = JSON.parse(bancosGuardados);
+        const bancosActivos = bancosList.filter(b => b.activo);
+        setBancos(bancosActivos);
+        if (bancosActivos.length > 0) {
+          setBanco(bancosActivos[0].nombre);
+        }
+      } else {
+        const bancosDefault = [
+          { id: 1, nombre: 'Caja General', activo: true }
+        ];
+        setBancos(bancosDefault);
+        setBanco('Caja General');
       }
-    } else {
-      // Bancos por defecto si no hay configurados
-      const bancosDefault = [
-        { id: 1, nombre: 'Caja General', activo: true }
-      ];
-      setBancos(bancosDefault);
-      setBanco('Caja General');
-    }
+
+      // Configuración de Impresión
+      try {
+        const config = await configuracionImpresionService.getActiva();
+        if (config && config.id) {
+          setConfigImpresion(config);
+        }
+      } catch (error) {
+        console.error('Error al cargar configuración de impresión:', error);
+      }
+    };
+
+    cargarDatos();
   }, []);
 
   // Actualizar dinero entregado cuando cambia el total
@@ -232,6 +247,17 @@ const PaymentModal = ({
   const generarHTMLTicket = (data, anchoPapel) => {
     const formatCurrency = (amount) => `$${parseFloat(amount || 0).toLocaleString('es-CO')}`;
 
+    // Usar configuración o valores por defecto
+    const nombreNegocio = configImpresion?.nombre_negocio || 'MI NEGOCIO';
+    const nitNegocio = configImpresion?.nit_negocio || '';
+    const direccionNegocio = configImpresion?.direccion_negocio || '';
+    const telefonoNegocio = configImpresion?.telefono_negocio || '';
+    const encabezado = configImpresion?.encabezado_ticket || '';
+    const piePagina = configImpresion?.pie_pagina_ticket || '';
+    const mensajeGracias = configImpresion?.mensaje_agradecimiento || '¡Gracias por su compra!';
+    const mostrarLogo = configImpresion?.mostrar_logo !== false;
+    const logoUrl = configImpresion?.logo ? `http://localhost:8000${configImpresion.logo}` : null;
+
     return `
       <!DOCTYPE html>
       <html>
@@ -273,6 +299,12 @@ const PaymentModal = ({
             margin-bottom: 10px;
           }
           
+          .ticket-logo {
+            max-width: 100px;
+            max-height: 80px;
+            margin-bottom: 5px;
+          }
+
           .ticket-business-name {
             font-size: 16px;
             font-weight: bold;
@@ -280,6 +312,11 @@ const PaymentModal = ({
             text-transform: uppercase;
           }
           
+          .ticket-business-info {
+            font-size: 11px;
+            margin-bottom: 5px;
+          }
+
           .ticket-divider {
             text-align: center;
             margin: 8px 0;
@@ -363,7 +400,12 @@ const PaymentModal = ({
       <body>
         <div class="ticket-container">
           <div class="ticket-header">
-            <div class="ticket-business-name">MI NEGOCIO</div>
+            ${mostrarLogo && logoUrl ? `<img src="${logoUrl}" class="ticket-logo" />` : ''}
+            <div class="ticket-business-name">${nombreNegocio}</div>
+            ${nitNegocio ? `<div class="ticket-business-info">NIT: ${nitNegocio}</div>` : ''}
+            ${direccionNegocio ? `<div class="ticket-business-info">${direccionNegocio}</div>` : ''}
+            ${telefonoNegocio ? `<div class="ticket-business-info">Tel: ${telefonoNegocio}</div>` : ''}
+            ${encabezado ? `<div class="ticket-business-info" style="margin-top:5px; font-style:italic;">${encabezado}</div>` : ''}
           </div>
           
           <div class="ticket-divider">================================</div>
@@ -436,7 +478,8 @@ const PaymentModal = ({
           <div class="ticket-divider">================================</div>
           
           <div class="ticket-footer">
-            <p><strong>¡Gracias por su compra!</strong></p>
+            <p><strong>${mensajeGracias}</strong></p>
+            ${piePagina ? `<p style="margin-top:5px; font-size:10px;">${piePagina}</p>` : ''}
           </div>
         </div>
       </body>

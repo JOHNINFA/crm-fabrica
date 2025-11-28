@@ -351,15 +351,16 @@ export default function MenuSheets() {
           <div className="d-flex align-items-center gap-3">
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="btn btn-sm"
               style={{
                 fontSize: '0.9rem',
                 padding: '0.4rem 0.8rem',
                 fontWeight: 'bold',
                 borderRadius: '8px',
                 pointerEvents: 'none',
-                backgroundColor: '#06386d',
-                borderColor: '#06386d'
+                backgroundColor: '#0c2c53',
+                borderColor: '#0c2c53',
+                color: 'white'
               }}
             >
               {dia}
@@ -471,7 +472,7 @@ export default function MenuSheets() {
                     type="button"
                     onClick={() => setIdSeleccionado(i)}
                     className={`btn btn-sm me-1 ${i === idSeleccionado
-                      ? 'btn-primary'
+                      ? ''
                       : 'btn-outline-secondary'
                       }`}
                     style={{
@@ -479,8 +480,9 @@ export default function MenuSheets() {
                       fontSize: '0.8rem',
                       padding: '0.25rem 0.5rem',
                       ...(i === idSeleccionado && {
-                        backgroundColor: '#06386d',
-                        borderColor: '#06386d'
+                        backgroundColor: '#0c2c53',
+                        borderColor: '#0c2c53',
+                        color: 'white'
                       })
                     }}
                   >
@@ -517,11 +519,12 @@ export default function MenuSheets() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-sm"
                     onClick={guardarNombre}
                     style={{
-                      backgroundColor: '#06386d',
-                      borderColor: '#06386d'
+                      backgroundColor: '#0c2c53',
+                      borderColor: '#0c2c53',
+                      color: 'white'
                     }}
                   >
                     Guardar

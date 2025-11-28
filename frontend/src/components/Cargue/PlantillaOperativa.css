@@ -1,147 +1,127 @@
-/* Cambiar color azul Bootstrap primary a #06386d */
+/* ============================================
+   PLANTILLA OPERATIVA - RESPONSIVE & SCALABLE
+   ============================================ */
+
+/* Variables personalizadas para Cargue */
+.plantilla-operativa {
+    --cargue-primary: #06386d;
+    --cargue-primary-hover: #052c65;
+    --cargue-header-bg: #e2efda;
+    --cargue-row-odd: #e8f5e8;
+    --cargue-row-even: #ffffff;
+}
+
+/* Botones Primary con color personalizado */
 .plantilla-operativa .btn-primary {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
+    background-color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    transition: all 0.2s;
 }
 
 .plantilla-operativa .btn-primary:hover {
-    background-color: #052c65 !important;
-    border-color: #052c65 !important;
+    background-color: var(--cargue-primary-hover) !important;
+    border-color: var(--cargue-primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(6, 56, 109, 0.3);
 }
 
 .plantilla-operativa .btn-primary:focus,
 .plantilla-operativa .btn-primary.focus {
-    box-shadow: 0 0 0 0.2rem rgba(6, 56, 109, 0.5) !important;
+    box-shadow: 0 0 0 0.2rem rgba(6, 56, 109, 0.4) !important;
 }
 
-/* Checkboxes con fondo azul personalizado */
-.plantilla-operativa .form-check-input:checked {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
-}
-
-.plantilla-operativa .form-check-input:focus {
-    border-color: #06386d !important;
-    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
-}
-
-/* Checkboxes en tablas */
-.tabla-productos input[type="checkbox"]:checked {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
-}
-
-.tabla-productos input[type="checkbox"]:focus {
-    border-color: #06386d !important;
-    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
-}
-
-/* Checkboxes globales en el módulo Cargue */
-input[type="checkbox"]:checked {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
+/* Checkboxes personalizados */
+.plantilla-operativa .form-check-input:checked,
+.tabla-productos input[type="checkbox"]:checked,
+input[type="checkbox"]:checked,
+.container-fluid input[type="checkbox"]:checked,
+.table input[type="checkbox"]:checked,
+.form-check-input:checked {
+    background-color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'%3e%3c%2fpath%3e%3c%2fsvg%3e") !important;
 }
 
+.plantilla-operativa .form-check-input:focus,
+.tabla-productos input[type="checkbox"]:focus,
 input[type="checkbox"]:focus {
-    border-color: #06386d !important;
+    border-color: var(--cargue-primary) !important;
     box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
 }
 
-/* Forzar estilos específicos para checkboxes en tablas */
-.container-fluid input[type="checkbox"]:checked {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
-}
-
-/* Estilos más específicos para sobrescribir Bootstrap */
-.table input[type="checkbox"]:checked {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
-}
-
-.form-check-input:checked {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
-}
-
-/* Botones outline primary */
+/* Botones Outline Primary */
 .plantilla-operativa .btn-outline-primary {
-    color: #06386d !important;
-    border-color: #06386d !important;
+    color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
 }
 
 .plantilla-operativa .btn-outline-primary:hover {
-    background-color: #06386d !important;
-    border-color: #06386d !important;
+    background-color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
     color: white !important;
 }
 
-/* Estilos generales */
-.responsable-title {
-    font-weight: bold !important;
+/* Título Responsable */
+.responsable-title,
+.plantilla-operativa .responsable-title,
+.plantilla-operativa .btn-link.responsable-title {
+    font-weight: 700 !important;
     color: #FF3333 !important;
-    font-size: 1.2rem !important;
-}
-
-/* Sobrescribir estilos de Bootstrap para el campo responsable */
-.plantilla-operativa .responsable-title {
-    color: #FF3333 !important;
-    font-weight: bold !important;
+    font-size: 1.3rem !important;
     text-decoration: none !important;
 }
 
-.plantilla-operativa .responsable-title:hover {
+.plantilla-operativa .responsable-title:hover,
+.plantilla-operativa .responsable-title:focus,
+.plantilla-operativa .btn-link.responsable-title:hover,
+.plantilla-operativa .btn-link.responsable-title:focus {
     color: #FF3333 !important;
     text-decoration: none !important;
-}
-
-.plantilla-operativa .responsable-title:focus {
-    color: #FF3333 !important;
     box-shadow: none !important;
     outline: none !important;
 }
 
-/* Sobrescribir específicamente btn-link de Bootstrap */
-.plantilla-operativa .btn-link.responsable-title {
-    color: #FF3333 !important;
-}
-
-.plantilla-operativa .btn-link.responsable-title:hover {
-    color: #FF3333 !important;
-}
-
-.plantilla-operativa .btn-link.responsable-title:focus {
-    color: #FF3333 !important;
-}
-
-/* Estilos de la tabla de productos */
+/* ==================== TABLA DE PRODUCTOS ==================== */
 .tabla-productos {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     white-space: nowrap;
 }
 
 .tabla-productos .table-header {
-    background-color: #e2efda;
-    font-weight: bold;
+    background-color: var(--cargue-header-bg);
+    font-weight: 700;
     text-align: center;
     color: #000;
+}
+
+.tabla-productos .table-header th {
+    text-align: center !important;
 }
 
 .tabla-productos td,
 .tabla-productos th {
     vertical-align: middle !important;
-    border: 1px solid #dee2e6 !important;
-    padding: 0.15rem 0.2rem !important;
+    border: 1px solid var(--color-border, #dee2e6) !important;
+    padding: 0.4rem 0.5rem !important;
     text-align: center;
-    line-height: 1.3 !important;
-    height: 32px !important;
-    max-height: 32px !important;
+    line-height: 1.4 !important;
+    height: auto !important;
+    min-height: 2.2rem !important;
 }
 
 .tabla-productos tbody tr {
-    height: 32px !important;
-    max-height: 32px !important;
+    min-height: 2.2rem !important;
+    transition: background 0.2s;
+}
+
+.tabla-productos tbody tr:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* Columnas V y D - checkboxes */
@@ -149,105 +129,91 @@ input[type="checkbox"]:focus {
 .tabla-productos td:nth-child(1),
 .tabla-productos th:nth-child(2),
 .tabla-productos td:nth-child(2) {
-    width: 40px;
-    min-width: 40px;
-    max-width: 40px;
-    padding: 0rem;
-    height: 20px;
+    width: 3rem;
+    min-width: 3rem;
+    padding: 0.2rem;
 }
 
-/* Columna PRODUCTOS - más ancha */
-.tabla-productos th:nth-child(3),
-.tabla-productos td:nth-child(3) {
-    min-width: 420px;
-    max-width: 550px;
+/* Columna PRODUCTOS */
+.tabla-productos th:nth-child(3) {
+    min-width: 24rem;
+    max-width: 28rem;
     white-space: normal;
     text-align: center;
-    padding: 0rem 0.5rem;
-    height: 32px;
+    padding: 0.4rem 0.8rem;
+    font-weight: 700;
+}
+
+.tabla-productos td:nth-child(3) {
+    min-width: 24rem;
+    max-width: 28rem;
+    white-space: normal;
+    text-align: left;
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
 }
 
 /* CANTIDAD */
 .tabla-productos th:nth-child(4),
 .tabla-productos td:nth-child(4) {
-    min-width: 100px;
-    width: 100px;
+    min-width: 7rem;
+    width: 7rem;
 }
 
 /* DCTOS. */
 .tabla-productos th:nth-child(5),
 .tabla-productos td:nth-child(5) {
-    min-width: 90px;
-    width: 90px;
-    text-align: center !important;
-}
-
-.tabla-productos thead th:nth-child(5) {
-    text-align: center !important;
+    min-width: 6rem;
+    width: 6rem;
 }
 
 /* ADICIONAL */
 .tabla-productos th:nth-child(6),
 .tabla-productos td:nth-child(6) {
-    min-width: 100px;
-    width: 100px;
+    min-width: 7rem;
+    width: 7rem;
 }
 
 /* DEVOLUCIONES */
 .tabla-productos th:nth-child(7),
 .tabla-productos td:nth-child(7) {
-    min-width: 130px;
-    width: 130px;
+    min-width: 7rem;
+    width: 7rem;
 }
 
 /* VENCIDAS */
 .tabla-productos th:nth-child(8),
 .tabla-productos td:nth-child(8) {
-    min-width: 100px;
-    width: 100px;
+    min-width: 7rem;
+    width: 7rem;
 }
 
-/* LOTES VENCIDOS - más ancha */
+/* LOTES VENCIDOS */
 .tabla-productos th:nth-child(9),
 .tabla-productos td:nth-child(9) {
-    min-width: 140px;
-    width: 140px;
+    min-width: 10rem;
+    width: 10rem;
 }
 
 /* TOTAL */
 .tabla-productos th:nth-child(10),
 .tabla-productos td:nth-child(10) {
-    min-width: 70px;
-    width: 70px;
-    text-align: center !important;
-}
-
-.tabla-productos thead th:nth-child(10) {
-    text-align: center !important;
+    min-width: 5.5rem;
+    width: 5.5rem;
 }
 
 /* VALOR */
 .tabla-productos th:nth-child(11),
 .tabla-productos td:nth-child(11) {
-    min-width: 100px;
-    width: 100px;
-    text-align: center !important;
-}
-
-.tabla-productos thead th:nth-child(11) {
-    text-align: center !important;
+    min-width: 7rem;
+    width: 7rem;
 }
 
 /* NETO */
 .tabla-productos th:nth-child(12),
 .tabla-productos td:nth-child(12) {
-    min-width: 100px;
-    width: 100px;
-    text-align: center !important;
-}
-
-.tabla-productos thead th:nth-child(12) {
-    text-align: center !important;
+    min-width: 7rem;
+    width: 7rem;
 }
 
 .tabla-productos td span,
@@ -255,16 +221,9 @@ input[type="checkbox"]:focus {
     text-align: center;
     display: block;
     width: 100%;
-    font-size: 0.75rem;
-    font-weight: bold;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: #000;
-}
-
-/* Forzar centrado del header TOTAL */
-.tabla-productos .table-header th:nth-child(10) {
-    text-align: center !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
 }
 
 .table-row {
@@ -272,107 +231,95 @@ input[type="checkbox"]:focus {
 }
 
 .producto-nombre {
-    font-weight: 500;
-    min-width: 200px;
+    font-weight: 600;
+    min-width: 15rem;
 }
 
 .tabla-productos tbody tr:nth-child(odd) td:nth-child(n+3) {
-    background-color: #e8f5e8 !important;
+    background-color: var(--cargue-row-odd) !important;
 }
 
 .tabla-productos tbody tr:nth-child(even) td:nth-child(n+3) {
-    background-color: white !important;
+    background-color: var(--cargue-row-even) !important;
 }
 
 .total-cell {
-    font-weight: bold;
-    background-color: #e2efda;
+    font-weight: 700;
+    background-color: var(--cargue-header-bg);
     text-align: center;
 }
 
 .valor-cell {
-    font-weight: bold;
+    font-weight: 700;
     text-align: center;
     color: #cc0000 !important;
 }
 
 .neto-cell {
-    font-weight: bold;
+    font-weight: 700;
     background-color: #d4edda;
     text-align: center !important;
-    min-width: 80px;
-    width: 80px;
+    min-width: 6rem;
+    width: 6rem;
 }
 
 /* Inputs en la tabla */
 .tabla-productos input[type="number"] {
     border: none;
     background: transparent;
-    width: 50px;
-    padding: 0px 2px;
+    width: 4rem;
+    padding: 0.2rem 0.3rem;
     text-align: center;
     display: block;
     margin: 0 auto;
-    font-size: 0.75rem;
-    font-weight: bold;
+    font-size: 0.85rem;
+    font-weight: 700;
     color: #000;
-    height: 20px;
-    line-height: 1.2;
+    line-height: 1.3;
+    border-radius: 4px;
+    transition: all 0.2s;
 }
 
 .tabla-productos input[type="number"]:focus {
     background: white;
-    border: 1px solid #007bff;
+    border: 2px solid var(--cargue-primary);
     outline: none;
+    box-shadow: 0 0 0 3px rgba(6, 56, 109, 0.1);
 }
 
 .tabla-productos input[type="checkbox"] {
-    transform: scale(1.2);
+    transform: scale(1.3);
+    cursor: pointer;
 }
 
-/* Estilos del resumen */
-
+/* ==================== RESUMEN ==================== */
 .resumen-container {
-    background: #f8f9fa;
-    padding: 0 0.3rem 0.3rem 0.3rem;
-    border-radius: 4px;
-    border: 1px solid #dee2e6;
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--border-radius, 12px);
+    border: 1px solid var(--color-border, #dee2e6);
+    box-shadow: var(--shadow-sm);
     width: 100%;
-    max-width: 350px;
-    margin-left: 5rem;
-    margin-right: 6rem;
-    position: relative;
-    z-index: 10;
+    max-width: 38rem;
+    margin-left: 450px;
+    margin-right: 80px;
 }
 
-/* Alineación horizontal de tablas */
 .resumen-pagos {
     width: 100%;
     margin-bottom: 1rem;
 }
 
-/* Alinear tabla de resumen con tabla principal */
-.row>.col-lg-4 {
-    display: flex;
-    align-items: flex-start;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-}
-
-.resumen-container {
-    margin-top: 0;
-    align-self: flex-start;
-}
-
 .resumen-container h5 {
-    margin-bottom: 0.5rem;
-    padding-top: 0;
-    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: 1.1rem;
 }
 
 .resumen-pagos .table-header {
-    background-color: #c6e0b4;
-    font-weight: bold;
+    background: linear-gradient(135deg, #c6e0b4 0%, #a8d08c 100%);
+    font-weight: 700;
     text-align: center;
     color: #000;
 }
@@ -382,81 +329,55 @@ input[type="checkbox"]:focus {
 }
 
 .resumen-pagos tfoot td {
-    background-color: #e2efda;
-    font-weight: bold;
+    background-color: var(--cargue-header-bg);
+    font-weight: 700;
 }
 
-/* Filas más angostas estilo tabla */
 .resumen-pagos td,
 .resumen-pagos th {
-    padding: 0.15rem 0.2rem !important;
-    height: 32px !important;
-    max-height: 32px !important;
+    padding: 0.4rem 0.5rem !important;
+    min-height: 2.2rem !important;
     vertical-align: middle !important;
-    border: 1px solid #dee2e6;
-    font-size: 0.75rem;
-    line-height: 1.3 !important;
-}
-
-.resumen-pagos tbody tr {
-    height: 32px !important;
-    max-height: 32px !important;
-}
-
-.resumen-pagos thead tr {
-    height: 32px !important;
-    max-height: 32px !important;
+    border: 1px solid var(--color-border, #dee2e6);
+    font-size: 0.85rem;
+    line-height: 1.4 !important;
 }
 
 .resumen-pagos .form-control {
-    height: 28px !important;
-    max-height: 28px !important;
-    padding: 0.1rem 0.3rem;
-    font-size: 0.75rem;
+    height: auto !important;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85rem;
     border: none;
     background: transparent;
     width: 100%;
-    line-height: 1.2;
+    line-height: 1.3;
+    font-weight: 600;
 }
 
 .resumen-pagos .form-control:focus {
-    background: transparent;
-    border: none;
+    background: white;
+    border: 1px solid var(--cargue-primary);
     outline: none;
-    box-shadow: none;
+    box-shadow: 0 0 0 2px rgba(6, 56, 109, 0.1);
+    border-radius: 4px;
 }
 
-/* Estilos de los totales */
+/* Totales */
 .resumen-totales {
     width: 100%;
-    font-size: 13.6px;
+    font-size: 0.95rem;
 }
 
 .resumen-totales>div {
-    border-radius: 4px;
-    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #dee2e6);
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    font-size: 13.6px;
-}
-
-.resumen-totales>div:first-child .fw-bold {
-    padding-left: 8px;
-}
-
-.resumen-totales strong,
-.resumen-totales .fw-bold {
-    font-size: 13.6px;
-}
-
-.resumen-totales .text-end {
-    font-size: 13.6px;
-}
-
-.resumen-totales .bg-light {
-    background-color: #f8f9fa !important;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
 }
 
 .resumen-totales .bg-lightpink {
@@ -469,62 +390,122 @@ input[type="checkbox"]:focus {
     border-color: #c6e0b4 !important;
 }
 
-/* Botón limpiar */
+/* Botón Limpiar */
 .btn-limpiar {
-    background-color: #ffc107;
+    background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%);
     border-color: #ffc107;
     color: #000;
-    font-weight: 500;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    transition: all 0.2s;
 }
 
 .btn-limpiar:hover {
-    background-color: #e0a800;
+    background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
     border-color: #d39e00;
     color: #000;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
 }
 
-/* Info de cargue */
+/* Info de Cargue */
 .info-cargue .badge {
-    font-size: 0.9rem;
-    padding: 0.5rem 0.8rem;
+    font-size: 0.95rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
 }
 
-.info-cargue .bg-primary {
-    background-color: #007bff !important;
+/* Responsive - Pantallas Grandes */
+@media (min-width: 1600px) {
+    .tabla-productos {
+        font-size: 0.85rem;
+    }
+
+    .tabla-productos input[type="number"] {
+        font-size: 0.95rem;
+        width: 4.5rem;
+    }
+
+    .responsable-title {
+        font-size: 1.5rem !important;
+    }
+
+    .tabla-productos td,
+    .tabla-productos th {
+        padding: 0.5rem 0.6rem !important;
+        min-height: 2.6rem !important;
+    }
+
+    .resumen-container {
+        max-width: 28rem;
+        padding: 1.2rem;
+    }
+
+    .resumen-totales {
+        font-size: 1.05rem;
+    }
 }
 
-.info-cargue .bg-secondary {
-    background-color: #6c757d !important;
+@media (min-width: 2560px) {
+    .tabla-productos {
+        font-size: 1rem;
+    }
+
+    .tabla-productos input[type="number"] {
+        font-size: 1.1rem;
+        width: 5rem;
+    }
+
+    .responsable-title {
+        font-size: 1.8rem !important;
+    }
+
+    .tabla-productos td,
+    .tabla-productos th {
+        padding: 0.7rem 0.8rem !important;
+        min-height: 3rem !important;
+    }
+
+    .tabla-productos input[type="checkbox"] {
+        transform: scale(1.6);
+    }
+
+    .resumen-container {
+        max-width: 32rem;
+        padding: 1.5rem;
+    }
+
+    .resumen-totales {
+        font-size: 1.2rem;
+    }
+
+    .btn-primary,
+    .btn-outline-primary,
+    .btn-limpiar {
+        padding: 0.8rem 1.6rem !important;
+        font-size: 1.1rem !important;
+    }
 }
 
-.info-cargue .bg-info {
-    background-color: #17a2b8 !important;
-}
-
-/* Asegurar que el contenido tenga ancho suficiente para scroll horizontal */
-.plantilla-operativa .row {
-    min-width: 2200px;
-}
-
-.plantilla-operativa .col-lg-8 {
-    padding-left: 0.5rem;
-}
-
-.plantilla-operativa .col-lg-4 {
-    flex-shrink: 1;
-}
-
-/* Responsive */
+/* Responsive - Pantallas Pequeñas */
 @media (max-width: 768px) {
     .tabla-productos {
         font-size: 0.7rem;
     }
 
     .tabla-productos input[type="number"] {
-        width: 50px;
+        width: 3.5rem;
     }
 
     .responsable-title {
-        font-size: 1.2rem;
+        font-size: 1.1rem !important;
+    }
+
+    .resumen-container {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
     }
 }

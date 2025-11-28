@@ -31,7 +31,7 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: '110px' }}>
+    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       {/* Botón para agregar primer lote o mostrar resumen */}
       {lotes.length === 0 ? (
         <Button
@@ -40,9 +40,9 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
           onClick={agregarLote}
           disabled={disabled}
           style={{
-            fontSize: '10px',
-            padding: '1px 6px',
-            width: '100%',
+            fontSize: '11px',
+            padding: '2px 12px',
+            minWidth: '70px',
             opacity: disabled ? 0.6 : 1,
             cursor: disabled ? 'not-allowed' : 'pointer'
           }}
@@ -50,20 +50,19 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
           + Lote
         </Button>
       ) : (
-        <div>
+        <div style={{ textAlign: 'center' }}>
           {/* Resumen compacto */}
           <div
             style={{
               fontSize: '11px',
-              cursor: disabled ? 'default' : 'pointer', // 🚀 CORREGIDO: Sin cursor pointer si está deshabilitado
-              color: disabled ? '#6c757d' : '#06386d', // 🚀 CORREGIDO: Color gris si está deshabilitado
+              cursor: disabled ? 'default' : 'pointer',
+              color: disabled ? '#6c757d' : '#06386d',
               fontWeight: 'bold',
-              opacity: disabled ? 0.7 : 1
+              opacity: disabled ? 0.7 : 1,
+              textAlign: 'center'
             }}
-            onClick={disabled ? undefined : () => setMostrarLotes(!mostrarLotes)} // 🚀 CORREGIDO: Sin onClick si está deshabilitado
+            onClick={disabled ? undefined : () => setMostrarLotes(!mostrarLotes)}
           >
-            {/* 🔍 DEBUG: Mostrar información de lotes */}
-            {console.log(`🔍 LotesVencidos - Cantidad de lotes:`, lotes.length, 'Lotes:', lotes)}
             {lotes.length} lote{lotes.length > 1 ? 's' : ''} {disabled ? '' : (mostrarLotes ? '▼' : '▶')}
           </div>
 

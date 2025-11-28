@@ -1,73 +1,225 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+:root {
+  /* Colores Corporativos */
+  --color-primary: #0c2c53;
+  --color-primary-light: #163864;
+  --color-secondary: #fccc1a;
+  --color-secondary-hover: #e6b800;
+  --color-background: #f7f7fa;
+  --color-text: #2c3e50;
+  --color-text-muted: #6c757d;
+  --color-border: #e5e9f2;
+  --color-white: #ffffff;
+
+  /* Espaciados y Tamaños */
+  --border-radius: 12px;
+  --shadow-sm: 0 2px 8px 0 rgba(13, 23, 64, 0.05);
+  --shadow-md: 0 4px 12px 0 rgba(13, 23, 64, 0.1);
+  --header-height: 70px;
+  --sidebar-width: 260px;
+}
+
+/* Reset y Base */
+* {
+  box-sizing: border-box;
+}
 
 body {
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
-  background: #f7f7fa;
+  background: var(--color-background);
+  color: var(--color-text);
   margin: 0;
+  font-size: 16px;
+  /* Base size */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-.material-icons {
-  font-family: 'Material Icons' !important;
+/* Pantallas Grandes (Full HD y superiores) */
+@media (min-width: 1920px) {
+  body {
+    font-size: 18px;
+    /* Aumentar base font size */
+  }
+
+  :root {
+    --sidebar-width: 300px;
+    /* Sidebar más ancha */
+  }
 }
 
-.sidebar-bg {
-  background: #0c2c53;
+/* Pantallas Ultra Grandes (4K) */
+@media (min-width: 2560px) {
+  body {
+    font-size: 22px;
+  }
+
+  :root {
+    --sidebar-width: 380px;
+  }
 }
 
-.sidebar-item {
-  color: #fff;
-  font-size: 1rem;
+/* Iconos Responsivos */
+.material-icons,
+.bi {
+  vertical-align: middle;
+  font-size: 1.2em;
+  /* Relativo al texto */
 }
 
-.sidebar-item.active,
-.sidebar-item:hover {
-  background: #163864;
-  color: #fccc1a;
+/* Layout Wrapper para pantallas muy anchas */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
 }
 
-.brand-yellow {
-  color: #fccc1a;
+.main-content {
+  flex: 1;
+  padding: 20px;
+  max-width: 100%;
+  overflow-x: hidden;
+  transition: all 0.3s ease;
 }
 
-.brand-blue {
-  color: #0c2c53;
+/* Contenedor centralizado para pantallas ultra-wide */
+@media (min-width: 1920px) {
+  .main-content-wrapper {
+    max-width: 1800px;
+    margin: 0 auto;
+  }
 }
 
-.topbar-bg {
-  background: #fff;
-  border-bottom: 1px solid #e5e9f2;
-}
-
+/* Componentes Comunes */
 .card-bg {
-  background: #fff;
-  border-radius: 9px;
-  box-shadow: 0 2px 8px 0 rgba(13, 23, 64, 0.09);
-  padding: 16px;
-  margin-bottom: 16px;
-  border: none;
+  background: var(--color-white);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.card-bg:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Botones Responsivos */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn i {
+  font-size: 1.1em;
+}
+
+/* Scrollbar Moderno */
 ::-webkit-scrollbar {
-  width: 8px;
-  background: #e9e9ee;
+  width: 10px;
+  height: 10px;
+  background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d6d8e3;
-  border-radius: 4px;
+  background: #c1c1c1;
+  border-radius: 5px;
+  border: 2px solid #f1f1f1;
 }
 
-/* Modal overlay para centrar modales */
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Utilidades de Grid Responsivo */
+.grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+@media (min-width: 1600px) {
+  .grid-responsive {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+  }
+}
+
+/* Sidebar Styles */
+.sidebar-bg {
+  background: var(--color-primary);
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  transition: width 0.3s ease;
+}
+
+.sidebar-item {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 0 25px 25px 0;
+  margin: 4px 16px 4px 0;
+  transition: all 0.2s;
+}
+
+.sidebar-item:hover,
+.sidebar-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-white);
+  padding-left: 25px;
+}
+
+.sidebar-item.active {
+  background: var(--color-primary-light);
+  color: white;
+}
+
+/* Modal Overlay */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(12, 44, 83, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  padding: 20px;
+}
+
+/* Ajustes para móviles */
+@media (max-width: 768px) {
+  .sidebar-bg {
+    position: fixed;
+    z-index: 1000;
+    transform: translateX(-100%);
+  }
+
+  .sidebar-bg.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    padding: 15px;
+  }
 }

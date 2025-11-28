@@ -27,6 +27,7 @@ router.register(r'ventas', VentaViewSet, basename='ventas')
 router.register(r'pedidos', PedidoViewSet, basename='pedidos')
 router.register(r'clientes', ClienteViewSet, basename='clientes')
 router.register(r'lista-precios', ListaPrecioViewSet, basename='lista-precios')
+router.register(r'precio-productos', PrecioProductoViewSet, basename='precio-productos')
 router.register(r'cargue-id1', CargueID1ViewSet, basename='cargue-id1')
 router.register(r'cargue-id2', CargueID2ViewSet, basename='cargue-id2')
 router.register(r'cargue-id3', CargueID3ViewSet, basename='cargue-id3')
@@ -38,6 +39,9 @@ router.register(r'cargue-id6', CargueID6ViewSet, basename='cargue-id6')
 router.register(r'rutas', RutaViewSet, basename='rutas')
 router.register(r'clientes-ruta', ClienteRutaViewSet, basename='clientes-ruta')
 router.register(r'ventas-ruta', VentaRutaViewSet, basename='ventas-ruta')
+
+# Configuración
+router.register(r'configuracion-impresion', ConfiguracionImpresionViewSet, basename='configuracion-impresion')
 
 
 urlpatterns = router.urls + [

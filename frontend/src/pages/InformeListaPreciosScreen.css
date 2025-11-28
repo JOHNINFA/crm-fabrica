@@ -98,3 +98,65 @@
 .productos-table .align-middle {
     color: #000000 !important;
 }
+
+
+/* ==================== CHECKBOXES Y SWITCHES ==================== */
+
+/* Checkbox de Aumento - MÁS VISIBLE */
+.ajuste-porcentaje-section .form-check-input[type="checkbox"]:not(.form-switch .form-check-input) {
+    width: 1.3rem;
+    height: 1.3rem;
+    border: 2px solid #002149 !important;
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.ajuste-porcentaje-section .form-check-input[type="checkbox"]:checked:not(.form-switch .form-check-input) {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+}
+
+.ajuste-porcentaje-section .form-check-label {
+    color: #333;
+    font-size: 0.85rem;
+    margin-left: 0.4rem;
+}
+
+/* Switch de Visible en POS - TOGGLE AZUL */
+.ajuste-porcentaje-section .form-switch .form-check-input {
+    width: 2.8rem;
+    height: 1.4rem;
+    border: 2px solid #adb5bd;
+    background-color: #e9ecef;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23adb5bd'/%3e%3c/svg%3e");
+}
+
+.ajuste-porcentaje-section .form-switch .form-check-input:checked {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+}
+
+.ajuste-porcentaje-section .form-switch .form-check-input:focus {
+    border-color: #002149;
+    box-shadow: 0 0 0 0.2rem rgba(0, 33, 73, 0.25);
+}
+
+/* Tabla de ajuste */
+.ajuste-porcentaje-section table {
+    margin-bottom: 0;
+}
+
+.ajuste-porcentaje-section td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+
+.ajuste-porcentaje-section .form-check {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}

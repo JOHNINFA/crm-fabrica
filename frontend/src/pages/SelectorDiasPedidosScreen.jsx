@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import icono from '../assets/images/icono.png';
 import usePageTitle from '../hooks/usePageTitle';
+import './SelectorDia.css';
 
 const dias = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
 

@@ -696,10 +696,48 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     }, [products]);
 
+    // 🚀 NUEVO: Sincronizar precio con el backend para que se actualice en la App
+    const sincronizarPrecioBackend = async (id, nuevoPrecio) => {
+        try {
+            console.log(`💸 Sincronizando precio para producto ${id}: $${nuevoPrecio}`);
+
+            // Verificar que sea un ID válido (no temporal)
+            if (String(id).startsWith('temp_')) {
+                console.warn('⚠️ No se puede sincronizar precio de producto temporal');
+                return;
+            }
+
+            const response = await fetch(`http://localhost:8000/api/productos/${id}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    precio: nuevoPrecio
+                })
+            });
+
+            if (response.ok) {
+                console.log(`✅ Precio actualizado en backend para producto ${id}`);
+            } else {
+                console.error(`❌ Error actualizando precio en backend: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('❌ Error de red al actualizar precio:', error);
+        }
+    };
+
     // Función deshabilitada - solo el botón DESPACHO afecta inventario
     const actualizarProducto = async (id, campo, valor) => {
         // Verificar estado del botón para actualización en tiempo real
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
+
+        // 🚀 Si cambiamos el VALOR, sincronizar con backend
+        if (campo === 'valor') {
+            const nuevoPrecio = parseInt(valor) || 0;
+            // Usar debounce o llamar directamente (aquí llamamos directo, idealmente debounce)
+            sincronizarPrecioBackend(id, nuevoPrecio);
+        }
 
         setProductosOperativos(prev =>
             prev.map(p => {
@@ -959,7 +997,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     };
 
     return (
-        <div className="container-fluid plantilla-operativa" style={{ minWidth: '1200px' }}>
+        <div className="container-fluid plantilla-operativa" style={{ minWidth: '1900px', paddingRight: '150px' }}>
             {/* 👤 CAMPO RESPONSABLE EDITABLE */}
             <div className="row mb-3">
                 <div className="col-12">
