@@ -78,6 +78,11 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
   };
 
   const handleDoubleClickValor = (id) => {
+    console.log('🖱️ Doble clic en VALOR, producto:', id, 'esCompletado:', esCompletado);
+    if (esCompletado) {
+      console.log('🔒 Edición bloqueada - Jornada COMPLETADA');
+      return;
+    }
     setEditingValor(id);
   };
 
@@ -218,7 +223,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                 />
               </td>
               <td className="text-center total-cell">{p.total || 0}</td>
-              <td className="text-center valor-cell" onDoubleClick={() => handleDoubleClickValor(p.id)}>
+              <td className="text-center valor-cell" onDoubleClick={() => handleDoubleClickValor(p.id)} style={{ cursor: 'pointer' }}>
                 {editingValor === p.id ? (
                   <input
                     type="text"

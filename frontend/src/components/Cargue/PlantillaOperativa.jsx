@@ -525,7 +525,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             vencidas: productoGuardado.vencidas || 0,
                             lotesVencidos: productoGuardado.lotesVencidos || [],
                             total: productoGuardado.total || 0,
-                            valor: productoGuardado.valor || Math.round(product.price * 0.65),
+                            valor: Math.round(product.price * 0.65), // Siempre usar precio del backend
                             neto: productoGuardado.neto || 0,
                             vendedor: productoGuardado.vendedor || false,
                             despachador: productoGuardado.despachador || false
@@ -1031,15 +1031,29 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             </div>
 
             <div className="row">
-                <div className="col-lg-8">
-                    <div className="tabla-productos-container">
-                        <TablaProductos
-                            productos={productosOperativos}
-                            onActualizarProducto={actualizarProducto}
-                            dia={dia}
-                            fechaSeleccionada={fechaSeleccionada}
-                        />
+                <div className="col-12">
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                        <div className="tabla-productos-container" style={{ flex: '1 1 auto' }}>
+                            <TablaProductos
+                                productos={productosOperativos}
+                                onActualizarProducto={actualizarProducto}
+                                dia={dia}
+                                fechaSeleccionada={fechaSeleccionada}
+                            />
+                        </div>
+                        <div style={{ flex: '0 0 450px' }}>
+                            <ResumenVentas
+                                datos={datosResumen}
+                                productos={productosOperativos}
+                                dia={dia}
+                                idSheet={idSheet}
+                                fechaSeleccionada={fechaSeleccionada}
+                                estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
+                            />
+                        </div>
                     </div>
+                </div>
+                <div className="col-12 mt-3">
                     <BotonLimpiar
                         productos={productosOperativos}
                         dia={dia}
@@ -1088,16 +1102,6 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 cargarDatosGuardados();
                             }, 100);
                         }}
-                    />
-                </div>
-                <div className="col-lg-4">
-                    <ResumenVentas
-                        datos={datosResumen}
-                        productos={productosOperativos}
-                        dia={dia}
-                        idSheet={idSheet}
-                        fechaSeleccionada={fechaSeleccionada}
-                        estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
                     />
                 </div>
             </div>

@@ -333,8 +333,33 @@ const ReporteVentasRuta = () => {
                                 <div className="mt-4">
                                     <h6 className="text-danger border-bottom pb-2">⚠️ Productos Vencidos</h6>
                                     <Table striped bordered size="sm">
-                                        <thead className="table-danger"><tr><th>Producto</th><th>Cantidad</th><th>Motivo</th></tr></thead>
-                                        <tbody>{selectedVenta.productos_vencidos.map((item, idx) => <tr key={idx}><td>{item.producto}</td><td>{item.cantidad}</td><td>{item.motivo}</td></tr>)}</tbody>
+                                        <thead className="table-danger"><tr><th>Producto</th><th>Cantidad</th><th>Evidencias</th></tr></thead>
+                                        <tbody>{selectedVenta.productos_vencidos.map((item, idx) => {
+                                            const evidencias = selectedVenta.evidencias?.filter(e => e.producto_id === item.id) || [];
+                                            return (
+                                                <tr key={idx}>
+                                                    <td>{item.producto}</td>
+                                                    <td>{item.cantidad}</td>
+                                                    <td>
+                                                        {evidencias.length > 0 ? (
+                                                            <div className="d-flex flex-wrap gap-2">
+                                                                {evidencias.map((ev, i) => (
+                                                                    <img
+                                                                        key={i}
+                                                                        src={ev.imagen.startsWith('http') ? ev.imagen : `http://localhost:8000${ev.imagen}`}
+                                                                        alt={`Evidencia ${i + 1}`}
+                                                                        style={{ maxWidth: '100px', maxHeight: '80px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #ddd' }}
+                                                                        onClick={() => window.open(ev.imagen.startsWith('http') ? ev.imagen : `http://localhost:8000${ev.imagen}`, '_blank')}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted">{item.motivo || 'Sin foto'}</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}</tbody>
                                     </Table>
                                 </div>
                             )}

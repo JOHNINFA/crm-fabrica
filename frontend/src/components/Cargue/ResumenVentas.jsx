@@ -276,13 +276,10 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   };
 
   return (
-    <div className="resumen-container">
-
-
-
+    <div className="resumen-container" style={{ marginLeft: '15px' }}>
       {/* Tabla de Pagos */}
-      <div style={{ paddingRight: '15px' }}>
-        <Table bordered className="resumen-pagos mb-3" style={{ minWidth: '500px', marginRight: '20px' }}>
+      <div>
+        <Table bordered className="resumen-pagos mb-3" style={{ border: '2px solid #dee2e6', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <thead className="table-header">
             <tr>
               <th style={{ width: '150px' }}>CONCEPTO</th>
