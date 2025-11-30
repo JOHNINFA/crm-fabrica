@@ -82,11 +82,20 @@ const GestionRutas = () => {
                 ? clienteForm.dia_visita.join(',')
                 : clienteForm.dia_visita;
 
+            // Solo enviar los campos necesarios
             const data = {
-                ...clienteForm,
+                nombre_negocio: clienteForm.nombre_negocio,
+                nombre_contacto: clienteForm.nombre_contacto || '',
+                direccion: clienteForm.direccion || '',
+                telefono: clienteForm.telefono || '',
+                tipo_negocio: clienteForm.tipo_negocio || '',
                 dia_visita: diasString,
-                ruta: selectedRuta.id
+                orden: clienteForm.orden || 0,
+                ruta: selectedRuta.id,
+                activo: true
             };
+
+            console.log('Guardando cliente:', data);
 
             if (editingCliente) {
                 await rutasService.actualizarClienteRuta(editingCliente.id, data);
@@ -96,7 +105,8 @@ const GestionRutas = () => {
             setShowClienteModal(false);
             handleSelectRuta(selectedRuta); // Recargar clientes
         } catch (err) {
-            alert('Error al guardar cliente');
+            console.error('Error detallado:', err.response?.data || err);
+            alert('Error al guardar cliente: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
         }
     };
 
@@ -161,16 +171,18 @@ const GestionRutas = () => {
                                     + Agregar Cliente
                                 </Button>
                             </Card.Header>
-                            <Card.Body>
-                                <Table responsive hover size="sm">
+                            <Card.Body style={{ overflowX: 'auto' }}>
+                                <Table hover size="sm" style={{ minWidth: '1000px' }}>
                                     <thead>
                                         <tr>
-                                            <th>Orden</th>
-                                            <th>Negocio</th>
-                                            <th>Tipo</th>
-                                            <th>Día</th>
+                                            <th style={{ width: '50px' }}>Orden</th>
+                                            <th style={{ width: '150px' }}>Negocio</th>
+                                            <th style={{ width: '120px' }}>Contacto</th>
+                                            <th style={{ width: '100px' }}>Teléfono</th>
+                                            <th style={{ width: '90px' }}>Tipo</th>
+                                            <th style={{ width: '160px' }}>Día</th>
                                             <th>Dirección</th>
-                                            <th>Acciones</th>
+                                            <th style={{ width: '90px', textAlign: 'center' }}>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -178,15 +190,17 @@ const GestionRutas = () => {
                                             <tr key={cliente.id}>
                                                 <td>{cliente.orden}</td>
                                                 <td>{cliente.nombre_negocio}</td>
+                                                <td>{cliente.nombre_contacto || '-'}</td>
+                                                <td>{cliente.telefono || '-'}</td>
                                                 <td><Badge bg="secondary">{cliente.tipo_negocio || 'N/A'}</Badge></td>
                                                 <td>
                                                     {cliente.dia_visita ? cliente.dia_visita.split(',').map((dia, idx) => (
                                                         <Badge key={idx} bg="info" className="me-1">{dia.trim()}</Badge>
                                                     )) : <Badge bg="secondary">N/A</Badge>}
                                                 </td>
-                                                <td>{cliente.direccion}</td>
-                                                <td>
-                                                    <Button variant="link" size="sm" onClick={() => {
+                                                <td>{cliente.direccion || '-'}</td>
+                                                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                    <Button variant="outline-primary" size="sm" className="me-1" onClick={() => {
                                                         setEditingCliente(cliente);
                                                         // Convertir string de días a array para edición
                                                         const diasArray = cliente.dia_visita ? cliente.dia_visita.split(',') : [];
@@ -196,12 +210,12 @@ const GestionRutas = () => {
                                                         });
                                                         setShowClienteModal(true);
                                                     }}>✏️</Button>
-                                                    <Button variant="link" size="sm" className="text-danger" onClick={() => handleDeleteCliente(cliente.id)}>🗑️</Button>
+                                                    <Button variant="outline-danger" size="sm" onClick={() => handleDeleteCliente(cliente.id)}>🗑️</Button>
                                                 </td>
                                             </tr>
                                         ))}
                                         {clientes.length === 0 && (
-                                            <tr><td colSpan="6" className="text-center">No hay clientes en esta ruta</td></tr>
+                                            <tr><td colSpan="8" className="text-center">No hay clientes en esta ruta</td></tr>
                                         )}
                                     </tbody>
                                 </Table>
@@ -245,13 +259,19 @@ const GestionRutas = () => {
                 <Form onSubmit={handleSaveCliente}>
                     <Modal.Body className="pb-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                         <Row>
-                            <Col md={8}>
+                            <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Nombre Negocio</Form.Label>
                                     <Form.Control required type="text" value={clienteForm.nombre_negocio} onChange={e => setClienteForm({ ...clienteForm, nombre_negocio: e.target.value })} />
                                 </Form.Group>
                             </Col>
                             <Col md={4}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Nombre Contacto</Form.Label>
+                                    <Form.Control type="text" placeholder="Nombre del dueño/encargado" value={clienteForm.nombre_contacto} onChange={e => setClienteForm({ ...clienteForm, nombre_contacto: e.target.value })} />
+                                </Form.Group>
+                            </Col>
+                            <Col md={2}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Orden</Form.Label>
                                     <Form.Control type="number" value={clienteForm.orden} onChange={e => setClienteForm({ ...clienteForm, orden: e.target.value })} />
@@ -282,25 +302,50 @@ const GestionRutas = () => {
                         <Form.Group className="mb-4">
                             <Form.Label>Días de Visita</Form.Label>
                             <div className="d-flex flex-wrap gap-3">
-                                {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map(dia => (
-                                    <Form.Check
-                                        key={dia}
-                                        type="checkbox"
-                                        id={`dia-${dia}`}
-                                        label={dia}
-                                        checked={Array.isArray(clienteForm.dia_visita) && clienteForm.dia_visita.includes(dia)}
-                                        onChange={(e) => {
-                                            const dias = Array.isArray(clienteForm.dia_visita) ? [...clienteForm.dia_visita] : [];
-                                            if (e.target.checked) {
-                                                dias.push(dia);
-                                            } else {
-                                                const index = dias.indexOf(dia);
-                                                if (index > -1) dias.splice(index, 1);
-                                            }
-                                            setClienteForm({ ...clienteForm, dia_visita: dias });
-                                        }}
-                                    />
-                                ))}
+                                {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map(dia => {
+                                    const isChecked = Array.isArray(clienteForm.dia_visita) && clienteForm.dia_visita.includes(dia);
+                                    return (
+                                        <div
+                                            key={dia}
+                                            onClick={() => {
+                                                const dias = Array.isArray(clienteForm.dia_visita) ? [...clienteForm.dia_visita] : [];
+                                                if (isChecked) {
+                                                    const index = dias.indexOf(dia);
+                                                    if (index > -1) dias.splice(index, 1);
+                                                } else {
+                                                    dias.push(dia);
+                                                }
+                                                setClienteForm({ ...clienteForm, dia_visita: dias });
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                cursor: 'pointer',
+                                                userSelect: 'none'
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    border: '2px solid #003d88',
+                                                    borderRadius: '4px',
+                                                    backgroundColor: isChecked ? '#003d88' : 'white',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    marginRight: '8px',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {isChecked && (
+                                                    <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                                                )}
+                                            </div>
+                                            <span style={{ fontSize: '14px' }}>{dia}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                             <Form.Text className="text-muted">
                                 Selecciona uno o más días en los que se visitará este cliente

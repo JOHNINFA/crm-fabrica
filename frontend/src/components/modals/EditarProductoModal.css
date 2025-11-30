@@ -19,7 +19,8 @@
     padding-top: 1rem;
 }
 
-.custom-table th, .custom-table td {
+.custom-table th,
+.custom-table td {
     vertical-align: middle;
 }
 
@@ -34,12 +35,45 @@
 }
 
 .btn-save {
-    background-color: #002149;
-    border-color: #002149;
-    color: white;
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    color: white !important;
 }
 
 .btn-save:hover {
-    background-color: #001a3a;
-    border-color: #001a3a;
+    background-color: #001a3a !important;
+    border-color: #001a3a !important;
+    color: white !important;
+}
+
+/* Estilos para checkbox ACTIVO */
+.custom-table .form-check-input {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    cursor: pointer;
+    border: 2px solid #dee2e6 !important;
+    position: relative;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-color: white !important;
+    border-radius: 0.25rem;
+}
+
+.custom-table .form-check-input:checked {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.custom-table .form-check-input:checked::before {
+    content: '✓' !important;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white !important;
+    font-size: 1rem;
+    font-weight: bold;
+    line-height: 1;
+    display: block;
 }

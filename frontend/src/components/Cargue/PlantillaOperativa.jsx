@@ -3,7 +3,7 @@ import { useProducts } from '../../hooks/useUnifiedProducts';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
 import { responsableStorage } from '../../utils/responsableStorage';
-import { cargueHybridService, cargueApiConfig } from '../../services/cargueApiService';
+import { cargueApiConfig } from '../../services/cargueApiService'; // Keep cargueApiConfig if still used
 import TablaProductos from './TablaProductos';
 import ResumenVentas from './ResumenVentas';
 import BotonLimpiar from './BotonLimpiar';
@@ -11,6 +11,9 @@ import ControlCumplimiento from './ControlCumplimiento';
 import RegistroLotes from './RegistroLotes';
 import BotonCorreccionNuevo from './BotonCorreccionNuevo';
 import BotonVerPedidos from './BotonVerPedidos';
+
+import { cargueHybridService } from '../../services/cargueApiService'; // Corrected import
+import { productoService } from '../../services/api'; // Para cargar precios directamente
 import './PlantillaOperativa.css';
 
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
@@ -20,6 +23,50 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     const products = useMemo(() => {
         return getProductsByModule ? getProductsByModule('cargue') : allProducts;
     }, [allProducts, getProductsByModule]);
+
+    // 🚀 PRECIOS CON CACHÉ: Cargar inmediatamente desde localStorage, actualizar desde backend en segundo plano
+    const [preciosLista, setPreciosLista] = useState(() => {
+        // Cargar inmediatamente desde caché para evitar parpadeo
+        const cachePreciosStr = localStorage.getItem('precios_cargue_cache');
+        if (cachePreciosStr) {
+            try {
+                const cachePrecios = JSON.parse(cachePreciosStr);
+                console.log(`⚡ Precios cargados desde caché: ${Object.keys(cachePrecios).length} productos`);
+                return cachePrecios;
+            } catch (e) {
+                console.error('Error parseando caché de precios:', e);
+            }
+        }
+        return {};
+    });
+
+    // 🚀 Actualizar precios desde backend en segundo plano
+    useEffect(() => {
+        const actualizarPreciosDesdeBackend = async () => {
+            try {
+                console.log('💰 Actualizando precios de Cargue desde backend...');
+                const productosBackend = await productoService.getAll();
+
+                if (productosBackend && productosBackend.length > 0) {
+                    const mapaPrecios = {};
+                    productosBackend.forEach(p => {
+                        const precioCargue = parseFloat(p.precio_cargue) || 0;
+                        const precioBase = parseFloat(p.precio) || 0;
+                        mapaPrecios[p.id] = precioCargue > 0 ? precioCargue : Math.round(precioBase * 0.65);
+                    });
+
+                    // Guardar en caché para próximas cargas
+                    localStorage.setItem('precios_cargue_cache', JSON.stringify(mapaPrecios));
+                    setPreciosLista(mapaPrecios);
+                    console.log(`💰 Precios actualizados y cacheados: ${Object.keys(mapaPrecios).length} productos`);
+                }
+            } catch (error) {
+                console.error('❌ Error actualizando precios:', error);
+            }
+        };
+
+        actualizarPreciosDesdeBackend();
+    }, []); // Solo al montar
 
     const { actualizarDatosVendedor, actualizarResponsable, cargarResponsable } = useVendedores();
 
@@ -141,50 +188,68 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     }, [idSheet, responsable, nombreResponsable]);
 
-    // ✅ CARGA INMEDIATA: Inicializar con datos según el estado del día
+    // ✅ CARGA INMEDIATA CON CACHÉ: Cargar datos desde localStorage con precios cacheados
     const [productosOperativos, setProductosOperativos] = useState(() => {
         try {
-            // 🚀 NUEVO: Verificar si el día está COMPLETADO
-            const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+            // Obtener precios desde caché
+            const cachePreciosStr = localStorage.getItem('precios_cargue_cache');
+            const preciosCacheados = cachePreciosStr ? JSON.parse(cachePreciosStr) : {};
 
+            // Verificar si el día está COMPLETADO
+            const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
             if (estadoBoton === 'COMPLETADO') {
-                console.log(`⚡ INIT ${idSheet} - Día COMPLETADO detectado, iniciando vacío (se cargará desde BD)`);
+                console.log(`⚡ INIT ${idSheet} - Día COMPLETADO, iniciando vacío`);
                 return [];
             }
 
-            // Lógica original para días no completados
+            // Cargar datos desde localStorage
             const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
             const datosLocalString = localStorage.getItem(key);
 
             if (datosLocalString) {
                 const datos = JSON.parse(datosLocalString);
                 if (datos && datos.productos && datos.productos.length > 0) {
-                    console.log(`⚡ INIT ${idSheet} - Carga inmediata desde localStorage:`, datos.productos.length, 'productos');
-                    const productosBase = datos.productos.map(p => ({
-                        id: p.id || `temp_${Math.random()}`,
-                        producto: p.producto,
-                        cantidad: p.cantidad || 0,
-                        dctos: p.dctos || 0,
-                        adicional: p.adicional || 0,
-                        devoluciones: p.devoluciones || 0,
-                        vencidas: p.vencidas || 0,
-                        lotesVencidos: p.lotesVencidos || [],
-                        total: p.total || 0,
-                        valor: p.valor || 0,
-                        neto: p.neto || 0,
-                        vendedor: p.vendedor || false,
-                        despachador: p.despachador || false
-                    }));
+                    console.log(`⚡ INIT ${idSheet} - Carga inmediata con precios cacheados:`, datos.productos.length, 'productos');
 
-                    // 🧮 Recalcular totales para asegurar consistencia
-                    return recalcularTotales(productosBase);
+                    const productosBase = datos.productos.map(p => {
+                        // Usar precio cacheado si existe, sino usar el valor guardado
+                        const precioCacheado = preciosCacheados[p.id];
+                        return {
+                            id: p.id || `temp_${Math.random()}`,
+                            producto: p.producto,
+                            cantidad: p.cantidad || 0,
+                            dctos: p.dctos || 0,
+                            adicional: p.adicional || 0,
+                            devoluciones: p.devoluciones || 0,
+                            vencidas: p.vencidas || 0,
+                            lotesVencidos: p.lotesVencidos || [],
+                            total: p.total || 0,
+                            valor: precioCacheado !== undefined ? precioCacheado : (p.valor || 0),
+                            neto: p.neto || 0,
+                            vendedor: p.vendedor || false,
+                            despachador: p.despachador || false
+                        };
+                    });
+
+                    // Recalcular totales
+                    return productosBase.map(p => {
+                        const cantidad = parseInt(p.cantidad) || 0;
+                        const dctos = parseInt(p.dctos) || 0;
+                        const adicional = parseInt(p.adicional) || 0;
+                        const devoluciones = parseInt(p.devoluciones) || 0;
+                        const vencidas = parseInt(p.vencidas) || 0;
+                        const valor = parseInt(p.valor) || 0;
+                        const total = cantidad - dctos + adicional - devoluciones - vencidas;
+                        const neto = Math.round(total * valor);
+                        return { ...p, total, neto };
+                    });
                 }
             }
 
-            console.log(`⚡ INIT ${idSheet} - No hay datos en localStorage, iniciando vacío`);
+            console.log(`⚡ INIT ${idSheet} - No hay datos en localStorage`);
             return [];
         } catch (error) {
-            console.error(`❌ INIT ${idSheet} - Error cargando desde localStorage:`, error);
+            console.error(`❌ INIT ${idSheet} - Error:`, error);
             return [];
         }
     });
@@ -233,15 +298,19 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 const coincideFecha = pedido.fecha_entrega === fechaFormateada;
                 const noAnulado = pedido.estado !== 'ANULADA';
 
-                // 🚀 CORREGIDO: Buscar por nombre del vendedor desde responsableStorage
+                // 🚀 CORREGIDO: Buscar por nombre del vendedor desde responsableStorage (CASE INSENSITIVE)
                 let coincideVendedor = false;
                 if (pedido.vendedor) {
+                    const vendedorPedido = pedido.vendedor.toLowerCase().trim();
+                    const vendedorBuscado = (nombreVendedor || '').toLowerCase().trim();
+                    const idVendedorLower = idVendedor.toLowerCase();
+
                     // Opción 1: El pedido tiene formato "Nombre (ID1)"
-                    if (pedido.vendedor.includes(`(${idVendedor})`)) {
+                    if (pedido.vendedor.toLowerCase().includes(`(${idVendedorLower})`)) {
                         coincideVendedor = true;
                     }
-                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable
-                    else if (nombreVendedor && pedido.vendedor.trim() === nombreVendedor.trim()) {
+                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable (case insensitive)
+                    else if (vendedorBuscado && vendedorPedido === vendedorBuscado) {
                         coincideVendedor = true;
                     }
                 }
@@ -525,7 +594,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             vencidas: productoGuardado.vencidas || 0,
                             lotesVencidos: productoGuardado.lotesVencidos || [],
                             total: productoGuardado.total || 0,
-                            valor: Math.round(product.price * 0.65), // Siempre usar precio del backend
+                            valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65), // Usar precio de lista o fallback
                             neto: productoGuardado.neto || 0,
                             vendedor: productoGuardado.vendedor || false,
                             despachador: productoGuardado.despachador || false
@@ -544,7 +613,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         vencidas: 0,
                         lotesVencidos: [],
                         total: 0,
-                        valor: Math.round(product.price * 0.65),
+                        valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65),
                         neto: 0,
                         vendedor: false,
                         despachador: false
@@ -584,7 +653,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 vencidas: 0,
                 lotesVencidos: [],
                 total: 0,
-                valor: Math.round(product.price * 0.65),
+                valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65),
                 neto: 0,
                 vendedor: false,
                 despachador: false
@@ -598,21 +667,52 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     };
 
-    // ✅ ACTUALIZACIÓN SOLO CUANDO CAMBIA LA FECHA: Recargar si cambia día/fecha
+    // ✅ ACTUALIZACIÓN: Solo recargar si no hay datos o si cambia día/fecha
     useEffect(() => {
-        console.log(`🔄 ${idSheet} - Cambio detectado (dia: ${dia}, fecha: ${fechaSeleccionada})`);
+        // Si ya hay productos cargados desde el estado inicial, solo actualizar precios
+        if (productosOperativos.length > 0 && Object.keys(preciosLista).length > 0) {
+            console.log(`🔄 ${idSheet} - Productos ya cargados, actualizando precios si es necesario...`);
 
-        // 🚀 NUEVO: Verificar si el día está COMPLETADO antes de cargar
+            // Verificar si algún precio cambió
+            let preciosCambiaron = false;
+            productosOperativos.forEach(p => {
+                const nuevoPrecio = preciosLista[p.id];
+                if (nuevoPrecio !== undefined && nuevoPrecio !== p.valor) {
+                    preciosCambiaron = true;
+                }
+            });
+
+            if (preciosCambiaron) {
+                setProductosOperativos(prev => prev.map(p => {
+                    const nuevoPrecio = preciosLista[p.id];
+                    if (nuevoPrecio !== undefined && nuevoPrecio !== p.valor) {
+                        const total = (parseInt(p.cantidad) || 0) - (parseInt(p.dctos) || 0) + (parseInt(p.adicional) || 0) - (parseInt(p.devoluciones) || 0) - (parseInt(p.vencidas) || 0);
+                        return { ...p, valor: nuevoPrecio, neto: Math.round(total * nuevoPrecio) };
+                    }
+                    return p;
+                }));
+            }
+            return;
+        }
+
+        // Solo cargar si los precios ya están listos
+        if (Object.keys(preciosLista).length === 0) {
+            console.log(`⏳ ${idSheet} - Esperando precios antes de cargar datos...`);
+            return;
+        }
+
+        console.log(`🔄 ${idSheet} - Cargando datos (dia: ${dia}, fecha: ${fechaSeleccionada})`);
+
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
 
         if (estadoBoton === 'COMPLETADO') {
             console.log(`🔍 ${idSheet} - Día COMPLETADO detectado, cargando desde BD...`);
             cargarDatosDesdeDB();
         } else {
-            console.log(`📂 ${idSheet} - Día no completado, cargando desde localStorage (con merge si hay datos de app)...`);
+            console.log(`📂 ${idSheet} - Día no completado, cargando desde localStorage...`);
             cargarDatosGuardados();
         }
-    }, [dia, idSheet, fechaSeleccionada]);
+    }, [preciosLista]); // Solo depende de preciosLista, no de dia/idSheet/fecha (esos se manejan en el estado inicial)
 
 
 
@@ -696,48 +796,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     }, [products]);
 
-    // 🚀 NUEVO: Sincronizar precio con el backend para que se actualice en la App
-    const sincronizarPrecioBackend = async (id, nuevoPrecio) => {
-        try {
-            console.log(`💸 Sincronizando precio para producto ${id}: $${nuevoPrecio}`);
-
-            // Verificar que sea un ID válido (no temporal)
-            if (String(id).startsWith('temp_')) {
-                console.warn('⚠️ No se puede sincronizar precio de producto temporal');
-                return;
-            }
-
-            const response = await fetch(`http://localhost:8000/api/productos/${id}/`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    precio: nuevoPrecio
-                })
-            });
-
-            if (response.ok) {
-                console.log(`✅ Precio actualizado en backend para producto ${id}`);
-            } else {
-                console.error(`❌ Error actualizando precio en backend: ${response.statusText}`);
-            }
-        } catch (error) {
-            console.error('❌ Error de red al actualizar precio:', error);
-        }
-    };
-
     // Función deshabilitada - solo el botón DESPACHO afecta inventario
     const actualizarProducto = async (id, campo, valor) => {
         // Verificar estado del botón para actualización en tiempo real
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
-
-        // 🚀 Si cambiamos el VALOR, sincronizar con backend
-        if (campo === 'valor') {
-            const nuevoPrecio = parseInt(valor) || 0;
-            // Usar debounce o llamar directamente (aquí llamamos directo, idealmente debounce)
-            sincronizarPrecioBackend(id, nuevoPrecio);
-        }
 
         setProductosOperativos(prev =>
             prev.map(p => {
@@ -990,6 +1052,51 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         window.addEventListener('solicitarGuardado', handleSolicitudGuardado);
         return () => window.removeEventListener('solicitarGuardado', handleSolicitudGuardado);
     }, [productosOperativos, dia, idSheet, fechaSeleccionada, nombreResponsable]);
+
+    // 🔄 NUEVO: Escuchar evento de sincronización de checks V desde MenuSheets
+    useEffect(() => {
+        const handleChecksVActualizados = (e) => {
+            const { dia: diaEvento, fecha: fechaEvento } = e.detail;
+
+            // Solo procesar si es para este día y fecha
+            if (diaEvento === dia && fechaEvento === fechaSeleccionada) {
+                console.log(`🔄 ${idSheet} - Evento checksVActualizados recibido, recargando datos...`);
+
+                // Recargar datos desde localStorage (que ya fue actualizado por MenuSheets)
+                const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
+                const datosString = localStorage.getItem(key);
+
+                if (datosString) {
+                    try {
+                        const datos = JSON.parse(datosString);
+                        if (datos.productos && datos.productos.length > 0) {
+                            // Actualizar productos con los nuevos checks V
+                            setProductosOperativos(prev => {
+                                return prev.map(producto => {
+                                    const productoActualizado = datos.productos.find(p => p.producto === producto.producto);
+                                    if (productoActualizado) {
+                                        return {
+                                            ...producto,
+                                            vendedor: productoActualizado.vendedor || false,
+                                            despachador: productoActualizado.despachador || false
+                                        };
+                                    }
+                                    return producto;
+                                });
+                            });
+                            console.log(`✅ ${idSheet} - Checks V actualizados en UI`);
+                        }
+                    } catch (error) {
+                        console.error(`❌ ${idSheet} - Error procesando checksVActualizados:`, error);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('checksVActualizados', handleChecksVActualizados);
+        return () => window.removeEventListener('checksVActualizados', handleChecksVActualizados);
+    }, [dia, idSheet, fechaSeleccionada]);
+
     // Función limpiarDatos deshabilitada para debug
     const limpiarDatos = () => {
         console.log('⚠️ limpiarDatos llamada - DESHABILITADA para debug');

@@ -78,7 +78,28 @@ function PosMainContent() {
   }, [isAuthenticated, cajeroLogueado]);
 
   const [client, setClient] = useState("CONSUMIDOR FINAL");
-  const [priceList, setPriceList] = useState("CLIENTES");
+
+  // 🆕 Determinar qué lista de precios usar según configuración de visibilidad
+  const [priceList, setPriceList] = useState(() => {
+    try {
+      const listasVisiblesPos = localStorage.getItem('listasVisiblesPos');
+      if (listasVisiblesPos) {
+        const listas = JSON.parse(listasVisiblesPos);
+        // Buscar la primera lista activa
+        const listaActiva = Object.keys(listas).find(nombre => listas[nombre] === true);
+        if (listaActiva) {
+          console.log(`💰 POS usando lista de precios: ${listaActiva}`);
+          return listaActiva;
+        }
+      }
+    } catch (error) {
+      console.error('Error leyendo listasVisiblesPos:', error);
+    }
+    // Fallback a CLIENTES si no hay configuración
+    console.log('💰 POS usando lista de precios por defecto: CLIENTES');
+    return "CLIENTES";
+  });
+
   const [imp, setImp] = useState(0);
   const [desc, setDesc] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(210);

@@ -509,3 +509,24 @@ input[type="checkbox"]:focus {
         max-width: 100%;
     }
 }
+
+/*
+ ==================== ANIMACIÓN SINCRONIZAR ==================== */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-sincronizar .material-icons {
+    transition: transform 0.3s ease;
+}
+
+.btn-sincronizar:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

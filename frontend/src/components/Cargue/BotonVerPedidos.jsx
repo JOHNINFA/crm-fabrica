@@ -30,15 +30,19 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 const coincideFecha = pedido.fecha_entrega === fechaSeleccionada;
                 const noAnulado = pedido.estado !== 'ANULADA';
 
-                // Verificar si el vendedor coincide (por nombre o por ID)
+                // Verificar si el vendedor coincide (por nombre o por ID) - CASE INSENSITIVE
                 let coincideVendedor = false;
                 if (pedido.vendedor) {
+                    const vendedorPedido = pedido.vendedor.toLowerCase().trim();
+                    const vendedorBuscado = (nombreVendedor || '').toLowerCase().trim();
+                    const idSheetLower = idSheet.toLowerCase();
+
                     // Opción 1: El pedido tiene formato "Nombre (ID1)"
-                    if (pedido.vendedor.includes(`(${idSheet})`)) {
+                    if (pedido.vendedor.toLowerCase().includes(`(${idSheetLower})`)) {
                         coincideVendedor = true;
                     }
-                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable
-                    else if (nombreVendedor && pedido.vendedor.trim() === nombreVendedor.trim()) {
+                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable (case insensitive)
+                    else if (vendedorBuscado && vendedorPedido === vendedorBuscado) {
                         coincideVendedor = true;
                     }
                 }

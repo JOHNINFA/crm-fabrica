@@ -33,6 +33,12 @@ const InformeListaPreciosScreen = () => {
         return saved ? JSON.parse(saved) : { 'CLIENTES': true };
     });
 
+    // 🆕 Estado para controlar los checkboxes de aumento
+    const [listasAumento, setListasAumento] = useState(() => {
+        const saved = localStorage.getItem('listasAumento');
+        return saved ? JSON.parse(saved) : {};
+    });
+
     // Detectar de dónde viene el usuario
     const origenModulo = sessionStorage.getItem('origenModulo') || 'pos';
 
@@ -96,6 +102,16 @@ const InformeListaPreciosScreen = () => {
         setListasVisiblesPos(nuevasListas);
         localStorage.setItem('listasVisiblesPos', JSON.stringify(nuevasListas));
         console.log(`✅ Lista "${nombreLista}" ${nuevasListas[nombreLista] ? 'activada' : 'desactivada'} para POS`);
+    };
+
+    // 🆕 Manejar toggle de aumento
+    const handleToggleAumento = (nombreLista) => {
+        const nuevasListas = {
+            ...listasAumento,
+            [nombreLista]: !listasAumento[nombreLista]
+        };
+        setListasAumento(nuevasListas);
+        localStorage.setItem('listasAumento', JSON.stringify(nuevasListas));
     };
 
     return (
@@ -198,7 +214,8 @@ const InformeListaPreciosScreen = () => {
                                                         <input
                                                             className="form-check-input"
                                                             type="checkbox"
-                                                            defaultChecked
+                                                            checked={listasAumento[lista.nombre] || false}
+                                                            onChange={() => handleToggleAumento(lista.nombre)}
                                                         />
                                                         <label className="form-check-label">
                                                             Aumento / Disminuir
@@ -256,7 +273,7 @@ const InformeListaPreciosScreen = () => {
                                     <table className="table table-striped table-hover productos-table">
                                         <thead>
                                             <tr>
-                                                <th colSpan="9">
+                                                <th colSpan="7">
                                                     <input
                                                         type="text"
                                                         className="form-control form-control-sm"
@@ -271,9 +288,7 @@ const InformeListaPreciosScreen = () => {
                                                 <th>Nombre</th>
                                                 <th>Categoría</th>
                                                 <th>Precio Compra</th>
-                                                <th>Precio Venta + Imp</th>
-                                                <th>Precio Venta Online</th>
-                                                <th>Precio Mínimo</th>
+                                                <th>COMERZIALIZADORA</th>
                                                 <th>CLIENTES</th>
                                                 <th>DOMICILIOS</th>
                                             </tr>
@@ -281,11 +296,11 @@ const InformeListaPreciosScreen = () => {
                                         <tbody>
                                             {loading ? (
                                                 <tr>
-                                                    <td colSpan="9" className="text-center">Cargando productos...</td>
+                                                    <td colSpan="7" className="text-center">Cargando productos...</td>
                                                 </tr>
                                             ) : productosFiltrados.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="9" className="text-center">No hay productos</td>
+                                                    <td colSpan="7" className="text-center">No hay productos</td>
                                                 </tr>
                                             ) : (
                                                 productosFiltrados.map(p => (
@@ -302,9 +317,7 @@ const InformeListaPreciosScreen = () => {
                                                         <td className="align-middle">{p.nombre}</td>
                                                         <td className="align-middle">{p.categoria_nombre || 'Sin categoría'}</td>
                                                         <td className="align-middle">$ {Math.round(p.precio_compra || 0)}</td>
-                                                        <td className="align-middle">$ {Math.round(p.precio)}</td>
-                                                        <td className="align-middle">$ {Math.round(p.precio)}</td>
-                                                        <td className="align-middle">$ {Math.round(p.precio)}</td>
+                                                        <td className="align-middle">{getPrecioProductoLista(p.id, 'COMERZIALIZADORA')}</td>
                                                         <td className="align-middle">{getPrecioProductoLista(p.id, 'CLIENTES')}</td>
                                                         <td className="align-middle">{getPrecioProductoLista(p.id, 'DOMICILIOS')}</td>
                                                     </tr>

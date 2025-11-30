@@ -77,6 +77,14 @@ const OtrosScreen = () => {
             icon: 'point_of_sale',
             color: 'success',
             action: () => setActiveModule('ventas_ruta')
+        },
+        {
+            id: 'precios_cargue',
+            title: 'Precios Cargue y App',
+            description: 'Precios independientes para Cargue y App móvil',
+            icon: 'attach_money',
+            color: 'warning',
+            route: '/precios-cargue'
         }
     ];
 

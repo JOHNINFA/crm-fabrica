@@ -1,0 +1,32 @@
+.precios-cargue-container {
+    padding: 1rem;
+    min-height: 100vh;
+}
+
+.precios-cargue-container .table th {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.precios-cargue-container .table td {
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+.precios-cargue-container .input-group-text {
+    background-color: #f8f9fa;
+    font-size: 0.875rem;
+}
+
+.precios-cargue-container .form-control {
+    font-size: 0.875rem;
+}
+
+.precios-cargue-container .table-dark {
+    background-color: #002149;
+}
+
+.precios-cargue-container .table-dark th {
+    background-color: #002149;
+    border-color: #001a3a;
+}

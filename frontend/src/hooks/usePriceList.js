@@ -3,7 +3,7 @@ import { listaPrecioService, precioProductoService } from '../services/listaPrec
 
 // Caché global de precios con timestamp
 const preciosCache = {};
-const CACHE_DURATION = 30000; // 30 segundos
+const CACHE_DURATION = 5000; // 5 segundos (reducido para reflejar cambios más rápido)
 
 // Función para limpiar toda la caché
 export const clearPriceCache = () => {
@@ -35,7 +35,7 @@ export const usePriceList = (priceListName, products) => {
         // Obtener la lista de precios
         const listas = await listaPrecioService.getAll({ activo: true });
         const lista = listas.find(l => l.nombre === priceListName);
-        
+
         if (!lista) {
           setPrecios({});
           preciosCache[cacheKey] = { data: {}, timestamp: now };
@@ -44,7 +44,7 @@ export const usePriceList = (priceListName, products) => {
 
         // Cargar TODOS los precios de esta lista de una vez
         const todosPrecios = await precioProductoService.getAll({ lista_precio: lista.id });
-        
+
         // Crear mapa de precios por producto
         const preciosMap = {};
         todosPrecios.forEach(precio => {

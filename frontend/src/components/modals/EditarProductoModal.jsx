@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Tabs, Tab, Form, Table } from 'react-bootstrap';
 import { BsCheckLg, BsInfoCircle } from 'react-icons/bs';
 import { listaPrecioService, precioProductoService } from '../../services/listaPrecioService';
+import { clearPriceCache } from '../../hooks/usePriceList';
 import './EditarProductoModal.css';
 
 const EditarProductoModal = ({ show, handleClose, producto }) => {
@@ -22,7 +23,7 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
                 listaPrecioService.getAll({ activo: true }),
                 precioProductoService.getAll({ producto: producto.id })
             ]);
-            
+
             setListasPrecios(listas);
             setPreciosProducto(precios);
         } catch (error) {
@@ -35,7 +36,7 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
     const handlePrecioChange = async (listaId, precio, utilidad) => {
         try {
             const precioExistente = preciosProducto.find(p => p.lista_precio === listaId);
-            
+
             const data = {
                 producto: producto.id,
                 lista_precio: listaId,
@@ -49,7 +50,7 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
             } else {
                 await precioProductoService.createOrUpdate(data);
             }
-            
+
             cargarDatos();
         } catch (error) {
             console.error('Error guardando precio:', error);
@@ -69,7 +70,7 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
     if (!producto) return null;
 
     return (
-        <Modal show={show} onHide={handleClose} size="xl" centered>
+        <Modal show={show} onHide={handleClose} size="xl" centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>Editar Producto: {producto.nombre}</Modal.Title>
             </Modal.Header>
@@ -82,7 +83,7 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
                                 <Form.Label>Nombre</Form.Label>
                                 <Form.Control type="text" defaultValue={producto.nombre} readOnly />
                             </Form.Group>
-                            
+
                             <h5 className="mt-4">Lista de Precios</h5>
                             {loading ? (
                                 <p>Cargando...</p>
@@ -94,8 +95,6 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
                                             <th>Nombre Lista</th>
                                             <th>Tipo Lista Precio</th>
                                             <th>Valor</th>
-                                            <th>Utilidad%</th>
-                                            <th>Activo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -105,29 +104,14 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
                                                 <td>{lista.nombre}</td>
                                                 <td>{lista.tipo}</td>
                                                 <td>
-                                                    <Form.Control 
-                                                        type="text" 
+                                                    <Form.Control
+                                                        type="text"
                                                         defaultValue={`$ ${getPrecioProducto(lista.id)}`}
                                                         onBlur={(e) => {
                                                             const precio = e.target.value.replace(/[$,]/g, '');
-                                                            const utilidad = getUtilidadProducto(lista.id);
-                                                            handlePrecioChange(lista.id, precio, utilidad);
+                                                            handlePrecioChange(lista.id, precio, 100);
                                                         }}
                                                     />
-                                                </td>
-                                                <td>
-                                                    <Form.Control 
-                                                        type="text" 
-                                                        defaultValue={getUtilidadProducto(lista.id)}
-                                                        onBlur={(e) => {
-                                                            const utilidad = e.target.value;
-                                                            const precio = getPrecioProducto(lista.id);
-                                                            handlePrecioChange(lista.id, precio, utilidad);
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td className="align-middle">
-                                                    <Form.Check type="checkbox" defaultChecked />
                                                 </td>
                                             </tr>
                                         ))}
@@ -140,12 +124,47 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
             </Modal.Body>
 
             <Modal.Footer>
-                <Button variant="secondary" onClick={handleClose}>
+                <Button
+                    variant="secondary"
+                    onClick={handleClose}
+                    size="sm"
+                    style={{
+                        padding: '0.4rem 1rem',
+                        borderRadius: '0.375rem',
+                        fontSize: '0.875rem'
+                    }}
+                >
                     Cancelar
                 </Button>
-                <Button className="btn-save" onClick={handleClose}>
+                <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{
+                        backgroundColor: '#002149',
+                        borderColor: '#002149',
+                        color: 'white',
+                        padding: '0.4rem 1rem',
+                        fontSize: '0.875rem',
+                        borderRadius: '0.375rem',
+                        border: '1px solid #002149',
+                        fontWeight: '400',
+                        lineHeight: '1.5'
+                    }}
+                    onClick={() => {
+                        clearPriceCache();
+                        handleClose();
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#001a3a';
+                        e.target.style.borderColor = '#001a3a';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#002149';
+                        e.target.style.borderColor = '#002149';
+                    }}
+                >
                     Guardar
-                </Button>
+                </button>
             </Modal.Footer>
         </Modal>
     );

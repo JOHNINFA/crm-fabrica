@@ -2283,8 +2283,15 @@ def guardar_sugerido(request):
     try:
         data = request.data
         vendedor_id = data.get('vendedor_id') # Ej: "ID1"
-        dia = data.get('dia', '').upper() # Ej: "LUNES"
+        dia_raw = data.get('dia', '').upper() # Ej: "LUNES" o "SÁBADO"
         fecha_raw = data.get('fecha') # Ej: "2025-11-29" o "2025-11-29T..."
+        
+        # Normalizar día (quitar tildes para consistencia)
+        dias_sin_tilde = {
+            'SÁBADO': 'SABADO',
+            'MIÉRCOLES': 'MIERCOLES',
+        }
+        dia = dias_sin_tilde.get(dia_raw, dia_raw)
         
         # Sanitizar fecha: tomar solo los primeros 10 caracteres (YYYY-MM-DD)
         if fecha_raw and len(str(fecha_raw)) > 10:
@@ -2293,7 +2300,7 @@ def guardar_sugerido(request):
             fecha = fecha_raw
             
         productos = data.get('productos', []) # Lista de {nombre, cantidad}
-        print(f"📱 Recibiendo Sugerido App: {vendedor_id} - {dia} - {fecha} (Raw: {fecha_raw})")
+        print(f"📱 Recibiendo Sugerido App: {vendedor_id} - {dia} (raw: {dia_raw}) - {fecha}")
 
         # Mapeo de ID a Modelo
         modelos = {
@@ -2462,10 +2469,17 @@ def obtener_cargue(request):
     """
     try:
         vendedor_id = request.query_params.get('vendedor_id')
-        dia = request.query_params.get('dia', '').upper()
+        dia_raw = request.query_params.get('dia', '').upper()
         fecha = request.query_params.get('fecha') # YYYY-MM-DD
+        
+        # Normalizar día (manejar con y sin tildes)
+        dias_con_tilde = {
+            'SABADO': 'SÁBADO',
+            'MIERCOLES': 'MIÉRCOLES',
+        }
+        dia = dias_con_tilde.get(dia_raw, dia_raw)
 
-        print(f"📱 Solicitando Cargue App: {vendedor_id} - {dia} - {fecha}")
+        print(f"📱 Solicitando Cargue App: {vendedor_id} - {dia} (raw: {dia_raw}) - {fecha}")
 
         # Mapeo de ID a Modelo
         modelos = {
@@ -2481,13 +2495,20 @@ def obtener_cargue(request):
         if not Modelo:
             return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
 
-        # Construir filtro
-        filtros = {'dia': dia}
+        # Construir filtro - buscar con y sin tilde
+        from django.db.models import Q
+        
+        # Crear lista de posibles variantes del día
+        dias_variantes = [dia, dia_raw]
+        if dia != dia_raw:
+            dias_variantes = list(set(dias_variantes))
+        
+        filtros_q = Q(dia__in=dias_variantes)
         if fecha:
-            filtros['fecha'] = fecha
+            filtros_q &= Q(fecha=fecha)
         
         # Obtener registros
-        registros = Modelo.objects.filter(**filtros)
+        registros = Modelo.objects.filter(filtros_q)
         
         # Formatear respuesta para la App
         data = {}
@@ -2505,6 +2526,68 @@ def obtener_cargue(request):
 
     except Exception as e:
         print(f"❌ Error obteniendo cargue: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def obtener_rendimiento_cargue(request):
+    """
+    Obtiene el rendimiento consolidado de todos los IDs para un día y fecha específica
+    Para el módulo de Rendimiento de la app móvil
+    """
+    dia = request.GET.get('dia', '').upper()
+    fecha = request.GET.get('fecha')
+    
+    if not dia or not fecha:
+        return Response({'error': 'Faltan parámetros: dia, fecha'}, status=400)
+    
+    # Mapear todos los modelos de cargue
+    modelos = {
+        'ID1': CargueID1,
+        'ID2': CargueID2,
+        'ID3': CargueID3,
+        'ID4': CargueID4,
+        'ID5': CargueID5,
+        'ID6': CargueID6
+    }
+    
+    try:
+        # Consolidar datos de todos los IDs
+        productos_consolidados = {}
+        
+        for id_name, modelo in modelos.items():
+            registros = modelo.objects.filter(dia=dia, fecha=fecha)
+            
+            for registro in registros:
+                producto_nombre = registro.producto
+                
+                if producto_nombre not in productos_consolidados:
+                    productos_consolidados[producto_nombre] = {
+                        'producto': producto_nombre,
+                        'vencidas': 0,
+                        'devoluciones': 0,
+                        'total': 0
+                    }
+                
+                # Sumar los valores de todos los IDs
+                productos_consolidados[producto_nombre]['vencidas'] += registro.vencidas or 0
+                productos_consolidados[producto_nombre]['devoluciones'] += registro.devoluciones or 0
+                productos_consolidados[producto_nombre]['total'] += registro.total or 0
+        
+        # Convertir a lista y ordenar por nombre de producto
+        data = list(productos_consolidados.values())
+        data.sort(key=lambda x: x['producto'])
+        
+        return Response({
+            'success': True,
+            'data': data,
+            'dia': dia,
+            'fecha': fecha,
+            'total_productos': len(data)
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo rendimiento: {str(e)}")
         return Response({'error': str(e)}, status=500)
 
 
@@ -2645,20 +2728,40 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
         queryset = ClienteRuta.objects.all()
         ruta_id = self.request.query_params.get('ruta', None)
         dia = self.request.query_params.get('dia', None)
+        vendedor_id = self.request.query_params.get('vendedor_id', None)
+        
+        # Filtrar por vendedor (busca la ruta del vendedor)
+        if vendedor_id:
+            rutas_vendedor = Ruta.objects.filter(vendedor__id_vendedor=vendedor_id, activo=True)
+            queryset = queryset.filter(ruta__in=rutas_vendedor)
         
         if ruta_id:
             queryset = queryset.filter(ruta_id=ruta_id)
         if dia:
             # Buscar clientes que tengan este día en su lista (soporta múltiples días)
             # Ej: Si dia="MIERCOLES", encuentra "LUNES,MIERCOLES,VIERNES"
-            queryset = queryset.filter(dia_visita__contains=dia.upper())
+            queryset = queryset.filter(dia_visita__icontains=dia.upper())
             
-        return queryset.order_by('orden')
+        return queryset.filter(activo=True).order_by('orden')
 
 class VentaRutaViewSet(viewsets.ModelViewSet):
     queryset = VentaRuta.objects.all()
     serializer_class = VentaRutaSerializer
     permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = VentaRuta.objects.all()
+        vendedor_id = self.request.query_params.get('vendedor_id', None)
+        fecha = self.request.query_params.get('fecha', None)
+        
+        if vendedor_id:
+            queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
+        if fecha:
+            # Filtrar por fecha (solo la parte de la fecha, ignorando la hora)
+            queryset = queryset.filter(fecha__date=fecha)
+        
+        # Ordenar por fecha descendente (más recientes primero)
+        return queryset.order_by('-fecha')
     
     @action(detail=False, methods=['get'])
     def reportes(self, request):

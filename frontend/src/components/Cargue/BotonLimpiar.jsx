@@ -653,18 +653,41 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   const guardarDatosDelID = async (fechaAUsar, idVendedor) => {
     try {
       console.log(`💾 ${idVendedor} - GUARDANDO DATOS ESPECÍFICOS...`);
+      console.log(`📅 ${idVendedor} - Fecha a usar: ${fechaAUsar}`);
 
       const { simpleStorage } = await import('../../services/simpleStorage');
       const { cargueService } = await import('../../services/cargueService');
 
       // Obtener datos desde localStorage del ID específico
       const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
-      const datos = await simpleStorage.getItem(key);
+      console.log(`🔑 ${idVendedor} - Buscando datos en key: ${key}`);
+
+      // 🚀 MEJORADO: Intentar obtener de localStorage directamente primero
+      let datos = null;
+      const datosLocalString = localStorage.getItem(key);
+
+      if (datosLocalString) {
+        try {
+          datos = JSON.parse(datosLocalString);
+          console.log(`✅ ${idVendedor} - Datos encontrados en localStorage: ${datos.productos?.length || 0} productos`);
+        } catch (parseError) {
+          console.error(`❌ ${idVendedor} - Error parsing localStorage:`, parseError);
+        }
+      }
+
+      // Si no hay datos en localStorage, intentar con simpleStorage
+      if (!datos) {
+        datos = await simpleStorage.getItem(key);
+        console.log(`🔍 ${idVendedor} - Datos desde simpleStorage: ${datos?.productos?.length || 0} productos`);
+      }
 
       if (!datos || !datos.productos) {
-        console.log(`⚠️ ${idVendedor} - No hay datos para guardar`);
+        console.log(`⚠️ ${idVendedor} - No hay datos para guardar (datos: ${JSON.stringify(datos)})`);
         return false;
       }
+
+      console.log(`📊 ${idVendedor} - Total productos en datos: ${datos.productos.length}`);
+      console.log(`📊 ${idVendedor} - Productos con cantidad > 0: ${datos.productos.filter(p => p.cantidad > 0).length}`);
 
       // Filtrar solo productos que tienen datos relevantes
       const productosParaGuardar = datos.productos.filter(p =>
@@ -776,14 +799,21 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       });
 
       // Recopilar datos de cumplimiento
-      const datosCumplimiento = localStorage.getItem(`cumplimiento_${dia}_${idVendedor}_${fechaAUsar}`);
+      const cumplimientoKey = `cumplimiento_${dia}_${idVendedor}_${fechaAUsar}`;
+      const datosCumplimiento = localStorage.getItem(cumplimientoKey);
       let cumplimientoData = {};
+
+      console.log(`📋 ${idVendedor} - Buscando cumplimiento en: ${cumplimientoKey}`);
+
       if (datosCumplimiento) {
         try {
           cumplimientoData = JSON.parse(datosCumplimiento);
+          console.log(`✅ ${idVendedor} - Cumplimiento encontrado:`, cumplimientoData);
         } catch (error) {
           console.error(`❌ Error parsing cumplimiento para ${idVendedor}:`, error);
         }
+      } else {
+        console.log(`⚠️ ${idVendedor} - No se encontraron datos de cumplimiento`);
       }
 
       // 🚀 NUEVO: Recopilar lotes de producción (solo desde ID1)
@@ -796,12 +826,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         if (lotesData) {
           try {
             lotesProduccion = JSON.parse(lotesData);
-            console.log(`📦 ${idVendedor} - Lotes de producción encontrados:`, lotesProduccion);
+            console.log(`✅ ${idVendedor} - Lotes de producción encontrados:`, lotesProduccion);
           } catch (error) {
             console.error(`❌ Error parsing lotes para ${idVendedor}:`, error);
           }
         } else {
-          console.log(`⚠️ ${idVendedor} - No se encontraron lotes de producción`);
+          console.log(`⚠️ ${idVendedor} - No se encontraron lotes de producción en: ${lotesKey}`);
         }
       }
 
@@ -828,7 +858,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }))
       };
 
-      console.log(`🚀 ${idVendedor} - Enviando datos a API:`, datosParaGuardar);
+      console.log(`🚀 ${idVendedor} - Enviando datos a API:`, JSON.stringify(datosParaGuardar, null, 2));
+      console.log(`📊 ${idVendedor} - Resumen de datos a guardar:`);
+      console.log(`   - Productos: ${datosParaGuardar.productos.length}`);
+      console.log(`   - Cumplimiento: ${Object.keys(datosParaGuardar.cumplimiento || {}).length} campos`);
+      console.log(`   - Lotes producción: ${(datosParaGuardar.lotes_produccion || []).length}`);
+      console.log(`   - Responsable: ${datosParaGuardar.responsable}`);
+
       const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
 
       if (resultado.error) {
@@ -837,6 +873,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       console.log(`✅ ${idVendedor} - Datos enviados a la API exitosamente`);
+      console.log(`📊 ${idVendedor} - Resultado:`, resultado);
       return true;
     } catch (error) {
       console.error(`❌ Error guardando datos de ${idVendedor}:`, error);
@@ -1879,7 +1916,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       case 'FINALIZAR':
         return {
           texto: '🚚 DESPACHO',
-          variant: 'primary',
+          variant: 'dark', // Cambiado a dark para usar estilo personalizado
+          customStyle: {
+            backgroundColor: '#0c2c53',
+            borderColor: '#0c2c53',
+            color: 'white'
+          },
           disabled: loading || productosPendientes.length > 0, // Deshabilitar si hay pendientes
           onClick: manejarFinalizar
         };
@@ -1911,7 +1953,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           onClick={config.onClick}
           style={{
             minWidth: '150px',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            ...(config.customStyle || {})
           }}
         >
           {loading ? '⏳ Procesando...' : config.texto}

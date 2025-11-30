@@ -106,6 +106,72 @@ const ReporteVentasRuta = () => {
         finally { setLoadingReportes(false); }
     };
 
+    // ========== FUNCIÓN IMPRIMIR TICKET ==========
+    const imprimirTicket = (venta) => {
+        if (!venta) return;
+
+        const fecha = new Date(venta.fecha);
+        const fechaStr = fecha.toLocaleDateString('es-CO');
+        const horaStr = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+
+        let productosHTML = '';
+        venta.detalles?.forEach(item => {
+            const nombre = item.nombre || item.producto || 'Sin nombre';
+            const subtotal = item.cantidad * item.precio;
+            productosHTML += '<div class="producto"><span class="nombre">' + nombre + '</span><br><span class="detalle">' + item.cantidad + ' x $' + (item.precio?.toLocaleString() || 0) + '</span><span class="subtotal">$' + subtotal.toLocaleString() + '</span></div>';
+        });
+
+        const ticketHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ticket Venta #${venta.id}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Courier New',monospace;font-size:12px;width:72mm;margin:0 auto;padding:10px}
+.header{text-align:center;margin-bottom:10px}
+.header h2{font-size:16px;margin:0}
+.header p{font-size:10px;color:#666}
+.divider{border-top:1px dashed #000;margin:8px 0}
+.info-row{display:flex;justify-content:space-between;font-size:11px;margin:3px 0}
+.producto{margin:8px 0}
+.producto .nombre{font-weight:bold;font-size:11px}
+.producto .detalle{font-size:10px}
+.producto .subtotal{float:right;font-size:11px}
+.total-row{display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin:10px 0}
+.footer{text-align:center;font-size:9px;margin-top:10px}
+@media print{@page{margin:5mm;size:80mm auto}}
+</style></head>
+<body>
+<div class="header"><h2>AP GUERRERO</h2><p>Distribuidora de Alimentos</p></div>
+<div class="divider"></div>
+<div class="info-row"><span>Fecha:</span><span>${fechaStr}</span></div>
+<div class="info-row"><span>Hora:</span><span>${horaStr}</span></div>
+<div class="info-row"><span>Venta #:</span><span>${venta.id}</span></div>
+<div class="divider"></div>
+${venta.nombre_negocio ? '<div class="info-row"><span>Negocio:</span><span>' + venta.nombre_negocio + '</span></div>' : ''}
+<div class="info-row"><span>Cliente:</span><span>${venta.cliente_nombre}</span></div>
+<div class="info-row"><span>Vendedor:</span><span>${venta.vendedor_nombre}</span></div>
+<div class="divider"></div>
+${productosHTML}
+<div class="divider"></div>
+<div class="total-row"><span>TOTAL:</span><span>$${parseFloat(venta.total).toLocaleString()}</span></div>
+<div class="divider"></div>
+<div class="footer"><p>¡Gracias por su compra!</p><p>AP Guerrero - ${fechaStr}</p></div>
+</body></html>`;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        iframe.contentDocument.write(ticketHTML);
+        iframe.contentDocument.close();
+        iframe.contentWindow.focus();
+        setTimeout(() => {
+            iframe.contentWindow.print();
+            setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 300);
+    };
+
+
     return (
         <Container fluid>
             <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4">
@@ -164,7 +230,6 @@ const ReporteVentasRuta = () => {
                         </Card.Body>
                     </Card>
                 </Tab>
-
 
                 {/* PESTAÑA CLIENTES POR VENDEDOR */}
                 <Tab eventKey="clientes" title={<><i className="bi bi-people me-1"></i> Clientes por Vendedor</>}>
@@ -366,7 +431,12 @@ const ReporteVentasRuta = () => {
                         </>
                     )}
                 </Modal.Body>
-                <Modal.Footer><Button variant="secondary" onClick={() => setShowModal(false)}>Cerrar</Button></Modal.Footer>
+                <Modal.Footer>
+                    <Button variant="success" onClick={() => imprimirTicket(selectedVenta)}>
+                        <i className="bi bi-printer me-1"></i> Imprimir Ticket
+                    </Button>
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>Cerrar</Button>
+                </Modal.Footer>
             </Modal>
 
             {/* MODAL CLIENTE */}

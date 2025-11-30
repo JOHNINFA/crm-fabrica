@@ -156,50 +156,7 @@ const ListaPreciosScreen = () => {
                                     </select>
                                 </div>
 
-                                <div className="form-check mb-2">
-                                    <input
-                                        className="form-check-input"
-                                        type="checkbox"
-                                        id="activar"
-                                        checked={activo}
-                                        onChange={(e) => setActivo(e.target.checked)}
-                                    />
-                                    <label className="form-check-label" htmlFor="activar">
-                                        Activar / Inactivar
-                                    </label>
-                                </div>
 
-                                <div className="empleados-seccion">
-                                    <div className="table-header-custom p-2 text-white">
-                                        Empleados (Si no selecciona empleado entonces sería todos)
-                                    </div>
-                                    <div className="p-3 border border-top-0">
-                                        <input
-                                            type="text"
-                                            className="form-control form-control-sm mb-2"
-                                            placeholder="Buscar"
-                                            value={busqueda}
-                                            onChange={(e) => setBusqueda(e.target.value)}
-                                        />
-                                        <div className="employee-list-container">
-                                            {empleadosFiltrados.map(emp => (
-                                                <div key={emp.id} className="form-check d-flex align-items-center mb-2">
-                                                    <input
-                                                        className="form-check-input"
-                                                        type="checkbox"
-                                                        id={`emp-${emp.id}`}
-                                                        checked={empleadosSeleccionados.has(emp.id)}
-                                                        onChange={() => handleSeleccionarEmpleado(emp.id)}
-                                                    />
-                                                    <label className="form-check-label d-flex justify-content-between w-100 ms-2" htmlFor={`emp-${emp.id}`}>
-                                                        <span>{emp.id}</span>
-                                                        <span>{emp.nombre}</span>
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
 
                             <div className="col-md-5">

@@ -98,6 +98,7 @@ export default function MenuSheets() {
   // Estado solo para el ID de hoja
   const [idSeleccionado, setIdSeleccionado] = useState("ID1");
   const [showModal, setShowModal] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false); // 🔄 Estado para spinner de sincronización
   const [tempNombre, setTempNombre] = useState("");
   // Función para calcular la fecha según el día de la semana
   const calcularFechaPorDia = (diaSeleccionado) => {
@@ -345,6 +346,15 @@ export default function MenuSheets() {
 
   return (
     <VendedoresProvider>
+      {/* Estilos para animación de sincronización */}
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <div className="container-fluid" style={{ paddingBottom: '60px' }}>
         {/* Header compacto */}
         <div className="d-flex justify-content-between align-items-center py-2 ">
@@ -382,49 +392,96 @@ export default function MenuSheets() {
               type="button"
               className="btn btn-outline-primary"
               style={{ minWidth: '40px', minHeight: '40px' }}
+              disabled={sincronizando}
               onClick={async () => {
-                // Sincronizar todos los IDs
-                let totalSincronizados = 0;
+                // 🔄 Sincronizar checks V desde el servidor para todos los IDs
+                setSincronizando(true);
                 const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+                const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
+                let totalActualizados = 0;
+
+                console.log(`🔄 Iniciando sincronización de checks V para ${dia} - ${fechaAUsar}`);
 
                 for (const id of idsVendedores) {
-                  const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
-                  const key = `cargue_${dia}_${id}_${fechaAUsar}`;
-                  const datosString = localStorage.getItem(key);
+                  try {
+                    // 1. Obtener datos del servidor
+                    const response = await fetch(
+                      `http://localhost:8000/api/obtener-cargue/?vendedor_id=${id}&dia=${dia}&fecha=${fechaAUsar}`
+                    );
 
-                  if (datosString) {
-                    try {
-                      const datos = JSON.parse(datosString);
+                    if (response.ok) {
+                      const datosServidor = await response.json();
+                      console.log(`📡 ${id} - Datos del servidor:`, Object.keys(datosServidor).length, 'productos');
 
-                      if (!datos.sincronizado) {
-                        // Enviar al backend (simular por ahora)
-                        console.log(`🚀 Sincronizando ${id}:`, datos.productos.filter(p => p.cantidad > 0 || p.vendedor || p.despachador));
+                      // 2. Actualizar localStorage con los checks V del servidor
+                      const key = `cargue_${dia}_${id}_${fechaAUsar}`;
+                      const datosLocalString = localStorage.getItem(key);
 
-                        // Marcar como sincronizado
-                        datos.sincronizado = true;
-                        localStorage.setItem(key, JSON.stringify(datos));
+                      if (datosLocalString) {
+                        const datosLocal = JSON.parse(datosLocalString);
+                        let checksActualizados = 0;
 
-                        totalSincronizados++;
+                        // Actualizar checks V en productos locales
+                        datosLocal.productos = datosLocal.productos.map(producto => {
+                          const datosProductoServidor = datosServidor[producto.producto];
+                          if (datosProductoServidor) {
+                            const vAnterior = producto.vendedor;
+                            const vNuevo = datosProductoServidor.v || false;
+
+                            if (vAnterior !== vNuevo) {
+                              console.log(`✅ ${id} - ${producto.producto}: V cambió de ${vAnterior} a ${vNuevo}`);
+                              checksActualizados++;
+                            }
+
+                            return {
+                              ...producto,
+                              vendedor: vNuevo,
+                              despachador: datosProductoServidor.d || producto.despachador
+                            };
+                          }
+                          return producto;
+                        });
+
+                        // Guardar en localStorage
+                        datosLocal.timestamp = Date.now();
+                        localStorage.setItem(key, JSON.stringify(datosLocal));
+
+                        if (checksActualizados > 0) {
+                          totalActualizados += checksActualizados;
+                          console.log(`💾 ${id} - ${checksActualizados} checks V actualizados`);
+                        }
                       }
-                    } catch (error) {
-                      console.error(`Error sincronizando ${id}:`, error);
+                    } else {
+                      console.warn(`⚠️ ${id} - No hay datos en servidor`);
                     }
+                  } catch (error) {
+                    console.error(`❌ Error sincronizando ${id}:`, error);
                   }
                 }
 
-                // Mostrar resultado
-                alert('✅ Sincronizando todos los IDs');
+                // 3. Disparar evento para que PlantillaOperativa se actualice
+                window.dispatchEvent(new CustomEvent('checksVActualizados', {
+                  detail: { dia, fecha: fechaAUsar, totalActualizados }
+                }));
 
-                // Animación visual
-                const btn = document.querySelector('.material-icons');
-                if (btn) {
-                  btn.style.animation = 'spin 0.5s linear';
-                  setTimeout(() => btn.style.animation = '', 500);
+                // Mostrar resultado
+                setSincronizando(false);
+                if (totalActualizados > 0) {
+                  alert(`✅ Sincronización completada\n${totalActualizados} checks V actualizados desde la app móvil`);
+                } else {
+                  alert('✅ Sincronización completada\nNo hay cambios nuevos en los checks V');
                 }
               }}
-              title="Sincronizar todos los datos"
+              title="Sincronizar checks V desde la app móvil"
             >
-              <span className="material-icons">sync</span>
+              <span
+                className="material-icons"
+                style={{
+                  animation: sincronizando ? 'spin 1s linear infinite' : 'none'
+                }}
+              >
+                sync
+              </span>
             </button>
             <button
               className="btn btn-outline-secondary btn-sm"

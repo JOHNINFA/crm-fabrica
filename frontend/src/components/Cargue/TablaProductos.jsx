@@ -10,7 +10,6 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
   const todosListosParaDespacho = () => {
     const productosConCantidad = productos.filter(p => (p.cantidad || 0) > 0);
     if (productosConCantidad.length === 0) return false;
-
     return productosConCantidad.every(p => p.vendedor && p.despachador);
   };
 
@@ -25,25 +24,21 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
     };
 
     actualizarEstado();
-    const interval = setInterval(actualizarEstado, 1500); // Optimizado: cada 1.5s
+    const interval = setInterval(actualizarEstado, 1500);
     return () => clearInterval(interval);
   }, [dia, fechaSeleccionada]);
-  const [editingValor, setEditingValor] = useState(null);
 
   const handleInputChange = (id, campo, valor) => {
-    // 🔒 No permitir cambios si está COMPLETADO
     if (esCompletado) {
       console.log(`🔒 Cambio bloqueado - Jornada COMPLETADA`);
       return;
     }
 
-    // 🚫 VALIDACIÓN: En ALISTAMIENTO_ACTIVO solo bloquear DEVOLUCIONES y VENCIDAS (afectan inventario hacia arriba)
     if (botonAlistamientoHabilitado && ['devoluciones', 'vencidas'].includes(campo)) {
       alert('Productos listos para despacho - DEVOLUCIONES y VENCIDAS no se pueden modificar');
       return;
     }
 
-    // 🔍 DEBUG: Ver qué se está cambiando
     if (campo === 'lotesVencidos') {
       console.log(`🔍 LOTES: Actualizando lotes para producto ${id}:`, valor);
     }
@@ -52,21 +47,18 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
   };
 
   const handleCheckboxChange = (id, campo, checked) => {
-    // 🔒 No permitir cambios si está COMPLETADO
     if (esCompletado) {
       console.log(`🔒 Checkbox bloqueado - Jornada COMPLETADA`);
       return;
     }
 
-    // Solo permitir marcar si el producto tiene total > 0
     const producto = productos.find(p => p.id === id);
     if (checked && producto && producto.total <= 0) {
-      return; // No hacer nada si intenta marcar sin cantidad
+      return;
     }
 
-    // Controlar casilla D según estado del botón
     if (campo === 'despachador' && estadoBoton === 'ALISTAMIENTO') {
-      return; // No permitir marcar D en estado ALISTAMIENTO
+      return;
     }
 
     console.log(`Checkbox ${campo} para producto ${id}: ${checked}`);
@@ -77,28 +69,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
     e.target.select();
   };
 
-  const handleDoubleClickValor = (id) => {
-    console.log('🖱️ Doble clic en VALOR, producto:', id, 'esCompletado:', esCompletado);
-    if (esCompletado) {
-      console.log('🔒 Edición bloqueada - Jornada COMPLETADA');
-      return;
-    }
-    setEditingValor(id);
-  };
-
-  const handleBlurValor = () => {
-    setEditingValor(null);
-  };
-
-  const handleKeyDownValor = (e) => {
-    if (e.key === 'Enter') {
-      setEditingValor(null);
-    }
-  };
-
   return (
     <div>
-      {/* 🎉 Indicador de estado COMPLETADO */}
       {esCompletado && (
         <div className="alert alert-success mb-2" role="alert">
           <strong>🎉 JORNADA COMPLETADA</strong> - Los datos se muestran en modo solo lectura
@@ -123,19 +95,19 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
           </tr>
         </thead>
         <tbody>
-          {productos.map((p, index) => (
+          {productos.map((p) => (
             <tr key={`${p.id}-${p.producto}`} className="table-row">
               <td>
                 <input
                   type="checkbox"
                   checked={!!p.vendedor}
-                  onChange={() => { }} // No hace nada al cambiar
-                  onClick={(e) => e.preventDefault()} // Evita que el usuario lo cambie
+                  onChange={() => { }}
+                  onClick={(e) => e.preventDefault()}
                   title="Solo se puede marcar desde la App Móvil"
                   style={{
                     accentColor: '#06386d',
-                    cursor: 'default', // Cursor normal para indicar que es solo lectura
-                    opacity: 1 // Siempre visible al 100%
+                    cursor: 'default',
+                    opacity: 1
                   }}
                 />
               </td>
@@ -223,32 +195,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                 />
               </td>
               <td className="text-center total-cell">{p.total || 0}</td>
-              <td className="text-center valor-cell" onDoubleClick={() => handleDoubleClickValor(p.id)} style={{ cursor: 'pointer' }}>
-                {editingValor === p.id ? (
-                  <input
-                    type="text"
-                    value={p.valor ? `$${p.valor.toLocaleString()}` : ''}
-                    onChange={(e) => {
-                      const numValue = e.target.value.replace(/[^0-9]/g, '');
-                      handleInputChange(p.id, 'valor', numValue ? parseInt(numValue) : 0);
-                    }}
-                    onBlur={handleBlurValor}
-                    onKeyDown={handleKeyDownValor}
-                    autoFocus
-                    className="text-center"
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      outline: 'none',
-                      width: '100%',
-                      textAlign: 'center',
-                      color: '#cc0000',
-                      fontWeight: 'bold'
-                    }}
-                  />
-                ) : (
-                  p.valor ? `$${p.valor.toLocaleString()}` : ''
-                )}
+              <td className="text-center valor-cell">
+                {p.valor ? `$${p.valor.toLocaleString()}` : '$0'}
               </td>
               <td className="text-center neto-cell">
                 {p.neto ? `$${Math.round(p.neto).toLocaleString()}` : '$0'}

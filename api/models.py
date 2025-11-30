@@ -19,6 +19,7 @@ class Producto(models.Model):
     descripcion = models.TextField(blank=True, null=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     precio_compra = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    precio_cargue = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Precio Cargue/App")  # Precio independiente para Cargue y App móvil
     stock_total = models.IntegerField(default=0)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='productos')
     imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
@@ -1525,7 +1526,7 @@ class ClienteRuta(models.Model):
     direccion = models.CharField(max_length=255, blank=True, null=True)
     telefono = models.CharField(max_length=50, blank=True, null=True)
     tipo_negocio = models.CharField(max_length=100, blank=True, null=True) # Supermercado, Carniceria, etc.
-    dia_visita = models.CharField(max_length=20) # LUNES, MARTES, etc.
+    dia_visita = models.CharField(max_length=100) # LUNES,MARTES,MIERCOLES,etc. (múltiples días)
     orden = models.IntegerField(default=0)
     latitud = models.FloatField(null=True, blank=True)
     longitud = models.FloatField(null=True, blank=True)

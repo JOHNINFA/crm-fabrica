@@ -144,6 +144,7 @@ export const UnifiedProductProvider = ({ children }) => {
                         tax: p.impuesto || 'IVA(0%)',
                         image: p.imagen || null,
                         purchasePrice: parseFloat(p.precio_compra) || 0,
+                        precio_cargue: parseFloat(p.precio_cargue) || 0, // Precio independiente para Cargue y App
                         orden: p.orden || 0,
                         ubicacionInventario: p.ubicacion_inventario || 'PRODUCCION',
                         disponible_pos: p.disponible_pos !== undefined ? p.disponible_pos : true,
