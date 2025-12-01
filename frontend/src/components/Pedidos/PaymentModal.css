@@ -482,3 +482,36 @@ Responsive mejorado para móvil */
 .pedidos-modal .form-group {
     margin-bottom: 0;
 }
+
+/* Estilos específicos para PEDIDOS - Botón azul con texto blanco */
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn {
+    background-color: #0d6efd !important;
+    border: 1px solid #0d6efd !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:hover {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:focus {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:active {
+    background-color: #0a58ca !important;
+    border-color: #0a53be !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:disabled {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+    opacity: 0.65;
+}

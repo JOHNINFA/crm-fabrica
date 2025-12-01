@@ -191,13 +191,14 @@ export default function Cart({
                 <div className="d-flex align-items-center justify-content-between" style={{ fontSize: '12px', marginBottom: '8px' }}>
                     <span
                         style={{
-                            color: '#666',
+                            color: '#333',
                             cursor: 'pointer',
-                            transition: 'color 0.2s'
+                            transition: 'color 0.2s',
+                            fontWeight: '500'
                         }}
                         onClick={() => navigate(-1)}
                         onMouseEnter={(e) => e.target.style.color = '#1D4ED8'}
-                        onMouseLeave={(e) => e.target.style.color = '#666'}
+                        onMouseLeave={(e) => e.target.style.color = '#333'}
                         title="Regresar a la lista de clientes"
                     >
                         Volver a gestión del día

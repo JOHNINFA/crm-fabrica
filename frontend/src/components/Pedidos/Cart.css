@@ -438,3 +438,44 @@ onsive para móvil */
         padding: 10px !important;
     }
 }
+
+/* Estilos para el toggle switch "Volver a gestión del día" */
+.cart-container .form-check-input {
+    width: 2.5em !important;
+    height: 1.25em !important;
+    cursor: pointer !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%236c757d'/%3e%3c/svg%3e") !important;
+    /* Círculo gris por defecto */
+}
+
+/* Toggle desactivado (Fondo gris suave, borde gris visible) */
+.cart-container .form-check-input:not(:checked) {
+    background-color: #e9ecef !important;
+    border-color: #adb5bd !important;
+    opacity: 1 !important;
+}
+
+/* Toggle activado (Azul oscuro más profundo) */
+.cart-container .form-check-input:checked {
+    background-color: #113685 !important;
+    border-color: #113685 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+    /* Círculo blanco al activar */
+    opacity: 1 !important;
+}
+
+/* Hover en toggle desactivado */
+.cart-container .form-check-input:not(:checked):hover {
+    border-color: #6c757d !important;
+}
+
+/* Hover en toggle activado */
+.cart-container .form-check-input:checked:hover {
+    background-color: #0d2b6b !important;
+    border-color: #0d2b6b !important;
+}
+
+/* Focus del toggle */
+.cart-container .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(17, 54, 133, 0.25) !important;
+}

@@ -32,7 +32,7 @@ import ImageSyncButton from "../components/common/ImageSyncButton";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PedidosMainContent() {
-    usePageTitle('Remisiones');
+    usePageTitle('Pedidos');
     const { products: allProducts, getProductsByModule } = useProducts();
 
     const products = useMemo(() => {

@@ -687,7 +687,7 @@ class VendedorSerializer(serializers.ModelSerializer):
     """Serializer para vendedores"""
     class Meta:
         model = Vendedor
-        fields = ['id_vendedor', 'nombre', 'ruta', 'activo', 'fecha_creacion', 'fecha_actualizacion']
+        fields = ['id_vendedor', 'nombre', 'password', 'ruta', 'activo', 'fecha_creacion', 'fecha_actualizacion']
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
 
 

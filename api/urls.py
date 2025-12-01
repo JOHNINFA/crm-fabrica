@@ -35,6 +35,9 @@ router.register(r'cargue-id4', CargueID4ViewSet, basename='cargue-id4')
 router.register(r'cargue-id5', CargueID5ViewSet, basename='cargue-id5')
 router.register(r'cargue-id6', CargueID6ViewSet, basename='cargue-id6')
 
+# Domiciliarios
+router.register(r'domiciliarios', DomiciliarioViewSet, basename='domiciliarios')
+
 # Rutas y Ventas Ruta
 router.register(r'rutas', RutaViewSet, basename='rutas')
 router.register(r'clientes-ruta', ClienteRutaViewSet, basename='clientes-ruta')

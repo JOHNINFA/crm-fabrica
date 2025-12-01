@@ -1895,6 +1895,53 @@ class VendedorViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    @action(detail=False, methods=['post'])
+    def login(self, request):
+        """Endpoint de login para vendedores (App Móvil)"""
+        try:
+            id_vendedor = request.data.get('id_vendedor')
+            password = request.data.get('password')
+            
+            if not id_vendedor or not password:
+                return Response(
+                    {'error': 'id_vendedor y password son requeridos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Buscar vendedor
+            try:
+                vendedor = Vendedor.objects.get(id_vendedor=id_vendedor, activo=True)
+            except Vendedor.DoesNotExist:
+                return Response(
+                    {'error': 'Credenciales inválidas'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Validar contraseña
+            if vendedor.password != password:
+                return Response(
+                    {'error': 'Credenciales inválidas'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Login exitoso
+            return Response({
+                'success': True,
+                'vendedor': {
+                    'id_vendedor': vendedor.id_vendedor,
+                    'nombre': vendedor.nombre,
+                    'ruta': vendedor.ruta or '',
+                    'activo': vendedor.activo
+                },
+                'message': 'Login exitoso'
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class DomiciliarioViewSet(viewsets.ModelViewSet):

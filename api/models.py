@@ -1443,6 +1443,7 @@ class Vendedor(models.Model):
     """Modelo para gestionar vendedores y sus nombres"""
     id_vendedor = models.CharField(max_length=10, unique=True, primary_key=True)  # ID1, ID2, etc.
     nombre = models.CharField(max_length=100)
+    password = models.CharField(max_length=50, default='1234')  # Contraseña para la App
     ruta = models.CharField(max_length=100, blank=True, null=True)
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
@@ -1455,6 +1456,31 @@ class Vendedor(models.Model):
         verbose_name = "Vendedor"
         verbose_name_plural = "Vendedores"
         ordering = ['id_vendedor']
+
+    def save(self, *args, **kwargs):
+        # Verificar si es una actualización y el nombre cambió
+        if self.pk:
+            try:
+                old_instance = Vendedor.objects.get(pk=self.pk)
+                if old_instance.nombre != self.nombre:
+                    # Actualizar el nombre en todos los pedidos asociados
+                    # Nota: Pedido está definido arriba en este mismo archivo
+                    Pedido.objects.filter(
+                        asignado_a_tipo='VENDEDOR',
+                        asignado_a_id=self.id_vendedor
+                    ).update(vendedor=self.nombre)
+                    print(f"✅ Nombre de vendedor actualizado en pedidos: {old_instance.nombre} -> {self.nombre}")
+
+                    # Actualizar el nombre en todos los CLIENTES asociados
+                    # Nota: Cliente está definido arriba en este mismo archivo
+                    Cliente.objects.filter(
+                        vendedor_asignado=old_instance.nombre
+                    ).update(vendedor_asignado=self.nombre)
+                    print(f"✅ Nombre de vendedor actualizado en clientes: {old_instance.nombre} -> {self.nombre}")
+            except Exception as e:
+                print(f"⚠️ Error actualizando nombre en pedidos/clientes: {e}")
+        
+        super().save(*args, **kwargs)
 
 
 class Domiciliario(models.Model):

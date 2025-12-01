@@ -197,19 +197,19 @@ const DomiciliariosScreen = () => {
                     </Button>
                     <h2 className="m-0">🛵 Gestión de Domiciliarios</h2>
                 </div>
-                <Button
-                    variant="primary"
+                <button
+                    className="btn"
                     onClick={() => abrirModal()}
-                    style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
+                    style={{ backgroundColor: '#002149', borderColor: '#002149', color: 'white' }}
                 >
                     + Nuevo Domiciliario
-                </Button>
+                </button>
             </div>
 
             <div className="card">
                 <div className="card-body">
                     <Table striped bordered hover responsive>
-                        <thead style={{ backgroundColor: '#06386d', color: 'white' }}>
+                        <thead style={{ backgroundColor: '#002149', color: 'white' }}>
                             <tr>
                                 <th>Código</th>
                                 <th>Nombre</th>
@@ -369,13 +369,13 @@ const DomiciliariosScreen = () => {
                     <Button variant="secondary" onClick={cerrarModal}>
                         Cancelar
                     </Button>
-                    <Button
-                        variant="primary"
+                    <button
+                        className="btn"
                         onClick={guardarDomiciliario}
-                        style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
+                        style={{ backgroundColor: '#002149', borderColor: '#002149', color: 'white' }}
                     >
                         {editingDomiciliario ? 'Actualizar' : 'Crear'} Domiciliario
-                    </Button>
+                    </button>
                 </Modal.Footer>
             </Modal>
         </div>

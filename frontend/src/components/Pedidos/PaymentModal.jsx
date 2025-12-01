@@ -35,7 +35,7 @@ const PaymentModal = ({
     const [domiciliarios, setDomiciliarios] = useState([]);
     const [vendedores, setVendedores] = useState([]); // ✅ Estado para vendedores
 
-    // Efecto para automatizar el check de inventario cuando se asigna vendedor o domiciliario
+    // Efecto para asignar vendedor del cliente automáticamente
     useEffect(() => {
         // ✅ Cuando se selecciona "VENDEDOR", asignar el vendedor del cliente automáticamente
         if (asignadoATipo === 'VENDEDOR' && !asignadoAId && clientData?.vendedor_asignado) {
@@ -49,15 +49,9 @@ const PaymentModal = ({
             setAsignadoAId(vendedorId);
         }
 
-        // ✅ Activar checkbox automáticamente cuando se asigna un vendedor o domiciliario
-        if (asignadoATipo === 'DOMICILIARIO' && asignadoAId) {
-            setAfectarInventario(true);
-        } else if (asignadoATipo === 'VENDEDOR' && asignadoAId) {
-            setAfectarInventario(true);
-        } else if (asignadoATipo === 'NINGUNO') {
-            // Desmarcar si se vuelve a "Ninguno"
-            setAfectarInventario(false);
-            setAsignadoAId(''); // Limpiar el ID también
+        // Limpiar el ID cuando se vuelve a "Ninguno"
+        if (asignadoATipo === 'NINGUNO') {
+            setAsignadoAId('');
         }
     }, [asignadoATipo, asignadoAId, clientData]);
 
@@ -96,6 +90,22 @@ const PaymentModal = ({
         };
         cargarVendedores();
     }, []);
+
+    // ✅ Auto-asignar vendedor basado en el nombre del seller
+    useEffect(() => {
+        if (seller && vendedores.length > 0) {
+            // Buscar vendedor por nombre (case insensitive)
+            const vendedorEncontrado = vendedores.find(v =>
+                v.nombre.toLowerCase() === seller.toLowerCase()
+            );
+
+            if (vendedorEncontrado) {
+                console.log(`✅ Auto-asignando vendedor: ${vendedorEncontrado.id_vendedor} - ${vendedorEncontrado.nombre}`);
+                setAsignadoATipo('VENDEDOR');
+                setAsignadoAId(vendedorEncontrado.id_vendedor);
+            }
+        }
+    }, [seller, vendedores]);
 
     // Cargar domiciliarios desde la API
     useEffect(() => {

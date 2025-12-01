@@ -260,19 +260,35 @@ export const cargueService = {
       // Para cada producto, crear o actualizar un registro separado (como tabla plana)
       const productos = datosParaGuardar.productos || [];
       const resultados = [];
+      let datosGeneralesGuardados = false; // 🚩 Bandera para asegurar que se guarden una vez
 
       for (let index = 0; index < productos.length; index++) {
         const producto = productos[index];
-        const esPrimerProducto = index === 0;
 
-        // Solo procesar productos con datos relevantes
-        if (producto.cantidad > 0 || producto.adicional > 0 || producto.dctos > 0 ||
-          producto.devoluciones > 0 || producto.vencidas > 0) {
+        // Determinar si este producto debe guardarse
+        const tieneMovimiento = (
+          producto.cantidad > 0 || producto.adicional > 0 || producto.dctos > 0 ||
+          producto.devoluciones > 0 || producto.vencidas > 0 ||
+          (producto.lotes_vencidos && producto.lotes_vencidos.length > 0)
+        );
+
+        // 🚀 SIMPLIFICADO: Guardar si tiene movimiento O si es el primer producto (para datos generales)
+        const debeGuardarse = tieneMovimiento || index === 0;
+
+        if (debeGuardarse) {
+          // 🚀 SIEMPRE adjuntar datos generales al primer registro guardado
+          const adjuntarDatosGenerales = !datosGeneralesGuardados;
+
+          if (adjuntarDatosGenerales) {
+            datosGeneralesGuardados = true; // Marcar como guardados
+            console.log(`🚩 Adjuntando datos generales al producto: ${producto.producto_nombre}`);
+          }
+
           const datosTransformados = {
             dia: datosParaGuardar.dia_semana,
             fecha: datosParaGuardar.fecha,
             usuario: datosParaGuardar.responsable || 'Sistema',
-            responsable: datosParaGuardar.responsable || 'RESPONSABLE',  // ✅ Campo responsable agregado
+            responsable: datosParaGuardar.responsable || 'RESPONSABLE',
             activo: true,
 
             // Datos del producto
@@ -286,18 +302,20 @@ export const cargueService = {
             v: producto.vendedor || false,
             d: producto.despachador || false,
             lotes_vencidos: JSON.stringify(producto.lotes_vencidos || []),
-            lotes_produccion: JSON.stringify(datosParaGuardar.lotes_produccion || []), // 🚀 NUEVO: Lotes de producción del día
 
-            // 🔥 CORREGIDO: Datos de pagos SOLO en el primer producto para evitar duplicación
-            ...(esPrimerProducto && datosParaGuardar.pagos && {
+            // 🚀 Lotes de producción se guardan siempre que se guarden datos generales
+            lotes_produccion: adjuntarDatosGenerales ? JSON.stringify(datosParaGuardar.lotes_produccion || []) : '[]',
+
+            // 🔥 CORREGIDO: Datos de pagos SOLO si adjuntarDatosGenerales es true
+            ...(adjuntarDatosGenerales && datosParaGuardar.pagos && {
               concepto: datosParaGuardar.pagos.concepto || '',
               descuentos: datosParaGuardar.pagos.descuentos || 0,
               nequi: datosParaGuardar.pagos.nequi || 0,
               daviplata: datosParaGuardar.pagos.daviplata || 0
             }),
 
-            // 🔥 CORREGIDO: Datos de resumen SOLO en el primer producto para evitar duplicación
-            ...(esPrimerProducto && datosParaGuardar.resumen && {
+            // 🔥 CORREGIDO: Datos de resumen SOLO si adjuntarDatosGenerales es true
+            ...(adjuntarDatosGenerales && datosParaGuardar.resumen && {
               base_caja: datosParaGuardar.resumen.base_caja || 0,
               total_despacho: datosParaGuardar.resumen.total_despacho || 0,
               total_pedidos: datosParaGuardar.resumen.total_pedidos || 0,
@@ -306,8 +324,8 @@ export const cargueService = {
               total_efectivo: datosParaGuardar.resumen.total_efectivo || 0
             }),
 
-            // 🔥 CORREGIDO: Datos de cumplimiento SOLO en el primer producto para evitar duplicación
-            ...(esPrimerProducto && datosParaGuardar.cumplimiento && {
+            // 🔥 CORREGIDO: Datos de cumplimiento SOLO si adjuntarDatosGenerales es true
+            ...(adjuntarDatosGenerales && datosParaGuardar.cumplimiento && {
               licencia_transporte: datosParaGuardar.cumplimiento.licencia_transporte || null,
               soat: datosParaGuardar.cumplimiento.soat || null,
               uniforme: datosParaGuardar.cumplimiento.uniforme || null,

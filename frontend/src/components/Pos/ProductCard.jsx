@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
+import { useUnifiedProducts } from "../../context/UnifiedProductContext";
 
 export default function ProductCard({ product, onClick }) {
-  const [imageSource, setImageSource] = useState(product.image || null);
+  // Obtener caché de imágenes del contexto (evita rebote)
+  const { productImages } = useUnifiedProducts();
+
+  // Usar imagen del caché primero, luego del producto
+  const cachedImage = productImages?.[product.id];
+  const [imageSource, setImageSource] = useState(cachedImage || product.image || null);
   const [isClicked, setIsClicked] = useState(false);
 
   // Siempre mostrar el precio base del producto en la tarjeta
   const precioMostrar = product.price;
 
-  // Cargar imagen local si no está disponible
+  // Sincronizar imagen cuando cambie el producto o el caché
   useEffect(() => {
-    if (imageSource) return;
+    // Prioridad: 1) caché en memoria, 2) imagen del producto, 3) IndexedDB
+    if (cachedImage) {
+      setImageSource(cachedImage);
+      return;
+    }
 
+    if (product.image) {
+      setImageSource(product.image);
+      return;
+    }
+
+    // Solo ir a IndexedDB si no hay imagen disponible
     const loadLocalImage = async () => {
       try {
         const localImage = await localImageService.getImage(product.id);
@@ -22,7 +38,7 @@ export default function ProductCard({ product, onClick }) {
     };
 
     loadLocalImage();
-  }, [product.id, imageSource]);
+  }, [product.id, product.image, cachedImage]);
 
   // Formatear precio
   const formatPrice = (price) => {

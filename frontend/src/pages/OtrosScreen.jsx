@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import GestionSucursales from '../components/common/GestionSucursales';
 import GestionUsuarios from '../components/common/GestionUsuarios';
+import GestionVendedores from '../components/common/GestionVendedores';
 import Herramientas from '../components/common/Herramientas';
 import GestionRutas from '../components/rutas/GestionRutas';
 import ReporteVentasRuta from '../components/rutas/ReporteVentasRuta';
@@ -11,7 +12,18 @@ import usePageTitle from '../hooks/usePageTitle';
 const OtrosScreen = () => {
     usePageTitle('Otros');
     const navigate = useNavigate();
-    const [activeModule, setActiveModule] = useState('');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [activeModule, setActiveModule] = useState(searchParams.get('module') || '');
+
+    // Actualizar URL cuando cambia el módulo
+    const handleModuleChange = (moduleId) => {
+        setActiveModule(moduleId);
+        if (moduleId) {
+            setSearchParams({ module: moduleId });
+        } else {
+            setSearchParams({});
+        }
+    };
 
     const modules = [
         {
@@ -20,7 +32,7 @@ const OtrosScreen = () => {
             description: 'Administrar sucursales del sistema',
             icon: 'business',
             color: 'primary',
-            action: () => setActiveModule('sucursales')
+            action: () => handleModuleChange('sucursales')
         },
         {
             id: 'usuarios',
@@ -28,7 +40,15 @@ const OtrosScreen = () => {
             description: 'Administrar usuarios para POS y Pedidos',
             icon: 'people',
             color: 'success',
-            action: () => setActiveModule('usuarios')
+            action: () => handleModuleChange('usuarios')
+        },
+        {
+            id: 'vendedores',
+            title: 'Contraseñas Vendedores',
+            description: 'Gestionar credenciales de vendedores App Móvil',
+            icon: 'badge',
+            color: 'info',
+            action: () => handleModuleChange('vendedores')
         },
         {
             id: 'impresion',
@@ -60,7 +80,7 @@ const OtrosScreen = () => {
             description: 'Control de sincronización y limpieza de datos',
             icon: 'build',
             color: 'danger',
-            action: () => setActiveModule('herramientas')
+            action: () => handleModuleChange('herramientas')
         },
         {
             id: 'rutas',
@@ -68,15 +88,15 @@ const OtrosScreen = () => {
             description: 'Administrar rutas y clientes',
             icon: 'map',
             color: 'primary',
-            action: () => setActiveModule('rutas')
+            action: () => handleModuleChange('rutas')
         },
         {
             id: 'ventas_ruta',
-            title: 'Ventas de Ruta',
-            description: 'Ver ventas realizadas por vendedores',
-            icon: 'point_of_sale',
+            title: 'Reporte Ventas Ruta',
+            description: 'Ver reporte consolidado de ventas en ruta',
+            icon: 'analytics',
             color: 'success',
-            action: () => setActiveModule('ventas_ruta')
+            action: () => handleModuleChange('ventas_ruta')
         },
         {
             id: 'precios_cargue',
@@ -134,7 +154,7 @@ const OtrosScreen = () => {
                         <Button
                             variant="outline-secondary"
                             className="mb-3"
-                            onClick={() => setActiveModule('')}
+                            onClick={() => handleModuleChange('')}
                         >
                             <i className="bi bi-arrow-left me-2"></i>
                             Volver al Menú de Otros
@@ -146,19 +166,31 @@ const OtrosScreen = () => {
                         <Button
                             variant="outline-secondary"
                             className="mb-3"
-                            onClick={() => setActiveModule('')}
+                            onClick={() => handleModuleChange('')}
                         >
                             <i className="bi bi-arrow-left me-2"></i>
                             Volver al Menú de Otros
                         </Button>
                         <GestionUsuarios />
                     </div>
+                ) : activeModule === 'vendedores' ? (
+                    <div>
+                        <Button
+                            variant="outline-secondary"
+                            className="mb-3"
+                            onClick={() => handleModuleChange('')}
+                        >
+                            <i className="bi bi-arrow-left me-2"></i>
+                            Volver al Menú de Otros
+                        </Button>
+                        <GestionVendedores />
+                    </div>
                 ) : activeModule === 'herramientas' ? (
                     <div>
                         <Button
                             variant="outline-secondary"
                             className="mb-3"
-                            onClick={() => setActiveModule('')}
+                            onClick={() => handleModuleChange('')}
                         >
                             <i className="bi bi-arrow-left me-2"></i>
                             Volver al Menú de Otros
@@ -170,7 +202,7 @@ const OtrosScreen = () => {
                         <Button
                             variant="outline-secondary"
                             className="mb-3"
-                            onClick={() => setActiveModule('')}
+                            onClick={() => handleModuleChange('')}
                         >
                             <i className="bi bi-arrow-left me-2"></i>
                             Volver al Menú de Otros
@@ -182,7 +214,7 @@ const OtrosScreen = () => {
                         <Button
                             variant="outline-secondary"
                             className="mb-3"
-                            onClick={() => setActiveModule('')}
+                            onClick={() => handleModuleChange('')}
                         >
                             <i className="bi bi-arrow-left me-2"></i>
                             Volver al Menú de Otros
