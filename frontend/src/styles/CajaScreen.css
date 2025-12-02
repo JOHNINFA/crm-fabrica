@@ -1,0 +1,1140 @@
+/* Estilos para la página completa de Caja - Diseño limpio y profesional */
+.caja-screen {
+    min-height: 100vh;
+    background: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header de la página - Estilo limpio */
+.caja-header {
+    background: white;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.caja-header h2 {
+    color: #495057;
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.caja-header .text-muted {
+    color: #6c757d !important;
+    font-size: 0.9rem;
+}
+
+/* Contenido principal más compacto */
+.caja-content {
+    padding: 1.5rem 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Cards estilo limpio y profesional */
+.caja-content .card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.caja-content .card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.caja-content .card-header {
+    background: #f8f9fa;
+    color: #495057;
+    border-radius: 8px 8px 0 0 !important;
+    border-bottom: 1px solid #e9ecef;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+}
+
+.caja-content .card-body {
+    padding: 1.25rem;
+}
+
+/* Estadísticas del día */
+.stat-card {
+    padding: 1.5rem;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Tabla de arqueo estilo limpio como la imagen */
+.caja-table-page {
+    font-size: 0.95rem;
+    margin-bottom: 0;
+    border: 1px solid #e9ecef;
+}
+
+.caja-table-page thead th {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #e9ecef;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.caja-table-page tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.caja-table-page tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.caja-table-page tbody td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+    border: 1px solid #e9ecef;
+    font-size: 0.9rem;
+}
+
+.caja-table-page tbody td:first-child {
+    font-weight: 500;
+    color: #495057;
+}
+
+.caja-table-page tfoot tr {
+    background: #e9ecef;
+    border-top: 2px solid #dee2e6;
+}
+
+.caja-table-page tfoot td {
+    border: 1px solid #dee2e6;
+    padding: 0.75rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+/* Inputs de la tabla estilo limpio */
+.caja-input-page {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background: white;
+    font-size: 0.9rem;
+}
+
+.caja-input-page:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: 0;
+}
+
+/* Tabs estilo limpio y consistente */
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 0;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: #495057;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    margin-right: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: transparent;
+    color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: white;
+    color: #495057;
+    border-bottom: 2px solid #007bff;
+    font-weight: 600;
+}
+
+/* Botones de acción */
+.caja-actions {
+    margin-top: 3rem;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.caja-actions .btn {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    min-width: 180px;
+}
+
+.caja-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.caja-actions .btn-success {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    border: none;
+}
+
+.caja-actions .btn-success:hover {
+    background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+}
+
+.caja-actions .btn-primary {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border: none;
+}
+
+.caja-actions .btn-primary:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+}
+
+/* Alertas mejoradas */
+.alert {
+    border: none;
+    border-radius: 10px;
+    font-weight: 500;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    color: white;
+}
+
+/* Badges mejorados */
+.badge {
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Formularios */
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+.form-control,
+.form-select {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* Textarea de observaciones */
+textarea.form-control {
+    resize: vertical;
+    min-height: 120px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .caja-content {
+        padding: 1rem 0;
+    }
+
+    .caja-header .container-fluid {
+        padding: 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .caja-table-page {
+        font-size: 0.9rem;
+    }
+
+    .caja-input-page {
+        width: 120px !important;
+        font-size: 0.9rem;
+    }
+
+    .nav-tabs .nav-link {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .caja-actions .btn {
+        min-width: 140px;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stat-card {
+        margin-bottom: 1rem;
+    }
+
+    .caja-actions .d-flex {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .caja-actions .btn {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.caja-content .card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.caja-content .card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.caja-content .card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+/* Estados de validación */
+.text-danger {
+    color: #e74c3c !important;
+}
+
+.text-success {
+    color: #27ae60 !important;
+}
+
+.text-warning {
+    color: #f39c12 !important;
+}
+
+/* Spinner personalizado */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Mejoras para impresión */
+@media print {
+
+    .caja-header,
+    .caja-actions,
+    .btn,
+    .nav-tabs {
+        display: none !important;
+    }
+
+    .caja-content {
+        padding: 0;
+        max-width: none;
+    }
+
+    .card {
+        box-shadow: none;
+        border: 1px solid #dee2e6;
+    }
+
+    .table {
+        font-size: 12px;
+    }
+}
+
+/*
+ Estilos adicionales para mejoras */
+
+/* Mejoras para el tab de reportes */
+.bg-light .border-end:last-child {
+    border-right: none !important;
+}
+
+.bg-light .h4 {
+    font-weight: 700;
+}
+
+/* Mejoras para botones en tabs */
+.card-body .btn {
+    transition: all 0.3s ease;
+}
+
+.card-body .btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Mejoras para la tabla de historial */
+.table th {
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Badges mejorados */
+.badge.bg-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+}
+
+.badge.bg-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%) !important;
+}
+
+.badge.bg-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%) !important;
+}
+
+/* Botones pequeños mejorados */
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.btn-outline-primary:hover {
+    transform: scale(1.05);
+}
+
+.btn-outline-secondary:hover {
+    transform: scale(1.05);
+}
+
+/* Mejoras para formularios en tabs */
+.form-group .form-label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Espaciado mejorado */
+.gap-2>* {
+    margin-right: 0.5rem !important;
+}
+
+.gap-3>* {
+    margin-right: 1rem !important;
+}
+
+/* Efectos hover para cards */
+.bg-light.card:hover {
+    background: #f1f3f4 !important;
+    transition: background-color 0.3s ease;
+}
+
+/* Mejoras para iconos */
+.bi {
+    font-size: 1em;
+}
+
+.h4 .bi,
+.h5 .bi,
+.h6 .bi {
+    font-size: 0.9em;
+}
+
+/* Estilos responsive ya definidos arriba */
+
+.table-responsive {
+    font-size: 0.85rem;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* Mejoras para el estado de carga */
+.spinner-border {
+    color: #3498db;
+}
+
+/* Mejoras para alertas en tabs */
+.alert {
+    margin-bottom: 1rem;
+}
+
+.alert .bi {
+    font-size: 1.1em;
+}
+
+/* Mejoras para estadísticas */
+.stat-card .h5,
+.stat-card .h4 {
+    margin-bottom: 0.25rem;
+}
+
+.stat-card small {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+/* 
+Estilos adicionales para el diseño limpio como la imagen */
+
+/* Botones del header estilo limpio */
+.card-body .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.btn-dark {
+    background-color: #495057;
+    border-color: #495057;
+}
+
+.btn-dark:hover {
+    background-color: #343a40;
+    border-color: #343a40;
+}
+
+/* Mejoras para la tabla principal */
+.caja-table-page tbody td:first-child {
+    background-color: #f8f9fa;
+    font-weight: 500;
+}
+
+/* Colores específicos para diferencias */
+.text-danger {
+    color: #dc3545 !important;
+    font-weight: 600;
+}
+
+.text-success {
+    color: #28a745 !important;
+    font-weight: 600;
+}
+
+.text-primary {
+    color: #007bff !important;
+}
+
+/* Estilo para valores destacados */
+.caja-table-page .text-success.fw-bold {
+    color: #28a745 !important;
+    font-size: 1rem;
+}
+
+.caja-table-page .text-primary.fw-bold {
+    color: #007bff !important;
+}
+
+/* Mejoras para inputs en la tabla */
+.caja-input-page {
+    height: 32px;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Header más limpio */
+.caja-header .btn-outline-secondary {
+    color: #6c757d;
+    border-color: #6c757d;
+}
+
+.caja-header .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+/* Espaciado mejorado */
+.card-body {
+    padding: 1.25rem;
+}
+
+/* Estilos duplicados eliminados - ya están definidos arriba */
+
+/* Mejoras para estadísticas */
+.stat-card {
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: white;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Responsive mejorado */
+@media (max-width: 768px) {
+    .caja-input-page {
+        width: 120px !important;
+        font-size: 0.8rem;
+    }
+
+    .caja-table-page {
+        font-size: 0.8rem;
+    }
+
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Mejoras para alertas */
+.alert {
+    border-radius: 6px;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Botones de acción mejorados */
+.caja-actions .btn {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+}
+
+.caja-actions .btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.caja-actions .btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+/* Estilo e
+special para diferencias negativas como en la imagen */
+.diferencia-negativa {
+    background-color: #cce5ff !important;
+    color: #0066cc !important;
+    font-weight: 600;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+
+.diferencia-positiva {
+    color: #28a745 !important;
+    font-weight: 600;
+}
+
+.diferencia-cero {
+    color: #6c757d !important;
+    font-weight: 500;
+}
+
+/* Mejora para valores del sistema destacados */
+.valor-sistema-destacado {
+    background-color: #e8f5e8;
+    color: #155724;
+    font-weight: 600;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Mejora para valores de transferencia */
+.valor-transferencia {
+    background-color: #cce5ff;
+    color: #0066cc;
+    font-weight: 600;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Estilo para la fila de efectivo destacada */
+.fila-efectivo {
+    background-color: #f8f9fa !important;
+}
+
+.fila-efectivo td:first-child {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Mejoras adicionales para la tabla */
+.caja-table-page tbody tr:nth-child(odd) {
+    background-color: #fdfdfd;
+}
+
+.caja-table-page tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* 
+Estilos adicionales para diseño más compacto */
+
+/* Contenedor más compacto */
+.caja-screen .container {
+    max-width: 1100px;
+}
+
+/* Reducir espaciado entre cards */
+.caja-content .card+.card {
+    margin-top: 1rem;
+}
+
+/* Hacer los inputs más pequeños */
+.caja-input-page {
+    height: 30px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+}
+
+/* Compactar las estadísticas */
+.stat-card {
+    padding: 0.75rem;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+}
+
+/* Reducir padding en tabs */
+.tab-content {
+    padding-top: 1rem;
+}
+
+/* Hacer los botones más compactos */
+.caja-actions {
+    margin-top: 2rem;
+    padding: 1.5rem;
+}
+
+.caja-actions .btn {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.95rem;
+}
+
+/* Compactar alertas */
+.alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Responsive mejorado para diseño compacto */
+@media (max-width: 992px) {
+    .caja-content {
+        max-width: 100%;
+        padding: 1rem 0;
+    }
+
+    .caja-input-page {
+        width: 100px !important;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .caja-content .card-body {
+        padding: 1rem;
+    }
+
+    .caja-table-page tbody td {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .caja-table-page thead th {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/*
+ Botones compactos para el header de controles */
+.btn-compact {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 500;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.btn-compact .bi {
+    font-size: 0.8em;
+}
+
+/* Ajustar el gap entre botones compactos */
+.d-flex.gap-2 .btn-compact {
+    margin-right: 0.25rem;
+}
+
+/* Estilos específicos para los botones del header de controles */
+.card-body .d-flex.gap-2 {
+    gap: 0.25rem !important;
+}
+
+.card-body .btn-compact {
+    min-width: auto;
+    padding: 0.25rem 0.75rem !important;
+}
+
+/* Responsive para botones compactos */
+@media (max-width: 768px) {
+    .btn-compact {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.7rem !important;
+    }
+
+    .btn-compact .bi {
+        font-size: 0.75em;
+    }
+}
+
+@media (max-width: 576px) {
+    .btn-compact {
+        padding: 0.15rem 0.3rem !important;
+        font-size: 0.65rem !important;
+    }
+
+    /* En móviles, apilar los botones verticalmente si es necesario */
+    .card-body .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+}
+
+/* In
+puts compactos para los controles superiores */
+.form-control-compact {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    height: auto !important;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+}
+
+.form-control-compact:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Labels compactos */
+.form-label-compact {
+    font-size: 0.8rem !important;
+    font-weight: 500;
+    margin-bottom: 0.5rem !important;
+    color: #6c757d !important;
+}
+
+/* Ajustar el Form.Group para que sea más compacto */
+.card-body .form-group {
+    margin-bottom: 1rem;
+}
+
+/* Hacer los inputs de la tabla aún más pequeños */
+.caja-input-page {
+    height: 28px !important;
+    padding: 0.2rem 0.4rem !important;
+    font-size: 0.8rem !important;
+    border-radius: 3px;
+}
+
+/* Responsive para inputs compactos */
+@media (max-width: 768px) {
+    .form-control-compact {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    .form-label-compact {
+        font-size: 0.75rem !important;
+    }
+
+    .caja-input-page {
+        height: 26px !important;
+        padding: 0.15rem 0.3rem !important;
+        font-size: 0.75rem !important;
+        width: 90px !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .form-control-compact {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.75rem !important;
+    }
+
+    .caja-input-page {
+        height: 24px !important;
+        width: 80px !important;
+    }
+}
+
+/*
+ Alineación consistente para todos los valores del sistema */
+.caja-table-page tbody td:nth-child(2) {
+    text-align: right !important;
+    vertical-align: middle;
+    padding-right: 1rem;
+}
+
+.caja-table-page tbody td:nth-child(2) span {
+    vertical-align: middle;
+}
+
+/* Asegurar que todos los valores tengan la misma altura base */
+.caja-table-page tbody td:nth-child(2) .valor-sistema-destacado,
+.caja-table-page tbody td:nth-child(2) .valor-transferencia {
+    vertical-align: baseline;
+    line-height: 1.2;
+}
+
+/* Alineación para la columna de diferencias */
+.caja-table-page tbody td:nth-child(4) {
+    text-align: right !important;
+    vertical-align: middle;
+    padding-right: 1rem;
+}
+
+.caja-table-page tbody td:nth-child(4) .diferencia-negativa,
+.caja-table-page tbody td:nth-child(4) .diferencia-positiva,
+.caja-table-page tbody td:nth-child(4) .diferencia-cero {
+    vertical-align: baseline;
+    line-height: 1.2;
+}
+
+/* A
+lineación vertical perfecta para todos los valores */
+.caja-table-page tbody td {
+    vertical-align: middle !important;
+    line-height: 1.4;
+}
+
+.caja-table-page tbody td span {
+    vertical-align: baseline;
+    display: inline-block;
+    line-height: 1.4;
+}
+
+/* Simplificar la alineación de valores monetarios */
+.caja-table-page tbody td:nth-child(2) span,
+.caja-table-page tbody td:nth-child(4) span {
+    display: inline;
+    vertical-align: baseline;
+}
+
+/* Eliminar cualquier padding o margin extra que pueda causar desalineación */
+.caja-table-page tbody td:nth-child(2),
+.caja-table-page tbody td:nth-child(4) {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+/* Asegurar que los inputs también estén alineados */
+.caja-table-page tbody td:nth-child(3) {
+    vertical-align: middle !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+.caja-input-page {
+    vertical-align: middle;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/ * Alineación para la fila de totales */ .caja-table-page tfoot td {
+    vertical-align: middle !important;
+    line-height: 1.4;
+}
+
+.caja-table-page tfoot td span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 1.4em;
+}
+
+/* Eliminar cualquier estilo que pueda estar causando desalineación */
+.valor-sistema-destacado,
+.valor-transferencia {
+    display: inline !important;
+    padding: 0 !important;
+    background: none !important;
+    border-radius: 0 !important;
+    min-width: auto !important;
+    text-align: inherit !important;
+}
+
+/ * CORRECCIÓN FINAL DE ALINEACIÓN - Estilos simples y efectivos */
+/* Resetear cualquier estilo conflictivo en la tabla */
+.caja-table-page tbody td {
+    vertical-align: middle !important;
+    padding: 0.5rem 0.75rem !important;
+}
+
+/* Alineación específica para columnas de valores */
+.caja-table-page tbody td:nth-child(2),
+.caja-table-page tbody td:nth-child(4) {
+    text-align: right !important;
+}
+
+/* Resetear estilos de spans para evitar desalineación */
+.caja-table-page tbody td span {
+    display: inline !important;
+    vertical-align: baseline !important;
+    line-height: normal !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    border-radius: 0 !important;
+    min-width: auto !important;
+    height: auto !important;
+}
+
+/* Asegurar que los totales también estén alineados */
+.caja-table-page tfoot td {
+    vertical-align: middle !important;
+    text-align: right !important;
+}
+
+.caja-table-page tfoot td:first-child {
+    text-align: left !important;
+}
+
+.caja-table-page tfoot td span {
+    display: inline !important;
+    vertical-align: baseline !important;
+    line-height: normal !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+}
+
+/*
+ Estilos para centrar modales correctamente */
+.modal-centered-custom {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100vh !important;
+}
+
+.modal-centered-custom .modal-content {
+    margin: auto !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+}
+
+.modal-centered-custom .modal-dialog {
+    margin: 1.75rem auto !important;
+    display: flex !important;
+    align-items: center !important;
+    min-height: calc(100vh - 3.5rem) !important;
+}
+
+/* Asegurar que el modal se centre en todas las resoluciones */
+@media (min-width: 576px) {
+    .modal-centered-custom .modal-dialog {
+        max-width: 90% !important;
+        margin: 1.75rem auto !important;
+    }
+}
+
+@media (min-width: 992px) {
+    .modal-centered-custom .modal-dialog {
+        max-width: 80% !important;
+    }
+}
+
+/* Scroll interno para el contenido del modal */
+.modal-centered-custom .modal-body {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    padding: 1.5rem !important;
+}

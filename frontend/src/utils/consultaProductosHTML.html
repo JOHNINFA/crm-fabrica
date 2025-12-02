@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta Tabla api_producto</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f7ef;
+            border-radius: 8px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            font-style: italic;
+            color: #666;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background-color: #ffeeee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .stock-zero {
+            color: red;
+            font-weight: bold;
+        }
+        .stock-low {
+            color: orange;
+            font-weight: bold;
+        }
+        .stock-ok {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Consulta Tabla api_producto</h1>
+        
+        <button id="consultarBtn" class="btn">Consultar Productos</button>
+        
+        <div id="loading" class="loading" style="display: none;">Cargando productos...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="resultados" style="display: none;">
+            <table id="tablaProductos">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Stock</th>
+                        <th>Precio</th>
+                        <th>Categoría</th>
+                        <th>Marca</th>
+                        <th>Activo</th>
+                    </tr>
+                </thead>
+                <tbody id="productosBody">
+                    <!-- Aquí se cargarán los productos -->
+                </tbody>
+            </table>
+            
+            <div id="stats" class="stats">
+                <!-- Aquí se mostrarán las estadísticas -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('consultarBtn').addEventListener('click', consultarProductos);
+
+        async function consultarProductos() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const resultadosEl = document.getElementById('resultados');
+            const productosBodyEl = document.getElementById('productosBody');
+            const statsEl = document.getElementById('stats');
+            
+            // Mostrar cargando y ocultar otros elementos
+            loadingEl.style.display = 'block';
+            errorEl.style.display = 'none';
+            resultadosEl.style.display = 'none';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/productos/');
+                
+                if (!response.ok) {
+                    throw new Error(`Error al consultar productos: ${response.status}`);
+                }
+                
+                const productos = await response.json();
+                
+                // Limpiar tabla
+                productosBodyEl.innerHTML = '';
+                
+                // Llenar tabla con productos
+                productos.forEach(p => {
+                    const row = document.createElement('tr');
+                    
+                    // Determinar clase para el stock
+                    let stockClass = '';
+                    if (p.stock_total <= 0) {
+                        stockClass = 'stock-zero';
+                    } else if (p.stock_total <= 30) {
+                        stockClass = 'stock-low';
+                    } else {
+                        stockClass = 'stock-ok';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${p.id}</td>
+                        <td>${p.nombre}</td>
+                        <td class="${stockClass}">${p.stock_total}</td>
+                        <td>$${p.precio.toFixed(2)}</td>
+                        <td>${p.categoria_nombre || 'Sin categoría'}</td>
+                        <td>${p.marca}</td>
+                        <td>${p.activo ? '✅' : '❌'}</td>
+                    `;
+                    
+                    productosBodyEl.appendChild(row);
+                });
+                
+                // Calcular estadísticas
+                const totalStock = productos.reduce((sum, p) => sum + p.stock_total, 0);
+                const productosConStock = productos.filter(p => p.stock_total > 0).length;
+                
+                // Mostrar estadísticas
+                statsEl.innerHTML = `
+                    <h3>Estadísticas</h3>
+                    <p><strong>Total de productos:</strong> ${productos.length}</p>
+                    <p><strong>Productos con stock:</strong> ${productosConStock} de ${productos.length}</p>
+                    <p><strong>Stock total:</strong> ${totalStock} unidades</p>
+                `;
+                
+                // Mostrar resultados
+                resultadosEl.style.display = 'block';
+            } catch (error) {
+                errorEl.textContent = `Error: ${error.message}`;
+                errorEl.style.display = 'block';
+            } finally {
+                loadingEl.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

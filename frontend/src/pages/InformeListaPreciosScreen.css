@@ -1,0 +1,162 @@
+.informe-lista-precios-container {
+    padding: 0.5rem;
+    min-height: 100vh;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: #28a745;
+    border-radius: 50%;
+}
+
+.custom-tabs {
+    background-color: #3d8bfd;
+    border-radius: 0.3rem 0.3rem 0 0;
+    padding: 0.5rem 0.5rem 0 0.5rem;
+}
+
+.custom-tabs .nav-tabs {
+    border-bottom: none;
+}
+
+.custom-tabs .nav-link {
+    border: none !important;
+    color: white;
+    background-color: #8ab7fa;
+    margin-right: 0.25rem;
+    border-radius: 0.3rem 0.3rem 0 0;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.custom-tabs .nav-link.active {
+    background-color: white !important;
+    color: #495057;
+    font-weight: 500;
+}
+
+.ajuste-porcentaje-section {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-top: none;
+}
+
+.ajuste-porcentaje-section th {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.productos-section .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-dollar-custom {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    color: white !important;
+}
+
+.btn-dollar-custom:hover {
+    background-color: #001a3a !important;
+    border-color: #001a3a !important;
+}
+
+.btn-regresar-informe-custom {
+    color: #002149 !important;
+    border-color: #002149 !important;
+}
+
+.btn-regresar-informe-custom:hover {
+    background-color: #002149 !important;
+    color: white !important;
+}
+
+.btn-refresh-custom .material-icons {
+    color: #002149 !important;
+}
+
+.btn-print-custom {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    color: white !important;
+}
+
+.btn-print-custom:hover {
+    background-color: #001a3a !important;
+    border-color: #001a3a !important;
+}
+
+.productos-table td {
+    color: #000000 !important;
+}
+
+.productos-table .align-middle {
+    color: #000000 !important;
+}
+
+
+/* ==================== CHECKBOXES Y SWITCHES ==================== */
+
+/* Checkbox de Aumento - MÁS VISIBLE */
+.ajuste-porcentaje-section .form-check-input[type="checkbox"]:not(.form-switch .form-check-input) {
+    width: 1.3rem;
+    height: 1.3rem;
+    border: 2px solid #002149 !important;
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.ajuste-porcentaje-section .form-check-input[type="checkbox"]:checked:not(.form-switch .form-check-input) {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+}
+
+.ajuste-porcentaje-section .form-check-label {
+    color: #333;
+    font-size: 0.85rem;
+    margin-left: 0.4rem;
+}
+
+/* Switch de Visible en POS - TOGGLE AZUL */
+.ajuste-porcentaje-section .form-switch .form-check-input {
+    width: 2.8rem;
+    height: 1.4rem;
+    border: 2px solid #adb5bd;
+    background-color: #e9ecef;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23adb5bd'/%3e%3c/svg%3e");
+}
+
+.ajuste-porcentaje-section .form-switch .form-check-input:checked {
+    background-color: #002149 !important;
+    border-color: #002149 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+}
+
+.ajuste-porcentaje-section .form-switch .form-check-input:focus {
+    border-color: #002149;
+    box-shadow: 0 0 0 0.2rem rgba(0, 33, 73, 0.25);
+}
+
+/* Tabla de ajuste */
+.ajuste-porcentaje-section table {
+    margin-bottom: 0;
+}
+
+.ajuste-porcentaje-section td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+
+.ajuste-porcentaje-section .form-check {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}

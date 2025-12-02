@@ -1,0 +1,71 @@
+/* Topbar.css - Estilos para el topbar de Pedidos */
+
+.topbar-bg {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Animación suave al ocultar/mostrar */
+.topbar-hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+}
+
+.topbar-visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Dropdown del topbar */
+.topbar-bg .dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e0e0e0;
+    padding: 4px 0;
+}
+
+.topbar-bg .dropdown-item {
+    padding: 6px 16px;
+    color: #333;
+    transition: background-color 0.2s ease;
+}
+
+.topbar-bg .dropdown-item:hover {
+    background-color: #f5f5f5;
+    color: #163864;
+}
+
+/* Botones del topbar */
+.topbar-bg .btn {
+    transition: all 0.2s ease;
+}
+
+.topbar-bg .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive para móvil */
+@media (max-width: 768px) {
+    .topbar-bg {
+        padding: 8px 55px 8px 12px !important;
+        min-height: 50px;
+    }
+
+    .topbar-bg .btn {
+        font-size: 11px !important;
+        padding: 6px 8px !important;
+    }
+
+    .topbar-bg .btn .material-icons,
+    .topbar-bg .btn i {
+        font-size: 14px !important;
+        margin-right: 0 !important;
+    }
+
+    /* Ajustar gap entre elementos */
+    .topbar-bg .d-flex.align-items-center.gap-2 {
+        gap: 6px !important;
+    }
+}
