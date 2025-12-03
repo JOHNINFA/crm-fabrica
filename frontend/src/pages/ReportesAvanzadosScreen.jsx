@@ -97,14 +97,24 @@ const ReportesAvanzadosScreen = () => {
         setPrediccionesIA({}); // Limpiar anteriores
 
         try {
-            // 1. Consultar Planeación
-            const response = await fetch(`${API_URL}/planeacion/?fecha=${selectedDate}`);
+            // 1. Consultar Snapshot de Planeación (tabla independiente)
+            const response = await fetch(`${API_URL}/registros-planeacion-dia/consultar_fecha/?fecha=${selectedDate}`);
 
             if (!response.ok) {
                 throw new Error(`Error en la consulta: ${response.status}`);
             }
 
-            let data = await response.json();
+            const resultado = await response.json();
+
+            // Verificar si existe snapshot para esta fecha
+            if (!resultado.existe || resultado.registros.length === 0) {
+                setError(`No hay snapshot guardado para ${selectedDate}. El snapshot se guarda cuando el botón cambia de SUGERIDO → ALISTAMIENTO ACTIVO.`);
+                setPlaneacionData([]);
+                setLoading(false);
+                return;
+            }
+
+            let data = resultado.registros;
 
             // 2. Consultar IA en paralelo
             const predicciones = await fetchPrediccionesIA(selectedDate);
@@ -114,7 +124,7 @@ const ReportesAvanzadosScreen = () => {
                 const pred = predicciones[item.producto_nombre];
                 return {
                     ...item,
-                    ia: pred ? pred.ia_sugerido : 0,
+                    ia: item.ia || (pred ? pred.ia_sugerido : 0),
                     ia_confianza: pred ? pred.confianza : null
                 };
             });
@@ -124,9 +134,8 @@ const ReportesAvanzadosScreen = () => {
 
             setPlaneacionData(data);
 
-            if (data.length === 0) {
-                setError('No se encontraron registros para la fecha seleccionada');
-            }
+            console.log(`✅ Snapshot cargado: ${data.length} productos, congelado: ${resultado.fecha_congelado}`);
+
         } catch (err) {
             console.error('Error consultando planeación:', err);
             setError('Error al consultar la planeación. Por favor intenta nuevamente.');

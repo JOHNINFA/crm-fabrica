@@ -406,6 +406,7 @@ class CargueID1ViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
+        import re
         queryset = CargueID1.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
@@ -419,7 +420,9 @@ class CargueID1ViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         if producto:
-            queryset = queryset.filter(producto=producto)
+            # 🔧 Normalizar nombre del producto (eliminar espacios múltiples)
+            producto_normalizado = re.sub(r'\s+', ' ', producto).strip()
+            queryset = queryset.filter(producto=producto_normalizado)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -446,34 +449,7 @@ class CargueID1ViewSet(viewsets.ModelViewSet):
             f.write(''.join(traceback.format_stack()))
             f.write("=" * 80 + "\n\n")
         
-        print("=" * 80)
-        print(f"🆕 CREATE CargueID1 - Datos recibidos:")
-        print(f"   producto: {request.data.get('producto')}")
-        print(f"   cantidad: {request.data.get('cantidad')}")
-        print(f"   dctos: {request.data.get('dctos')}")
-        print(f"   adicional: {request.data.get('adicional')}")
-        print(f"   dia: {request.data.get('dia')}")
-        print(f"   fecha: {request.data.get('fecha')}")
-        print("=" * 80)
         return super().create(request, *args, **kwargs)
-    
-    def update(self, request, *args, **kwargs):
-        """Actualizar registro con logging detallado"""
-        instance = self.get_object()
-        print(f"🔄 UPDATE CargueID1 - Producto: {instance.producto}")
-        print(f"   ANTES - cantidad: {instance.cantidad}, dctos: {instance.dctos}, adicional: {instance.adicional}")
-        print(f"   DATOS RECIBIDOS:")
-        print(f"   cantidad: {request.data.get('cantidad')}")
-        print(f"   dctos: {request.data.get('dctos')}")
-        print(f"   adicional: {request.data.get('adicional')}")
-        
-        response = super().update(request, *args, **kwargs)
-        
-        # Recargar para ver valores después del save()
-        instance.refresh_from_db()
-        print(f"   DESPUÉS - cantidad: {instance.cantidad}, dctos: {instance.dctos}, adicional: {instance.adicional}, total: {instance.total}")
-        
-        return response
 
 class CargueID2ViewSet(viewsets.ModelViewSet):
     """API simplificada para CargueID2 - Como api_vendedor"""
@@ -482,6 +458,7 @@ class CargueID2ViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
+        import re
         queryset = CargueID2.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
@@ -495,7 +472,8 @@ class CargueID2ViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         if producto:
-            queryset = queryset.filter(producto=producto)
+            producto_normalizado = re.sub(r'\s+', ' ', producto).strip()
+            queryset = queryset.filter(producto=producto_normalizado)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -508,6 +486,7 @@ class CargueID3ViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
+        import re
         queryset = CargueID3.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
@@ -521,7 +500,8 @@ class CargueID3ViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         if producto:
-            queryset = queryset.filter(producto=producto)
+            producto_normalizado = re.sub(r'\s+', ' ', producto).strip()
+            queryset = queryset.filter(producto=producto_normalizado)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -534,6 +514,7 @@ class CargueID4ViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
+        import re
         queryset = CargueID4.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
@@ -547,7 +528,8 @@ class CargueID4ViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         if producto:
-            queryset = queryset.filter(producto=producto)
+            producto_normalizado = re.sub(r'\s+', ' ', producto).strip()
+            queryset = queryset.filter(producto=producto_normalizado)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -560,6 +542,7 @@ class CargueID5ViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
+        import re
         queryset = CargueID5.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
@@ -573,7 +556,8 @@ class CargueID5ViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         if producto:
-            queryset = queryset.filter(producto=producto)
+            producto_normalizado = re.sub(r'\s+', ' ', producto).strip()
+            queryset = queryset.filter(producto=producto_normalizado)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -586,6 +570,7 @@ class CargueID6ViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
+        import re
         queryset = CargueID6.objects.all().order_by('-fecha', '-fecha_actualizacion')
         
         # Filtros opcionales
@@ -599,7 +584,8 @@ class CargueID6ViewSet(viewsets.ModelViewSet):
         if fecha:
             queryset = queryset.filter(fecha=fecha)
         if producto:
-            queryset = queryset.filter(producto=producto)
+            producto_normalizado = re.sub(r'\s+', ' ', producto).strip()
+            queryset = queryset.filter(producto=producto_normalizado)
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
@@ -2390,6 +2376,16 @@ def guardar_sugerido(request):
             # porque pueden tener adicionales/descuentos que modifiquen el total
             
             if nombre:
+                # Obtener check V (si viene)
+                v_check = prod.get('v', False) or prod.get('V', False)
+                
+                # Normalizar nombre para evitar duplicados
+                import re
+                nombre = re.sub(r'\s+', ' ', nombre).strip()
+
+                if not nombre:
+                    continue
+
                 # 🔍 Buscar si ya existe un registro para obtener el responsable actual
                 registro_existente = Modelo.objects.filter(
                     dia=dia,
@@ -2418,16 +2414,19 @@ def guardar_sugerido(request):
                 
                 # Buscar o crear
                 # Usamos update_or_create para ser más eficientes
+                defaults_data = {
+                    'cantidad': cantidad,
+                    'total': cantidad,  # ✅ Total = cantidad (sin dctos ni adicionales desde app)
+                    'responsable': responsable_a_usar,
+                    'usuario': 'AppMovil',
+                    'v': v_check  # ✅ Guardar check V
+                }
+                
                 obj, created = Modelo.objects.update_or_create(
                     dia=dia,
                     fecha=fecha,
                     producto=nombre,
-                    defaults={
-                        'cantidad': cantidad,
-                        'total': cantidad,  # ✅ Total = cantidad (sin dctos ni adicionales desde app)
-                        'responsable': responsable_a_usar,
-                        'usuario': 'AppMovil'
-                    }
+                    defaults=defaults_data
                 )
                 count += 1
         
@@ -2469,11 +2468,22 @@ def actualizar_check_vendedor(request):
         if not Modelo:
             return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
         
-        # Buscar el registro
-        try:
-            registro = Modelo.objects.get(dia=dia, fecha=fecha, producto=producto)
-        except Modelo.DoesNotExist:
-            return Response({'error': 'Producto no encontrado en cargue'}, status=404)
+        # Buscar el registro o crearlo si no existe (usando get_or_create para evitar duplicados)
+        registro, created = Modelo.objects.get_or_create(
+            dia=dia,
+            fecha=fecha,
+            producto=producto,
+            defaults={
+                'cantidad': 0,
+                'v': False,
+                'd': False,
+                'responsable': 'Sistema'
+            }
+        )
+        if created:
+            print(f"📱 Producto no existía en BD, registro creado: {producto}")
+        else:
+            print(f"📱 Producto encontrado en BD: {producto}")
         
         # ✅ VALIDACIÓN: Solo permitir marcar V si D está marcado y hay cantidad
         if v_nuevo:
@@ -3017,3 +3027,112 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
+
+# ===== VIEWSET PARA SNAPSHOT PLANEACIÓN =====
+
+from .models import RegistrosPlaneacionDia
+from .serializers import RegistrosPlaneacionDiaSerializer
+
+class RegistrosPlaneacionDiaViewSet(viewsets.ModelViewSet):
+    """
+    API para guardar y consultar snapshots de Planeación.
+    Se usa cuando el botón cambia de SUGERIDO → ALISTAMIENTO_ACTIVO.
+    """
+    queryset = RegistrosPlaneacionDia.objects.all()
+    serializer_class = RegistrosPlaneacionDiaSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = RegistrosPlaneacionDia.objects.all()
+        fecha = self.request.query_params.get('fecha', None)
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        
+        return queryset.order_by('orden', 'producto_nombre')
+    
+    @action(detail=False, methods=['post'])
+    def guardar_snapshot(self, request):
+        """
+        Endpoint para guardar snapshot completo de Planeación.
+        Recibe: { fecha: "2025-12-02", registros: [...], usuario: "Sistema" }
+        """
+        from django.db import transaction
+        
+        fecha = request.data.get('fecha')
+        registros = request.data.get('registros', [])
+        usuario = request.data.get('usuario', 'Sistema')
+        
+        if not fecha:
+            return Response({'error': 'Fecha requerida'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not registros:
+            return Response({'error': 'No hay registros para guardar'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with transaction.atomic():
+                # Eliminar registros anteriores de la misma fecha (sobrescribir)
+                RegistrosPlaneacionDia.objects.filter(fecha=fecha).delete()
+                
+                # Crear nuevos registros
+                registros_creados = []
+                for reg in registros:
+                    nuevo = RegistrosPlaneacionDia.objects.create(
+                        fecha=fecha,
+                        producto_nombre=reg.get('producto_nombre', ''),
+                        existencias=reg.get('existencias', 0),
+                        solicitadas=reg.get('solicitadas', 0),
+                        pedidos=reg.get('pedidos', 0),
+                        total=reg.get('total', 0),
+                        orden=reg.get('orden', 0),
+                        ia=reg.get('ia', 0),
+                        usuario=usuario
+                    )
+                    registros_creados.append(nuevo)
+                
+                print(f"✅ Snapshot guardado: {len(registros_creados)} registros para {fecha}")
+                
+                return Response({
+                    'success': True,
+                    'mensaje': f'Snapshot guardado: {len(registros_creados)} registros',
+                    'fecha': fecha,
+                    'cantidad': len(registros_creados)
+                }, status=status.HTTP_201_CREATED)
+                
+        except Exception as e:
+            print(f"❌ Error guardando snapshot: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'])
+    def consultar_fecha(self, request):
+        """
+        Endpoint para consultar snapshot de una fecha específica.
+        GET /api/registros-planeacion-dia/consultar_fecha/?fecha=2025-12-02
+        """
+        fecha = request.query_params.get('fecha')
+        
+        if not fecha:
+            return Response({'error': 'Fecha requerida'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        registros = RegistrosPlaneacionDia.objects.filter(fecha=fecha).order_by('orden', 'producto_nombre')
+        
+        if not registros.exists():
+            return Response({
+                'fecha': fecha,
+                'existe': False,
+                'registros': [],
+                'mensaje': f'No hay snapshot para la fecha {fecha}'
+            })
+        
+        serializer = self.get_serializer(registros, many=True)
+        
+        # Obtener fecha de congelado del primer registro
+        fecha_congelado = registros.first().fecha_congelado if registros.exists() else None
+        
+        return Response({
+            'fecha': fecha,
+            'existe': True,
+            'fecha_congelado': fecha_congelado,
+            'cantidad': registros.count(),
+            'registros': serializer.data
+        })

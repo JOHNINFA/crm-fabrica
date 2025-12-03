@@ -537,6 +537,12 @@ class CargueID1(models.Model):
     
     def __str__(self):
         return f"ID1 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+    
+    class Meta:
+        # 🚀 Evitar duplicados: solo un registro por día+fecha+producto
+        unique_together = ['dia', 'fecha', 'producto']
+        verbose_name = 'Cargue ID1'
+        verbose_name_plural = 'Cargues ID1'
 
 class CargueID2(models.Model):
     """Modelo simplificado para cargue ID2 - Toda la información en una tabla"""
@@ -613,6 +619,11 @@ class CargueID2(models.Model):
     
     def __str__(self):
         return f"ID2 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+    
+    class Meta:
+        unique_together = ['dia', 'fecha', 'producto']
+        verbose_name = 'Cargue ID2'
+        verbose_name_plural = 'Cargues ID2'
 
 class CargueID3(models.Model):
     """Modelo simplificado para cargue ID3 - Toda la información en una tabla"""
@@ -688,6 +699,11 @@ class CargueID3(models.Model):
     
     def __str__(self):
         return f"ID3 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+    
+    class Meta:
+        unique_together = ['dia', 'fecha', 'producto']
+        verbose_name = 'Cargue ID3'
+        verbose_name_plural = 'Cargues ID3'
 
 class ConfiguracionImpresion(models.Model):
     """Modelo para configuración de impresión de tickets"""
@@ -806,6 +822,11 @@ class CargueID4(models.Model):
     
     def __str__(self):
         return f"ID4 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+    
+    class Meta:
+        unique_together = ['dia', 'fecha', 'producto']
+        verbose_name = 'Cargue ID4'
+        verbose_name_plural = 'Cargues ID4'
 
 class CargueID5(models.Model):
     """Modelo simplificado para cargue ID5 - Toda la información en una tabla"""
@@ -881,6 +902,11 @@ class CargueID5(models.Model):
     
     def __str__(self):
         return f"ID5 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+    
+    class Meta:
+        unique_together = ['dia', 'fecha', 'producto']
+        verbose_name = 'Cargue ID5'
+        verbose_name_plural = 'Cargues ID5'
 
 class CargueID6(models.Model):
     """Modelo simplificado para cargue ID6 - Toda la información en una tabla"""
@@ -956,6 +982,210 @@ class CargueID6(models.Model):
     
     def __str__(self):
         return f"ID6 - {self.dia} - {self.fecha} - {self.producto} - {self.responsable}"
+    
+    class Meta:
+        unique_together = ['dia', 'fecha', 'producto']
+        verbose_name = 'Cargue ID6'
+        verbose_name_plural = 'Cargues ID6'
+
+# ========================================
+# TABLAS NORMALIZADAS DE CARGUE (Nuevas)
+# ========================================
+
+class CargueProductos(models.Model):
+    """
+    Modelo normalizado para productos de cargue
+    Reemplaza la parte de productos de CargueID1-6
+    """
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    # Identificación (PK compuesta lógica)
+    vendedor_id = models.CharField(max_length=3)  # ID1, ID2, ID3, ID4, ID5, ID6
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    producto = models.CharField(max_length=255)
+    
+    # Datos del producto
+    cantidad = models.IntegerField(default=0)
+    dctos = models.IntegerField(default=0)
+    adicional = models.IntegerField(default=0)
+    devoluciones = models.IntegerField(default=0)
+    vencidas = models.IntegerField(default=0)
+    total = models.IntegerField(default=0)
+    
+    # Precio y valor
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Checks
+    v = models.BooleanField(default=False)  # Vendedor
+    d = models.BooleanField(default=False)  # Despachador
+    
+    # Lotes (JSON)
+    lotes_vencidos = models.TextField(blank=True)
+    lotes_produccion = models.TextField(blank=True)
+    
+    # Metadatos
+    responsable = models.CharField(max_length=100, default='Sistema')
+    usuario = models.CharField(max_length=100, default='Sistema')
+    ruta = models.CharField(max_length=100, blank=True)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_cargue_productos'
+        unique_together = ['vendedor_id', 'dia', 'fecha', 'producto']
+        indexes = [
+            models.Index(fields=['vendedor_id', 'fecha', 'dia']),
+            models.Index(fields=['fecha']),
+        ]
+        verbose_name = 'Producto de Cargue'
+        verbose_name_plural = 'Productos de Cargue'
+    
+    def save(self, *args, **kwargs):
+        # Calcular total y neto automáticamente
+        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        self.neto = self.total * self.valor
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.vendedor_id} - {self.dia} - {self.fecha} - {self.producto}"
+
+
+class CargueResumen(models.Model):
+    """
+    Modelo normalizado para resúmenes de cargue
+    Guarda base_caja, totales, ventas (UNA FILA POR DÍA/VENDEDOR)
+    """
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    # Identificación (PK compuesta lógica)
+    vendedor_id = models.CharField(max_length=3)
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    
+    # Resumen financiero
+    base_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_despacho = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_pedidos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_cargue_resumen'
+        unique_together = ['vendedor_id', 'dia', 'fecha']
+        indexes = [
+            models.Index(fields=['vendedor_id', 'fecha']),
+            models.Index(fields=['fecha']),
+        ]
+        verbose_name = 'Resumen de Cargue'
+        verbose_name_plural = 'Resúmenes de Cargue'
+    
+    def __str__(self):
+        return f"{self.vendedor_id} - {self.dia} - {self.fecha} - Venta: ${self.venta}"
+
+
+class CarguePagos(models.Model):
+    """
+    Modelo normalizado para conceptos de pago
+    Puede haber MÚLTIPLES conceptos por día/vendedor
+    """
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    # Identificación
+    vendedor_id = models.CharField(max_length=3)
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    
+    # Datos de pago
+    concepto = models.CharField(max_length=255, blank=True)
+    descuentos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nequi = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    daviplata = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_cargue_pagos'
+        indexes = [
+            models.Index(fields=['vendedor_id', 'fecha', 'dia']),
+            models.Index(fields=['fecha']),
+        ]
+        verbose_name = 'Pago de Cargue'
+        verbose_name_plural = 'Pagos de Cargue'
+    
+    def __str__(self):
+        return f"{self.vendedor_id} - {self.dia} - {self.fecha} - {self.concepto}"
+
+
+class CargueCumplimiento(models.Model):
+    """
+    Modelo normalizado para checklist de cumplimiento
+    UNA FILA POR DÍA/VENDEDOR
+    """
+    DIAS_CHOICES = [
+        ('LUNES', 'Lunes'), ('MARTES', 'Martes'), ('MIERCOLES', 'Miércoles'),
+        ('JUEVES', 'Jueves'), ('VIERNES', 'Viernes'), ('SABADO', 'Sábado'), ('DOMINGO', 'Domingo'),
+    ]
+    
+    CUMPLIMIENTO_CHOICES = [('C', 'Cumple'), ('NC', 'No Cumple')]
+    
+    # Identificación (PK compuesta lógica)
+    vendedor_id = models.CharField(max_length=3)
+    dia = models.CharField(max_length=10, choices=DIAS_CHOICES)
+    fecha = models.DateField()
+    
+    # Checklist de cumplimiento
+    licencia_transporte = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    soat = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    uniforme = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_locion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    no_accesorios = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    capacitacion_carnet = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    higiene = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    estibas = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    desinfeccion = models.CharField(max_length=2, choices=CUMPLIMIENTO_CHOICES, blank=True, null=True)
+    
+    # Metadatos
+    usuario = models.CharField(max_length=100, default='Sistema')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_cargue_cumplimiento'
+        unique_together = ['vendedor_id', 'dia', 'fecha']
+        indexes = [
+            models.Index(fields=['vendedor_id', 'fecha']),
+            models.Index(fields=['fecha']),
+        ]
+        verbose_name = 'Cumplimiento de Cargue'
+        verbose_name_plural = 'Cumplimientos de Cargue'
+    
+    def __str__(self):
+        return f"{self.vendedor_id} - {self.dia} - {self.fecha}"
+
 
 # ========================================
 # TABLA DE PRODUCCIÓN SEPARADA
@@ -1588,3 +1818,35 @@ class EvidenciaVenta(models.Model):
 
     def __str__(self):
         return f"Evidencia Venta {self.venta.id} - Prod {self.producto_id}"
+
+
+# ========================================
+# MODELO PARA SNAPSHOT DE PLANEACIÓN
+# ========================================
+
+class RegistrosPlaneacionDia(models.Model):
+    """
+    Modelo para guardar snapshot de Planeación al momento de congelar.
+    Se crea cuando el botón cambia de SUGERIDO → ALISTAMIENTO_ACTIVO.
+    Los datos son inmutables - solo se crean, no se actualizan.
+    """
+    fecha = models.DateField(db_index=True)  # Fecha del día de planeación
+    producto_nombre = models.CharField(max_length=200)
+    existencias = models.IntegerField(default=0)
+    solicitadas = models.IntegerField(default=0)
+    pedidos = models.IntegerField(default=0)
+    total = models.IntegerField(default=0)
+    orden = models.IntegerField(default=0)
+    ia = models.IntegerField(default=0)
+    fecha_congelado = models.DateTimeField(auto_now_add=True)  # Timestamp de cuándo se congeló
+    usuario = models.CharField(max_length=100, default='Sistema')
+    
+    class Meta:
+        db_table = 'api_registros_planeacion_dia'
+        unique_together = ['fecha', 'producto_nombre']  # Un registro por producto por día
+        verbose_name = 'Registro Planeación Día'
+        verbose_name_plural = 'Registros Planeación Día'
+        ordering = ['fecha', 'orden']
+    
+    def __str__(self):
+        return f"{self.fecha} - {self.producto_nombre} - Sol:{self.solicitadas}"

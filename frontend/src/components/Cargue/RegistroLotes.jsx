@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './RegistroLotes.css';
 
 const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
@@ -15,12 +16,22 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
 
     const cargarLotes = async () => {
         try {
-            const fechaAUsar = fechaSeleccionada;
-            const keyLocal = `lotes_${dia}_${idSheet}_${fechaAUsar}`;
+            // Convertir fecha a formato YYYY-MM-DD para la API y localStorage
+            let fechaParaBD;
+            if (fechaSeleccionada instanceof Date) {
+                const year = fechaSeleccionada.getFullYear();
+                const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+                const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+                fechaParaBD = `${year}-${month}-${day}`;
+            } else {
+                fechaParaBD = fechaSeleccionada;
+            }
+
+            const keyLocal = `lotes_${dia}_${idSheet}_${fechaParaBD}`;
 
             // Si está COMPLETADO, cargar desde BD
             if (estadoCompletado) {
-                console.log(`🔍 LOTES - Día COMPLETADO, cargando desde BD: ${dia} - ${idSheet} - ${fechaAUsar}`);
+                console.log(`🔍 LOTES - Día COMPLETADO, cargando desde BD: ${dia} - ${idSheet} - ${fechaParaBD}`);
 
                 const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
                     idSheet === 'ID2' ? 'cargue-id2' :
@@ -28,26 +39,29 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                             idSheet === 'ID4' ? 'cargue-id4' :
                                 idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-                const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaAUsar}`;
+                const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
                 const response = await fetch(url);
 
                 if (response.ok) {
                     const data = await response.json();
 
                     if (Array.isArray(data) && data.length > 0) {
-                        // Buscar el campo de lotes en el primer registro
-                        const registro = data[0];
-                        if (registro.lotes_produccion) {
-                            try {
-                                const lotesDB = typeof registro.lotes_produccion === 'string'
-                                    ? JSON.parse(registro.lotes_produccion)
-                                    : registro.lotes_produccion;
+                        // Buscar el campo de lotes en CUALQUIER registro (no solo el primero)
+                        for (const registro of data) {
+                            if (registro.lotes_produccion && registro.lotes_produccion !== '[]') {
+                                try {
+                                    const lotesDB = typeof registro.lotes_produccion === 'string'
+                                        ? JSON.parse(registro.lotes_produccion)
+                                        : registro.lotes_produccion;
 
-                                console.log('✅ LOTES - Cargados desde BD:', lotesDB);
-                                setLotes(Array.isArray(lotesDB) ? lotesDB : []);
-                                return;
-                            } catch (error) {
-                                console.error('❌ Error parsing lotes desde BD:', error);
+                                    if (Array.isArray(lotesDB) && lotesDB.length > 0) {
+                                        console.log('✅ LOTES - Cargados desde BD:', lotesDB);
+                                        setLotes(lotesDB);
+                                        return;
+                                    }
+                                } catch (error) {
+                                    console.error('❌ Error parsing lotes desde BD:', error);
+                                }
                             }
                         }
                     }
@@ -79,11 +93,39 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
     };
 
     const guardarLotes = (nuevosLotes) => {
-        const fechaAUsar = fechaSeleccionada;
-        const keyLocal = `lotes_${dia}_${idSheet}_${fechaAUsar}`;
+        // Convertir fecha a formato YYYY-MM-DD para consistencia
+        let fechaParaBD;
+        if (fechaSeleccionada instanceof Date) {
+            const year = fechaSeleccionada.getFullYear();
+            const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+            const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+            fechaParaBD = `${year}-${month}-${day}`;
+        } else {
+            fechaParaBD = fechaSeleccionada;
+        }
 
+        const keyLocal = `lotes_${dia}_${idSheet}_${fechaParaBD}`;
         localStorage.setItem(keyLocal, JSON.stringify(nuevosLotes));
         console.log('✅ LOTES - Guardados en localStorage:', nuevosLotes);
+
+        console.log(`🔄 LOTES - Sincronizando con BD: ${idSheet} | ${dia} | ${fechaParaBD}`);
+
+        cargueRealtimeService.actualizarCampoGlobal(
+            idSheet,
+            dia,
+            fechaParaBD,
+            'lotes_produccion',
+            JSON.stringify(nuevosLotes),
+            'Sistema'
+        ).then(result => {
+            if (result.success) {
+                console.log(`✅ LOTES sincronizados con BD (${result.action})`);
+            } else {
+                console.error(`❌ Error sincronizando lotes:`, result.error);
+            }
+        }).catch(err => {
+            console.error(`❌ Error en sincronización lotes:`, err);
+        });
     };
 
     const agregarLote = () => {

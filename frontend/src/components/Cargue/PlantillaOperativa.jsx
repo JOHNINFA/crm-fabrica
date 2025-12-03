@@ -11,13 +11,23 @@ import ControlCumplimiento from './ControlCumplimiento';
 import RegistroLotes from './RegistroLotes';
 import BotonCorreccionNuevo from './BotonCorreccionNuevo';
 import BotonVerPedidos from './BotonVerPedidos';
+import BotonSincronizarProductos from './BotonSincronizarProductos';
 
 import { cargueHybridService } from '../../services/cargueApiService'; // Corrected import
 import { productoService } from '../../services/api'; // Para cargar precios directamente
+import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './PlantillaOperativa.css';
 
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
     const { products: allProducts, getProductsByModule } = useProducts();
+
+    // 🔧 Formatear fecha para localStorage (YYYY-MM-DD)
+    const fechaFormateadaLS = useMemo(() => {
+        if (fechaSeleccionada instanceof Date) {
+            return fechaSeleccionada.toISOString().split('T')[0];
+        }
+        return fechaSeleccionada || '';
+    }, [fechaSeleccionada]);
 
     // 🚀 OPTIMIZACIÓN: Memoizar productos para evitar bucles infinitos
     const products = useMemo(() => {
@@ -192,6 +202,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     const cargaInicialRef = useRef(true);
     // 🚩 NUEVO: Solo sincronizar cuando hay cambio manual del usuario
     const cambioManualRef = useRef(false);
+    // 🚩 NUEVO: Evitar bucles infinitos en actualización de contexto
+    const contextoActualizadoRef = useRef(false);
     const [, forceUpdate] = useState(0); // Solo para forzar re-render cuando sea necesario
 
     // ✅ CARGA INMEDIATA CON CACHÉ: Cargar datos desde localStorage con precios cacheados
@@ -346,29 +358,42 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     const cargarDatosDesdeDB = async () => {
         try {
             console.warn(`🔍 ${idSheet} - Cargando datos desde BD (día COMPLETADO)...`);
+
+            // Formatear fecha para la API
+            let fechaParaBD;
+            if (fechaSeleccionada instanceof Date) {
+                const year = fechaSeleccionada.getFullYear();
+                const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+                const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+                fechaParaBD = `${year}-${month}-${day}`;
+            } else {
+                fechaParaBD = fechaSeleccionada;
+            }
+
             console.warn(`📅 Parámetros de búsqueda:`, {
                 vendedor_id: idSheet,
                 dia: dia.toUpperCase(),
-                fecha: fechaSeleccionada
+                fecha: fechaParaBD
             });
 
-            const fechaAUsar = fechaSeleccionada;
+            // 🚀 NUEVO: Cargar directamente desde la API de cargue
+            const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+                idSheet === 'ID2' ? 'cargue-id2' :
+                    idSheet === 'ID3' ? 'cargue-id3' :
+                        idSheet === 'ID4' ? 'cargue-id4' :
+                            idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-            // ❌ CÓDIGO OBSOLETO COMENTADO - Ahora usamos cargueHybridService
-            // const { cargueService } = await import('../../services/cargueService');
-            // const response = await cargueService.getAll({
-            //     vendedor_id: idSheet,
-            //     dia: dia.toUpperCase(),
-            //     fecha: fechaAUsar
-            // });
+            const url = `http://localhost:8000/api/${endpoint}/?fecha=${fechaParaBD}&dia=${dia.toUpperCase()}`;
+            console.warn(`🔍 ${idSheet} - Consultando: ${url}`);
 
-            console.warn(`🔍 ${idSheet} - Cargando datos desde cargueHybridService (nuevo sistema)`);
-            const response = null; // Ya no usamos este endpoint viejo
+            const fetchResponse = await fetch(url);
+            const response = fetchResponse.ok ? await fetchResponse.json() : [];
 
-            // ❌ CÓDIGO OBSOLETO COMENTADO - Ya no procesamos respuesta del endpoint viejo
+            console.warn(`✅ ${idSheet} - Respuesta BD:`, response.length, 'registros');
+
             let productosDesdeDB = [];
 
-            if (false && Array.isArray(response)) { // Deshabilitado
+            if (Array.isArray(response) && response.length > 0) { // Habilitado
                 // La API devuelve un array directo de productos
                 console.warn(`✅ ${idSheet} - Procesando array directo con ${response.length} productos`);
 
@@ -456,8 +481,23 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             console.warn(`📋 ${idSheet} - Productos con datos:`, productosDesdeDB.filter(p => p.cantidad > 0 || p.total > 0));
 
             if (productosDesdeDB.length > 0) {
-                console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosDesdeDB.length} productos`);
-                setProductosOperativos(productosDesdeDB);
+                // 🚀 ORDENAR según el índice en el array de productos del contexto
+                const ordenProductos = {};
+                products.forEach((p, index) => {
+                    // Usar el índice del array como orden (el orden en que aparecen en la tabla)
+                    ordenProductos[p.name] = index;
+                });
+
+                console.warn(`📋 ${idSheet} - Mapa de orden:`, ordenProductos);
+
+                const productosOrdenados = [...productosDesdeDB].sort((a, b) => {
+                    const ordenA = ordenProductos[a.producto] !== undefined ? ordenProductos[a.producto] : 999999;
+                    const ordenB = ordenProductos[b.producto] !== undefined ? ordenProductos[b.producto] : 999999;
+                    return ordenA - ordenB;
+                });
+
+                console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosOrdenados.length} productos (ordenados)`);
+                setProductosOperativos(productosOrdenados);
 
                 // 🚀 CORREGIDO: Calcular totalPedidos real desde la BD
                 const totalNeto = productosDesdeDB.reduce((sum, p) => sum + (p.neto || 0), 0);
@@ -707,9 +747,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             return;
         }
 
-        console.log(`🔄 ${idSheet} - Cargando datos (dia: ${dia}, fecha: ${fechaSeleccionada})`);
+        console.log(`🔄 ${idSheet} - Cargando datos (dia: ${dia}, fecha: ${fechaFormateadaLS})`);
 
-        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+        // Resetear ref de contexto cuando cambia día/fecha
+        contextoActualizadoRef.current = false;
+
+        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
         if (estadoBoton === 'COMPLETADO') {
             console.log(`🔍 ${idSheet} - Día COMPLETADO detectado, cargando desde BD...`);
@@ -722,13 +765,17 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
 
 
-    // 🚀 NUEVO: Cargar desde BD al montar si está COMPLETADO
+    // 🚀 MEJORADO: Cargar datos al montar - SIEMPRE consulta servidor primero
     useEffect(() => {
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
 
-        if (estadoBoton === 'COMPLETADO' && productosOperativos.length === 0) {
+        if (estadoBoton === 'COMPLETADO') {
             console.log(`🔍 ${idSheet} - Componente montado con día COMPLETADO, cargando desde BD...`);
             cargarDatosDesdeDB();
+        } else {
+            // 🚀 NUEVO: Siempre cargar datos al montar (para datos de app móvil)
+            console.log(`🔍 ${idSheet} - Componente montado, cargando datos...`);
+            cargarDatosGuardados();
         }
     }, []); // Solo al montar
 
@@ -747,6 +794,20 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         if (fechaSeleccionada && idSheet) {
             cargarYActualizarPedidos();
         }
+
+        // 🆕 Escuchar evento de nuevo pedido creado
+        const handleNuevoPedido = () => {
+            console.log(`📦 ${idSheet} - Nuevo pedido detectado, recargando total...`);
+            cargarYActualizarPedidos();
+        };
+
+        window.addEventListener('pedidoCreado', handleNuevoPedido);
+        window.addEventListener('pedidoActualizado', handleNuevoPedido);
+
+        return () => {
+            window.removeEventListener('pedidoCreado', handleNuevoPedido);
+            window.removeEventListener('pedidoActualizado', handleNuevoPedido);
+        };
     }, [fechaSeleccionada, idSheet]);
 
     // ✅ RECALCULAR RESUMEN: Cuando cambian los productos operativos (solo si NO está completado)
@@ -781,7 +842,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
     // ✅ ACTUALIZACIÓN CON CONTEXTO: Solo cuando hay contexto válido y productos operativos
     useEffect(() => {
-        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
         // No procesar contexto si el día está COMPLETADO (usar datos de BD)
         if (estadoBoton === 'COMPLETADO') {
@@ -789,16 +850,19 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             return;
         }
 
+        // Evitar bucle infinito - solo actualizar una vez por cambio de contexto
+        if (contextoActualizadoRef.current) {
+            return;
+        }
+
         const tieneContextoValido = products && products.length > 0 &&
             !(products.length === 1 && products[0].name === 'Servicio');
 
-        if (tieneContextoValido && productosOperativos.length > 0) {
+        if (tieneContextoValido && productosOperativos.length === 0) {
             console.log(`🔄 ${idSheet} - Contexto válido cargado, actualizando con mapeo...`);
             console.log(`📋 ${idSheet} - Productos en contexto:`, products.length);
+            contextoActualizadoRef.current = true;
             cargarDatosGuardados();
-        } else if (products && products.length > 0) {
-            console.log(`⏳ ${idSheet} - Contexto no válido (${products.length} productos):`, products.map(p => p.name));
-            console.log(`📋 ${idSheet} - Manteniendo datos actuales sin mapeo de contexto`);
         }
     }, [products]);
 
@@ -807,6 +871,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         // 🚩 MARCAR QUE HUBO CAMBIO MANUAL DEL USUARIO
         cambioManualRef.current = true;
         console.log(`✏️ ${idSheet} - Cambio manual detectado en campo: ${campo}`);
+
+
+
 
         // Verificar estado del botón para actualización en tiempo real
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
@@ -906,6 +973,56 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             }));
             console.log(`📡 Evento emitido: cargueActualizado (${campo} cambió en ${fechaFormateada})`);
         }
+
+        // 🆕 SINCRONIZACIÓN EN TIEMPO REAL CON BD
+        // Convertir fecha a formato YYYY-MM-DD
+        let fechaParaBD;
+        if (fechaSeleccionada instanceof Date) {
+            const year = fechaSeleccionada.getFullYear();
+            const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+            const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+            fechaParaBD = `${year}-${month}-${day}`;
+        } else {
+            fechaParaBD = fechaSeleccionada;
+        }
+
+        // Obtener nombre del producto
+        const productoActual = productosOperativos.find(p => p.id === id);
+        console.log(`🔍 Buscando producto ID=${id} en productosOperativos (${productosOperativos.length} productos)`);
+        console.log(`🔍 Producto encontrado:`, productoActual ? productoActual.producto : 'NO ENCONTRADO');
+
+
+
+        if (productoActual) {
+            // Mapear nombres de campos del frontend al backend
+            const campoBackend = campo === 'vendedor' ? 'v' : campo === 'despachador' ? 'd' : campo;
+            console.log(`🔄 Sincronizando: ${productoActual.producto} | ${campo} → ${campoBackend} = ${valor}`);
+
+            // Obtener responsable actual
+            const responsableActual = responsableStorage.get(idSheet) || 'Sistema';
+
+
+
+            // Sincronizar con BD en tiempo real
+            cargueRealtimeService.actualizarCampoProducto(
+                idSheet,
+                dia,
+                fechaParaBD,
+                productoActual.producto,
+                campoBackend,
+                valor,
+                productoActual.valor || 0,
+                responsableActual
+            ).then(result => {
+                if (result.success) {
+                    console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valor} (${result.action})`);
+                } else {
+                    console.error(`❌ Error sincronizando BD:`, result.error);
+                }
+            }).catch(err => {
+                console.error(`❌ Error en sincronización:`, err);
+            });
+        }
     };
 
     // 🚀 NUEVA FUNCIÓN: Actualizar inventario basado en cambio de TOTAL
@@ -987,13 +1104,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             // Resetear bandera de cambio manual
             cambioManualRef.current = false;
 
-            // 🚀 USAR SERVICIO HÍBRIDO CON DEBOUNCE (solo si hubo cambio manual)
-            if (cargueApiConfig.USAR_API) {
-                console.log(`🚀 ${idSheet} - Cambio manual detectado, sincronizando al servidor...`);
-
-                // ✅ GUARDAR TODOS LOS PRODUCTOS
-                cargueHybridService.guardarDatos(dia, idSheet, fechaAUsar, productosOperativos, true);
-            }
+            // 🚀 DESHABILITADO: Ya no usamos guardarDatos porque tenemos sincronización en tiempo real
+            // con cargueRealtimeService.actualizarCampoProducto() que se llama en actualizarProducto()
+            // Esto evita crear registros duplicados
+            // if (cargueApiConfig.USAR_API) {
+            //     console.log(`🚀 ${idSheet} - Cambio manual detectado, sincronizando al servidor...`);
+            //     cargueHybridService.guardarDatos(dia, idSheet, fechaAUsar, productosOperativos, true);
+            // }
+            console.log(`📝 ${idSheet} - Cambio guardado en localStorage (sincronización en tiempo real activa)`);
 
             // 🔥 DISPARAR EVENTO
             const evento = new CustomEvent('cargueDataChanged', {
@@ -1159,7 +1277,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 dia={dia}
                                 idSheet={idSheet}
                                 fechaSeleccionada={fechaSeleccionada}
-                                estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
+                                estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) === 'COMPLETADO'}
                             />
                         </div>
                     </div>
@@ -1179,7 +1297,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             dia={dia}
                             idSheet={idSheet}
                             fechaSeleccionada={fechaSeleccionada}
-                            estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
+                            estadoCompletado={
+                                localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) === 'COMPLETADO' ||
+                                localStorage.getItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`) === 'COMPLETADO' ||
+                                localStorage.getItem(`estado_boton_${dia}`) === 'COMPLETADO'
+                            }
                         />
                         {/* Registro de Lotes solo visible en ID1 (control por día) */}
                         {idSheet === 'ID1' && (
@@ -1187,7 +1309,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 dia={dia}
                                 idSheet={idSheet}
                                 fechaSeleccionada={fechaSeleccionada}
-                                estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) === 'COMPLETADO'}
+                                estadoCompletado={localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) === 'COMPLETADO'}
                             />
                         )}
                     </div>
@@ -1214,6 +1336,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             }, 100);
                         }}
                     />
+
+                    <div style={{ marginTop: '30px' }}>
+                        <BotonSincronizarProductos />
+                    </div>
                 </div>
             </div>
         </div>

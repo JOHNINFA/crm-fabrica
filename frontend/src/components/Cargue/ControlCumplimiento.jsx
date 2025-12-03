@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './ControlCumplimiento.css';
 
 const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
@@ -24,9 +25,20 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
       const fechaAUsar = fechaSeleccionada;
       const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
 
+      // Convertir fecha a formato YYYY-MM-DD para la API
+      let fechaParaBD;
+      if (fechaSeleccionada instanceof Date) {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        fechaParaBD = `${year}-${month}-${day}`;
+      } else {
+        fechaParaBD = fechaSeleccionada;
+      }
+
       // 🚀 NUEVO: Si está COMPLETADO, cargar SIEMPRE desde BD
       if (estadoCompletado) {
-        console.log(`🔍 CUMPLIMIENTO - Día COMPLETADO, cargando desde BD: ${dia} - ${idSheet} - ${fechaAUsar}`);
+        console.log(`🔍 CUMPLIMIENTO - Día COMPLETADO, cargando desde BD: ${dia} - ${idSheet} - ${fechaParaBD}`);
         // 🚀 CORREGIDO: Usar el mismo endpoint que los productos
         const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
           idSheet === 'ID2' ? 'cargue-id2' :
@@ -34,7 +46,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
               idSheet === 'ID4' ? 'cargue-id4' :
                 idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-        const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaAUsar}`;
+        const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
         console.log(`🔍 CUMPLIMIENTO - URL: ${url}`);
         const response = await fetch(url);
 
@@ -44,8 +56,19 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
 
           // 🚀 CORREGIDO: Los datos vienen como array directo, no con results
           if (Array.isArray(data) && data.length > 0) {
-            const registro = data[0]; // Tomar el primer registro
-            console.log('🔍 CUMPLIMIENTO - Primer registro:', registro);
+            // 🔍 Buscar el primer registro que tenga datos de cumplimiento
+            let registro = data.find(r =>
+              r.licencia_transporte || r.soat || r.uniforme ||
+              r.no_locion || r.no_accesorios || r.capacitacion_carnet ||
+              r.higiene || r.estibas || r.desinfeccion
+            );
+
+            // Si no hay ninguno con datos, tomar el primero
+            if (!registro) {
+              registro = data[0];
+            }
+
+            console.log('🔍 CUMPLIMIENTO - Registro seleccionado:', registro.producto, registro);
 
             const cumplimientoData = {};
 
@@ -167,6 +190,35 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
     const fechaAUsar = fechaSeleccionada;
     const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
     localStorage.setItem(keyLocal, JSON.stringify(nuevosCumplimientos));
+
+    // 🆕 SINCRONIZACIÓN EN TIEMPO REAL CON BD
+    // Convertir fecha a formato YYYY-MM-DD si es objeto Date
+    let fechaParaBD;
+    if (fechaSeleccionada instanceof Date) {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      fechaParaBD = `${year}-${month}-${day}`;
+    } else {
+      fechaParaBD = fechaSeleccionada;
+    }
+
+    cargueRealtimeService.actualizarCampoGlobal(
+      idSheet,
+      dia,
+      fechaParaBD,
+      itemKey,
+      valor || null,
+      'Sistema'
+    ).then(result => {
+      if (result.success) {
+        console.log(`✅ Cumplimiento sincronizado: ${itemKey} = ${valor} (${result.action})`);
+      } else {
+        console.error(`❌ Error sincronizando cumplimiento:`, result.error);
+      }
+    }).catch(err => {
+      console.error(`❌ Error en sincronización cumplimiento:`, err);
+    });
   };
 
   return (

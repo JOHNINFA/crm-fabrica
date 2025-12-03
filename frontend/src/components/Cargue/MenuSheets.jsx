@@ -4,6 +4,7 @@ import { VendedoresProvider, useVendedores } from "../../context/VendedoresConte
 import { responsableStorage } from "../../utils/responsableStorage";
 import PlantillaOperativa from "./PlantillaOperativa";
 import Produccion from "./Produccion";
+import BotonSincronizarProductos from "./BotonSincronizarProductos";
 import usePageTitle from '../../hooks/usePageTitle';
 
 const productosPorDiaYId = {

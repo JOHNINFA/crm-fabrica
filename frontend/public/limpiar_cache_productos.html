@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpiar Caché de Productos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .success {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .info {
+            background: #17a2b8;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        ul {
+            text-align: left;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧹 Limpiar Caché de Productos</h1>
+
+        <div class="info">
+            <strong>¿Por qué necesitas esto?</strong>
+            <ul>
+                <li>Los nombres de productos se actualizaron en la base de datos</li>
+                <li>El navegador tiene los nombres viejos guardados en caché</li>
+                <li>Esto causa que los checks V no aparezcan correctamente</li>
+            </ul>
+        </div>
+
+        <button onclick="limpiarCache()">🗑️ Limpiar Caché de Productos</button>
+        <button onclick="limpiarTodo()">🔥 Limpiar TODO el Caché</button>
+
+        <div id="success" class="success">
+            ✅ Caché limpiado exitosamente!<br>
+            Recarga la página de Cargue (F5) para ver los cambios.
+        </div>
+    </div>
+
+    <script>
+        function limpiarCache() {
+            // Limpiar productos y categorías
+            localStorage.removeItem('products');
+            localStorage.removeItem('productos');
+            localStorage.removeItem('categories');
+            localStorage.removeItem('precios_cargue_cache');
+
+            console.log('✅ Caché de productos limpiado');
+            document.getElementById('success').style.display = 'block';
+
+            // Recargar después de 2 segundos
+            setTimeout(() => {
+                window.location.href = '/cargue/SABADO';
+            }, 2000);
+        }
+
+        function limpiarTodo() {
+            if (confirm('⚠️ Esto limpiará TODO el localStorage. ¿Estás seguro?')) {
+                localStorage.clear();
+                console.log('🔥 TODO el localStorage limpiado');
+                document.getElementById('success').style.display = 'block';
+
+                // Recargar después de 2 segundos
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+
+</html>

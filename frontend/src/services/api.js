@@ -809,6 +809,10 @@ export const pedidoService = {
         if (response.ok) {
           const result = await response.json();
           console.log('✅ Pedido creado exitosamente en API:', result);
+          
+          // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
+          window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: result }));
+          
           return result;
         } else {
           const errorText = await response.text();
@@ -836,6 +840,10 @@ export const pedidoService = {
         localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosGuardados));
         
         console.log('✅ Pedido guardado en localStorage:', nuevoPedido);
+        
+        // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
+        window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: nuevoPedido }));
+        
         return nuevoPedido;
       }
     } catch (error) {

@@ -4,6 +4,15 @@ import VerificarGuardado from './VerificarGuardado';
 import { useVendedores } from '../../context/VendedoresContext';
 
 const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpiar }) => {
+  // 🔧 Helper para formatear fecha a YYYY-MM-DD (consistente con localStorage)
+  const formatearFechaLS = (fecha) => {
+    if (fecha instanceof Date) {
+      return fecha.toISOString().split('T')[0];
+    }
+    return fecha || '';
+  };
+  const fechaFormateadaLS = formatearFechaLS(fechaSeleccionada);
+
   const [estado, setEstado] = useState('ALISTAMIENTO');
   const [loading, setLoading] = useState(false);
   const [productosValidados, setProductosValidados] = useState([]);
@@ -160,18 +169,18 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   useEffect(() => {
     if (idSheet !== 'ID1') return;
 
-    const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+    const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
     if (estadoGuardado) {
       setEstado(estadoGuardado);
       console.log(`🔄 Estado global recuperado: ${estadoGuardado}`);
     }
 
     // También verificar si hay datos congelados
-    const datosCongelados = localStorage.getItem(`produccion_congelada_${dia}_${fechaSeleccionada}`);
+    const datosCongelados = localStorage.getItem(`produccion_congelada_${dia}_${fechaFormateadaLS}`);
     if (datosCongelados) {
       console.log('❄️ Datos de producción congelados encontrados');
     }
-  }, [dia, fechaSeleccionada, idSheet]);
+  }, [dia, fechaFormateadaLS, idSheet]);
 
   // 🚀 SOLO ID1 verifica productos de TODOS los IDs
   useEffect(() => {
@@ -240,7 +249,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       return;
     }
 
-    const keyCongelados = `produccion_congelada_${dia}_${fechaSeleccionada}`;
+    const keyCongelados = `produccion_congelada_${dia}_${fechaFormateadaLS}`;
     const datosExistentes = localStorage.getItem(keyCongelados);
 
     // 🔒 PROTECCIÓN: Si ya hay datos congelados, NO recongelar
@@ -649,6 +658,170 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
+  // 📸 NUEVA FUNCIÓN: Guardar snapshot de Planeación en tabla independiente
+  const guardarSnapshotPlaneacion = async () => {
+    try {
+      console.log('📸 ========== GUARDANDO SNAPSHOT DE PLANEACIÓN ==========');
+
+      if (!fechaSeleccionada) {
+        console.error('❌ SNAPSHOT - fechaSeleccionada no definida');
+        return;
+      }
+
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      console.log(`📸 SNAPSHOT - Fecha: ${fechaFormateada}`);
+
+      // 1. Obtener existencias actuales desde api_stock
+      const stockResponse = await fetch('http://localhost:8000/api/stock/');
+      const stocks = stockResponse.ok ? await stockResponse.json() : [];
+      const stockMap = {};
+      stocks.forEach(s => {
+        stockMap[s.producto_nombre] = s.cantidad_actual;
+      });
+
+      // 2. Obtener solicitadas desde BD y localStorage (fallback)
+      const solicitadasMap = {};
+      const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
+      const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+
+      // Primero intentar desde BD
+      let datosEncontradosEnBD = false;
+      for (const id of idsVendedores) {
+        const response = await fetch(`http://localhost:8000/api/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
+        if (response.ok) {
+          const cargueData = await response.json();
+          if (cargueData.length > 0) datosEncontradosEnBD = true;
+          cargueData.forEach(item => {
+            const producto = item.producto_nombre || item.producto;
+            const cantidad = item.cantidad || 0;
+            const adicional = item.adicional || 0;
+            const dctos = item.dctos || 0;
+
+            if (!solicitadasMap[producto]) {
+              solicitadasMap[producto] = 0;
+            }
+            solicitadasMap[producto] += (cantidad + adicional + dctos);
+          });
+        }
+      }
+
+      // Si no hay datos en BD, buscar en localStorage
+      if (!datosEncontradosEnBD) {
+        console.log('📸 SNAPSHOT - No hay datos en BD, buscando en localStorage...');
+        const { simpleStorage } = await import('../../services/simpleStorage');
+
+        for (const diaActual of diasSemana) {
+          for (const id of idsVendedores) {
+            const key = `cargue_${diaActual}_${id}_${fechaFormateada}`;
+            const datos = await simpleStorage.getItem(key);
+
+            if (datos && datos.productos) {
+              datos.productos.forEach(item => {
+                const producto = item.producto;
+                const cantidad = item.cantidad || 0;
+                const adicional = item.adicional || 0;
+                const dctos = item.dctos || 0;
+
+                if (!solicitadasMap[producto]) {
+                  solicitadasMap[producto] = 0;
+                }
+                solicitadasMap[producto] += (cantidad + adicional + dctos);
+              });
+            }
+          }
+        }
+        console.log(`📸 SNAPSHOT - Solicitadas desde localStorage:`, Object.keys(solicitadasMap).length, 'productos');
+      }
+
+      // 3. Obtener pedidos del día
+      const pedidosResponse = await fetch(`http://localhost:8000/api/pedidos/`);
+      const todosPedidos = pedidosResponse.ok ? await pedidosResponse.json() : [];
+      const pedidosFecha = todosPedidos.filter(p =>
+        p.fecha_entrega && p.fecha_entrega.split('T')[0] === fechaFormateada && p.estado !== 'ANULADA'
+      );
+
+      const pedidosMap = {};
+      pedidosFecha.forEach(pedido => {
+        if (pedido.detalles) {
+          pedido.detalles.forEach(detalle => {
+            const nombre = detalle.producto_nombre;
+            if (!pedidosMap[nombre]) pedidosMap[nombre] = 0;
+            pedidosMap[nombre] += detalle.cantidad;
+          });
+        }
+      });
+
+      // 4. Obtener orden e IA desde api_planeacion (si existe)
+      const planeacionResponse = await fetch(`http://localhost:8000/api/planeacion/?fecha=${fechaFormateada}`);
+      const planeacionData = planeacionResponse.ok ? await planeacionResponse.json() : [];
+      const planeacionMap = {};
+      planeacionData.forEach(p => {
+        planeacionMap[p.producto_nombre] = {
+          orden: p.orden || 0,
+          ia: p.ia || 0
+        };
+      });
+
+      // 5. Construir registros para el snapshot
+      const productosConDatos = new Set([
+        ...Object.keys(stockMap),
+        ...Object.keys(solicitadasMap),
+        ...Object.keys(pedidosMap)
+      ]);
+
+      const registros = [];
+      let orden = 0;
+
+      for (const nombreProducto of productosConDatos) {
+        const existencias = stockMap[nombreProducto] || 0;
+        const solicitadas = solicitadasMap[nombreProducto] || 0;
+        const pedidos = pedidosMap[nombreProducto] || 0;
+        const planeacionInfo = planeacionMap[nombreProducto] || { orden: 0, ia: 0 };
+
+        // Solo incluir productos con datos relevantes
+        if (existencias > 0 || solicitadas > 0 || pedidos > 0) {
+          registros.push({
+            producto_nombre: nombreProducto,
+            existencias: existencias,
+            solicitadas: solicitadas,
+            pedidos: pedidos,
+            total: solicitadas + pedidos,
+            orden: planeacionInfo.orden || orden++,
+            ia: planeacionInfo.ia || 0
+          });
+        }
+      }
+
+      console.log(`📊 Registros a guardar: ${registros.length}`);
+
+      // 6. Enviar al endpoint de snapshot
+      const response = await fetch('http://localhost:8000/api/registros-planeacion-dia/guardar_snapshot/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fecha: fechaFormateada,
+          registros: registros,
+          usuario: 'Sistema'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`✅ SNAPSHOT GUARDADO: ${result.cantidad} registros para ${fechaFormateada}`);
+      } else {
+        const error = await response.text();
+        console.error('❌ Error guardando snapshot:', error);
+      }
+
+    } catch (error) {
+      console.error('❌ Error en guardarSnapshotPlaneacion:', error);
+    }
+  };
+
   // 🚀 NUEVA FUNCIÓN: Guardar datos de un ID específico
   const guardarDatosDelID = async (fechaAUsar, idVendedor) => {
     try {
@@ -882,42 +1055,38 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   };
 
   // Guardar todos los datos en la base de datos usando el contexto como fuente de verdad (FUNCIÓN ORIGINAL - mantener para compatibilidad)
+  // 🆕 MODIFICADO: Con sincronización en tiempo real, los datos ya están en BD
+  // Esta función ahora solo hace una verificación final y guarda datos pendientes
   const guardarDatosCompletos = async (fechaAUsar, idsVendedores) => {
     try {
-      console.log('💾 GUARDANDO DATOS COMPLETOS DESDE EL CONTEXTO...');
-      console.log('🔍 DEBUG - datosVendedores completo:', datosVendedores);
-      console.log('🔍 DEBUG - Keys disponibles:', Object.keys(datosVendedores));
-      console.log('🔍 DEBUG - IDs a procesar:', idsVendedores);
+      console.log('💾 VERIFICACIÓN FINAL DE DATOS...');
+      console.log('📝 Nota: Con sincronización en tiempo real, los datos ya deberían estar en BD');
 
-      // Debug detallado de cada vendedor
-      idsVendedores.forEach(id => {
-        const datos = datosVendedores[id];
-        console.log(`🔍 DEBUG - ${id}:`, datos);
-        if (datos && datos.productos) {
-          console.log(`🔍 DEBUG - ${id} productos:`, datos.productos.length);
-          console.log(`🔍 DEBUG - ${id} productos con datos:`, datos.productos.filter(p => p.cantidad > 0 || p.vendedor || p.despachador));
-        }
-      });
+      // 🆕 Verificar si hay datos pendientes de sincronizar en localStorage
+      const { simpleStorage } = await import('../../services/simpleStorage');
 
-      const { cargueService } = await import('../../services/cargueService');
-
-      // 1. Guardar datos de cada ID usando las funciones específicas
       for (const id of idsVendedores) {
-        console.log(`💾 Guardando datos de ${id}...`);
+        const key = `cargue_${dia}_${id}_${fechaAUsar}`;
+        const datosLocal = await simpleStorage.getItem(key);
 
-        try {
-          await guardarDatosDelID(fechaAUsar, id);
-          console.log(`✅ ${id} - Datos guardados exitosamente`);
-        } catch (error) {
-          console.error(`❌ Error guardando ${id}:`, error);
-          throw new Error(`Error guardando datos de ${id}: ${error.message}`);
+        if (datosLocal && datosLocal.sincronizado === false) {
+          // Hay datos pendientes de sincronizar, guardarlos
+          console.log(`⚠️ ${id} - Datos pendientes de sincronizar, guardando...`);
+          try {
+            await guardarDatosDelID(fechaAUsar, id);
+            console.log(`✅ ${id} - Datos pendientes guardados`);
+          } catch (error) {
+            console.error(`❌ Error guardando ${id}:`, error);
+          }
+        } else {
+          console.log(`✅ ${id} - Datos ya sincronizados en tiempo real`);
         }
       }
 
-      console.log('✅ TODOS LOS IDs GUARDADOS EXITOSAMENTE');
+      console.log('✅ VERIFICACIÓN FINAL COMPLETADA');
       return true;
     } catch (error) {
-      console.error('❌ Error guardando datos completos:', error);
+      console.error('❌ Error en verificación final:', error);
       throw error;
     }
   };
@@ -1465,7 +1634,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       // PASO 4: Cambiar estado a COMPLETADO para el ID específico
       setEstado('COMPLETADO');
-      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaSeleccionada}`, 'COMPLETADO');
+      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`, 'COMPLETADO');
 
       console.log(`🎉 ${idSheet} - FINALIZACIÓN COMPLETADA EXITOSAMENTE`);
 
@@ -1701,8 +1870,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       // Cambiar estado a FINALIZAR para el ID específico
       setEstado('FINALIZAR');
-      localStorage.setItem(`estado_despacho_${dia}_${idSheet}_${fechaSeleccionada}`, 'DESPACHO');
-      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaSeleccionada}`, 'FINALIZAR');
+      localStorage.setItem(`estado_despacho_${dia}_${idSheet}_${fechaFormateadaLS}`, 'DESPACHO');
+      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`, 'FINALIZAR');
 
       console.log(`✅ ${idSheet} - DESPACHO COMPLETADO - Inventario afectado`);
 
@@ -1747,8 +1916,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             // 🔒 NUEVO: Guardar SOLICITADAS en Planeación automáticamente
             await guardarSolicitadasEnPlaneacion();
 
+            // 📸 NUEVO: Guardar snapshot de Planeación en tabla independiente
+            await guardarSnapshotPlaneacion();
+
             setEstado('ALISTAMIENTO_ACTIVO');
-            localStorage.setItem(`estado_boton_${dia}_${fechaSeleccionada}`, 'ALISTAMIENTO_ACTIVO');
+            localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, 'ALISTAMIENTO_ACTIVO');
             console.log('📦 Cambiando a ALISTAMIENTO_ACTIVO');
           }
         };

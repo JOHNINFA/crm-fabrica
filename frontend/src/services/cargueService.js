@@ -341,10 +341,13 @@ export const cargueService = {
           console.log(`💾 Guardando producto: ${producto.producto_nombre}`, datosTransformados);
 
           // 🚀 NUEVO: Buscar si ya existe un registro para este día, fecha y producto
+          // 🔧 Normalizar nombre del producto (eliminar espacios múltiples)
+          const productoNormalizado = (producto.producto_nombre || '').replace(/\s+/g, ' ').trim();
+          
           const queryParams = new URLSearchParams({
             dia: datosParaGuardar.dia_semana,
             fecha: datosParaGuardar.fecha,
-            producto: producto.producto_nombre
+            producto: productoNormalizado
           });
 
           const getResponse = await fetch(`${API_URL}/${endpoint}/?${queryParams.toString()}`);

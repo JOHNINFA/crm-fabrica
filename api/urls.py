@@ -10,7 +10,8 @@ from .views import (
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
     PrediccionIAView, guardar_sugerido, obtener_cargue, obtener_rendimiento_cargue, actualizar_check_vendedor, verificar_estado_dia,
-    RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet
+    RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
+    RegistrosPlaneacionDiaViewSet
 )
 
 router = DefaultRouter()
@@ -45,6 +46,9 @@ router.register(r'ventas-ruta', VentaRutaViewSet, basename='ventas-ruta')
 
 # Configuración
 router.register(r'configuracion-impresion', ConfiguracionImpresionViewSet, basename='configuracion-impresion')
+
+# Snapshot Planeación
+router.register(r'registros-planeacion-dia', RegistrosPlaneacionDiaViewSet, basename='registros-planeacion-dia')
 
 
 urlpatterns = router.urls + [

@@ -1,5 +1,13 @@
 from rest_framework import serializers
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, ConfiguracionImpresion
+from .models import (
+    Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, 
+    RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, 
+    CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6,
+    CargueProductos, CargueResumen, CarguePagos, CargueCumplimiento,  # Nuevos modelos normalizados
+    Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, 
+    ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, 
+    ConfiguracionImpresion, RegistrosPlaneacionDia
+)
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -164,15 +172,23 @@ class CargueID1Serializer(serializers.ModelSerializer):
         model = CargueID1
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'total', 
+            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
+
+    def validate_producto(self, value):
+        """Normalizar nombre del producto: eliminar espacios dobles y espacios al inicio/final"""
+        import re
+        if value:
+            return re.sub(r'\s+', ' ', value).strip()
+        return value
+
 
 class CargueID2Serializer(serializers.ModelSerializer):
     """Serializer para CargueID2 - Tabla simplificada"""
@@ -181,12 +197,12 @@ class CargueID2Serializer(serializers.ModelSerializer):
         model = CargueID2
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'total', 
+            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -198,12 +214,12 @@ class CargueID3Serializer(serializers.ModelSerializer):
         model = CargueID3
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'total', 
+            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -215,12 +231,12 @@ class CargueID4Serializer(serializers.ModelSerializer):
         model = CargueID4
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'total', 
+            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -232,12 +248,12 @@ class CargueID5Serializer(serializers.ModelSerializer):
         model = CargueID5
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'total', 
+            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -249,15 +265,88 @@ class CargueID6Serializer(serializers.ModelSerializer):
         model = CargueID6
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'total', 
+            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
+
+# ========================================
+# SERIALIZERS PARA MODELOS NORMALIZADOS (Nuevos)
+# ========================================
+
+class CargueProductosSerializer(serializers.ModelSerializer):
+    """Serializer para CargueProductos - Tabla normalizada de productos"""
+    
+    class Meta:
+        model = CargueProductos
+        fields = [
+            'id', 'vendedor_id', 'dia', 'fecha', 'producto',
+            'cantidad', 'dctos', 'adicional', 'devoluciones', 'vencidas',
+            'total', 'valor', 'neto', 'v', 'd',
+            'lotes_vencidos', 'lotes_produccion',
+            'responsable', 'usuario', 'ruta', 'activo',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
+    
+    def validate_producto(self, value):
+        """Normalizar nombre del producto"""
+        import re
+        if value:
+            return re.sub(r'\s+', ' ', value).strip()
+        return value
+
+
+class CargueResumenSerializer(serializers.ModelSerializer):
+    """Serializer para CargueResumen - Tabla normalizada de resúmenes"""
+    
+    class Meta:
+        model = CargueResumen
+        fields = [
+            'id', 'vendedor_id', 'dia', 'fecha',
+            'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos',
+            'venta', 'total_efectivo',
+            'usuario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+
+class CarguePagosSerializer(serializers.ModelSerializer):
+    """Serializer para CarguePagos - Tabla normalizada de pagos"""
+    
+    class Meta:
+        model = CarguePagos
+        fields = [
+            'id', 'vendedor_id', 'dia', 'fecha',
+            'concepto', 'descuentos', 'nequi', 'daviplata',
+            'usuario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+
+class CargueCumplimientoSerializer(serializers.ModelSerializer):
+    """Serializer para CargueCumplimiento - Tabla normalizada de cumplimiento"""
+    
+    class Meta:
+        model = CargueCumplimiento
+        fields = [
+            'id', 'vendedor_id', 'dia', 'fecha',
+            'licencia_transporte', 'soat', 'uniforme',
+            'no_locion', 'no_accesorios', 'capacitacion_carnet',
+            'higiene', 'estibas', 'desinfeccion',
+            'usuario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+# ========================================
+# FIN SERIALIZERS NORMALIZADOS
+# ========================================
+
 
 class ProduccionSerializer(serializers.ModelSerializer):
     """Serializer para Producción con función de congelado"""
@@ -748,3 +837,16 @@ class VentaRutaSerializer(serializers.ModelSerializer):
         model = VentaRuta
         fields = '__all__'
 
+
+# ===== SERIALIZER PARA SNAPSHOT PLANEACIÓN =====
+
+class RegistrosPlaneacionDiaSerializer(serializers.ModelSerializer):
+    """Serializer para snapshot de Planeación al congelar"""
+    
+    class Meta:
+        model = RegistrosPlaneacionDia
+        fields = [
+            'id', 'fecha', 'producto_nombre', 'existencias', 'solicitadas',
+            'pedidos', 'total', 'orden', 'ia', 'fecha_congelado', 'usuario'
+        ]
+        read_only_fields = ('fecha_congelado',)

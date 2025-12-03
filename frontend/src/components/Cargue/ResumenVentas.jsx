@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Table, Form } from 'react-bootstrap';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Tooltip from 'react-bootstrap/Tooltip';
+import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 
 const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
 
@@ -115,8 +116,8 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                 });
               }
 
-              // Procesar base caja (tomar el primer valor no cero)
-              if (item.base_caja && parseFloat(item.base_caja) > 0 && baseCajaDB === 0) {
+              // Procesar base caja (tomar el valor MÁXIMO, ya que puede haber varios registros)
+              if (item.base_caja && parseFloat(item.base_caja) > baseCajaDB) {
                 baseCajaDB = parseFloat(item.base_caja);
                 console.log(`🔍 RESUMEN - Base caja encontrada:`, item.base_caja, '-> parsed:', baseCajaDB);
               }
@@ -158,7 +159,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       console.log(`📂 RESUMEN - ${idSheet} Buscando base caja en: ${baseCajaKey} = ${baseCajaGuardada}`);
 
       if (baseCajaGuardada) {
-        const baseCajaValor = parseInt(baseCajaGuardada) || 0;
+        const baseCajaValor = parseInt(baseCajaGuardada.replace(/[^0-9]/g, '')) || 0;
         console.log(`📂 RESUMEN - ${idSheet} Base caja cargada: ${baseCajaValor}`);
         setBaseCaja(baseCajaValor);
       }
@@ -219,6 +220,9 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   }, [dia, fechaSeleccionada, estadoCompletado]); // Sin idSheet para evitar doble carga
 
   // 🚀 CORREGIDO: Guardar datos cuando cambien - ESPECÍFICO POR ID
+  // 🆕 Ref para evitar sincronización en carga inicial
+  const cargaInicialBaseCaja = useRef(true);
+
   useEffect(() => {
     const fechaActual = fechaSeleccionada;
 
@@ -227,8 +231,39 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       const baseCajaKey = `base_caja_${dia}_${idSheet}_${fechaActual}`;
       localStorage.setItem(baseCajaKey, baseCaja.toString());
       console.log(`💾 RESUMEN - ${idSheet} Base caja guardada: ${baseCajaKey} = ${baseCaja}`);
+
+      // 🆕 SINCRONIZACIÓN EN TIEMPO REAL (solo si no es carga inicial)
+      if (!cargaInicialBaseCaja.current) {
+        // Convertir fecha a formato YYYY-MM-DD si es objeto Date
+        let fechaParaBD;
+        if (fechaSeleccionada instanceof Date) {
+          const year = fechaSeleccionada.getFullYear();
+          const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+          const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+          fechaParaBD = `${year}-${month}-${day}`;
+        } else {
+          fechaParaBD = fechaSeleccionada;
+        }
+
+        cargueRealtimeService.actualizarCampoGlobal(
+          idSheet,
+          dia,
+          fechaParaBD,
+          'base_caja',
+          baseCaja,
+          'Sistema'
+        ).then(result => {
+          if (result.success) {
+            console.log(`✅ Base caja sincronizada: ${baseCaja} (${result.action})`);
+          }
+        }).catch(err => console.error(`❌ Error sincronizando base_caja:`, err));
+      }
+      cargaInicialBaseCaja.current = false;
     }
   }, [baseCaja, dia, idSheet, fechaSeleccionada]);
+
+  // 🆕 Ref para evitar sincronización en carga inicial de conceptos
+  const cargaInicialConceptos = useRef(true);
 
   useEffect(() => {
     const fechaActual = fechaSeleccionada;
@@ -239,6 +274,51 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fechaActual}`;
       localStorage.setItem(conceptosKey, JSON.stringify(filas));
       console.log(`💾 RESUMEN - ${idSheet} Conceptos guardados: ${conceptosKey}`, filas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0));
+
+      // 🆕 SINCRONIZACIÓN EN TIEMPO REAL (solo si no es carga inicial)
+      if (!cargaInicialConceptos.current) {
+        // Convertir fecha a formato YYYY-MM-DD si es objeto Date
+        let fechaParaBD;
+        if (fechaSeleccionada instanceof Date) {
+          const year = fechaSeleccionada.getFullYear();
+          const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+          const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+          fechaParaBD = `${year}-${month}-${day}`;
+        } else {
+          fechaParaBD = fechaSeleccionada;
+        }
+
+        // Calcular totales para sincronizar
+        const totalDescuentos = filas.reduce((sum, f) => sum + (f.descuentos || 0), 0);
+        const totalNequi = filas.reduce((sum, f) => sum + (f.nequi || 0), 0);
+        const totalDaviplata = filas.reduce((sum, f) => sum + (f.daviplata || 0), 0);
+        const conceptosTexto = filas.filter(f => f.concepto).map(f => f.concepto).join(', ');
+
+        // Sincronizar campos de pagos
+        const camposASincronizar = {
+          concepto: conceptosTexto,
+          descuentos: totalDescuentos,
+          nequi: totalNequi,
+          daviplata: totalDaviplata
+        };
+
+        // Sincronizar cada campo
+        Object.entries(camposASincronizar).forEach(([campo, valor]) => {
+          cargueRealtimeService.actualizarCampoGlobal(
+            idSheet,
+            dia,
+            fechaParaBD,
+            campo,
+            valor,
+            'Sistema'
+          ).then(result => {
+            if (result.success) {
+              console.log(`✅ Pago sincronizado: ${campo} = ${valor} (${result.action})`);
+            }
+          }).catch(err => console.error(`❌ Error sincronizando ${campo}:`, err));
+        });
+      }
+      cargaInicialConceptos.current = false;
     }
   }, [filas, dia, idSheet, fechaSeleccionada]);
 
@@ -256,6 +336,49 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       newFilas[index][campo] = numValue ? parseInt(numValue) : 0;
     }
     setFilas(newFilas);
+
+    // 🆕 SINCRONIZACIÓN INMEDIATA AL EDITAR
+    // Convertir fecha a formato YYYY-MM-DD
+    let fechaParaBD;
+    if (fechaSeleccionada instanceof Date) {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      fechaParaBD = `${year}-${month}-${day}`;
+    } else {
+      fechaParaBD = fechaSeleccionada;
+    }
+
+    // Calcular totales con las nuevas filas
+    const totalDescuentos = newFilas.reduce((sum, f) => sum + (f.descuentos || 0), 0);
+    const totalNequi = newFilas.reduce((sum, f) => sum + (f.nequi || 0), 0);
+    const totalDaviplata = newFilas.reduce((sum, f) => sum + (f.daviplata || 0), 0);
+    const conceptosTexto = newFilas.filter(f => f.concepto).map(f => f.concepto).join(', ');
+
+    console.log(`🔄 Sincronizando pagos: concepto=${conceptosTexto}, desc=${totalDescuentos}, nequi=${totalNequi}, davi=${totalDaviplata}`);
+
+    // Sincronizar campos de pagos
+    const camposASincronizar = {
+      concepto: conceptosTexto,
+      descuentos: totalDescuentos,
+      nequi: totalNequi,
+      daviplata: totalDaviplata
+    };
+
+    Object.entries(camposASincronizar).forEach(([campoSync, valor]) => {
+      cargueRealtimeService.actualizarCampoGlobal(
+        idSheet,
+        dia,
+        fechaParaBD,
+        campoSync,
+        valor,
+        'Sistema'
+      ).then(result => {
+        if (result.success) {
+          console.log(`✅ Pago sincronizado: ${campoSync} = ${valor}`);
+        }
+      }).catch(err => console.error(`❌ Error sincronizando ${campoSync}:`, err));
+    });
   };
 
   const calcularTotal = (campo) => {
@@ -274,6 +397,62 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       return total + Math.round(neto);
     }, 0);
   };
+
+  // 🆕 SINCRONIZACIÓN DE TOTALES CALCULADOS
+  // Ref para evitar sincronización en carga inicial
+  const cargaInicialTotales = useRef(true);
+
+  useEffect(() => {
+    // Solo sincronizar si hay productos y no es carga inicial
+    if (productos.length === 0 || cargaInicialTotales.current) {
+      cargaInicialTotales.current = false;
+      return;
+    }
+
+    // Convertir fecha a formato YYYY-MM-DD
+    let fechaParaBD;
+    if (fechaSeleccionada instanceof Date) {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      fechaParaBD = `${year}-${month}-${day}`;
+    } else {
+      fechaParaBD = fechaSeleccionada;
+    }
+
+    // Calcular totales
+    const totalDespacho = calcularTotalDespacho();
+    const totalPedidosVal = datos.totalPedidos || 0;
+    const totalDctosVal = calcularTotal('descuentos');
+    const ventaVal = baseCaja + totalDespacho + totalPedidosVal - totalDctosVal;
+    const totalEfectivoVal = ventaVal - calcularTotal('nequi') - calcularTotal('daviplata');
+
+    console.log(`🔄 Sincronizando totales: despacho=${totalDespacho}, pedidos=${totalPedidosVal}, venta=${ventaVal}`);
+
+    // Sincronizar cada campo de totales
+    const totalesASincronizar = {
+      total_despacho: totalDespacho,
+      total_pedidos: totalPedidosVal,
+      total_dctos: totalDctosVal,
+      venta: ventaVal,
+      total_efectivo: totalEfectivoVal
+    };
+
+    Object.entries(totalesASincronizar).forEach(([campo, valor]) => {
+      cargueRealtimeService.actualizarCampoGlobal(
+        idSheet,
+        dia,
+        fechaParaBD,
+        campo,
+        valor,
+        'Sistema'
+      ).then(result => {
+        if (result.success) {
+          console.log(`✅ Total sincronizado: ${campo} = ${valor}`);
+        }
+      }).catch(err => console.error(`❌ Error sincronizando ${campo}:`, err));
+    });
+  }, [productos, baseCaja, filas, datos.totalPedidos]);
 
   return (
     <div className="resumen-container" style={{ marginLeft: '15px' }}>
@@ -345,8 +524,9 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
               type="text"
               style={{ width: '100px', fontSize: '14px', padding: '4px 8px', marginLeft: 'auto' }}
               className="text-center"
-              value={baseCaja ? formatCurrency(baseCaja) : ''}
+              value={baseCaja > 0 ? `$${baseCaja.toLocaleString()}` : ''}
               onChange={handleBaseCajaChange}
+              disabled={estadoCompletado}
             />
           </div>
         </div>

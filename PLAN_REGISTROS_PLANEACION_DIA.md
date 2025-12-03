@@ -1,7 +1,7 @@
 # Plan: Tabla RegistrosPlaneacionDia
 
 ## Fecha de Creación: 2 de Diciembre 2025
-## Estado: PENDIENTE DE IMPLEMENTAR
+## Estado: ✅ IMPLEMENTADO (Backend + Frontend)
 
 ---
 
@@ -116,10 +116,42 @@ class RegistrosPlaneacionDia(models.Model):
 
 ---
 
-## Para Continuar Mañana
-1. Leer este documento
-2. Empezar por crear el modelo en api/models.py
-3. Hacer migraciones
-4. Crear serializer y viewset
-5. Modificar BotonLimpiar.jsx
-6. Crear/modificar reporte en Reportes Avanzados
+## Progreso de Implementación
+
+### ✅ Completado (2 Dic 2025)
+1. ✅ Modelo `RegistrosPlaneacionDia` creado en `api/models.py`
+2. ✅ Migración ejecutada: `api/migrations/0051_registros_planeacion_dia.py`
+3. ✅ Serializer creado en `api/serializers.py`
+4. ✅ ViewSet creado en `api/views.py` con endpoints:
+   - GET `/api/registros-planeacion-dia/` - Listar registros
+   - GET `/api/registros-planeacion-dia/consultar_fecha/?fecha=YYYY-MM-DD` - Consultar por fecha
+   - POST `/api/registros-planeacion-dia/guardar_snapshot/` - Guardar snapshot
+5. ✅ Ruta registrada en `api/urls.py`
+6. ✅ Función `guardarSnapshotPlaneacion()` agregada en `BotonLimpiar.jsx`
+7. ✅ Llamada al snapshot integrada en cambio SUGERIDO → ALISTAMIENTO_ACTIVO
+8. ✅ Reporte de Planeación modificado en `ReportesAvanzadosScreen.jsx` para consultar snapshots
+9. ✅ Corregido cálculo de SOLICITADAS: `cantidad + adicional + dctos`
+
+### ✅ IMPLEMENTACIÓN COMPLETA
+
+---
+
+## Cómo Funciona
+
+### Guardado Automático
+Cuando el usuario hace clic en **SUGERIDO** y cambia a **ALISTAMIENTO ACTIVO**:
+1. Se ejecuta `guardarSnapshotPlaneacion()`
+2. Captura: Existencias (stock), Solicitadas (cantidad+adicional+dctos de cargue), Pedidos
+3. Guarda en tabla `api_registros_planeacion_dia`
+
+### Consulta de Snapshots
+- Ir a **Otros → Reportes Avanzados → Planeación de Producción**
+- Seleccionar fecha y consultar
+- Muestra los datos congelados al momento del cambio de estado
+
+### API Endpoints
+```
+GET  /api/registros-planeacion-dia/?fecha=2025-09-27
+GET  /api/registros-planeacion-dia/consultar_fecha/?fecha=2025-09-27
+POST /api/registros-planeacion-dia/guardar_snapshot/
+```
