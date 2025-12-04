@@ -73,7 +73,7 @@ const syncImagesWithBackend = async () => {
     const imageMap = JSON.parse(imageMapStr);
     
     // En una implementación real, aquí enviaríamos las imágenes al backend
-    console.log('Sincronizando imágenes con el backend...');
+
     
     // Simular éxito
     return Object.keys(imageMap).map(productId => ({

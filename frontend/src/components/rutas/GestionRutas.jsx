@@ -95,7 +95,7 @@ const GestionRutas = () => {
                 activo: true
             };
 
-            console.log('Guardando cliente:', data);
+
 
             if (editingCliente) {
                 await rutasService.actualizarClienteRuta(editingCliente.id, data);

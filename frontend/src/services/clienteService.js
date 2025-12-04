@@ -18,7 +18,7 @@ export const clienteService = {
       });
       
       const url = `${API_URL}/clientes/?${queryParams.toString()}`;
-      console.log('Intentando obtener clientes:', url);
+
       const response = await fetch(url);
       
       if (!response.ok) throw new Error(`Error al obtener clientes: ${response.status}`);
@@ -32,7 +32,7 @@ export const clienteService = {
   // Crear un nuevo cliente
   create: async (clienteData) => {
     try {
-      console.log('Intentando crear cliente:', clienteData);
+
       const response = await fetch(`${API_URL}/clientes/`, {
         method: 'POST',
         headers: {
@@ -56,7 +56,7 @@ export const clienteService = {
   // Obtener un cliente por ID
   getById: async (id) => {
     try {
-      console.log('Intentando obtener cliente por ID:', id);
+
       const response = await fetch(`${API_URL}/clientes/${id}/`);
       if (!response.ok) throw new Error(`Error al obtener cliente: ${response.status}`);
       return await response.json();
@@ -69,7 +69,7 @@ export const clienteService = {
   // Actualizar un cliente
   update: async (id, clienteData) => {
     try {
-      console.log('Intentando actualizar cliente:', id, clienteData);
+
       const response = await fetch(`${API_URL}/clientes/${id}/`, {
         method: 'PATCH',
         headers: {
@@ -93,7 +93,7 @@ export const clienteService = {
   // Eliminar un cliente
   delete: async (id) => {
     try {
-      console.log('Intentando eliminar cliente:', id);
+
       const response = await fetch(`${API_URL}/clientes/${id}/`, {
         method: 'DELETE',
       });

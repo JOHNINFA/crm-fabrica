@@ -46,7 +46,7 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
   };
 
   const handleImageChange = (imageData) => {
-    console.log("Imagen seleccionada:", imageData ? "Imagen presente" : "Sin imagen");
+
     setFormData(prev => ({ ...prev, imagen: imageData }));
     setImagePreview(imageData);
   };
@@ -70,8 +70,8 @@ const ProductForm = ({ initialData = {}, onSave, onCancel }) => {
       existencias: parseInt(formData.existencias) || 0,
     };
 
-    console.log("Guardando producto con datos:", productData);
-    console.log("Imagen:", imagePreview ? "Presente" : "No presente");
+
+
 
     // Si hay una imagen en el preview pero no en formData.imagen, usar la del preview
     if (!productData.imagen && imagePreview) {

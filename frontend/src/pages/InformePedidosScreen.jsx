@@ -32,7 +32,7 @@ function InformePedidosContent() {
     const cargarPedidos = async () => {
         try {
             const data = await pedidoService.getAll();
-            console.log('📋 Pedidos cargados:', data);
+
             setPedidos(data || []);
         } catch (error) {
             console.error('Error cargando pedidos:', error);
@@ -99,7 +99,7 @@ function InformePedidosContent() {
         setAnulando(true);
 
         try {
-            console.log('🔴 Anulando pedido:', selectedPedido.id);
+
             const result = await pedidoService.anularPedido(selectedPedido.id, motivoAnulacion);
 
             if (result.success) {

@@ -353,11 +353,11 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       // 🔒 VALIDACIÓN: No guardar si el estado está congelado
       const estadosBloqueados = ['ALISTAMIENTO_ACTIVO', 'FINALIZAR', 'COMPLETADO'];
       if (estadosBloqueados.includes(estadoBoton)) {
-        console.log('❄️ GUARDADO BLOQUEADO - Solicitadas congeladas en estado:', estadoBoton);
+
         return;
       }
 
-      console.log('💾 GUARDANDO SOLICITADAS EN BD...');
+
       console.log(`📅 Fecha: ${fechaSeleccionada}`);
       console.log(`📅 Día: ${dia}`);
       console.log(`🕐 Timestamp: ${new Date().toISOString()}`);
@@ -399,7 +399,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
         }))
       };
 
-      console.log('📊 Datos a enviar:', datosParaGuardar);
+
 
       const response = await fetch('http://localhost:8000/api/produccion-solicitadas/', {
         method: 'POST',
@@ -411,7 +411,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
 
       if (response.ok) {
         const resultado = await response.json();
-        console.log('✅ Solicitadas guardadas exitosamente:', resultado);
+
 
         // Actualizar estado
         const totalesGuardados = {};
@@ -447,9 +447,9 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       const hayDiferencias = JSON.stringify(totalesActuales) !== JSON.stringify(ultimosTotalesGuardados);
 
       if (hayDiferencias && Object.keys(ultimosTotalesGuardados).length > 0) {
-        console.log('🔄 Cambios detectados en totales de producción');
-        console.log('📊 Totales actuales:', totalesActuales);
-        console.log('📊 Últimos guardados:', ultimosTotalesGuardados);
+
+
+
         setHayDatosNuevos(true);
       }
 
@@ -458,8 +458,8 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       const noHayGuardados = Object.keys(ultimosTotalesGuardados).length === 0;
 
       if (hayTotalesPositivos && noHayGuardados) {
-        console.log('🆕 DATOS INICIALES DETECTADOS - Marcando como nuevos');
-        console.log('📊 Totales detectados:', totalesActuales);
+
+
         setHayDatosNuevos(true);
       }
 
@@ -480,7 +480,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   // 🚀 Guardado automático inteligente con debounce
   useEffect(() => {
     // 🔍 DEBUG: Mostrar estado actual para diagnóstico
-    console.log('🔍 DEBUG GUARDADO AUTOMÁTICO:');
+
     console.log(`   - Estado botón: "${estadoBoton}"`);
     console.log(`   - Hay datos nuevos: ${hayDatosNuevos}`);
     console.log(`   - Fecha seleccionada: ${fechaSeleccionada}`);
@@ -492,23 +492,23 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
     const estadoCongelado = estadosBloqueados.includes(estadoBoton);
 
     if (estadoCongelado) {
-      console.log('❄️ SOLICITADAS CONGELADAS - Estado bloqueado:', estadoBoton);
-      console.log('   - No se guardarán más cambios en solicitadas para este día');
+
+
       return;
     }
 
     // Solo guardar si está en estado SUGERIDO (ALISTAMIENTO) y hay datos nuevos
     if (estadoBoton === 'SUGERIDO' && hayDatosNuevos && fechaSeleccionada) {
-      console.log('⏳ Programando guardado automático en 3 segundos...');
+
       console.log(`📅 Guardará para fecha: ${fechaSeleccionada} (día: ${dia})`);
 
       const timeoutId = setTimeout(() => {
-        console.log('🚀 EJECUTANDO GUARDADO AUTOMÁTICO AHORA...');
+
         guardarSolicitadasEnBD();
       }, 3000); // 3 segundos de debounce
 
       return () => {
-        console.log('🚫 Cancelando guardado automático (nuevo cambio detectado)');
+
         clearTimeout(timeoutId);
       };
     } else {
@@ -568,7 +568,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
       };
 
       await cargueService.guardarCargue(datosProduccion);
-      console.log('Datos de producción guardados');
+
     } catch (error) {
       console.error('Error al guardar producción:', error);
     }

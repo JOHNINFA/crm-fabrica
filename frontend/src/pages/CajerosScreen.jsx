@@ -112,7 +112,7 @@ const CajerosScreen = () => {
 
     // Abrir modal para editar
     const handleEditarCajero = (cajero) => {
-        console.log('Editando cajero:', cajero);
+
 
         // Validar que el cajero tenga las propiedades necesarias
         if (!cajero || typeof cajero !== 'object') {

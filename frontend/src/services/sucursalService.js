@@ -33,11 +33,11 @@ export const sucursalService = {
     // Obtener todas las sucursales
     getAll: async () => {
         try {
-            console.log('Intentando obtener sucursales desde:', `${API_URL}/sucursales/`);
+
             const response = await fetch(`${API_URL}/sucursales/`);
             if (!response.ok) throw new Error(`Error al obtener sucursales: ${response.status}`);
             const data = await response.json();
-            console.log('Sucursales obtenidas:', data.length);
+
             return data;
         } catch (error) {
             console.error('Error en getAll sucursales:', error);
@@ -57,7 +57,7 @@ export const sucursalService = {
     // Obtener sucursal por ID
     getById: async (id) => {
         try {
-            console.log('Intentando obtener sucursal por ID:', id);
+
             const response = await fetch(`${API_URL}/sucursales/${id}/`);
             if (!response.ok) throw new Error(`Error al obtener sucursal con ID ${id}: ${response.status}`);
             return await response.json();
@@ -78,7 +78,7 @@ export const sucursalService = {
     // Crear nueva sucursal
     create: async (sucursalData) => {
         try {
-            console.log('Intentando crear sucursal:', sucursalData);
+
             
             const response = await fetch(`${API_URL}/sucursales/`, {
                 method: 'POST',
@@ -95,7 +95,7 @@ export const sucursalService = {
             }
             
             const result = await response.json();
-            console.log('✅ Sucursal creada exitosamente:', result);
+
             return result;
         } catch (error) {
             console.error('Error en create sucursal:', error);
@@ -113,7 +113,7 @@ export const sucursalService = {
             sucursales.push(nuevaSucursal);
             localStorage.setItem('sucursales', JSON.stringify(sucursales));
             
-            console.log('✅ Sucursal guardada en localStorage:', nuevaSucursal);
+
             return nuevaSucursal;
         }
     },
@@ -121,7 +121,7 @@ export const sucursalService = {
     // Actualizar sucursal
     update: async (id, sucursalData) => {
         try {
-            console.log('Intentando actualizar sucursal:', id, sucursalData);
+
             
             const response = await fetch(`${API_URL}/sucursales/${id}/`, {
                 method: 'PATCH',
@@ -138,7 +138,7 @@ export const sucursalService = {
             }
             
             const result = await response.json();
-            console.log('✅ Sucursal actualizada exitosamente:', result);
+
             return result;
         } catch (error) {
             console.error('Error en update sucursal:', error);
@@ -157,7 +157,7 @@ export const sucursalService = {
                     };
                     
                     localStorage.setItem('sucursales', JSON.stringify(sucursales));
-                    console.log('✅ Sucursal actualizada en localStorage:', sucursales[index]);
+
                     return sucursales[index];
                 }
             }
@@ -169,7 +169,7 @@ export const sucursalService = {
     // Eliminar sucursal (soft delete)
     delete: async (id) => {
         try {
-            console.log('Intentando eliminar sucursal:', id);
+
             
             const response = await fetch(`${API_URL}/sucursales/${id}/`, {
                 method: 'DELETE'
@@ -179,7 +179,7 @@ export const sucursalService = {
                 throw new Error(`Error al eliminar sucursal: ${response.status}`);
             }
             
-            console.log('✅ Sucursal eliminada exitosamente');
+
             return { success: true };
         } catch (error) {
             console.error('Error en delete sucursal:', error);
@@ -193,7 +193,7 @@ export const sucursalService = {
                 if (index !== -1) {
                     sucursales[index].activo = false;
                     localStorage.setItem('sucursales', JSON.stringify(sucursales));
-                    console.log('✅ Sucursal desactivada en localStorage');
+
                     return { success: true };
                 }
             }
@@ -221,7 +221,7 @@ export const sucursalService = {
                 const response = await fetch(`${API_URL}/sucursales/principal/`);
                 if (response.ok) {
                     const sucursal = await response.json();
-                    console.log('✅ Sucursal principal obtenida desde API:', sucursal.nombre);
+
                     return sucursal;
                 }
             } catch (apiError) {
@@ -234,7 +234,7 @@ export const sucursalService = {
             const sucursalDefault = principal || (sucursalesActivas.length > 0 ? sucursalesActivas[0] : null);
             
             if (sucursalDefault) {
-                console.log('✅ Sucursal por defecto (local):', sucursalDefault.nombre);
+
             }
             
             return sucursalDefault;

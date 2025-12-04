@@ -21,7 +21,7 @@ const DatabaseViewer = ({ show, onHide }) => {
       
       if (backendProducts && !backendProducts.error) {
         setProducts(backendProducts);
-        console.log("Productos cargados directamente desde backend:", backendProducts.length);
+
       } else {
         setError('No se pudieron cargar los productos desde el backend');
         console.error('Error en respuesta del backend:', backendProducts);

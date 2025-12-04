@@ -37,11 +37,11 @@ export const productoService = {
   // Obtener todos los productos
   getAll: async () => {
     try {
-      console.log('Intentando obtener productos desde:', `${API_URL}/productos/`);
+
       const response = await fetch(`${API_URL}/productos/`);
       if (!response.ok) throw new Error(`Error al obtener productos: ${response.status}`);
       const data = await response.json();
-      console.log('Productos obtenidos:', data.length);
+
       return data;
     } catch (error) {
       console.error('Error en getAll:', error);
@@ -52,7 +52,7 @@ export const productoService = {
   // Obtener un producto por ID
   getById: async (id) => {
     try {
-      console.log('Intentando obtener producto por ID:', id);
+
       const response = await fetch(`${API_URL}/productos/${id}/`);
       if (!response.ok) throw new Error(`Error al obtener producto con ID ${id}: ${response.status}`);
       return await response.json();
@@ -65,7 +65,7 @@ export const productoService = {
   // Crear un nuevo producto
   create: async (productoData) => {
     try {
-      console.log('Intentando crear producto:', productoData);
+
       
       // Verificar si hay una imagen en formato base64
       if (productoData.imagen && typeof productoData.imagen === 'string' && productoData.imagen.startsWith('data:')) {
@@ -85,7 +85,7 @@ export const productoService = {
           }
         });
         
-        console.log('Enviando FormData con imagen');
+
         const response = await fetch(`${API_URL}/productos/`, {
           method: 'POST',
           body: formData,
@@ -100,7 +100,7 @@ export const productoService = {
         return await response.json();
       } else {
         // Sin imagen, usar JSON normal
-        console.log('Enviando JSON sin imagen');
+
         const response = await fetch(`${API_URL}/productos/`, {
           method: 'POST',
           headers: {
@@ -131,7 +131,7 @@ export const productoService = {
         return { error: true, message: `ID de producto inválido: ${id}` };
       }
       
-      console.log('Intentando actualizar producto:', id, productoData);
+
       
       // Verificar primero si el producto existe
       try {
@@ -162,7 +162,7 @@ export const productoService = {
           }
         });
         
-        console.log('Enviando FormData con imagen');
+
         const response = await fetch(`${API_URL}/productos/${id}/`, {
           method: 'PATCH',
           body: formData,
@@ -177,7 +177,7 @@ export const productoService = {
         return await response.json();
       } else {
         // Sin imagen, usar JSON normal
-        console.log('Enviando JSON sin imagen');
+
         const response = await fetch(`${API_URL}/productos/${id}/`, {
           method: 'PATCH',
           headers: {
@@ -208,7 +208,7 @@ export const productoService = {
         return { error: true, message: `ID de producto inválido: ${id}` };
       }
       
-      console.log('Intentando actualizar stock:', id, cantidad);
+
       
       // Primero obtener el stock actual
       let stockActual = 0;
@@ -272,7 +272,7 @@ export const productoService = {
   // Subir una imagen para un producto
   uploadImage: async (id, imageData) => {
     try {
-      console.log('Intentando subir imagen para producto:', id);
+
       
       if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:')) {
         throw new Error('Formato de imagen inválido');
@@ -308,7 +308,7 @@ export const productoService = {
   // Eliminar un producto FÍSICAMENTE
   delete: async (id) => {
     try {
-      console.log('🔥 Eliminando producto FÍSICAMENTE:', id);
+
       const response = await fetch(`${API_URL}/productos/${id}/`, {
         method: 'DELETE',
       });
@@ -317,7 +317,7 @@ export const productoService = {
         throw new Error(`Error al eliminar producto: ${response.status}`);
       }
 
-      console.log('✅ Producto eliminado de la BD');
+
       return true;
     } catch (error) {
       console.error('Error en delete:', error);
@@ -331,7 +331,7 @@ export const categoriaService = {
   // Obtener todas las categorías
   getAll: async () => {
     try {
-      console.log('Intentando obtener categorías');
+
       const response = await fetch(`${API_URL}/categorias/`);
       if (!response.ok) throw new Error(`Error al obtener categorías: ${response.status}`);
       return await response.json();
@@ -344,7 +344,7 @@ export const categoriaService = {
   // Crear una nueva categoría
   create: async (nombre) => {
     try {
-      console.log('Intentando crear categoría:', nombre);
+
       const response = await fetch(`${API_URL}/categorias/`, {
         method: 'POST',
         headers: {
@@ -368,7 +368,7 @@ export const categoriaService = {
   // Eliminar una categoría
   delete: async (id) => {
     try {
-      console.log('Intentando eliminar categoría con ID:', id);
+
       const response = await fetch(`${API_URL}/categorias/${id}/`, {
         method: 'DELETE',
       });
@@ -400,7 +400,7 @@ export const loteService = {
       let url = `${API_URL}/lotes/`;
       if (productoId) url += `?producto=${productoId}`;
       
-      console.log('Intentando obtener lotes:', url);
+
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Error al obtener lotes: ${response.status}`);
       return await response.json();
@@ -413,7 +413,7 @@ export const loteService = {
   // Crear un nuevo lote
   create: async (loteData) => {
     try {
-      console.log('Intentando crear lote:', loteData);
+
       const response = await fetch(`${API_URL}/lotes/`, {
         method: 'POST',
         headers: {
@@ -436,7 +436,7 @@ export const cleanTablesService = {
   // Limpiar tablas específicas
   cleanTables: async (tables = ['registro_inventario', 'lote']) => {
     try {
-      console.log('Intentando limpiar tablas:', tables);
+
       const response = await fetch(`${API_URL}/admin/clean-tables/`, {
         method: 'POST',
         headers: {
@@ -451,7 +451,7 @@ export const cleanTablesService = {
         throw new Error(`Error al limpiar tablas: ${response.status}`);
       }
       
-      console.log('Tablas limpiadas correctamente');
+
       return await response.json();
     } catch (error) {
       console.error('Error al limpiar tablas:', error);
@@ -472,7 +472,7 @@ export const movimientoService = {
       });
       
       const url = `${API_URL}/movimientos/?${queryParams.toString()}`;
-      console.log('Intentando obtener movimientos:', url);
+
       const response = await fetch(url);
       
       if (!response.ok) throw new Error(`Error al obtener movimientos: ${response.status}`);
@@ -486,7 +486,7 @@ export const movimientoService = {
   // Crear un nuevo movimiento
   create: async (movimientoData) => {
     try {
-      console.log('Intentando crear movimiento:', movimientoData);
+
       const response = await fetch(`${API_URL}/movimientos/`, {
         method: 'POST',
         headers: {
@@ -515,14 +515,14 @@ export const ventaService = {
       });
       
       const url = `${API_URL}/ventas/?${queryParams.toString()}`;
-      console.log('Intentando obtener ventas:', url);
+
       
       // Intentar con API primero
       try {
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Ventas obtenidas desde API:', data.length);
+
           return data;
         }
       } catch (apiError) {
@@ -530,7 +530,7 @@ export const ventaService = {
       }
 
       // Fallback: usar localStorage
-      console.log('🔄 Usando localStorage para obtener ventas...');
+
       const ventasGuardadas = localStorage.getItem('ventas_pos');
       
       if (ventasGuardadas) {
@@ -539,7 +539,7 @@ export const ventaService = {
         // Verificar ventas anuladas y actualizar estados
         const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
         if (ventasAnuladas.length > 0) {
-          console.log('🔍 Aplicando estados de ventas anuladas:', ventasAnuladas);
+
           ventas = ventas.map(venta => {
             if (ventasAnuladas.includes(venta.id)) {
               return { ...venta, estado: 'ANULADA' };
@@ -548,10 +548,10 @@ export const ventaService = {
           });
         }
         
-        console.log('✅ Ventas obtenidas desde localStorage:', ventas.length);
+
         return ventas;
       } else {
-        console.log('ℹ️ No hay ventas en localStorage');
+
         return [];
       }
       
@@ -564,7 +564,7 @@ export const ventaService = {
   // Crear una nueva venta
   create: async (ventaData) => {
     try {
-      console.log('Intentando crear venta:', ventaData);
+
       const response = await fetch(`${API_URL}/ventas/`, {
         method: 'POST',
         headers: {
@@ -588,15 +588,15 @@ export const ventaService = {
   // Obtener una venta por ID
   getById: async (id) => {
     try {
-      console.log('🔍 Intentando obtener venta por ID:', id);
+
       
       // Intentar con API primero
       try {
         const response = await fetch(`${API_URL}/ventas/${id}/`);
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Venta obtenida desde API:', data);
-          console.log('📦 Detalles en API:', data.detalles);
+
+
           return data;
         } else {
           console.log('⚠️ API response not ok:', response.status);
@@ -606,13 +606,13 @@ export const ventaService = {
       }
 
       // Fallback: buscar en localStorage
-      console.log('🔄 Buscando venta en localStorage...');
+
       const ventasGuardadas = localStorage.getItem('ventas_pos');
-      console.log('📋 Ventas en localStorage:', ventasGuardadas ? 'Encontradas' : 'No encontradas');
+
       
       if (ventasGuardadas) {
         const ventas = JSON.parse(ventasGuardadas);
-        console.log('📋 Total ventas en localStorage:', ventas.length);
+
         let venta = ventas.find(v => v.id === parseInt(id));
         
         if (venta) {
@@ -620,15 +620,15 @@ export const ventaService = {
           const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
           if (ventasAnuladas.includes(parseInt(id))) {
             venta = { ...venta, estado: 'ANULADA' };
-            console.log('🔍 Venta marcada como ANULADA');
+
           }
           
-          console.log('✅ Venta encontrada en localStorage:', venta);
-          console.log('📦 Detalles en localStorage:', venta.detalles);
+
+
           return venta;
         } else {
           console.log('❌ Venta no encontrada en localStorage con ID:', id);
-          console.log('📋 IDs disponibles:', ventas.map(v => v.id));
+
         }
       }
       
@@ -643,15 +643,15 @@ export const ventaService = {
   // Anular una venta
   anularVenta: async (id) => {
     try {
-      console.log('Intentando anular venta:', id);
+
       
       // Intentar con API primero - usando PATCH para actualizar el estado
       try {
-        console.log('🔄 Intentando PATCH a:', `${API_URL}/ventas/${id}/`);
+
         const patchData = {
           estado: 'ANULADA'
         };
-        console.log('📤 Datos a enviar:', patchData);
+
         
         const response = await fetch(`${API_URL}/ventas/${id}/`, {
           method: 'PATCH',
@@ -661,12 +661,12 @@ export const ventaService = {
           body: JSON.stringify(patchData)
         });
 
-        console.log('📥 Respuesta PATCH:', response.status, response.statusText);
+
         
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Venta anulada exitosamente con API (PATCH):', result);
-          console.log('🔍 Estado en respuesta:', result.estado);
+
+
           return { 
             success: true, 
             message: 'Venta anulada exitosamente en base de datos',
@@ -695,7 +695,7 @@ export const ventaService = {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Venta anulada exitosamente con API (POST anular):', result);
+
           return result;
         } else {
           console.log('⚠️ Endpoint /anular/ no disponible:', response.status);
@@ -706,14 +706,14 @@ export const ventaService = {
 
       // Fallback: marcar como anulada localmente (temporal hasta que API esté disponible)
       console.log('⚠️ API no disponible, usando fallback local temporal');
-      console.log('🔍 ID de venta a anular:', id);
+
       
       // Crear lista de ventas anuladas para persistir el estado
       const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
       if (!ventasAnuladas.includes(parseInt(id))) {
         ventasAnuladas.push(parseInt(id));
         localStorage.setItem('ventas_anuladas', JSON.stringify(ventasAnuladas));
-        console.log('✅ Venta marcada como anulada localmente:', id);
+
       }
       
       return { 
@@ -745,14 +745,14 @@ export const pedidoService = {
       });
       
       const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
-      console.log('Intentando obtener pedidos:', url);
+
       
       // Intentar con API primero
       try {
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Pedidos obtenidos desde API:', data.length);
+
           return data;
         }
       } catch (apiError) {
@@ -760,7 +760,7 @@ export const pedidoService = {
       }
 
       // Fallback: usar localStorage
-      console.log('🔄 Usando localStorage para obtener pedidos...');
+
       const pedidosGuardados = localStorage.getItem('pedidos_sistema');
       
       if (pedidosGuardados) {
@@ -769,7 +769,7 @@ export const pedidoService = {
         // Verificar pedidos anulados y actualizar estados
         const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
         if (pedidosAnulados.length > 0) {
-          console.log('🔍 Aplicando estados de pedidos anulados:', pedidosAnulados);
+
           pedidos = pedidos.map(pedido => {
             if (pedidosAnulados.includes(pedido.id)) {
               return { ...pedido, estado: 'ANULADA' };
@@ -778,10 +778,10 @@ export const pedidoService = {
           });
         }
         
-        console.log('✅ Pedidos obtenidos desde localStorage:', pedidos.length);
+
         return pedidos;
       } else {
-        console.log('ℹ️ No hay pedidos en localStorage');
+
         return [];
       }
       
@@ -794,7 +794,7 @@ export const pedidoService = {
   // Crear un nuevo pedido
   create: async (remisionData) => {
     try {
-      console.log('Intentando crear pedido:', remisionData);
+
       
       // Intentar con API primero
       try {
@@ -808,7 +808,7 @@ export const pedidoService = {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Pedido creado exitosamente en API:', result);
+
           
           // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
           window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: result }));
@@ -839,7 +839,7 @@ export const pedidoService = {
         pedidosGuardados.push(nuevoPedido);
         localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosGuardados));
         
-        console.log('✅ Pedido guardado en localStorage:', nuevoPedido);
+
         
         // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
         window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: nuevoPedido }));
@@ -855,14 +855,14 @@ export const pedidoService = {
   // Obtener una remisión por ID
   getById: async (id) => {
     try {
-      console.log('🔍 Intentando obtener remisión por ID:', id);
+
       
       // Intentar con API primero
       try {
         const response = await fetch(`${API_URL}/pedidos/${id}/`);
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Remisión obtenida desde API:', data);
+
           return data;
         } else {
           console.log('⚠️ API response not ok:', response.status);
@@ -872,7 +872,7 @@ export const pedidoService = {
       }
 
       // Fallback: buscar en localStorage
-      console.log('🔄 Buscando remisión en localStorage...');
+
       const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
       
       if (remisionesGuardadas) {
@@ -886,7 +886,7 @@ export const pedidoService = {
             remision = { ...remision, estado: 'ANULADA' };
           }
           
-          console.log('✅ Remisión encontrada en localStorage:', remision);
+
           return remision;
         } else {
           console.log('❌ Remisión no encontrada en localStorage con ID:', id);
@@ -904,7 +904,7 @@ export const pedidoService = {
   // Anular un pedido (remisión)
   anularPedido: async (id, motivo = 'Anulado desde gestión de pedidos') => {
     try {
-      console.log('🔴 Intentando anular pedido:', id, 'Motivo:', motivo);
+
       
       // Intentar con el endpoint específico de anulación
       try {
@@ -918,7 +918,7 @@ export const pedidoService = {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Pedido anulado exitosamente con API:', result);
+
           return { 
             success: true, 
             message: result.message || 'Pedido anulado exitosamente',
@@ -951,7 +951,7 @@ export const pedidoService = {
   // Actualizar estado de remisión
   updateEstado: async (id, nuevoEstado) => {
     try {
-      console.log('Actualizando estado de remisión:', id, 'a', nuevoEstado);
+
       
       const response = await fetch(`${API_URL}/pedidos/${id}/`, {
         method: 'PATCH',
@@ -963,7 +963,7 @@ export const pedidoService = {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Estado de remisión actualizado:', result);
+
         return result;
       } else {
         throw new Error(`Error al actualizar estado: ${response.status}`);

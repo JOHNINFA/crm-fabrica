@@ -37,7 +37,7 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
   // Cargar datos del producto seleccionado
   useEffect(() => {
     if (productToEdit) {
-      console.log('📝 Producto a editar:', productToEdit);
+
       console.log('Disponibilidad:', {
         pos: productToEdit.disponible_pos,
         cargue: productToEdit.disponible_cargue,

@@ -103,7 +103,7 @@ export default function PedidosDiaScreen() {
   // Recargar pedidos cuando la ventana recupera el foco
   useEffect(() => {
     const handleFocus = () => {
-      console.log('🔄 Ventana recuperó el foco, recargando pedidos...');
+
       cargarPedidos();
     };
     window.addEventListener('focus', handleFocus);
@@ -135,15 +135,15 @@ export default function PedidosDiaScreen() {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/pedidos/`);
       if (response.ok) {
         const pedidos = await response.json();
-        console.log('📦 Todas las pedidos:', pedidos);
-        console.log('📅 Fecha seleccionada:', fechaSeleccionada);
+
+
 
         // Filtrar por fecha de entrega que coincida con la fecha seleccionada
         // Y excluir pedidos anulados
         const pedidosFiltradas = pedidos.filter(r =>
           r.fecha_entrega === fechaSeleccionada && r.estado !== 'ANULADA'
         );
-        console.log('✅ Pedidos filtradas (sin anulados):', pedidosFiltradas);
+
 
         // Crear un mapa de clientes que ya tienen pedido con los datos completos
         const pedidosMap = {};
@@ -152,7 +152,7 @@ export default function PedidosDiaScreen() {
           // Usar toLowerCase para hacer la comparación insensible a mayúsculas
           pedidosMap[remision.destinatario.toLowerCase()] = remision;
         });
-        console.log('🗺️ Mapa de pedidos:', pedidosMap);
+
         setPedidosRealizados(pedidosMap);
       }
     } catch (error) {
@@ -217,7 +217,7 @@ export default function PedidosDiaScreen() {
     setAnulando(true);
 
     try {
-      console.log('🔴 Anulando pedido:', pedidoAAnular.id);
+
       const result = await pedidoService.anularPedido(pedidoAAnular.id, motivoAnulacion);
 
       if (result.success) {

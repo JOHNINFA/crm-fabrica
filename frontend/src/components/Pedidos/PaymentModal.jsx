@@ -39,13 +39,13 @@ const PaymentModal = ({
     useEffect(() => {
         // ✅ Cuando se selecciona "VENDEDOR", asignar el vendedor del cliente automáticamente
         if (asignadoATipo === 'VENDEDOR' && !asignadoAId && clientData?.vendedor_asignado) {
-            console.log('👤 Vendedor asignado del cliente (original):', clientData.vendedor_asignado);
+
 
             // Extraer el ID del vendedor del formato "Jose (ID2)" -> "ID2"
             const match = clientData.vendedor_asignado.match(/\(([^)]+)\)/);
             const vendedorId = match ? match[1] : clientData.vendedor_asignado;
 
-            console.log('👤 ID del vendedor extraído:', vendedorId);
+
             setAsignadoAId(vendedorId);
         }
 
@@ -82,7 +82,7 @@ const PaymentModal = ({
                 if (response.ok) {
                     const data = await response.json();
                     setVendedores(data);
-                    console.log('✅ Vendedores cargados:', data);
+
                 }
             } catch (error) {
                 console.error('❌ Error cargando vendedores:', error);
@@ -115,7 +115,7 @@ const PaymentModal = ({
                 if (response.ok) {
                     const data = await response.json();
                     setDomiciliarios(data);
-                    console.log('✅ Domiciliarios cargados:', data);
+
                 }
             } catch (error) {
                 console.error('❌ Error cargando domiciliarios:', error);
@@ -139,8 +139,8 @@ const PaymentModal = ({
     // Cargar datos del cliente si vienen de Pedidos
     useEffect(() => {
         if (clientData) {
-            console.log('📋 Cargando datos del cliente en modal:', clientData);
-            console.log('👤 Vendedor asignado del cliente:', clientData.vendedor_asignado);
+
+
             if (clientData.direccion) setDireccionEntrega(clientData.direccion);
             if (clientData.telefono) setTelefonoContacto(clientData.telefono);
             if (clientData.fecha) setFechaEntrega(clientData.fecha);
@@ -233,15 +233,15 @@ const PaymentModal = ({
                 }))
             };
 
-            console.log('Procesando pedido:', pedidoData);
-            console.log('Detalles del carrito:', cart);
-            console.log('Detalles a enviar:', pedidoData.detalles);
+
+
+
 
             // Crear el pedido
             const result = await pedidoService.create(pedidoData);
 
             if (result && !result.error) {
-                console.log('✅ Pedido creado exitosamente:', result);
+
 
                 // Construir mensaje de éxito
                 let mensaje = `✅ Pedido #${result.numero_pedido} creado exitosamente\n`;

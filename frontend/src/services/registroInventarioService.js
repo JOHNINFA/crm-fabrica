@@ -26,7 +26,7 @@ export const registroInventarioService = {
         activo: true
       };
       
-      console.log('🚀 Enviando registro a API:', payload);
+
       
       const response = await fetch(`${API_URL}/registro-inventario/`, {
         method: 'POST',
@@ -36,7 +36,7 @@ export const registroInventarioService = {
         body: JSON.stringify(payload)
       });
       
-      console.log('📊 Respuesta del servidor:', response.status, response.statusText);
+
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -45,7 +45,7 @@ export const registroInventarioService = {
       }
       
       const result = await response.json();
-      console.log('✅ Registro creado exitosamente:', result);
+
       return result;
     } catch (error) {
       console.error('❌ Error en create registro:', error);

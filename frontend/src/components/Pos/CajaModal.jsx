@@ -52,11 +52,11 @@ const CajaModal = ({ show, onClose }) => {
         setError(null);
 
         try {
-            console.log('🔄 Cargando datos de caja para:', fechaConsulta);
+
 
             const resumen = await cajaService.getResumenVentasDelDia(fechaConsulta);
 
-            console.log('📊 Resumen de ventas cargado:', resumen);
+
 
             setResumenVentas(resumen);
             setValoresSistema(resumen.resumenPorMetodo);

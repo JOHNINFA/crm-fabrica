@@ -52,7 +52,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
 
         if (response.ok) {
           const data = await response.json();
-          console.log('🔍 CUMPLIMIENTO - Respuesta completa de BD:', data);
+
 
           // 🚀 CORREGIDO: Los datos vienen como array directo, no con results
           if (Array.isArray(data) && data.length > 0) {
@@ -68,7 +68,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
               registro = data[0];
             }
 
-            console.log('🔍 CUMPLIMIENTO - Registro seleccionado:', registro.producto, registro);
+
 
             const cumplimientoData = {};
 
@@ -81,7 +81,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
               }
             });
 
-            console.log('✅ CUMPLIMIENTO - Datos procesados:', cumplimientoData);
+
             setCumplimiento(cumplimientoData);
             setCargaInicial(false);
             return;
@@ -104,7 +104,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
       if (datosLocal) {
         try {
           const cumplimientoLocal = JSON.parse(datosLocal);
-          console.log('✅ CUMPLIMIENTO - Datos cargados desde localStorage:', cumplimientoLocal);
+
           setCumplimiento(cumplimientoLocal);
           setCargaInicial(false);
           return; // Si hay datos locales, usarlos
@@ -155,7 +155,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
 
       // Solo guardar en localStorage - el BotonLimpiar se encargará de enviar todo junto
       localStorage.setItem(keyLocal, JSON.stringify(nuevosCumplimientos));
-      console.log('✅ Cumplimiento guardado en localStorage para envío posterior');
+
 
     } catch (error) {
       console.error('❌ Error guardando cumplimiento:', error);

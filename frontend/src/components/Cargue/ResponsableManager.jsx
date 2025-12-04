@@ -25,7 +25,7 @@ const ResponsableManager = ({
                     }
                 }));
 
-                console.log('✅ Responsable guardado exitosamente');
+
             } else {
                 console.error('❌ Error guardando responsable:', resultado.error);
                 alert('Error guardando el responsable. Inténtalo de nuevo.');

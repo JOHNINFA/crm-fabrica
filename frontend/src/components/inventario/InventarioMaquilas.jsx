@@ -110,14 +110,14 @@ const InventarioMaquilas = () => {
       }
 
       const productosFromBD = await response.json();
-      console.log("📊 Productos cargados desde BD:", productosFromBD.length);
+
 
       // Filtrar solo productos de MAQUILA
       const productosMaquila = productosFromBD.filter(p =>
         p.ubicacion_inventario === 'MAQUILA'
       );
 
-      console.log("🏭 Productos de MAQUILA filtrados:", productosMaquila.length);
+
 
       // Formatear productos
       const productosFormateados = productosMaquila.map((producto) => ({
@@ -145,7 +145,7 @@ const InventarioMaquilas = () => {
       });
 
       setProductos(productosOrdenados);
-      console.log("✅ Productos de maquila cargados:", productosOrdenados.length);
+
     } catch (error) {
       console.error("Error al cargar productos de maquila:", error);
       setMensaje({ texto: "Error al cargar productos de maquila", tipo: "danger" });
@@ -169,7 +169,7 @@ const InventarioMaquilas = () => {
         const datosParseados = JSON.parse(datosConfirmacionGuardados);
         setDatosGuardados(datosParseados);
         setYaSeGrabo(true);
-        console.log("✅ Datos de confirmación de maquila cargados para:", fechaStr);
+
       } catch (error) {
         console.error("Error al parsear datos de confirmación de maquila:", error);
       }
@@ -192,7 +192,7 @@ const InventarioMaquilas = () => {
         // Debounce de 2 segundos - solo recarga si no hay actividad
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          console.log('🔄 Recargando productos maquila por cambio en storage...');
+
           cargarProductosMaquila();
         }, 2000);
       }
@@ -202,7 +202,7 @@ const InventarioMaquilas = () => {
       // Debounce de 2 segundos
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        console.log('🔄 Recargando productos maquila por evento productosUpdated...');
+
         cargarProductosMaquila();
       }, 2000);
     };
@@ -615,7 +615,7 @@ const InventarioMaquilas = () => {
         const fechaKey = `confirmacion_maquila_${fechaStr}`;
         localStorage.setItem(fechaKey, JSON.stringify(datosActualizados));
 
-        console.log("✅ Datos de confirmación de maquila actualizados después de editar");
+
       }
 
       setMensaje({

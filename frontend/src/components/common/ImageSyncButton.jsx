@@ -132,7 +132,7 @@ const ImageSyncButton = () => {
       // Obtener productos de localStorage
       const productsStr = localStorage.getItem('products');
       if (!productsStr) {
-        console.log('No hay productos en localStorage');
+
         setSyncing(false);
         return [];
       }
@@ -177,7 +177,7 @@ const ImageSyncButton = () => {
       // Guardar productos actualizados en localStorage
       localStorage.setItem('products', JSON.stringify(products));
       
-      console.log('Sincronización completada:', results);
+
       setResults(results);
       setSyncing(false);
       return results;

@@ -19,7 +19,7 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
     };
 
     const handleGuardar = () => {
-        console.log('💾 GUARDANDO CAMBIOS...');
+
         alert('💾 Función guardar ejecutada');
 
         // Actualizar localStorage
@@ -53,7 +53,7 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
                 datos.timestamp = Date.now();
                 localStorage.setItem(key, JSON.stringify(datos));
 
-                console.log('✅ Datos guardados en localStorage');
+
                 alert('✅ Cambios guardados exitosamente');
 
                 if (onGuardar) {

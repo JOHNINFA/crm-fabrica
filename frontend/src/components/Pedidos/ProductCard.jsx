@@ -27,7 +27,7 @@ export default function ProductCard({ product, onClick, priceList }) {
     // Debug: verificar precio del producto
     useEffect(() => {
         if (!product.price || product.price === 0) {
-            console.log('Producto sin precio base:', product.name, 'precio:', product.price);
+
         }
     }, [product]);
 

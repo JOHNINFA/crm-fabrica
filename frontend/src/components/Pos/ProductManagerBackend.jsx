@@ -152,7 +152,7 @@ const ProductManagerBackend = ({ show, onHide }) => {
       try {
         await categoriaService.create(newProduct.category);
       } catch (catError) {
-        console.log('Error o categoría ya existe:', catError);
+
       }
       
       // Crear producto en el backend

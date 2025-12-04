@@ -24,7 +24,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
       // Filtrar solo las listas que están marcadas como visibles en POS
       const listasVisibles = listas.filter(lista => listasVisiblesPos[lista.nombre] === true);
 
-      console.log('📋 Listas de precios visibles en POS:', listasVisibles.map(l => l.nombre));
+
 
       setPriceLists(listasVisibles);
       if (listasVisibles.length > 0 && !priceList) {

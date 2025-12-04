@@ -139,7 +139,7 @@ class OptimizedApiService {
         apiCache.invalidate('responsables', { idVendedor });
         apiCache.set('responsables', { responsable }, { idVendedor });
         
-        console.log('✅ Responsable actualizado y caché invalidado');
+
         return data;
       } else {
         throw new Error('Error en la respuesta del servidor');
@@ -199,7 +199,7 @@ class OptimizedApiService {
         apiCache.invalidate('productos');
         apiCache.invalidate('stock', { productoId });
         
-        console.log('✅ Stock actualizado y caché invalidado');
+
         return data;
       } else {
         throw new Error('Error actualizando stock');

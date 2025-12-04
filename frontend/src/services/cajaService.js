@@ -133,7 +133,7 @@ export const cajaService = {
     try {
       // SIEMPRE crear un nuevo arqueo (no sobrescribir)
       // Cada turno debe tener su propio arqueo
-      console.log('✨ Creando nuevo arqueo de caja');
+
       
       const arqueoData = {
         fecha: datosArqueo.fecha,
@@ -152,7 +152,7 @@ export const cajaService = {
         sucursal: datosArqueo.sucursal_id || null
       };
       
-      console.log('📤 Enviando arqueo al backend:', arqueoData);
+
       
       const response = await fetch(`${API_URL}/arqueo-caja/`, {
         method: 'POST',
@@ -167,7 +167,7 @@ export const cajaService = {
       }
       
       const result = await response.json();
-      console.log('✅ Arqueo guardado exitosamente:', result);
+
       return result;
       
     } catch (error) {
@@ -299,7 +299,7 @@ export const cajaService = {
   getMovimientosBancarios: async (fecha = null, banco = 'Todos') => {
     try {
       // Placeholder - aquí conectarías con tu API de movimientos bancarios
-      console.log('Obteniendo movimientos bancarios para:', { fecha, banco });
+
       
       return {
         fecha: fecha || new Date().toISOString().split('T')[0],

@@ -55,7 +55,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                                         : registro.lotes_produccion;
 
                                     if (Array.isArray(lotesDB) && lotesDB.length > 0) {
-                                        console.log('✅ LOTES - Cargados desde BD:', lotesDB);
+
                                         setLotes(lotesDB);
                                         return;
                                     }
@@ -77,7 +77,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
             if (datosLocal) {
                 try {
                     const lotesLocal = JSON.parse(datosLocal);
-                    console.log('✅ LOTES - Cargados desde localStorage:', lotesLocal);
+
                     setLotes(Array.isArray(lotesLocal) ? lotesLocal : []);
                 } catch (error) {
                     console.error('❌ Error parsing localStorage:', error);
@@ -106,7 +106,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
 
         const keyLocal = `lotes_${dia}_${idSheet}_${fechaParaBD}`;
         localStorage.setItem(keyLocal, JSON.stringify(nuevosLotes));
-        console.log('✅ LOTES - Guardados en localStorage:', nuevosLotes);
+
 
         console.log(`🔄 LOTES - Sincronizando con BD: ${idSheet} | ${dia} | ${fechaParaBD}`);
 
@@ -148,7 +148,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
 
     const eliminarLote = (index) => {
         if (estadoCompletado) {
-            console.log('🔒 No se puede eliminar - Jornada COMPLETADA');
+
             return;
         }
 

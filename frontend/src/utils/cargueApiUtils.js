@@ -14,7 +14,7 @@ export const migracionUtils = {
     }
 
     try {
-      console.log('🚀 MIGRACIÓN: Iniciando migración de localStorage a servidor...');
+
       
       // Obtener todas las claves de cargue
       const clavesCargue = Object.keys(localStorage).filter(key => key.startsWith('cargue_'));
@@ -132,7 +132,7 @@ export const migracionUtils = {
   // 🚀 VERIFICAR INTEGRIDAD DE DATOS
   verificarIntegridad: async () => {
     try {
-      console.log('🔍 VERIFICACIÓN: Iniciando verificación de integridad...');
+
       
       const clavesCargue = Object.keys(localStorage).filter(key => key.startsWith('cargue_'));
       let verificados = 0;
@@ -203,7 +203,7 @@ export const devUtils = {
   activarApiTemporal: () => {
     cargueApiConfig.USAR_API = true;
     cargueApiConfig.DEBUG_LOGS = true;
-    console.log('🚀 DEV: API activada temporalmente');
+
     console.log('⚠️ DEV: Esto es solo para desarrollo, se resetea al recargar');
   },
 

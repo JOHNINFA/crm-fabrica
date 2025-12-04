@@ -32,7 +32,7 @@ const DomiciliariosScreen = () => {
 
             if (response.ok) {
                 const domiciliariosDB = await response.json();
-                console.log('✅ Domiciliarios desde BD:', domiciliariosDB);
+
                 setDomiciliarios(domiciliariosDB);
             } else {
                 console.error('❌ Error cargando domiciliarios desde BD');
@@ -135,7 +135,7 @@ const DomiciliariosScreen = () => {
 
             const method = editingDomiciliario ? 'PUT' : 'POST';
 
-            console.log('📤 Enviando datos:', formData);
+
 
             const response = await fetch(url, {
                 method: method,
@@ -146,10 +146,10 @@ const DomiciliariosScreen = () => {
             });
 
             const data = await response.json();
-            console.log('📥 Respuesta del servidor:', data);
+
 
             if (response.ok) {
-                console.log('✅ Domiciliario guardado exitosamente');
+
                 await cargarDomiciliarios();
                 cerrarModal();
             } else {
@@ -171,7 +171,7 @@ const DomiciliariosScreen = () => {
                 );
 
                 if (response.ok || response.status === 204) {
-                    console.log('✅ Domiciliario eliminado');
+
                     await cargarDomiciliarios();
                 } else {
                     alert('Error eliminando el domiciliario');

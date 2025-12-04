@@ -12,7 +12,7 @@ export const vendedorService = {
   // Obtener todos los vendedores (SIMULADO - ya no hay tabla vendedores)
   getAll: async (params = {}) => {
     try {
-      console.log('📋 Obteniendo vendedores (simulado)');
+
       
       // Simular datos de vendedores basados en los IDs conocidos
       const vendedoresSimulados = [
@@ -48,7 +48,7 @@ export const vendedorService = {
   // Crear un nuevo vendedor (SIMULADO - mantiene compatibilidad)
   create: async (vendedorData) => {
     try {
-      console.log('📝 Creando vendedor (simulado):', vendedorData);
+
       
       // En la nueva estructura, no hay tabla de vendedores
       // Simular creación exitosa
@@ -58,7 +58,7 @@ export const vendedorService = {
         fecha_creacion: new Date().toISOString()
       };
       
-      console.log('✅ Vendedor creado (simulado):', nuevoVendedor);
+
       return nuevoVendedor;
       
     } catch (error) {
@@ -70,7 +70,7 @@ export const vendedorService = {
   // Obtener un vendedor por ID (SIMULADO)
   getById: async (id) => {
     try {
-      console.log('🔍 Obteniendo vendedor por ID (simulado):', id);
+
       
       const vendedores = await vendedorService.getAll();
       const vendedor = vendedores.find(v => v.id === parseInt(id));
@@ -90,7 +90,7 @@ export const vendedorService = {
   // Obtener vendedor por id_vendedor (NUEVO - MÁS ÚTIL)
   getByIdVendedor: async (idVendedor) => {
     try {
-      console.log('🔍 Obteniendo vendedor por id_vendedor:', idVendedor);
+
       
       const vendedores = await vendedorService.getAll();
       const vendedor = vendedores.find(v => v.id_vendedor === idVendedor);
@@ -118,7 +118,7 @@ export const vendedorService = {
   // Actualizar un vendedor (SIMULADO - mantiene compatibilidad)
   update: async (id, vendedorData) => {
     try {
-      console.log('📝 Actualizando vendedor (simulado):', id, vendedorData);
+
       
       // En la nueva estructura, los datos se manejan via localStorage
       // Simular actualización exitosa
@@ -128,7 +128,7 @@ export const vendedorService = {
         fecha_actualizacion: new Date().toISOString()
       };
       
-      console.log('✅ Vendedor actualizado (simulado):', vendedorActualizado);
+
       return vendedorActualizado;
       
     } catch (error) {
@@ -163,11 +163,11 @@ export const vendedorService = {
   // Eliminar un vendedor (SIMULADO - mantiene compatibilidad)
   delete: async (id) => {
     try {
-      console.log('🗑️ Eliminando vendedor (simulado):', id);
+
       
       // En la nueva estructura, no hay tabla de vendedores
       // Simular eliminación exitosa
-      console.log('✅ Vendedor eliminado (simulado)');
+
       return true;
       
     } catch (error) {

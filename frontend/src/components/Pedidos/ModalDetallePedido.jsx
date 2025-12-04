@@ -4,8 +4,8 @@ import './ModalDetallePedido.css';
 export default function ModalDetallePedido({ show, onClose, pedido }) {
   if (!show || !pedido) return null;
 
-  console.log('📦 Pedido en modal:', pedido);
-  console.log('📋 Detalles:', pedido.detalles);
+
+
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CO', {

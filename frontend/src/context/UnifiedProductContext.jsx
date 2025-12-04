@@ -126,7 +126,7 @@ export const UnifiedProductProvider = ({ children }) => {
     const loadFromBackend = useCallback(async () => {
         setIsSyncing(true);
         try {
-            console.log('🔄 Cargando productos desde backend...');
+
 
             // Cargar productos
             const backendProducts = await productoService.getAll();
@@ -182,9 +182,9 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const syncToBackend = useCallback(async (productsList) => {
         try {
-            console.log('🔄 Sincronizando productos al backend...');
+
             await sincronizarConBD();
-            console.log('✅ Productos sincronizados al backend');
+
             return true;
         } catch (error) {
             console.error('❌ Error sincronizando al backend:', error);
@@ -198,7 +198,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const addProduct = useCallback(async (productData) => {
         try {
-            console.log('➕ Agregando producto:', productData.nombre);
+
 
             // Preparar datos para el backend
             let productToSave = {
@@ -253,12 +253,12 @@ export const UnifiedProductProvider = ({ children }) => {
                 // Actualizar producto existente
                 savedProduct = await productoService.update(productData.id, productToSave);
                 backendId = productData.id;
-                console.log('✏️ Producto actualizado:', backendId);
+
             } else {
                 // Crear nuevo producto
                 savedProduct = await productoService.create(productToSave);
                 backendId = savedProduct?.id;
-                console.log('✅ Producto creado:', backendId);
+
             }
 
             // Crear objeto de producto unificado
@@ -284,7 +284,7 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('✅ Producto sincronizado en todos los módulos');
+
             return newProduct;
 
         } catch (error) {
@@ -317,7 +317,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const updateProduct = useCallback(async (productId, updates) => {
         try {
-            console.log('✏️ Actualizando producto:', productId);
+
 
             // Actualizar en backend
             await productoService.update(productId, updates);
@@ -330,7 +330,7 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('✅ Producto actualizado en todos los módulos');
+
             return true;
         } catch (error) {
             console.error('❌ Error actualizando producto:', error);
@@ -340,7 +340,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const deleteProduct = useCallback(async (productId) => {
         try {
-            console.log('🗑️ Eliminando producto FÍSICAMENTE:', productId);
+
 
             // 🔥 ELIMINAR FÍSICAMENTE del backend (DELETE)
             await productoService.delete(productId);
@@ -351,7 +351,7 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('✅ Producto eliminado PERMANENTEMENTE de la BD');
+
             return true;
         } catch (error) {
             console.error('❌ Error eliminando producto:', error);
@@ -361,7 +361,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const updateStock = useCallback(async (productId, newStock, usuario = 'Sistema', nota = '') => {
         try {
-            console.log('📦 Actualizando stock:', productId, newStock);
+
 
             const product = products.find(p => p.id === productId);
             if (!product) return false;
@@ -379,7 +379,7 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('✅ Stock actualizado en todos los módulos');
+
             return true;
         } catch (error) {
             console.error('❌ Error actualizando stock:', error);
@@ -393,7 +393,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
     const reorderProducts = useCallback(async (reorderedProducts) => {
         try {
-            console.log('🔄 Reordenando productos...');
+
 
             // Asignar nuevo orden a cada producto
             const productsWithOrder = reorderedProducts.map((product, index) => ({
@@ -414,7 +414,7 @@ export const UnifiedProductProvider = ({ children }) => {
                 }
             }
 
-            console.log('✅ Productos reordenados en todos los módulos');
+
             return true;
         } catch (error) {
             console.error('❌ Error reordenando productos:', error);
@@ -443,14 +443,14 @@ export const UnifiedProductProvider = ({ children }) => {
         if (!newCategory || categories.includes(newCategory)) return false;
 
         try {
-            console.log('📁 Agregando categoría:', newCategory);
+
             await categoriaService.create(newCategory);
 
             const updatedCategories = [...categories, newCategory];
             setCategories(updatedCategories);
             saveToLocalStorage('categories', updatedCategories);
 
-            console.log('✅ Categoría agregada');
+
             return true;
         } catch (error) {
             console.error('❌ Error agregando categoría:', error);
@@ -466,7 +466,7 @@ export const UnifiedProductProvider = ({ children }) => {
         if (categories.length <= 1) return false;
 
         try {
-            console.log('🗑️ Eliminando categoría:', categoryToRemove);
+
 
             const fallbackCategory = categories.find(cat => cat !== categoryToRemove) || 'General';
 
@@ -492,7 +492,7 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('✅ Categoría eliminada');
+
             return true;
         } catch (error) {
             console.error('❌ Error eliminando categoría:', error);
@@ -505,7 +505,7 @@ export const UnifiedProductProvider = ({ children }) => {
     // ============================================
 
     const actualizarExistencias = useCallback((productosActualizados) => {
-        console.log('📦 Actualizando existencias desde inventario');
+
 
         // Convertir formato inventario a formato unificado
         const updatedProducts = products.map(product => {
@@ -529,7 +529,7 @@ export const UnifiedProductProvider = ({ children }) => {
             }
         });
 
-        console.log('✅ Existencias actualizadas en todos los módulos');
+
     }, [products, syncToLocalStorage]);
 
     // ============================================
@@ -560,7 +560,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
     useEffect(() => {
         const initialize = async () => {
-            console.log('🚀 Inicializando contexto unificado de productos...');
+
             setIsInitialLoading(true);
 
             // Cargar imágenes en paralelo
@@ -578,31 +578,31 @@ export const UnifiedProductProvider = ({ children }) => {
 
                 // 2. Sincronizar con backend en segundo plano (sin bloquear UI)
                 setTimeout(() => {
-                    console.log('🔄 Sincronizando con backend en segundo plano...');
+
                     loadFromBackend();
                 }, 100);
             } else {
                 // Si no hay caché, cargar desde backend
-                console.log('📡 No hay caché local, cargando desde backend...');
+
                 await loadFromBackend();
                 setIsInitialLoading(false);
             }
 
-            console.log('✅ Contexto unificado inicializado');
+
         };
 
         initialize();
 
         // Sincronización periódica cada 10 minutos (en lugar de 60 segundos)
         const syncInterval = setInterval(() => {
-            console.log('🔄 Sincronización automática en background...');
+
             loadFromBackend();
         }, 10 * 60 * 1000); // 10 minutos
 
         // Escuchar cambios de storage de otras pestañas
         const handleStorageChange = (e) => {
             if (e.key === 'products' || e.key === 'productos') {
-                console.log('🔄 Detectado cambio en localStorage, recargando...');
+
                 loadFromBackend();
             }
         };
@@ -611,7 +611,7 @@ export const UnifiedProductProvider = ({ children }) => {
 
         // Sincronizar cuando la ventana recupera el foco
         const handleFocus = () => {
-            console.log('🔄 Ventana enfocada, sincronizando...');
+
             loadFromBackend();
         };
 

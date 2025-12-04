@@ -64,7 +64,7 @@ export const CajeroProvider = ({ children }) => {
     const login = async (nombre, password, saldoInicial = 0) => {
         setLoading(true);
         try {
-            console.log('🔐 Intentando login:', nombre, 'con saldo inicial:', saldoInicial);
+
 
             // Autenticar con la sucursal activa
             const resultado = await cajeroService.authenticate(
@@ -99,10 +99,10 @@ export const CajeroProvider = ({ children }) => {
 
                     // Marcar timestamp del login para detectar nuevos logins
                     localStorage.setItem('ultimo_login', new Date().toISOString());
-                    console.log('🔖 Marcado login en:', new Date().toISOString());
+
                 }
 
-                console.log('✅ Login exitoso:', cajero.nombre);
+
                 return { success: true, message: 'Login exitoso' };
             } else {
                 console.log('❌ Login fallido:', resultado.message);
@@ -120,17 +120,17 @@ export const CajeroProvider = ({ children }) => {
     const logout = async () => {
         setLoading(true);
         try {
-            console.log('🚪 Cerrando sesión:', cajeroLogueado?.nombre);
+
 
             // Cerrar turno si está activo
             if (turnoActivo && turnoActivo.estado === 'ACTIVO') {
                 await cajeroService.cerrarTurno(turnoActivo.id);
-                console.log('✅ Turno cerrado');
+
             }
 
             // Marcar que se hizo logout para que el próximo login sepa que debe limpiar
             localStorage.setItem('ultimo_logout', new Date().toISOString());
-            console.log('🔖 Marcado logout en:', new Date().toISOString());
+
 
             // Limpiar estados de corte de caja del localStorage
             // Buscar y eliminar todas las claves que empiecen con 'corteRealizado_'
@@ -143,7 +143,7 @@ export const CajeroProvider = ({ children }) => {
             }
             keysToRemove.forEach(key => {
                 localStorage.removeItem(key);
-                console.log('🗑️ Limpiado:', key);
+
             });
 
             // Limpiar estados
@@ -157,7 +157,7 @@ export const CajeroProvider = ({ children }) => {
             localStorage.removeItem('saldo_inicial_turno');
 
             // Mantener sucursal activa para próximo login
-            console.log('✅ Logout exitoso - Estados de caja limpiados');
+
             return { success: true, message: 'Sesión cerrada exitosamente' };
         } catch (error) {
             console.error('❌ Error en logout:', error);
@@ -174,7 +174,7 @@ export const CajeroProvider = ({ children }) => {
             if (sucursal) {
                 setSucursalActiva(sucursal);
                 localStorage.setItem('sucursal_activa', JSON.stringify(sucursal));
-                console.log('✅ Sucursal cambiada:', sucursal.nombre);
+
                 return { success: true };
             }
             return { success: false, message: 'Sucursal no encontrada' };

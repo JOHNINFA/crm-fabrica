@@ -113,10 +113,10 @@ const LoginCajeroModal = ({ show, onHide }) => {
         setSuccess('');
 
         try {
-            console.log('🔧 Ejecutando debug de PEDIDOS...');
+
             const resultado = await cajeroService.debugCajeroPedidos();
 
-            console.log('Resultado del debug:', resultado);
+
 
             if (resultado.success) {
                 setSuccess(resultado.message || '✅ Cajero PEDIDOS corregido. Intenta hacer login ahora.');

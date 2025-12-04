@@ -40,7 +40,7 @@ export const cargueService = {
         if (params.activo !== undefined) queryParams.append('activo', params.activo);
 
         const url = `${API_URL}/${endpoint}/?${queryParams.toString()}`;
-        console.log('🔍 Consultando endpoint:', url);
+
 
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Error al obtener cargues: ${response.status}`);
@@ -171,10 +171,10 @@ export const cargueService = {
   // Guardar cargue completo con productos
   guardarCargue: async (datosCompletos) => {
     try {
-      console.log('🚀 INICIANDO GUARDADO DE CARGUE:', datosCompletos);
+
 
       // ▼▼▼ LOG PARA DEBUGGEAR DATOS ENVIADOS AL BACKEND ▼▼▼
-      console.log('🚀 ENVIANDO AL BACKEND (/api/cargues/):', JSON.stringify(datosCompletos, null, 2));
+
 
       // Mapear vendedor_id a database ID
       const vendedorMap = {
@@ -191,17 +191,17 @@ export const cargueService = {
         activo: true
       };
 
-      console.log('📤 Enviando datos de cargue:', cargueData);
+
       const cargue = await cargueService.create(cargueData);
 
-      console.log('📥 Respuesta del servidor:', cargue);
+
 
       if (cargue.error) {
         console.error('❌ Error en respuesta:', cargue);
         throw new Error(cargue.message);
       }
 
-      console.log('✅ Cargue creado exitosamente con ID:', cargue.id);
+
 
       // Guardar detalles de productos (solo los que tienen cantidad > 0)
       const productosConDatos = datosCompletos.productos.filter(p => p.cantidad > 0);
@@ -250,7 +250,7 @@ export const cargueService = {
   // ✨ FUNCIÓN PRINCIPAL ADAPTADA A NUEVOS ENDPOINTS ✨
   guardarCargueCompleto: async (datosParaGuardar) => {
     try {
-      console.log('🚀 GUARDANDO CARGUE COMPLETO (NUEVO SISTEMA):', JSON.stringify(datosParaGuardar, null, 2));
+
 
       const vendedorId = datosParaGuardar.vendedor_id;
       const endpoint = getEndpointForVendedor(vendedorId);
@@ -388,11 +388,11 @@ export const cargueService = {
         }
       }
 
-      console.log('🎉 Todos los productos guardados exitosamente:', resultados.length);
+
 
       // 🚀 NUEVO: Calcular y guardar SOLICITADAS (suma de todos los IDs)
       try {
-        console.log('📊 Calculando SOLICITADAS desde CARGUE...');
+
         const solicitadasResponse = await fetch(`${API_URL}/produccion-solicitadas/calcular_desde_cargue/`, {
           method: 'POST',
           headers: {
@@ -406,7 +406,7 @@ export const cargueService = {
 
         if (solicitadasResponse.ok) {
           const solicitadasResult = await solicitadasResponse.json();
-          console.log('✅ SOLICITADAS calculadas:', solicitadasResult);
+
         } else {
           console.warn('⚠️ Error calculando SOLICITADAS:', await solicitadasResponse.text());
         }

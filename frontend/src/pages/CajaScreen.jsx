@@ -33,7 +33,7 @@ const CajaScreenContent = () => {
     const { getSaldoInicialTurno } = useCajero();
     const saldoInicialTurno = getSaldoInicialTurno();
 
-    console.log('💰 Saldo inicial del turno:', saldoInicialTurno);
+
 
     // Estados para los valores de caja
     const [valoresCaja, setValoresCaja] = useState({
@@ -72,7 +72,7 @@ const CajaScreenContent = () => {
     // Actualizar cajero cuando se loguea
     useEffect(() => {
         if (isAuthenticated && cajeroLogueado) {
-            console.log('🔄 Cajero logueado en Caja, actualizando:', cajeroLogueado.nombre);
+
             setCajero(cajeroLogueado.nombre);
         }
     }, [isAuthenticated, cajeroLogueado]);
@@ -128,7 +128,7 @@ const CajaScreenContent = () => {
         setError(null);
 
         try {
-            console.log('🔄 Cargando datos de caja para:', fechaConsulta);
+
 
             // CAMBIO: Usar directamente ventaService para consistencia con Tab "Ventas del Día"
             await cargarVentasDirectamente();
@@ -162,7 +162,7 @@ const CajaScreenContent = () => {
     // Función de respaldo para cargar ventas directamente
     const cargarVentasDirectamente = async () => {
         try {
-            console.log('🔄 Intentando cargar ventas directamente...');
+
             const ventasData = await ventaService.getAll();
 
             if (ventasData && Array.isArray(ventasData) && !ventasData.error) {
@@ -172,15 +172,15 @@ const CajaScreenContent = () => {
                 if (turnoGuardado) {
                     try {
                         const turno = JSON.parse(turnoGuardado);
-                        console.log('📦 Turno guardado:', turno);
+
 
                         // Intentar con fecha_inicio (API) o hora_inicio (fallback localStorage)
                         const fechaInicio = turno.fecha_inicio || turno.hora_inicio;
 
                         if (fechaInicio) {
                             horaInicioTurno = new Date(fechaInicio);
-                            console.log('⏰ Turno iniciado en:', horaInicioTurno.toLocaleString('es-ES'));
-                            console.log('⏰ Timestamp del turno:', horaInicioTurno.getTime());
+
+
                         } else {
                             console.warn('⚠️ Turno sin fecha_inicio ni hora_inicio');
                         }
@@ -220,9 +220,9 @@ const CajaScreenContent = () => {
                     return esDelDia && noEstaAnulada && esDespuesDelTurno;
                 });
 
-                console.log('📊 Ventas del turno actual (sin anuladas):', ventasHoy.length);
+
                 if (horaInicioTurno) {
-                    console.log('   Filtradas desde:', horaInicioTurno.toLocaleString('es-ES'));
+
                 }
 
                 // Contar ventas excluidas para información
@@ -238,13 +238,13 @@ const CajaScreenContent = () => {
                 }) : [];
 
                 if (ventasAnuladas.length > 0) {
-                    console.log('🚫 Ventas anuladas excluidas:', ventasAnuladas.length);
+
                 }
                 if (ventasAntesDelTurno.length > 0) {
-                    console.log('⏮️ Ventas de turnos anteriores excluidas:', ventasAntesDelTurno.length);
+
                 }
-                console.log('✅ Total ventas del día:', todasVentasDelDia.length);
-                console.log('✅ Ventas incluidas en este arqueo:', ventasHoy.length);
+
+
 
                 // Calcular resumen por método de pago manualmente
                 const resumenPorMetodo = {
@@ -292,7 +292,7 @@ const CajaScreenContent = () => {
 
                 // ✅ SUMAR EL SALDO INICIAL DEL TURNO AL EFECTIVO
                 if (saldoInicialTurno > 0) {
-                    console.log('💰 Sumando saldo inicial del turno al efectivo:', saldoInicialTurno);
+
                     resumenPorMetodo.efectivo += saldoInicialTurno;
                 }
 
@@ -304,17 +304,17 @@ const CajaScreenContent = () => {
                     saldoInicial: saldoInicialTurno  // Guardar para referencia
                 };
 
-                console.log('✅ Resumen calculado manualmente:', resumenCalculado);
-                console.log('💰 EFECTIVO CALCULADO (con saldo inicial):', resumenPorMetodo.efectivo);
-                console.log('   - Ventas en efectivo:', resumenPorMetodo.efectivo - saldoInicialTurno);
-                console.log('   - Saldo inicial:', saldoInicialTurno);
-                console.log('💳 TARJETAS CALCULADO:', resumenPorMetodo.tarjetas);
-                console.log('🏦 TRANSFERENCIA CALCULADO:', resumenPorMetodo.transferencia);
+
+
+
+
+
+
 
                 setResumenVentas(resumenCalculado);
                 setValoresSistema(resumenPorMetodo);
 
-                console.log('🎯 VALORES DEL SISTEMA ACTUALIZADOS EN ESTADO:', resumenPorMetodo);
+
 
             } else {
                 console.warn('⚠️ No se pudieron cargar las ventas directamente');
@@ -338,11 +338,11 @@ const CajaScreenContent = () => {
     // Cargar último arqueo
     const cargarUltimoArqueo = async () => {
         try {
-            console.log('🔍 Cargando último arqueo para cajero:', cajero);
+
             const ultimo = await cajaService.getUltimoArqueo(cajero);
 
             if (ultimo) {
-                console.log('📋 Último arqueo encontrado:', ultimo);
+
                 setUltimoArqueo(ultimo);
 
                 // Si el último arqueo es de una fecha anterior, usar sus valores como base
@@ -350,7 +350,7 @@ const CajaScreenContent = () => {
                 const fechaHoy = getFechaLocal();
 
                 if (fechaUltimoArqueo < fechaHoy) {
-                    console.log('🆕 Nuevo día detectado, iniciando con valores en cero');
+
 
                     // Para un nuevo día, iniciar con saldo inicial del turno
                     setValoresCaja({
@@ -363,9 +363,9 @@ const CajaScreenContent = () => {
                         bonos: 0
                     });
 
-                    console.log('✅ Nuevo día iniciado con valores en cero');
+
                 } else if (fechaUltimoArqueo === fechaHoy) {
-                    console.log('📅 Ya existe arqueo para hoy');
+
 
                     // Verificar si es un nuevo turno
                     const ultimoLogin = localStorage.getItem('ultimo_login');
@@ -380,7 +380,7 @@ const CajaScreenContent = () => {
                     }
 
                     if (esNuevoTurno) {
-                        console.log('🆕 Nuevo turno detectado, iniciando con valores en cero');
+
                         // Nuevo turno: empezar limpio
                         setValoresCaja({
                             efectivo: saldoInicialTurno,
@@ -392,7 +392,7 @@ const CajaScreenContent = () => {
                             bonos: 0
                         });
                     } else {
-                        console.log('📅 Mismo turno, mostrando valores del arqueo actual');
+
                         // Mismo turno: mostrar valores del arqueo en progreso
                         if (ultimo.valores_caja) {
                             setValoresCaja({
@@ -408,7 +408,7 @@ const CajaScreenContent = () => {
                     }
                 }
             } else {
-                console.log('ℹ️ No se encontró arqueo anterior');
+
                 setUltimoArqueo(null);
             }
         } catch (error) {
@@ -421,7 +421,7 @@ const CajaScreenContent = () => {
     const cargarVentasDelDia = async (fechaConsultar = fechaConsultaVentas) => {
         setLoadingVentas(true);
         try {
-            console.log('🔄 Cargando ventas del día para:', fechaConsultar);
+
 
             // Usar el mismo endpoint que InformeVentasGeneral pero filtrado por fecha
             const ventasData = await ventaService.getAll();
@@ -436,7 +436,7 @@ const CajaScreenContent = () => {
 
                 setVentasDelDia(ventasFecha);
                 calcularMetricasVentas(ventasFecha);
-                console.log('📊 Ventas cargadas para', fechaConsultar, ':', ventasFecha.length);
+
             } else {
                 console.error('Error al cargar ventas:', ventasData);
                 setVentasDelDia([]);
@@ -508,7 +508,7 @@ const CajaScreenContent = () => {
     // Mostrar detalle de venta
     const mostrarDetalleVenta = async (ventaId) => {
         try {
-            console.log('🔍 Cargando detalle de venta:', ventaId);
+
             const ventaCompleta = await ventaService.getById(ventaId);
             if (ventaCompleta && !ventaCompleta.error) {
                 setVentaSeleccionada(ventaCompleta);
@@ -538,7 +538,7 @@ const CajaScreenContent = () => {
         try {
             // 🔒 VALIDAR: No permitir anular si ya existe arqueo del día
             const fechaVenta = ventaSeleccionada.fecha.split('T')[0];
-            console.log('🔍 Verificando arqueo para fecha:', fechaVenta);
+
 
             try {
                 const arqueoExistente = await cajaService.getArqueosPorRango(fechaVenta, fechaVenta, cajero);
@@ -563,12 +563,12 @@ const CajaScreenContent = () => {
                 // Si hay error verificando, permitir continuar (para no bloquear en caso de error de red)
             }
 
-            console.log('🚫 Anulando venta:', ventaId);
-            console.log('📦 Venta seleccionada:', ventaSeleccionada);
+
+
 
             // Si tenemos la venta seleccionada con detalles, devolver productos al inventario
             if (ventaSeleccionada && ventaSeleccionada.detalles && Array.isArray(ventaSeleccionada.detalles)) {
-                console.log('📦 Devolviendo productos al inventario:', ventaSeleccionada.detalles.length, 'productos');
+
 
                 // Devolver cada producto al inventario
                 for (const detalle of ventaSeleccionada.detalles) {
@@ -576,8 +576,8 @@ const CajaScreenContent = () => {
                     const productoId = detalle.producto_id || detalle.producto;
                     const cantidad = parseInt(detalle.cantidad) || 0;
 
-                    console.log('🔍 Procesando detalle:', detalle);
-                    console.log('🔍 Producto ID encontrado:', productoId, 'Cantidad:', cantidad);
+
+
 
                     if (productoId && cantidad > 0) {
                         console.log(`🔄 Devolviendo ${cantidad} unidades del producto ${detalle.producto_nombre} (ID: ${productoId})`);
@@ -591,7 +591,7 @@ const CajaScreenContent = () => {
                                 `Devolución por anulación de venta ${ventaId}`
                             );
 
-                            console.log('📊 Resultado actualización stock:', resultadoStock);
+
 
                             if (resultadoStock && !resultadoStock.error) {
                                 console.log(`✅ Devueltas ${cantidad} unidades de ${detalle.producto_nombre} al inventario`);
@@ -687,7 +687,7 @@ const CajaScreenContent = () => {
             // Guardar en la base de datos
             const movimientoGuardado = await cajaService.guardarMovimientoCaja(nuevoMovimiento);
 
-            console.log('✅ Movimiento guardado en BD:', movimientoGuardado);
+
 
             // Agregar al estado local con el ID de la BD
             setMovimientosCaja(prev => [...prev, {
@@ -713,10 +713,10 @@ const CajaScreenContent = () => {
     // Cargar movimientos de caja desde BD
     const cargarMovimientosCaja = async () => {
         try {
-            console.log('🔄 Cargando movimientos de caja para:', fechaConsulta, cajero);
+
             const movimientos = await cajaService.getMovimientosCaja(fechaConsulta, cajero);
             setMovimientosCaja(movimientos);
-            console.log('✅ Movimientos de caja cargados:', movimientos.length);
+
         } catch (error) {
             console.error('❌ Error cargando movimientos de caja:', error);
             setMovimientosCaja([]);
@@ -733,10 +733,10 @@ const CajaScreenContent = () => {
     const cargarMovimientosBancarios = async () => {
         setLoadingMovimientos(true);
         try {
-            console.log('🏦 Cargando movimientos bancarios para:', fechaConsulta);
+
             const movimientos = await cajaService.getMovimientosBancarios(fechaConsulta, banco);
             setMovimientosBancarios(movimientos.movimientos || []);
-            console.log('📊 Movimientos bancarios cargados:', movimientos.movimientos?.length || 0);
+
         } catch (error) {
             console.error('❌ Error cargando movimientos bancarios:', error);
             setMovimientosBancarios([]);
@@ -754,7 +754,7 @@ const CajaScreenContent = () => {
     const cargarHistorialArqueos = async (fechaInicio = fechaHistorialInicio, fechaFin = fechaHistorialFin) => {
         setLoadingHistorial(true);
         try {
-            console.log('🔄 Cargando historial de arqueos:', { fechaInicio, fechaFin, cajero });
+
             const arqueos = await cajaService.getArqueosPorRango(fechaInicio, fechaFin, cajero);
 
             setHistorialArqueos(arqueos);
@@ -768,7 +768,7 @@ const CajaScreenContent = () => {
             };
             setEstadisticasHistorial(stats);
 
-            console.log('✅ Historial cargado:', arqueos.length, 'arqueos');
+
         } catch (error) {
             console.error('❌ Error cargando historial:', error);
             setHistorialArqueos([]);
@@ -871,13 +871,13 @@ const CajaScreenContent = () => {
             totalPagado: 0
         });
 
-        console.log('📊 Generando comprobante:');
-        console.log('  - Fecha arqueo (fechaConsulta):', fechaConsulta);
-        console.log('  - Fecha ventas (fechaConsultaVentas):', fechaConsultaVentas);
-        console.log('  - Total ventas del día:', ventasDelDia.length);
-        console.log('  - Ventas válidas (no anuladas):', ventasValidas.length);
-        console.log('  - Ventas anuladas excluidas:', ventasDelDia.length - ventasValidas.length);
-        console.log('  - Total facturado (válidas):', metricasValidas.totalFacturado);
+
+
+
+
+
+
+
 
         const printContent = `
             <html>
@@ -1184,11 +1184,11 @@ const CajaScreenContent = () => {
 
     // Manejar cambios en inputs con validación
     const handleInputChange = (metodo, valor) => {
-        console.log('🔵 Input ORIGINAL:', metodo, 'Valor RAW:', valor, 'Tipo:', typeof valor);
+
 
         const validacionNumero = cajaValidaciones.validarFormatoNumero(valor);
 
-        console.log('💰 Input validado:', metodo, 'Valor ingresado:', valor, 'Valor validado:', validacionNumero.valor, 'Tipo validado:', typeof validacionNumero.valor);
+
 
         if (validacionNumero.esValido) {
             setValoresCaja(prev => {
@@ -1197,8 +1197,8 @@ const CajaScreenContent = () => {
                     [metodo]: validacionNumero.valor
                 };
 
-                console.log('✅ Nuevos valores de caja COMPLETOS:', nuevosValores);
-                console.log('✅ Valor específico de', metodo, ':', nuevosValores[metodo]);
+
+
 
                 // Validar y generar recomendaciones en tiempo real
                 setTimeout(() => {
@@ -1228,18 +1228,18 @@ const CajaScreenContent = () => {
         try {
             setGuardandoArqueo(true);
 
-            console.log('💾 GUARDANDO ARQUEO - Valores actuales:');
-            console.log('📊 valoresSistema:', valoresSistema);
-            console.log('💰 valoresCaja:', valoresCaja);
+
+
+
 
             // 🔥 RECALCULAR TOTALES JUSTO ANTES DE GUARDAR
             const totalSistemaActual = Object.values(valoresSistema).reduce((sum, val) => sum + val, 0) + totalMovimientosCaja;
             const totalCajaActual = Object.values(valoresCaja).reduce((sum, val) => sum + val, 0);
             const totalDiferenciaActual = totalCajaActual - totalSistemaActual;
 
-            console.log('🔢 totalSistema RECALCULADO:', totalSistemaActual);
-            console.log('💵 totalCaja RECALCULADO:', totalCajaActual);
-            console.log('📉 totalDiferencia RECALCULADO:', totalDiferenciaActual);
+
+
+
 
             // ✅ Validar IDs antes de enviar (no enviar timestamps de localStorage)
             const turnoIdValido = turnoActivo?.id && turnoActivo.id < 1000000 ? turnoActivo.id : null;
@@ -1272,11 +1272,11 @@ const CajaScreenContent = () => {
                 sucursal: sucursalIdValida
             });
 
-            console.log('📦 Datos del arqueo a guardar:', datosArqueo);
+
 
             // NOTA: Permitir múltiples arqueos por día (uno por turno)
             // No validar si existe arqueo previo - cada turno crea su propio arqueo
-            console.log('💾 Guardando nuevo arqueo para el turno actual');
+
 
             // Validar antes de guardar
             const validacionGuardado = cajaValidaciones.validarAntesDeGuardar(datosArqueo);
@@ -1323,7 +1323,7 @@ const CajaScreenContent = () => {
             const corteKey = `corteRealizado_${cajero}_${fechaConsulta}`;
             setCorteRealizado(true);
             localStorage.setItem(corteKey, 'true');
-            console.log('✅ Corte de caja guardado:', corteKey);
+
 
             // Limpiar después de 5 segundos
             setTimeout(() => {
@@ -1383,7 +1383,7 @@ const CajaScreenContent = () => {
         }
 
         if (esNuevoLogin) {
-            console.log('🆕 Nuevo login detectado, ignorando corte anterior');
+
             setCorteRealizado(false);
 
             // Limpiar valores de caja para empezar limpio
@@ -1399,7 +1399,7 @@ const CajaScreenContent = () => {
         } else {
             // No es nuevo login, verificar corte normalmente
             setCorteRealizado(yaSeHizoCorte);
-            console.log('📊 Verificando corte:', { corteKey, yaSeHizoCorte, esNuevoLogin });
+
         }
     }, [fechaConsulta, cajero, isAuthenticated, cajeroLogueado?.id]);
 
@@ -1575,13 +1575,13 @@ const CajaScreenContent = () => {
                                         Refrescar Datos
                                     </Button>
                                     <Button variant="outline-info" size="sm" className="btn-compact" onClick={async () => {
-                                        console.log('🔍 DIAGNÓSTICO INICIADO');
-                                        console.log('📅 Fecha consulta:', fechaConsulta);
+
+
 
                                         // Probar ventaService directamente
                                         try {
                                             const todasLasVentas = await ventaService.getAll();
-                                            console.log('📊 Todas las ventas:', todasLasVentas);
+
 
                                             if (todasLasVentas && !todasLasVentas.error) {
                                                 const ventasHoy = todasLasVentas.filter(venta => {
@@ -1590,7 +1590,7 @@ const CajaScreenContent = () => {
                                                     console.log(`🔍 Comparando: ${fechaVenta} === ${fechaConsulta}`);
                                                     return fechaVenta === fechaConsulta;
                                                 });
-                                                console.log('📊 Ventas de hoy filtradas:', ventasHoy);
+
 
                                                 ventasHoy.forEach(venta => {
                                                     console.log(`💰 Venta ID: ${venta.id}, Método: ${venta.metodo_pago}, Total: ${venta.total}, Fecha: ${venta.fecha}`);
@@ -1603,7 +1603,7 @@ const CajaScreenContent = () => {
                                         // Probar cajaService
                                         try {
                                             const resumenCaja = await cajaService.getResumenVentasDelDia(fechaConsulta);
-                                            console.log('📊 Resumen caja service:', resumenCaja);
+
                                         } catch (error) {
                                             console.error('❌ Error en cajaService:', error);
                                         }
@@ -2686,7 +2686,7 @@ const CajaScreenContent = () => {
                                                                     try {
                                                                         await cajaService.eliminarMovimientoCaja(movimiento.id);
                                                                         setMovimientosCaja(prev => prev.filter(mov => mov.id !== movimiento.id));
-                                                                        console.log('✅ Movimiento eliminado de BD');
+
                                                                     } catch (error) {
                                                                         console.error('❌ Error al eliminar movimiento:', error);
                                                                         alert('Error al eliminar el movimiento');

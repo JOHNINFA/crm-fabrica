@@ -24,7 +24,7 @@ const BotonCorreccionNuevo = ({ dia, idSheet, fechaSeleccionada, productos, onPr
     }
 
     const handleClickBoton = () => {
-        console.log('🔧 ABRIENDO MODAL DE CORRECCIÓN');
+
 
         // Verificar si los productos están cargados
         if (productos.length <= 1 || (productos.length === 1 && productos[0].name === 'Servicio')) {
@@ -63,11 +63,11 @@ const BotonCorreccionNuevo = ({ dia, idSheet, fechaSeleccionada, productos, onPr
                     idSheet={idSheet}
                     fechaSeleccionada={fechaSeleccionada}
                     onClose={() => {
-                        console.log('🔧 CERRANDO MODAL');
+
                         setShowModal(false);
                     }}
                     onGuardar={() => {
-                        console.log('🔧 GUARDADO EXITOSO, REFRESCANDO DATOS');
+
                         if (onProductosActualizados) {
                             onProductosActualizados();
                         }

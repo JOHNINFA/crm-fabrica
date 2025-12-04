@@ -16,12 +16,12 @@ const BotonSincronizarProductos = () => {
                 localStorage.removeItem('productos');
                 localStorage.removeItem('precios_cargue_cache');
 
-                console.log('🧹 Caché local limpiado');
+
 
                 // Forzar carga desde backend
                 await loadFromBackend();
 
-                console.log('✅ Productos sincronizados desde el servidor');
+
 
                 // Recargar la página para aplicar cambios
                 window.location.reload();

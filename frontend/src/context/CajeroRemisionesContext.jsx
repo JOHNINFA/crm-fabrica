@@ -90,9 +90,9 @@ export const CajeroRemisionesProvider = ({ children }) => {
     const login = async (nombre, password, saldoInicial = 0) => {
         setLoading(true);
         try {
-            console.log('🔐 [REMISIONES] Intentando login:', nombre, 'con saldo inicial:', saldoInicial);
-            console.log('🔐 [REMISIONES] Password ingresada:', password);
-            console.log('🔐 [REMISIONES] Sucursal activa:', sucursalActiva);
+
+
+
 
             // Si no hay sucursal activa, cargar la primera disponible
             let sucursalParaLogin = sucursalActiva;
@@ -102,7 +102,7 @@ export const CajeroRemisionesProvider = ({ children }) => {
                 if (sucursalDefault) {
                     sucursalParaLogin = sucursalDefault;
                     setSucursalActiva(sucursalDefault);
-                    console.log('✅ [REMISIONES] Sucursal cargada:', sucursalDefault.nombre);
+
                 } else {
                     // Si no hay sucursal por defecto, usar ID 1
                     sucursalParaLogin = { id: 1, nombre: 'Principal' };
@@ -117,7 +117,7 @@ export const CajeroRemisionesProvider = ({ children }) => {
                 sucursalParaLogin?.id
             );
 
-            console.log('🔐 [REMISIONES] Resultado autenticación:', resultado);
+
 
             if (resultado.success) {
                 const cajero = resultado.cajero;
@@ -144,7 +144,7 @@ export const CajeroRemisionesProvider = ({ children }) => {
                     localStorage.setItem(STORAGE_KEYS.saldoInicial, saldoInicial.toString());
                 }
 
-                console.log('✅ [REMISIONES] Login exitoso:', cajero.nombre);
+
                 return { success: true, message: 'Login exitoso' };
             } else {
                 console.log('❌ [REMISIONES] Login fallido:', resultado.message);
@@ -162,12 +162,12 @@ export const CajeroRemisionesProvider = ({ children }) => {
     const logout = async () => {
         setLoading(true);
         try {
-            console.log('🚪 [REMISIONES] Cerrando sesión:', cajeroLogueado?.nombre);
+
 
             // Cerrar turno si está activo
             if (turnoActivo && turnoActivo.estado === 'ACTIVO') {
                 await cajeroService.cerrarTurno(turnoActivo.id);
-                console.log('✅ [REMISIONES] Turno cerrado');
+
             }
 
             // Limpiar estados
@@ -181,7 +181,7 @@ export const CajeroRemisionesProvider = ({ children }) => {
             localStorage.removeItem(STORAGE_KEYS.saldoInicial);
 
             // Mantener sucursal activa para próximo login
-            console.log('✅ [REMISIONES] Logout exitoso');
+
             return { success: true, message: 'Sesión cerrada exitosamente' };
         } catch (error) {
             console.error('❌ [REMISIONES] Error en logout:', error);
@@ -198,7 +198,7 @@ export const CajeroRemisionesProvider = ({ children }) => {
             if (sucursal) {
                 setSucursalActiva(sucursal);
                 localStorage.setItem(STORAGE_KEYS.sucursal, JSON.stringify(sucursal));
-                console.log('✅ [REMISIONES] Sucursal cambiada:', sucursal.nombre);
+
                 return { success: true };
             }
             return { success: false, message: 'Sucursal no encontrada' };

@@ -26,7 +26,7 @@ const InvoiceModal = ({ show, onClose, cart, total }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Aquí iría la lógica para procesar la factura
-    console.log('Factura generada:', { items: cart, total, ...invoiceData });
+
     handleProceedToPayment();
   };
 

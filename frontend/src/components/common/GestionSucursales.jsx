@@ -29,7 +29,7 @@ const GestionSucursales = () => {
         try {
             const data = await sucursalService.getAll();
             setSucursales(data);
-            console.log('✅ Sucursales cargadas:', data.length);
+
         } catch (error) {
             console.error('❌ Error cargando sucursales:', error);
             setError('Error al cargar las sucursales');

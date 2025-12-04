@@ -43,7 +43,7 @@ export const VendedoresProvider = ({ children }) => {
             responsablesMap[item.id] = item.responsable;
           });
           setResponsables(prev => ({ ...prev, ...responsablesMap }));
-          console.log('✅ Responsables cargados desde BD:', responsablesMap);
+
         }
       } catch (error) {
         console.error('❌ Error cargando responsables:', error);
@@ -55,14 +55,14 @@ export const VendedoresProvider = ({ children }) => {
   // Actualizar datos de un vendedor específico
   const actualizarDatosVendedor = (idVendedor, productos) => {
     console.log(`\n🔄 ACTUALIZANDO ${idVendedor}:`);
-    console.log('Productos recibidos:', productos.filter(p => p.total > 0).map(p => `${p.producto}: ${p.total}`));
+
 
     setDatosVendedores(prev => {
       const nuevo = {
         ...prev,
         [idVendedor]: productos
       };
-      console.log('Estado actualizado:', Object.keys(nuevo).map(id => `${id}: ${nuevo[id].length} productos`));
+
       return nuevo;
     });
   };
@@ -85,7 +85,7 @@ export const VendedoresProvider = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Responsable actualizado en BD:', data);
+
 
         // Actualizar estado local
         setResponsables(prev => ({

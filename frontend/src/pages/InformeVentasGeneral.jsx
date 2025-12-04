@@ -60,9 +60,9 @@ const InformeVentasGeneral = () => {
     // Filtrar solo ventas NO anuladas para las métricas
     const ventasValidas = ventasData.filter(venta => venta.estado !== 'ANULADA');
 
-    console.log('📊 Total ventas:', ventasData.length);
-    console.log('✅ Ventas válidas (no anuladas):', ventasValidas.length);
-    console.log('🚫 Ventas anuladas excluidas:', ventasData.length - ventasValidas.length);
+
+
+
 
     const totales = ventasValidas.reduce((acc, venta) => {
       acc.totalFacturado += parseFloat(venta.total || 0);
@@ -167,7 +167,7 @@ const InformeVentasGeneral = () => {
     try {
       // 🔒 VALIDAR: No permitir anular si ya existe arqueo del día
       const fechaVenta = ventaSeleccionada.fecha.split('T')[0];
-      console.log('🔍 Verificando arqueo para fecha:', fechaVenta);
+
 
       try {
         // Verificar si existe arqueo para cualquier cajero en esa fecha
@@ -196,19 +196,19 @@ const InformeVentasGeneral = () => {
         // Si hay error verificando, permitir continuar (para no bloquear en caso de error de red)
       }
 
-      console.log('🚫 Iniciando anulación de venta:', ventaSeleccionada.id);
-      console.log('📦 Venta seleccionada:', ventaSeleccionada);
+
+
 
       // 1. Devolver productos al inventario
       if (ventaSeleccionada.detalles && Array.isArray(ventaSeleccionada.detalles)) {
-        console.log('📦 Devolviendo productos al inventario:', ventaSeleccionada.detalles.length, 'productos');
+
 
         for (const detalle of ventaSeleccionada.detalles) {
           const productoId = detalle.producto_id || detalle.producto;
           const cantidad = parseInt(detalle.cantidad) || 0;
 
-          console.log('🔍 Procesando detalle:', detalle);
-          console.log('🔍 Producto ID:', productoId, 'Cantidad:', cantidad);
+
+
 
           if (productoId && cantidad > 0) {
             console.log(`🔄 Devolviendo ${cantidad} unidades del producto ${detalle.producto_nombre} (ID: ${productoId})`);
@@ -225,7 +225,7 @@ const InformeVentasGeneral = () => {
                 `Devolución por anulación de venta ${ventaSeleccionada.numero_factura || ventaSeleccionada.id}`
               );
 
-              console.log('📊 Resultado actualización stock:', resultadoStock);
+
 
               if (resultadoStock && !resultadoStock.error) {
                 console.log(`✅ Devueltas ${cantidad} unidades de ${detalle.producto_nombre} al inventario`);
@@ -248,7 +248,7 @@ const InformeVentasGeneral = () => {
       }
 
       // 2. Marcar la venta como anulada
-      console.log('🔄 Marcando venta como ANULADA...');
+
       const resultado = await ventaService.anularVenta(ventaSeleccionada.id);
 
       if (resultado && (resultado.success || !resultado.error)) {
@@ -755,8 +755,8 @@ const InformeVentasGeneral = () => {
                 style={{ fontSize: '12px', backgroundColor: '#0c2c53', color: 'white', border: 'none' }}
                 onClick={() => {
                   // Las métricas se recalculan automáticamente con useMemo
-                  console.log('Consultando transacciones del', formatearFecha(fechaInicial), 'al', formatearFecha(fechaFinal));
-                  console.log('Total ventas filtradas:', ventasFiltradas.length);
+
+
                 }}
               >
                 🔍 Consultar Transacciones

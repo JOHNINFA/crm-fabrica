@@ -83,15 +83,15 @@ const InformeListaPreciosScreen = () => {
     );
 
     const handleRefresh = () => {
-        console.log('Refrescando datos...');
+
     };
 
     const handleExport = () => {
-        console.log('Exportando datos...');
+
     };
 
     const handlePrint = () => {
-        console.log('Imprimiendo...');
+
     };
 
     const handleToggleVisiblePos = (nombreLista) => {

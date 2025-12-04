@@ -8,7 +8,7 @@ const CACHE_DURATION = 5000; // 5 segundos (reducido para reflejar cambios más 
 // Función para limpiar toda la caché
 export const clearPriceCache = () => {
   Object.keys(preciosCache).forEach(key => delete preciosCache[key]);
-  console.log('🧹 Caché de precios limpiada');
+
 };
 
 export const usePriceList = (priceListName, products) => {

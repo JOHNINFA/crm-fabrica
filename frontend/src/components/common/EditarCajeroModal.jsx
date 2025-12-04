@@ -28,7 +28,7 @@ const EditarCajeroModal = ({ show, onHide, cajero, onCajeroActualizado }) => {
     // Cargar datos del cajero cuando se abre el modal
     useEffect(() => {
         if (show && cajero && typeof cajero === 'object') {
-            console.log('Cargando datos del cajero para editar:', cajero);
+
 
             setFormData({
                 nombre: cajero.nombre || '',
@@ -129,7 +129,7 @@ const EditarCajeroModal = ({ show, onHide, cajero, onCajeroActualizado }) => {
             cajeroData.sucursal_id = parseInt(cajeroData.sucursal_id);
             cajeroData.limite_descuento = parseFloat(cajeroData.limite_descuento);
 
-            console.log('Actualizando cajero con datos:', cajeroData);
+
 
             const resultado = await cajeroService.update(cajero.id, cajeroData);
 

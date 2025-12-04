@@ -63,7 +63,7 @@ const MaestroListaPreciosScreen = () => {
     );
 
     const handleExport = () => {
-        console.log('Exportar archivo:', nombreArchivo);
+
     };
 
     return (

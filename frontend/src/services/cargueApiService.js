@@ -469,7 +469,7 @@ export const cargueHybridService = {
       };
 
       // 🔍 DEBUG: Ver valores antes de enviar
-      console.log('🔍 PRODUCTOS ANTES DE ENVIAR AL BACKEND:');
+
       productos.forEach(p => {
         if (p.cantidad > 0 || p.adicional > 0 || p.dctos > 0) {
           console.log(`   ${p.producto}: cantidad=${p.cantidad}, adicional=${p.adicional}, dctos=${p.dctos}, total=${p.total}`);
@@ -513,18 +513,18 @@ export const cargueApiConfig = {
   // 🚀 FUNCIÓN PARA ACTIVAR LA INTEGRACIÓN
   activarIntegracion: () => {
     cargueApiConfig.USAR_API = true;
-    console.log('🚀 API CARGUE: Integración ACTIVADA');
-    console.log('   - Los datos ahora se cargarán desde el servidor');
-    console.log('   - La sincronización será automática');
-    console.log('   - localStorage seguirá siendo el cache local');
+
+
+
+
   },
 
   // 🚀 FUNCIÓN PARA DESACTIVAR LA INTEGRACIÓN
   desactivarIntegracion: () => {
     cargueApiConfig.USAR_API = false;
     console.log('⚠️ API CARGUE: Integración DESACTIVADA');
-    console.log('   - Los datos se manejarán solo con localStorage');
-    console.log('   - No habrá sincronización con servidor');
+
+
   }
 };
 

@@ -96,14 +96,16 @@ WSGI_APPLICATION = 'backend_crm.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+import os
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'fabrica',  # Reemplaza con el nombre real de tu BD
-        'USER': 'postgres',
-        'PASSWORD': '12345',
-        'HOST': 'localhost',  # O la URL de Railway si es en producción
-        'PORT': '5432',
+        'NAME': os.environ.get('DATABASE_NAME', 'fabrica'),
+        'USER': os.environ.get('DATABASE_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD', '12345'),
+        'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
+        'PORT': os.environ.get('DATABASE_PORT', '5432'),
     }
 }
 

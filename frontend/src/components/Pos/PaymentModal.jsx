@@ -129,13 +129,13 @@ const PaymentModal = ({
         }))
       };
 
-      console.log('Procesando venta:', ventaData);
+
 
       // Crear la venta
       const result = await ventaService.create(ventaData);
 
       if (result && !result.error) {
-        console.log('✅ Venta creada exitosamente:', result);
+
 
         // Verificar si debe imprimir automáticamente
         if (impresion === 'Tirilla' || impresion === 'Carta') {

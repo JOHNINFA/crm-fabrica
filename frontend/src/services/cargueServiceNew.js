@@ -43,7 +43,7 @@ export const cargueService = {
         if (params.activo !== undefined) queryParams.append('activo', params.activo);
         
         const url = `${API_URL}/${endpoint}/?${queryParams.toString()}`;
-        console.log('🔍 Consultando endpoint:', url);
+
         
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Error al obtener cargues: ${response.status}`);
@@ -73,7 +73,7 @@ export const cargueService = {
   // Crear un nuevo cargue (MANTIENE LA MISMA INTERFAZ)
   create: async (cargueData) => {
     try {
-      console.log('🚀 Creando cargue con datos:', cargueData);
+
       
       // Determinar endpoint según vendedor_id
       const vendedorId = cargueData.vendedor_id;
@@ -121,7 +121,7 @@ export const cargueService = {
         })
       };
       
-      console.log('🔄 Datos transformados:', datosTransformados);
+
       
       const response = await fetch(`${API_URL}/${endpoint}/`, {
         method: 'POST',
@@ -138,7 +138,7 @@ export const cargueService = {
       }
       
       const resultado = await response.json();
-      console.log('✅ Cargue creado exitosamente:', resultado);
+
       
       return resultado;
     } catch (error) {
@@ -177,7 +177,7 @@ export const cargueService = {
   // ✨ FUNCIÓN PRINCIPAL PARA GUARDAR CARGUE COMPLETO ✨
   guardarCargueCompleto: async (datosParaGuardar) => {
     try {
-      console.log('🚀 GUARDANDO CARGUE COMPLETO:', JSON.stringify(datosParaGuardar, null, 2));
+
       
       const vendedorId = datosParaGuardar.vendedor_id;
       const endpoint = getEndpointForVendedor(vendedorId);
@@ -250,7 +250,7 @@ export const cargueService = {
         }
       }
       
-      console.log('🎉 Todos los productos guardados exitosamente:', resultados.length);
+
       return { success: true, resultados, count: resultados.length };
       
     } catch (error) {
@@ -342,4 +342,4 @@ export const vendedorService = {
   }
 };
 
-console.log('🚀 Nuevo servicio de cargue cargado - Endpoints simplificados');
+

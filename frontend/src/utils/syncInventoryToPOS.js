@@ -12,7 +12,7 @@
  */
 export const syncInventoryToPOS = (inventoryProducts) => {
   try {
-    console.log('Iniciando sincronización de inventario a POS...');
+
     
     // Obtener productos del POS desde localStorage
     const posProductsStr = localStorage.getItem('products');
@@ -54,10 +54,10 @@ export const syncInventoryToPOS = (inventoryProducts) => {
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('productosUpdated'));
       
-      console.log('Sincronización de inventario a POS completada exitosamente');
+
       return true;
     } else {
-      console.log('No hay cambios que sincronizar');
+
       return true;
     }
     
@@ -74,7 +74,7 @@ export const syncInventoryToPOS = (inventoryProducts) => {
  */
 export const syncPOSToInventory = (posProducts) => {
   try {
-    console.log('Iniciando sincronización de POS a inventario...');
+
     
     // Obtener productos del inventario desde localStorage
     const inventoryProductsStr = localStorage.getItem('productos');
@@ -116,10 +116,10 @@ export const syncPOSToInventory = (posProducts) => {
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('productosUpdated'));
       
-      console.log('Sincronización de POS a inventario completada exitosamente');
+
       return true;
     } else {
-      console.log('No hay cambios que sincronizar');
+
       return true;
     }
     

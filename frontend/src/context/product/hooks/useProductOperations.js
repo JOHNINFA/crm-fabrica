@@ -194,7 +194,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
     
     // Intentar guardar directamente en el backend primero
     try {
-      console.log('Intentando guardar producto en el backend:', productToSave);
+
       
       let savedProduct;
       let backendId;
@@ -209,7 +209,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
         backendId = savedProduct?.id;
       }
       
-      console.log('Producto guardado en backend:', savedProduct);
+
       
       // Crear objeto para el estado local (productos del POS inician con stock 0)
       const newProduct = {
@@ -250,7 +250,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       storage.save('productos', updatedInventory);
       
       // Producto creado exitosamente
-      console.log('✅ Producto creado:', newProduct.name);
+
       
       // Forzar sincronización inmediata
       syncService.syncAllToBackend();
@@ -305,7 +305,7 @@ export const useProductOperations = (products, setProducts, categories, setCateg
       storage.save('productos', updatedInventory);
       
       // Producto guardado localmente
-      console.log('✅ Producto guardado localmente:', newProduct.name);
+
       
       // Forzar procesamiento de la cola
       setTimeout(() => {

@@ -71,7 +71,7 @@ const InventarioPlaneacion = () => {
 
         if (datosGuardados) {
           const { productos: productosGuardados, timestamp } = JSON.parse(datosGuardados);
-          console.log('⚡ Cargando desde localStorage (instantáneo):', productosGuardados.length, 'productos');
+
 
           // 🔥 ACTUALIZAR EXISTENCIAS EN TIEMPO REAL desde api_stock
           try {
@@ -89,7 +89,7 @@ const InventarioPlaneacion = () => {
                 existencias: stockMap[p.id] !== undefined ? stockMap[p.id] : p.existencias
               }));
 
-              console.log('✅ Existencias actualizadas desde api_stock en tiempo real');
+
               setProductos(productosActualizados);
 
               // Actualizar cache con existencias frescas
@@ -135,7 +135,7 @@ const InventarioPlaneacion = () => {
               const datos = JSON.parse(localStorage.getItem(key));
               if (datos.timestamp && (ahora - datos.timestamp) > SIETE_DIAS) {
                 localStorage.removeItem(key);
-                console.log('🗑️ Limpiado localStorage viejo:', key);
+
               }
             } catch (e) {
               localStorage.removeItem(key);
@@ -173,14 +173,14 @@ const InventarioPlaneacion = () => {
 
       // 🚀 Verificar cache
       if (!forzarRecarga && cacheValido(fechaFormateada)) {
-        console.log('⚡ Usando datos en cache (rápido)');
+
         setProductos(cache.datos);
         setCargando(false);
         return;
       }
 
-      console.log('🔄 Cargando datos desde servidor...', new Date().toLocaleTimeString());
-      console.log('📅 Fecha consultada:', fechaFormateada);
+
+
 
       // 🎯 Marcar como cargando solo si no hay productos
       if (productos.length === 0) {
@@ -208,7 +208,7 @@ const InventarioPlaneacion = () => {
       let cargueId4Response, cargueId5Response, cargueId6Response;
 
       if (diaCompletado) {
-        console.log('✅ DÍA COMPLETADO - Cargando solo desde planeación guardada (optimizado)');
+
         [planeacionResponse, stockResponse] = await Promise.all([
           fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`),
           fetch(`${API_URL}/stock/`)
@@ -220,7 +220,7 @@ const InventarioPlaneacion = () => {
         cargueId1Response = cargueId2Response = cargueId3Response = emptyResponse;
         cargueId4Response = cargueId5Response = cargueId6Response = emptyResponse;
       } else {
-        console.log('🔍 DÍA ACTIVO - Consultando APIs de cargue y pedidos (dinámico)');
+
         [planeacionResponse, stockResponse, pedidosResponse,
           cargueId1Response, cargueId2Response, cargueId3Response,
           cargueId4Response, cargueId5Response, cargueId6Response] = await Promise.all([
@@ -243,7 +243,7 @@ const InventarioPlaneacion = () => {
         const haySnapshot = planeacionData.length > 0;
         setSnapshotGuardado(haySnapshot);
         if (haySnapshot) {
-          console.log('📸 Snapshot encontrado para este día:', planeacionData.length, 'productos');
+
         }
       } else {
         setSnapshotGuardado(false);
@@ -252,7 +252,7 @@ const InventarioPlaneacion = () => {
       // 🎯 USAR api_stock COMO FUENTE PRINCIPAL
       if (!stockResponse.ok) throw new Error('Error al obtener stocks');
       const stocksBD = await stockResponse.json();
-      console.log('✅ Stocks:', stocksBD.length);
+
 
       // Crear mapa de stocks
       const stockMap = {};
@@ -294,7 +294,7 @@ const InventarioPlaneacion = () => {
         }
       }
 
-      console.log('📊 SOLICITADAS TOTALES (suma de todos los IDs):', solicitadasMap);
+
 
       // Log detallado de cada producto con solicitadas
       Object.entries(solicitadasMap).forEach(([producto, cantidad]) => {
@@ -307,7 +307,7 @@ const InventarioPlaneacion = () => {
       const pedidosMap = {};
 
       if (pedidosResponse.ok) {
-        console.log('📊 Cargando PEDIDOS DINÁMICOS desde api/pedidos');
+
         const pedidos = await pedidosResponse.json();
 
         // Filtrar pedidos por fecha (comparar solo la parte de fecha, sin hora)
@@ -340,7 +340,7 @@ const InventarioPlaneacion = () => {
           }
         }
 
-        console.log('📊 PEDIDOS TOTALES:', pedidosMap);
+
       }
 
       // 🎯 Usar stocks como productos (api_stock ya tiene todos los de PRODUCCION)
@@ -352,10 +352,10 @@ const InventarioPlaneacion = () => {
       }));
 
       console.log(`📦 Productos desde api_stock: ${productosProduccion.length}`);
-      console.log('📋 Lista de productos:', productosProduccion.map(p => p.nombre));
+
 
       // 🧠 CONSULTAR PREDICCIONES DE IA CON REDES NEURONALES
-      console.log('🧠 Consultando predicciones de IA (Redes Neuronales)...');
+
       let prediccionesIAMap = {};
       try {
         // Preparar datos contextuales para la IA
@@ -473,7 +473,7 @@ const InventarioPlaneacion = () => {
       });
 
       // Log detallado antes de setear productos
-      console.log('🎯 PRODUCTOS A SETEAR:');
+
       productosConPlaneacion.forEach(p => {
         if (p.solicitado > 0) {
           console.log(`   - ${p.nombre}: ${p.solicitado} solicitadas`);
@@ -542,7 +542,7 @@ const InventarioPlaneacion = () => {
           fecha: fechaFormateada
         };
         localStorage.setItem(key, JSON.stringify(datosParaGuardar));
-        console.log('✅ Datos guardados en cache y localStorage');
+
       } catch (error) {
         console.error('Error al guardar en localStorage:', error);
       }
@@ -678,7 +678,7 @@ const InventarioPlaneacion = () => {
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaFormateada = `${year}-${month}-${day}`;
-      console.log('📅 Cargando datos para fecha:', fechaFormateada);
+
       cargarExistenciasReales();
     }
 
@@ -688,27 +688,27 @@ const InventarioPlaneacion = () => {
     // 2. Al cambiar de fecha
     // 3. Al hacer clic en "Sincronizar"
     // 4. Cuando se recibe evento de Cargue/Pedidos
-    console.log('✅ Actualización solo por eventos o manual (sin polling)');
+
     let intervalo = null; // No hay intervalo
 
     // 🚀 Escuchar eventos de otros módulos
     const handlePedidoGuardado = () => {
-      console.log('📦 Pedido guardado - Actualizando Planeación...');
+
       cargarExistenciasReales(true);
     };
 
     const handleInventarioActualizado = () => {
-      console.log('📊 Inventario actualizado - Actualizando Planeación...');
+
       cargarExistenciasReales(true);
     };
 
     const handleProductosUpdated = () => {
-      console.log('🔄 Productos actualizados - Actualizando Planeación...');
+
       cargarExistenciasReales(true);
     };
 
     const handleCargueActualizado = (event) => {
-      console.log('🚚 Cargue actualizado - Evento recibido:', event.detail);
+
       // Los datos vienen en event.detail
       const year = fechaSeleccionada.getFullYear();
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
@@ -718,7 +718,7 @@ const InventarioPlaneacion = () => {
       console.log(`🔍 Comparando fechas: evento=${event.detail?.fecha}, actual=${fechaActual}`);
 
       if (event.detail && event.detail.fecha === fechaActual) {
-        console.log('✅ Fechas coinciden - Actualizando Planeación por evento...');
+
 
         // 🔥 Limpiar cache para forzar recarga desde servidor
         setCache({ datos: null, timestamp: null, fecha: null });
@@ -836,7 +836,7 @@ const InventarioPlaneacion = () => {
             size="sm"
             className="mb-2 mb-md-0"
             onClick={() => {
-              console.log('🔄 Sincronización manual solicitada');
+
               setCache({ datos: null, timestamp: null, fecha: null });
               cargarExistenciasReales(true);
               mostrarMensaje('Sincronizando datos...', 'info');

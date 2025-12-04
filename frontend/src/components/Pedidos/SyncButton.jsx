@@ -14,9 +14,9 @@ const SyncButton = () => {
 
         setIsSyncing(true);
         try {
-            console.log("Iniciando sincronización manual...");
+
             await updateProducts(products);
-            console.log("Sincronización manual completada");
+
 
             // Mostrar notificación
             const notification = document.createElement('div');

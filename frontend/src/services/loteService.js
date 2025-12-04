@@ -21,8 +21,8 @@ export const loteService = {
         activo: true
       };
       
-      console.log('🚀 Enviando lote a API:', payload);
-      console.log('🎯 URL:', `${API_URL}/lotes/`);
+
+
       
       const response = await fetch(`${API_URL}/lotes/`, {
         method: 'POST',
@@ -32,7 +32,7 @@ export const loteService = {
         body: JSON.stringify(payload)
       });
       
-      console.log('📊 Respuesta del servidor:', response.status, response.statusText);
+
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -41,7 +41,7 @@ export const loteService = {
       }
       
       const result = await response.json();
-      console.log('✅ Lote creado exitosamente:', result);
+
       return result;
     } catch (error) {
       console.error('❌ Error en create lote:', error);

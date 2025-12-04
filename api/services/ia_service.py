@@ -16,7 +16,7 @@ try:
     from tensorflow import keras
     from tensorflow.keras import layers
     TENSORFLOW_DISPONIBLE = True
-    print("✅ TensorFlow disponible - Redes neuronales activas")
+
 except ImportError:
     TENSORFLOW_DISPONIBLE = False
     print("⚠️ TensorFlow no disponible - Usando algoritmo simple")
@@ -387,7 +387,7 @@ class IAService:
             print("⚠️ TensorFlow no disponible - No se pueden entrenar modelos")
             return
         
-        print("\n🚀 Iniciando entrenamiento masivo de modelos...")
+
         
         df = self.obtener_historial_ventas()
         productos_unicos = df['producto'].unique()

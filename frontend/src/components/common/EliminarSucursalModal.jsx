@@ -18,12 +18,12 @@ const EliminarSucursalModal = ({ show, onHide, sucursal, onSucursalEliminada }) 
         setError('');
 
         try {
-            console.log('🗑️ Eliminando sucursal:', sucursal.id);
+
             
             const resultado = await sucursalService.delete(sucursal.id);
 
             if (resultado && resultado.success) {
-                console.log('✅ Sucursal eliminada exitosamente');
+
                 onSucursalEliminada(sucursal.id);
                 handleClose();
             } else {

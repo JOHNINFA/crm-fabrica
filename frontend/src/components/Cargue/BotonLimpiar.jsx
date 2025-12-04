@@ -178,7 +178,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     // También verificar si hay datos congelados
     const datosCongelados = localStorage.getItem(`produccion_congelada_${dia}_${fechaFormateadaLS}`);
     if (datosCongelados) {
-      console.log('❄️ Datos de producción congelados encontrados');
+
     }
   }, [dia, fechaFormateadaLS, idSheet]);
 
@@ -199,13 +199,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     // 🚀 VERIFICACIÓN EN TIEMPO REAL: Solo cuando está en ALISTAMIENTO_ACTIVO
     let interval;
     if (estado === 'ALISTAMIENTO_ACTIVO') {
-      console.log('🔄 Iniciando verificación automática cada 2 segundos...');
+
       interval = setInterval(verificarYAvanzar, 2000); // Verificar cada 2 segundos
     }
 
     return () => {
       if (interval) {
-        console.log('🛑 Deteniendo verificación automática');
+
         clearInterval(interval);
       }
     };
@@ -216,7 +216,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     if (idSheet !== 'ID1' || estado !== 'ALISTAMIENTO_ACTIVO') return;
 
     const handleCargueDataChange = async (e) => {
-      console.log('🔥 Cambio detectado en datos de cargue, verificando productos...');
+
 
       const resultado = await verificarProductosListos();
       setProductosValidados(resultado.listos);
@@ -292,7 +292,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
     localStorage.setItem(keyCongelados, JSON.stringify(datosParaCongelar));
     console.log(`❄️ ${estadoNombre} - Producción CONGELADA POR PRIMERA VEZ`);
-    console.log('Datos congelados:', datosParaCongelar);
+
   };
 
   // Función para actualizar inventario
@@ -345,7 +345,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         fechaFormateada = `${year}-${month}-${day}`;
       }
 
-      console.log('📋 Cargando pedidos PENDIENTES para fecha:', fechaFormateada);
+
 
       // 🔥 CARGAR TODOS LOS PEDIDOS y filtrar en el frontend (más seguro)
       const response = await fetch(`http://localhost:8000/api/pedidos/`);
@@ -399,7 +399,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log('📊 Productos agrupados de pedidos:', pedidosAgrupados);
+
       console.log(`📊 Total de pedidos a marcar como ENTREGADA: ${pedidosIds.length}`);
 
       return { pedidosAgrupados, pedidosIds };
@@ -453,7 +453,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 🔒 NUEVA FUNCIÓN: Guardar SOLICITADAS en Planeación
   const guardarSolicitadasEnPlaneacion = async () => {
     try {
-      console.log('💾 GUARDANDO SOLICITADAS EN PLANEACIÓN...');
+
 
       const year = fechaSeleccionada.getFullYear();
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
@@ -480,7 +480,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log('📊 Solicitadas a guardar:', solicitadasMap);
+
 
       // 📸 GUARDAR SNAPSHOT (foto del momento) - Solo si NO existe ya
       // Verificar si ya hay snapshot guardado para este día
@@ -488,11 +488,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const snapshotExistente = checkSnapshot.ok ? await checkSnapshot.json() : [];
 
       if (snapshotExistente.length > 0) {
-        console.log('📸 Snapshot ya existe para este día - NO se sobrescribe');
+
         return; // Salir sin guardar
       }
 
-      console.log('📸 Guardando SNAPSHOT del día (primera vez)...');
+
 
       // Obtener existencias actuales desde api_stock
       const stockResponse = await fetch('http://localhost:8000/api/stock/');
@@ -558,7 +558,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log('✅ SOLICITADAS GUARDADAS EN PLANEACIÓN');
+
 
     } catch (error) {
       console.error('❌ Error guardando solicitadas:', error);
@@ -568,7 +568,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 🔒 NUEVA FUNCIÓN: Congelar PEDIDOS en Planeación
   const congelarPedidosEnPlaneacion = async () => {
     try {
-      console.log('❄️ CONGELANDO PEDIDOS EN PLANEACIÓN...');
+
 
       const year = fechaSeleccionada.getFullYear();
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
@@ -605,7 +605,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log('📊 Pedidos agrupados por producto:', pedidosMap);
+
 
       // Guardar/actualizar en api_planeacion con los pedidos congelados
       for (const [nombreProducto, cantidadPedidos] of Object.entries(pedidosMap)) {
@@ -651,7 +651,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log('✅ PEDIDOS CONGELADOS EN PLANEACIÓN');
+
 
     } catch (error) {
       console.error('❌ Error congelando pedidos:', error);
@@ -661,7 +661,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 📸 NUEVA FUNCIÓN: Guardar snapshot de Planeación en tabla independiente
   const guardarSnapshotPlaneacion = async () => {
     try {
-      console.log('📸 ========== GUARDANDO SNAPSHOT DE PLANEACIÓN ==========');
+
 
       if (!fechaSeleccionada) {
         console.error('❌ SNAPSHOT - fechaSeleccionada no definida');
@@ -711,7 +711,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       // Si no hay datos en BD, buscar en localStorage
       if (!datosEncontradosEnBD) {
-        console.log('📸 SNAPSHOT - No hay datos en BD, buscando en localStorage...');
+
         const { simpleStorage } = await import('../../services/simpleStorage');
 
         for (const diaActual of diasSemana) {
@@ -1059,8 +1059,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Esta función ahora solo hace una verificación final y guarda datos pendientes
   const guardarDatosCompletos = async (fechaAUsar, idsVendedores) => {
     try {
-      console.log('💾 VERIFICACIÓN FINAL DE DATOS...');
-      console.log('📝 Nota: Con sincronización en tiempo real, los datos ya deberían estar en BD');
+
+
 
       // 🆕 Verificar si hay datos pendientes de sincronizar en localStorage
       const { simpleStorage } = await import('../../services/simpleStorage');
@@ -1083,7 +1083,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log('✅ VERIFICACIÓN FINAL COMPLETADA');
+
       return true;
     } catch (error) {
       console.error('❌ Error en verificación final:', error);
@@ -1094,10 +1094,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Función original mantenida para referencia
   const guardarDatosCompletosOriginal = async (fechaAUsar, idsVendedores) => {
     try {
-      console.log('💾 GUARDANDO DATOS COMPLETOS DESDE EL CONTEXTO...');
-      console.log('🔍 DEBUG - datosVendedores completo:', datosVendedores);
-      console.log('🔍 DEBUG - Keys disponibles:', Object.keys(datosVendedores));
-      console.log('🔍 DEBUG - IDs a procesar:', idsVendedores);
+
+
+
+
 
       // Debug detallado de cada vendedor
       idsVendedores.forEach(id => {
@@ -1339,7 +1339,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         };
 
         await cargueService.guardarResumen(resumenData);
-        console.log('✅ Guardados datos de BASE CAJA y CONCEPTOS');
+
       }
 
       // 3. Guardar datos de PRODUCCIÓN (mantener desde localStorage ya que estos no están en el contexto)
@@ -1353,7 +1353,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           responsable: 'SISTEMA_PRODUCCION',
           productos: produccionData.productos || []
         });
-        console.log('✅ Guardados datos de PRODUCCIÓN');
+
       }
 
       return true;
@@ -1397,7 +1397,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Limpiar localStorage después de guardar (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const limpiarLocalStorage = (fechaAUsar, idsVendedores) => {
     try {
-      console.log('🧹 LIMPIANDO LOCALSTORAGE...');
+
 
       // Limpiar datos de cada ID usando funciones específicas
       for (const id of idsVendedores) {
@@ -1439,7 +1439,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         console.log(`🗑️ Eliminado: ${clave}`);
       });
 
-      console.log('✅ LocalStorage limpiado completamente');
+
     } catch (error) {
       console.error('❌ Error limpiando localStorage:', error);
     }
@@ -1500,7 +1500,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Validar lotes vencidos antes de finalizar (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const validarLotesVencidos = async (fechaAUsar, idsVendedores) => {
     try {
-      console.log('🔍 VALIDANDO LOTES VENCIDOS...');
+
       console.log(`📅 Fecha para validación: ${fechaAUsar}`);
 
       const { simpleStorage } = await import('../../services/simpleStorage');
@@ -1547,7 +1547,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         return false;
       }
 
-      console.log('✅ VALIDACIÓN DE LOTES VENCIDOS COMPLETADA');
+
       return true;
     } catch (error) {
       console.error('❌ Error validando lotes vencidos:', error);
@@ -1559,7 +1559,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 🚀 NUEVA FUNCIÓN: Manejar finalizar para un ID específico
   const manejarFinalizarDelID = async () => {
     console.log(`🚀🚀🚀 ${idSheet} - BOTÓN FINALIZAR PRESIONADO 🚀🚀🚀`);
-    console.log('⏰ Timestamp:', Date.now());
+
     console.log(`📊 ${idSheet} - Productos validados disponibles:`, productosValidados.length);
 
     setLoading(true);
@@ -1656,15 +1656,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
   // Manejar finalizar (devoluciones, vencidas y guardado completo) - FUNCIÓN ORIGINAL - mantener para compatibilidad
   const manejarFinalizar = async () => {
-    console.log('🚀🚀🚀 BOTÓN DESPACHO PRESIONADO 🚀🚀🚀');
-    console.log('⏰ Timestamp:', Date.now());
-    console.log('📊 Productos validados disponibles:', productosValidados.length);
+
+
+
 
     setLoading(true);
 
     try {
       // 🚀 NUEVO: Forzar guardado de datos actuales de la pantalla antes de procesar
-      console.log('💾 Forzando guardado de datos en pantalla...');
+
       window.dispatchEvent(new CustomEvent('solicitarGuardado'));
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -1734,11 +1734,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const fechaAUsar = fechaSeleccionada;
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
-      console.log('🏁 INICIANDO FINALIZACIÓN COMPLETA');
+
       console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
 
       // VALIDACIÓN PREVIA: Verificar lotes vencidos
-      console.log('🔍 VALIDACIÓN PREVIA: Verificando lotes vencidos...');
+
       const lotesValidos = await validarLotesVencidos(fechaAUsar, idsVendedores);
 
       if (!lotesValidos) {
@@ -1746,18 +1746,18 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         return; // No continuar si faltan lotes vencidos
       }
 
-      console.log('✅ VALIDACIÓN COMPLETADA - Continuando con finalización...');
+
 
       // Resetear contadores para el procesamiento real
       let totalDevoluciones = 0;
       let totalVencidas = 0;
 
       // 🚀 PASO 0: VALIDACIÓN - El inventario YA FUE DESCONTADO en DESPACHO
-      console.log('✅ INVENTARIO YA DESCONTADO EN DESPACHO - Saltando descuento...');
-      console.log('📋 Productos que ya fueron descontados:', productosValidados.length);
+
+
 
       // PASO 1: Procesar devoluciones y vencidas
-      console.log('📦 PASO 1: Procesando devoluciones y vencidas...');
+
       for (const id of idsVendedores) {
         const key = `cargue_${dia}_${id}_${fechaAUsar}`;
         const datos = await simpleStorage.getItem(key);
@@ -1783,11 +1783,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       // PASO 2: Guardar todos los datos en la base de datos
-      console.log('💾 PASO 2: Guardando datos en base de datos...');
+
       await guardarDatosCompletos(fechaAUsar, idsVendedores);
 
       // PASO 3: Limpiar localStorage
-      console.log('🧹 PASO 3: Limpiando localStorage...');
+
       limpiarLocalStorage(fechaAUsar, idsVendedores);
 
       // 🔒 Congelar producción al cambiar a COMPLETADO
@@ -1921,7 +1921,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
             setEstado('ALISTAMIENTO_ACTIVO');
             localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, 'ALISTAMIENTO_ACTIVO');
-            console.log('📦 Cambiando a ALISTAMIENTO_ACTIVO');
+
           }
         };
       case 'ALISTAMIENTO_ACTIVO':
@@ -1950,7 +1950,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                   `Total pendiente: ${totalPendientes} unidades en ${productosPendientes.length} productos`
                 );
 
-                console.log('🚫 DESPACHO BLOQUEADO - Hay productos sin verificar completamente');
+
                 setLoading(false);
                 return; // Salir sin hacer despacho
               }
@@ -1971,10 +1971,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               }
 
               // 🚀 PROCEDER CON EL DESPACHO: Afectar inventario
-              console.log('🚚 ALISTAMIENTO_ACTIVO → Afectando inventario...');
+
 
               // ========== PASO 1: DESCONTAR CARGUE DEL INVENTARIO ==========
-              console.log('📦 PASO 1: Descontando productos de CARGUE...');
+
 
               for (const producto of productosValidados) {
                 console.log(`🔥 PROCESANDO CARGUE: ${producto.nombre}`);
@@ -1995,7 +1995,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               console.log(`✅ TOTAL CARGUE DESCONTADO: ${totalCargue} unidades`);
 
               // ========== PASO 2: DESCONTAR PEDIDOS DEL INVENTARIO ==========
-              console.log('📋 PASO 2: Descontando productos de PEDIDOS PENDIENTES...');
+
 
               const { pedidosAgrupados, pedidosIds } = await cargarPedidosPendientes(fechaSeleccionada);
               const productosPedidos = Object.values(pedidosAgrupados);
@@ -2043,11 +2043,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 console.log(`✅ TOTAL PEDIDOS DESCONTADO: ${totalPedidos} unidades`);
 
                 // ========== PASO 3: MARCAR PEDIDOS COMO ENTREGADA ==========
-                console.log('📦 PASO 3: Marcando pedidos como ENTREGADA...');
+
                 const { exitosos, errores } = await marcarPedidosComoEntregados(pedidosIds);
                 console.log(`✅ Pedidos actualizados: ${exitosos} exitosos, ${errores} errores`);
               } else {
-                console.log('ℹ️ No hay pedidos PENDIENTES para este día');
+
               }
 
               // 🔒 Congelar producción al cambiar a FINALIZAR

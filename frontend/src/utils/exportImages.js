@@ -42,7 +42,7 @@ const exportAllImages = () => {
     // Obtener productos de localStorage
     const productsStr = localStorage.getItem('products');
     if (!productsStr) {
-      console.log('No hay productos en localStorage');
+
       return [];
     }
     
@@ -83,7 +83,7 @@ const exportAllImages = () => {
       }
     });
     
-    console.log('Exportación completada:', results);
+
     return results;
   } catch (error) {
     console.error('Error al exportar imágenes:', error);

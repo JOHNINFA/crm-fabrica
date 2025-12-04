@@ -94,8 +94,8 @@ const TablaKardex = () => {
       if (!stockResponse.ok) throw new Error('Error al obtener stocks');
       const stocksBD = await stockResponse.json();
 
-      console.log('🔍 KARDEX - Productos desde api_stock:', stocksBD.length);
-      console.log('📋 Lista:', stocksBD.map(s => s.producto_nombre));
+
+
 
       // Crear mapa de stocks
       const stockMap = {};
@@ -168,7 +168,7 @@ const TablaKardex = () => {
       setMovimientosFromBD(movimientosConvertidos);
       setCargando(false);
 
-      console.log('✅ Kardex cargado:', movimientosConvertidos.length, 'productos');
+
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
       setMovimientosFromBD([]);
@@ -178,7 +178,7 @@ const TablaKardex = () => {
 
   // 🚀 CARGA DIRECTA DESDE BACKEND (SIN CACHE)
   useEffect(() => {
-    console.log('🚀 KARDEX: Cargando DIRECTO desde backend...');
+
 
     // Cargar inmediatamente desde servidor
     cargarMovimientosFromBD();

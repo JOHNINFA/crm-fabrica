@@ -21,9 +21,9 @@ const GestionVendedores = () => {
     const cargarVendedores = async () => {
         setLoading(true);
         try {
-            console.log('🔄 Cargando vendedores desde:', `${API_URL}/vendedores/`);
+
             const response = await axios.get(`${API_URL}/vendedores/`);
-            console.log('✅ Vendedores cargados:', response.data);
+
             setVendedores(response.data);
         } catch (error) {
             console.error('❌ Error cargando vendedores:', error);

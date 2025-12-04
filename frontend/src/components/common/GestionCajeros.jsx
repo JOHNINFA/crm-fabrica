@@ -92,21 +92,21 @@ const GestionCajeros = () => {
     });
 
     const handleCajeroCreado = (nuevoCajero) => {
-        console.log('Cajero creado:', nuevoCajero);
+
         setSuccess('Cajero creado exitosamente');
         cargarDatos();
         setTimeout(() => setSuccess(''), 3000);
     };
 
     const handleCajeroActualizado = (cajeroActualizado) => {
-        console.log('Cajero actualizado:', cajeroActualizado);
+
         setSuccess('Cajero actualizado exitosamente');
         cargarDatos();
         setTimeout(() => setSuccess(''), 3000);
     };
 
     const handleCajeroEliminado = (cajeroEliminado) => {
-        console.log('Cajero eliminado:', cajeroEliminado);
+
         setSuccess('Cajero eliminado exitosamente');
         cargarDatos();
         setTimeout(() => setSuccess(''), 3000);

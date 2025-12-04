@@ -83,11 +83,11 @@ export const cajeroService = {
     // Obtener todos los cajeros
     getAll: async () => {
         try {
-            console.log('Intentando obtener cajeros desde:', `${API_URL}/cajeros/`);
+
             const response = await fetch(`${API_URL}/cajeros/`);
             if (!response.ok) throw new Error(`Error al obtener cajeros: ${response.status}`);
             const data = await response.json();
-            console.log('Cajeros obtenidos:', data.length);
+
             return data;
         } catch (error) {
             console.error('Error en getAll cajeros:', error);
@@ -107,11 +107,11 @@ export const cajeroService = {
     // Obtener cajeros por sucursal
     getBySucursal: async (sucursalId) => {
         try {
-            console.log('Intentando obtener cajeros por sucursal:', sucursalId);
+
             const response = await fetch(`${API_URL}/cajeros/?sucursal_id=${sucursalId}`);
             if (!response.ok) throw new Error(`Error al obtener cajeros: ${response.status}`);
             const data = await response.json();
-            console.log('Cajeros por sucursal obtenidos:', data.length);
+
             return data;
         } catch (error) {
             console.error('Error en getBySucursal cajeros:', error);
@@ -125,7 +125,7 @@ export const cajeroService = {
     // Obtener cajero por ID
     getById: async (id) => {
         try {
-            console.log('Intentando obtener cajero por ID:', id);
+
             const response = await fetch(`${API_URL}/cajeros/${id}/`);
             if (!response.ok) throw new Error(`Error al obtener cajero con ID ${id}: ${response.status}`);
             return await response.json();
@@ -141,7 +141,7 @@ export const cajeroService = {
     // Crear nuevo cajero
     create: async (cajeroData) => {
         try {
-            console.log('Intentando crear cajero:', cajeroData);
+
             
             // Validar que tenga sucursal_id
             if (!cajeroData.sucursal_id && !cajeroData.sucursal) {
@@ -163,7 +163,7 @@ export const cajeroService = {
             // Remover sucursal_id si existe para evitar conflictos
             delete dataToSend.sucursal_id;
             
-            console.log('Datos a enviar a la API:', dataToSend);
+
             
             const response = await fetch(`${API_URL}/cajeros/`, {
                 method: 'POST',
@@ -180,7 +180,7 @@ export const cajeroService = {
             }
             
             const result = await response.json();
-            console.log('✅ Cajero creado exitosamente en BD:', result);
+
             return result;
         } catch (error) {
             console.error('Error en create cajero:', error);
@@ -204,7 +204,7 @@ export const cajeroService = {
             cajeros.push(nuevoCajero);
             localStorage.setItem('cajeros', JSON.stringify(cajeros));
             
-            console.log('✅ Cajero guardado en localStorage:', nuevoCajero);
+
             return nuevoCajero;
         }
     },
@@ -212,7 +212,7 @@ export const cajeroService = {
     // Actualizar cajero
     update: async (id, cajeroData) => {
         try {
-            console.log('Intentando actualizar cajero:', id, cajeroData);
+
             
             // Normalizar el campo sucursal para la API si existe
             const dataToSend = { ...cajeroData };
@@ -224,7 +224,7 @@ export const cajeroService = {
             
             // NO hashear contraseña aquí, el backend lo hace en el serializer
             
-            console.log('Datos a enviar a la API para actualizar:', dataToSend);
+
             
             const response = await fetch(`${API_URL}/cajeros/${id}/`, {
                 method: 'PATCH',
@@ -241,7 +241,7 @@ export const cajeroService = {
             }
             
             const result = await response.json();
-            console.log('✅ Cajero actualizado exitosamente en BD:', result);
+
             return result;
         } catch (error) {
             console.error('Error en update cajero:', error);
@@ -269,7 +269,7 @@ export const cajeroService = {
                 };
                 
                 localStorage.setItem('cajeros', JSON.stringify(cajeros));
-                console.log('✅ Cajero actualizado en localStorage:', cajeros[index]);
+
                 return cajeros[index];
             }
             
@@ -280,7 +280,7 @@ export const cajeroService = {
     // Eliminar cajero (soft delete)
     delete: async (id) => {
         try {
-            console.log('Intentando eliminar cajero:', id);
+
             
             const response = await fetch(`${API_URL}/cajeros/${id}/`, {
                 method: 'DELETE'
@@ -290,7 +290,7 @@ export const cajeroService = {
                 throw new Error(`Error al eliminar cajero: ${response.status}`);
             }
             
-            console.log('✅ Cajero eliminado exitosamente');
+
             return { success: true };
         } catch (error) {
             console.error('Error en delete cajero:', error);
@@ -302,7 +302,7 @@ export const cajeroService = {
             if (index !== -1) {
                 cajeros[index].activo = false;
                 localStorage.setItem('cajeros', JSON.stringify(cajeros));
-                console.log('✅ Cajero desactivado en localStorage');
+
                 return { success: true };
             }
             
@@ -337,7 +337,7 @@ export const cajeroService = {
     // Autenticar cajero
     authenticate: async (nombre, password, sucursalId = null) => {
         try {
-            console.log('🔐 Intentando autenticar cajero:', nombre);
+
             
             // Intentar autenticación con API
             try {
@@ -355,7 +355,7 @@ export const cajeroService = {
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('✅ Autenticación exitosa con API:', data.cajero.nombre);
+
                     return data;
                 } else {
                     console.warn(`API devolvió error ${response.status}, usando fallback local`);
@@ -366,7 +366,7 @@ export const cajeroService = {
             }
             
             // Fallback: autenticación local
-            console.log('🔄 Usando autenticación local...');
+
             
             const cajeros = sucursalId 
                 ? await cajeroService.getBySucursal(sucursalId)
@@ -379,22 +379,22 @@ export const cajeroService = {
             
             if (!cajero) {
                 console.log('❌ Cajero no encontrado o inactivo');
-                console.log('Cajeros disponibles:', cajeros.map(c => c.nombre));
+
                 return { success: false, message: 'Cajero no encontrado o inactivo' };
             }
             
-            console.log('✅ Cajero encontrado:', cajero.nombre);
-            console.log('Verificando contraseña...');
+
+
             
             // Verificar contraseña
             if (!(await verifyPassword(password, cajero.password))) {
                 console.log('❌ Contraseña incorrecta');
-                console.log('Hash esperado:', hashPassword(password));
-                console.log('Hash almacenado:', cajero.password);
+
+
                 return { success: false, message: 'Contraseña incorrecta' };
             }
             
-            console.log('✅ Autenticación local exitosa:', cajero.nombre);
+
             
             // Retornar datos del cajero sin la contraseña
             const { password: _, ...cajeroSinPassword } = cajero;
@@ -413,7 +413,7 @@ export const cajeroService = {
     // Iniciar turno
     iniciarTurno: async (cajeroId, sucursalId, saldoInicial = 0) => {
         try {
-            console.log('🚀 Iniciando turno para cajero:', cajeroId, 'con saldo inicial:', saldoInicial);
+
             
             // Intentar iniciar turno con API
             try {
@@ -433,7 +433,7 @@ export const cajeroService = {
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
-                        console.log('✅ Turno iniciado con API:', data.turno);
+
                         return data.turno;
                     }
                 }
@@ -442,7 +442,7 @@ export const cajeroService = {
             }
             
             // Fallback: guardar en localStorage
-            console.log('🔄 Usando localStorage para turno...');
+
             const turnos = JSON.parse(localStorage.getItem('turnos') || '[]');
             const nuevoTurno = {
                 id: Date.now(),
@@ -458,7 +458,7 @@ export const cajeroService = {
             turnos.push(nuevoTurno);
             localStorage.setItem('turnos', JSON.stringify(turnos));
             
-            console.log('✅ Turno iniciado en localStorage:', nuevoTurno);
+
             return nuevoTurno;
             
         } catch (error) {
@@ -470,7 +470,7 @@ export const cajeroService = {
     // Cerrar turno
     cerrarTurno: async (turnoId, arqueoFinal = 0) => {
         try {
-            console.log('🚪 Cerrando turno:', turnoId);
+
             
             // Intentar cerrar turno con API
             try {
@@ -488,7 +488,7 @@ export const cajeroService = {
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
-                        console.log('✅ Turno cerrado con API:', data.turno);
+
                         return data.turno;
                     }
                 }
@@ -497,7 +497,7 @@ export const cajeroService = {
             }
             
             // Fallback: actualizar en localStorage
-            console.log('🔄 Usando localStorage para cerrar turno...');
+
             const turnos = JSON.parse(localStorage.getItem('turnos') || '[]');
             const index = turnos.findIndex(t => t.id === parseInt(turnoId));
             
@@ -510,7 +510,7 @@ export const cajeroService = {
                 };
                 
                 localStorage.setItem('turnos', JSON.stringify(turnos));
-                console.log('✅ Turno cerrado en localStorage:', turnos[index]);
+
                 return turnos[index];
             }
             
@@ -525,11 +525,11 @@ export const cajeroService = {
     // Función para autenticación solo local (sin API) - Para Remisiones
     authenticateLocal: async (nombre, password, sucursalId = null) => {
         try {
-            console.log('🔐 [LOCAL] Autenticando cajero:', nombre, 'en sucursal:', sucursalId);
+
             
             // Obtener cajeros directamente de localStorage
             const cajeros = await cajeroService.getAll();
-            console.log('Cajeros disponibles:', cajeros.map(c => ({ id: c.id, nombre: c.nombre, activo: c.activo })));
+
             
             // Buscar cajero por nombre
             const cajero = cajeros.find(c => 
@@ -541,18 +541,18 @@ export const cajeroService = {
                 return { success: false, message: 'Cajero no encontrado o inactivo' };
             }
             
-            console.log('✅ Cajero encontrado:', cajero);
+
             
             // Verificar contraseña
             if (!(await verifyPassword(password, cajero.password))) {
                 console.log('❌ Contraseña incorrecta');
-                console.log('Password ingresada:', password);
-                console.log('Hash almacenado:', cajero.password);
-                console.log('Hash esperado:', await hashPassword(password));
+
+
+
                 return { success: false, message: 'Contraseña incorrecta' };
             }
             
-            console.log('✅ Autenticación local exitosa:', cajero.nombre);
+
             
             // Retornar datos del cajero sin la contraseña
             const { password: _, ...cajeroSinPassword } = cajero;
@@ -581,7 +581,7 @@ export const cajeroService = {
             );
             
             if (cajeroExistente) {
-                console.log('✅ Cajero ya existe:', cajeroExistente);
+
                 
                 // Asegurar que esté activo y con contraseña correcta
                 cajeroExistente.activo = true;
@@ -615,7 +615,7 @@ export const cajeroService = {
             const cajerosActualizados = [...cajeros, nuevoCajero];
             localStorage.setItem('cajeros', JSON.stringify(cajerosActualizados));
             
-            console.log('✅ Cajero creado:', nuevoCajero);
+
             return { success: true, cajero: nuevoCajero };
             
         } catch (error) {
@@ -627,7 +627,7 @@ export const cajeroService = {
     // Función temporal para debug - REMOVER EN PRODUCCIÓN
     debugCajeroRemisiones: async () => {
         try {
-            console.log('🔍 DEBUG: Configurando cajero REMISIONES...');
+
             
             // Crear o verificar cajero REMISIONES
             const resultadoCreacion = await cajeroService.crearCajeroModulo('REMISIONES');
@@ -639,12 +639,12 @@ export const cajeroService = {
                 };
             }
             
-            console.log('✅ Cajero REMISIONES listo:', resultadoCreacion.cajero);
+
             
             // Probar autenticación local
-            console.log('🧪 Probando autenticación local...');
+
             const testLogin = await cajeroService.authenticateLocal('REMISIONES', '123456', 1);
-            console.log('Resultado del test de login:', testLogin);
+
             
             if (testLogin.success) {
                 return {

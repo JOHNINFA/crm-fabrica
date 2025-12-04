@@ -52,7 +52,7 @@ const saveImageToFileSystem = async (imageData, productId, productName) => {
     try {
       const { localImageService } = await import('./localImageService');
       await localImageService.saveImage(productId, imageData);
-      console.log('Imagen guardada en IndexedDB como respaldo');
+
     } catch (dbError) {
       console.error('Error al guardar imagen en IndexedDB:', dbError);
     }

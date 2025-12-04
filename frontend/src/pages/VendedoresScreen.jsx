@@ -21,7 +21,7 @@ const VendedoresScreen = () => {
 
     // Escuchar cambios de responsables desde Cargue
     const handleResponsableUpdate = () => {
-      console.log('🔄 Responsable actualizado, recargando vendedores...');
+
       cargarVendedores();
     };
 
@@ -39,7 +39,7 @@ const VendedoresScreen = () => {
 
       if (response.ok) {
         const vendedoresDB = await response.json();
-        console.log('✅ Vendedores desde BD:', vendedoresDB);
+
 
         // Mapear los vendedores de la BD al formato esperado
         const vendedoresFormateados = vendedoresDB.map(v => ({
@@ -51,7 +51,7 @@ const VendedoresScreen = () => {
         }));
 
         setVendedores(vendedoresFormateados);
-        console.log('✅ Vendedores formateados:', vendedoresFormateados);
+
       } else {
         console.error('❌ Error cargando vendedores desde BD');
         // Fallback: crear vendedores por defecto
@@ -165,10 +165,10 @@ const VendedoresScreen = () => {
       });
 
       const data = await response.json();
-      console.log('📥 Respuesta del servidor:', data);
+
 
       if (response.ok) {
-        console.log('✅ Vendedor guardado exitosamente');
+
         await cargarVendedores(); // Recargar lista
         cerrarModal();
       } else {
@@ -197,7 +197,7 @@ const VendedoresScreen = () => {
         });
 
         if (response.ok) {
-          console.log('✅ Vendedor eliminado');
+
           await cargarVendedores();
         } else {
           alert('Error eliminando el vendedor');

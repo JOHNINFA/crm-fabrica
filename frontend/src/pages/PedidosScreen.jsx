@@ -73,7 +73,7 @@ function PedidosMainContent() {
         if (clienteParam) {
             try {
                 const clienteData = JSON.parse(decodeURIComponent(clienteParam));
-                console.log('📦 Datos del cliente recibidos:', clienteData);
+
                 setClientData(clienteData);
                 setClient(clienteData.nombre || "DESTINATARIO GENERAL");
                 if (clienteData.lista_precio) {
@@ -84,7 +84,7 @@ function PedidosMainContent() {
                 }
                 // Usar el vendedor del cliente si viene de Pedidos
                 if (clienteData.vendedor) {
-                    console.log('✅ Usando vendedor del cliente:', clienteData.vendedor);
+
                     // Agregar el vendedor a la lista si no está
                     setSellers(prev => {
                         if (!prev.includes(clienteData.vendedor)) {

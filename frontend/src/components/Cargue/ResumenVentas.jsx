@@ -139,8 +139,8 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
               }
             }
 
-            console.log('✅ RESUMEN - Conceptos procesados:', conceptosArray);
-            console.log('✅ RESUMEN - Base caja:', baseCajaDB);
+
+
 
             setFilas(conceptosArray);
             setBaseCaja(baseCajaDB);

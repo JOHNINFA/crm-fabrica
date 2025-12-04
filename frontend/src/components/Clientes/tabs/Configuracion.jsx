@@ -27,7 +27,7 @@ const Configuracion = ({ clienteData, setClienteData }) => {
       const response = await fetch('http://localhost:8000/api/vendedores/');
       if (response.ok) {
         const data = await response.json();
-        console.log('Vendedores cargados:', data);
+
         setVendedores(data);
       } else {
         console.error('Error en respuesta:', response.status);

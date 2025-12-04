@@ -13,12 +13,12 @@ const EliminarCajeroModal = ({ show, onHide, cajero, onCajeroEliminado }) => {
         setError('');
 
         try {
-            console.log('Eliminando cajero:', cajero.id);
+
 
             const resultado = await cajeroService.delete(cajero.id);
 
             if (resultado && resultado.success) {
-                console.log('✅ Cajero eliminado exitosamente');
+
 
                 // Notificar al componente padre
                 if (onCajeroEliminado) {

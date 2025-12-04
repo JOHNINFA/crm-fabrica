@@ -130,10 +130,10 @@ export const cargueService = {
   // Guardar cargue completo con productos
   guardarCargue: async (datosCompletos) => {
     try {
-      console.log('🚀 INICIANDO GUARDADO DE CARGUE:', datosCompletos);
+
       
       // ▼▼▼ LOG PARA DEBUGGEAR DATOS ENVIADOS AL BACKEND ▼▼▼
-      console.log('🚀 ENVIANDO AL BACKEND (/api/cargues/):', JSON.stringify(datosCompletos, null, 2));
+
       
       // Mapear vendedor_id a database ID
       const vendedorMap = {
@@ -150,17 +150,17 @@ export const cargueService = {
         activo: true
       };
       
-      console.log('📤 Enviando datos de cargue:', cargueData);
+
       const cargue = await cargueService.create(cargueData);
       
-      console.log('📥 Respuesta del servidor:', cargue);
+
       
       if (cargue.error) {
         console.error('❌ Error en respuesta:', cargue);
         throw new Error(cargue.message);
       }
       
-      console.log('✅ Cargue creado exitosamente con ID:', cargue.id);
+
       
       // Guardar detalles de productos (solo los que tienen cantidad > 0)
       const productosConDatos = datosCompletos.productos.filter(p => p.cantidad > 0);
@@ -209,7 +209,7 @@ export const cargueService = {
   // ✨ NUEVA FUNCIÓN PARA EL ENDPOINT MEJORADO CON DATOS ANIDADOS ✨
   guardarCargueCompleto: async (datosParaGuardar) => {
     try {
-      console.log('🚀 DATOS ORIGINALES RECIBIDOS:', JSON.stringify(datosParaGuardar, null, 2));
+
       
       // 🔄 TRANSFORMAR DATOS AL FORMATO QUE ESPERA EL BACKEND
       const vendedorMap = {
@@ -244,7 +244,7 @@ export const cargueService = {
         resumen: datosParaGuardar.resumen || {}
       };
       
-      console.log('🔄 DATOS TRANSFORMADOS PARA BACKEND:', JSON.stringify(datosTransformados, null, 2));
+
       
       const response = await fetch(`${API_URL}/cargues/`, {
         method: 'POST',
@@ -254,7 +254,7 @@ export const cargueService = {
         body: JSON.stringify(datosTransformados),
       });
 
-      console.log('📡 Respuesta del servidor - Status:', response.status);
+
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -264,7 +264,7 @@ export const cargueService = {
       }
       
       const resultado = await response.json();
-      console.log('✅ Respuesta exitosa del servidor:', resultado);
+
       
       return resultado;
     } catch (error) {

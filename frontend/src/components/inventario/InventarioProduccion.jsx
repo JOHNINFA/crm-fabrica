@@ -135,7 +135,7 @@ const InventarioProduccion = () => {
         );
 
         if (posProducts.length > 0) {
-          console.log("Cargando productos desde POS:", posProducts.length);
+
 
           const productosFormateados = posProducts.map((producto) => ({
             id: producto.id,
@@ -165,7 +165,7 @@ const InventarioProduccion = () => {
           setProductos(productosOrdenados);
         } else {
           setProductos([]);
-          console.log("No se encontraron productos en localStorage");
+
 
           // Intentar cargar directamente desde la API
           try {
@@ -221,13 +221,13 @@ const InventarioProduccion = () => {
   // Sincronizar productos con BD
   const sincronizarProductos = async () => {
     try {
-      console.log("🔄 Iniciando sincronización con BD...");
+
 
       // Cargar existencias desde BD
       const response = await fetch("http://localhost:8000/api/productos/");
       if (response.ok) {
         const productosFromBD = await response.json();
-        console.log("📊 Productos cargados desde BD:", productosFromBD.length);
+
 
         // Actualizar productos en localStorage
         const productosParaInventario = productosFromBD.map((p) => ({
@@ -276,7 +276,7 @@ const InventarioProduccion = () => {
         window.dispatchEvent(new Event(event))
       );
 
-      console.log("✅ Sincronización completada");
+
     } catch (error) {
       console.error("Error en sincronización:", error);
     }
@@ -297,7 +297,7 @@ const InventarioProduccion = () => {
         const datosParseados = JSON.parse(datosConfirmacionGuardados);
         setDatosGuardados(datosParseados);
         setYaSeGrabo(true);
-        console.log("✅ Datos de confirmación cargados para:", fechaStr);
+
       } catch (error) {
         console.error("Error al parsear datos de confirmación:", error);
       }
@@ -328,7 +328,7 @@ const InventarioProduccion = () => {
         // Debounce de 2 segundos - solo recarga si no hay actividad
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          console.log('🔄 Recargando productos por cambio en storage...');
+
           cargarProductos();
         }, 2000);
       }
@@ -338,7 +338,7 @@ const InventarioProduccion = () => {
       // Debounce de 2 segundos
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        console.log('🔄 Recargando productos por evento productosUpdated...');
+
         cargarProductos();
       }, 2000);
     };
@@ -590,7 +590,7 @@ const InventarioProduccion = () => {
         const fechaKey = `confirmacion_produccion_${fechaStr}`;
         localStorage.setItem(fechaKey, JSON.stringify(datosActualizados));
 
-        console.log("✅ Datos de confirmación actualizados después de editar");
+
       }
 
       setMensaje({
@@ -939,7 +939,7 @@ const InventarioProduccion = () => {
       const response = await fetch("http://localhost:8000/api/productos/");
       if (response.ok) {
         const productosFromBD = await response.json();
-        console.log("📊 Datos recibidos de la BD:", productosFromBD);
+
 
         // Actualizar productos en localStorage con datos frescos del backend
         const productosParaInventario = productosFromBD.map((p) => ({
@@ -1001,7 +1001,7 @@ const InventarioProduccion = () => {
           }
         }, 500);
 
-        console.log("✅ Sincronización completa con backend exitosa");
+
       }
     } catch (syncError) {
       console.error("Error en sincronización final:", syncError);

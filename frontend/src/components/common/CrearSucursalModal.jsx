@@ -88,7 +88,7 @@ const CrearSucursalModal = ({ show, onHide, onSucursalCreada }) => {
         setLoading(true);
 
         try {
-            console.log('🔄 Creando sucursal:', formData);
+
             
             // Preparar datos para envío
             const dataToSend = {
@@ -105,7 +105,7 @@ const CrearSucursalModal = ({ show, onHide, onSucursalCreada }) => {
             const resultado = await sucursalService.create(dataToSend);
 
             if (resultado && !resultado.error) {
-                console.log('✅ Sucursal creada exitosamente:', resultado);
+
                 onSucursalCreada(resultado);
                 limpiarFormulario();
             } else {

@@ -12,7 +12,7 @@ const VerificarGuardado = ({ dia, fechaSeleccionada }) => {
         setResultados(null);
 
         try {
-            console.log('🔍 VERIFICANDO DATOS GUARDADOS...');
+
 
             const fechaAUsar = fechaSeleccionada;
             const { cargueService } = await import('../../services/cargueService');
@@ -24,7 +24,7 @@ const VerificarGuardado = ({ dia, fechaSeleccionada }) => {
                 throw new Error(carguesHoy.message);
             }
 
-            console.log('📊 Cargues encontrados:', carguesHoy);
+
 
             // Organizar resultados
             const resumen = {
@@ -55,7 +55,7 @@ const VerificarGuardado = ({ dia, fechaSeleccionada }) => {
             });
 
             setResultados(resumen);
-            console.log('✅ VERIFICACIÓN COMPLETADA:', resumen);
+
 
         } catch (error) {
             console.error('❌ Error verificando datos:', error);

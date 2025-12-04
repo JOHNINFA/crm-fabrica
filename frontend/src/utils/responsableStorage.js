@@ -29,7 +29,7 @@ export const responsableStorage = {
   getAll: () => {
     try {
       const responsables = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      console.log('📦 ResponsableStorage.getAll():', responsables);
+
       return responsables;
     } catch (error) {
       console.error('❌ Error obteniendo todos los responsables:', error);
@@ -65,7 +65,7 @@ export const responsableStorage = {
   setAll: (responsables) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(responsables));
-      console.log('💾 ResponsableStorage.setAll():', responsables);
+
       return true;
     } catch (error) {
       console.error('❌ Error guardando todos los responsables:', error);
@@ -77,7 +77,7 @@ export const responsableStorage = {
   clear: () => {
     try {
       localStorage.removeItem(STORAGE_KEY);
-      console.log('🗑️ ResponsableStorage.clear(): Limpiado');
+
       return true;
     } catch (error) {
       console.error('❌ Error limpiando responsables:', error);

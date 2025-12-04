@@ -118,7 +118,7 @@ const CrearCajeroModal = ({ show, onHide, onCajeroCreado }) => {
             cajeroData.sucursal_id = parseInt(cajeroData.sucursal_id);
             cajeroData.limite_descuento = parseFloat(cajeroData.limite_descuento);
 
-            console.log('Creando cajero con datos:', cajeroData);
+
 
             const resultado = await cajeroService.create(cajeroData);
 

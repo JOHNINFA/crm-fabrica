@@ -36,10 +36,10 @@ function PosMainContent() {
   }, [allProducts, getProductsByModule]);
 
   // 🔍 DEBUG: Ver qué productos se están mostrando
-  console.log('🔍 POS - Total productos:', allProducts?.length);
-  console.log('🔍 POS - Productos filtrados:', products?.length);
-  console.log('🔍 POS - CANASTILLA en todos:', allProducts?.find(p => p.name?.includes('CANASTILLA')));
-  console.log('🔍 POS - CANASTILLA filtrado:', products?.find(p => p.name?.includes('CANASTILLA')));
+
+
+
+
 
   const { cajeroLogueado, isAuthenticated } = useCajero();
   const [search, setSearch] = useState("");
@@ -69,7 +69,7 @@ function PosMainContent() {
   // Actualizar vendedor cuando se loguea un cajero
   useEffect(() => {
     if (isAuthenticated && cajeroLogueado) {
-      console.log('🔄 Cajero logueado, actualizando vendedor:', cajeroLogueado.nombre);
+
       setSeller(cajeroLogueado.nombre);
     } else {
       // Si no hay cajero logueado, usar vendedor por defecto
@@ -96,7 +96,7 @@ function PosMainContent() {
       console.error('Error leyendo listasVisiblesPos:', error);
     }
     // Fallback a CLIENTES si no hay configuración
-    console.log('💰 POS usando lista de precios por defecto: CLIENTES');
+
     return "CLIENTES";
   });
 

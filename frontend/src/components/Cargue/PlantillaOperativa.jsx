@@ -54,7 +54,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     useEffect(() => {
         const actualizarPreciosDesdeBackend = async () => {
             try {
-                console.log('💰 Actualizando precios de Cargue desde backend...');
+
                 const productosBackend = await productoService.getAll();
 
                 if (productosBackend && productosBackend.length > 0) {
@@ -1326,7 +1326,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         fechaSeleccionada={fechaSeleccionada}
                         productos={productosOperativos}
                         onProductosActualizados={() => {
-                            console.log('🔄 REFRESCANDO DATOS DESPUÉS DE CORRECCIÓN...');
+
                             // Forzar recarga completa de datos
                             cargarDatosGuardados();
 

@@ -14,9 +14,9 @@ if (!localStorage.getItem('deletedProductIds')) {
   localStorage.setItem('deletedProductIds', JSON.stringify([]));
 }
 
-console.log('Sincronización automática con el backend desactivada');
-console.log('Cola de sincronización limpiada');
-console.log('Lista de productos eliminados inicializada');
+
+
+
 
 // Función para aplicar filtro de productos eliminados
 const applyDeletedFilter = () => {
@@ -26,14 +26,14 @@ const applyDeletedFilter = () => {
     const deletedIds = deletedIdsStr ? JSON.parse(deletedIdsStr) : [];
     
     if (deletedIds.length === 0) {
-      console.log('No hay productos eliminados para filtrar');
+
       return;
     }
     
     // Obtener productos actuales
     const productsStr = localStorage.getItem('products');
     if (!productsStr) {
-      console.log('No hay productos para filtrar');
+
       return;
     }
     
@@ -43,7 +43,7 @@ const applyDeletedFilter = () => {
     const filteredProducts = products.filter(p => !deletedIds.includes(p.id));
     
     if (filteredProducts.length === products.length) {
-      console.log('No se encontraron productos eliminados en la lista actual');
+
       return;
     }
     

@@ -272,12 +272,12 @@ class VentaViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Crear venta con sus detalles"""
         try:
-            print("📊 Datos recibidos:", request.data)
+
             venta_data = request.data.copy()
             detalles_data = venta_data.pop('detalles', [])
             
-            print("📊 Datos de venta:", venta_data)
-            print("📊 Datos de detalles:", detalles_data)
+
+
             
             # Crear la venta
             venta_serializer = self.get_serializer(data=venta_data)
@@ -286,7 +286,7 @@ class VentaViewSet(viewsets.ModelViewSet):
                 return Response(venta_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             venta = venta_serializer.save()
-            print("✅ Venta creada:", venta.id)
+
             
             # Crear los detalles directamente
             for detalle_data in detalles_data:
@@ -1449,9 +1449,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 print(f"\n{'='*60}")
-                print(f"🔄 ANULANDO PEDIDO #{pedido.numero_pedido}")
+
                 print(f"{'='*60}")
-                print(f"📋 Destinatario: {pedido.destinatario}")
+
                 print(f"💰 Total: ${pedido.total}")
                 print(f"📅 Fecha entrega: {pedido.fecha_entrega}")
                 print(f"👤 Vendedor: {pedido.vendedor}")
@@ -2061,19 +2061,17 @@ class ArqueoCajaViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Crear arqueo con logging detallado"""
-        print('📦 Datos recibidos para crear arqueo:', request.data)
+
         
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
-            print('✅ Arqueo creado exitosamente:', serializer.data)
+
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         except Exception as e:
             print('❌ Error al crear arqueo:', str(e))
-            if hasattr(e, 'detail'):
-                print('   Detalles:', e.detail)
             return Response(
                 {'error': str(e), 'detail': getattr(e, 'detail', None)},
                 status=status.HTTP_400_BAD_REQUEST
@@ -2528,12 +2526,12 @@ def obtener_cargue(request):
         dia_raw = request.query_params.get('dia', '').upper()
         fecha = request.query_params.get('fecha') # YYYY-MM-DD
         
-        # Normalizar día (manejar con y sin tildes)
-        dias_con_tilde = {
-            'SABADO': 'SÁBADO',
-            'MIERCOLES': 'MIÉRCOLES',
+        # Normalizar día (quitar tildes para consistencia con BD)
+        dias_sin_tilde = {
+            'SÁBADO': 'SABADO',
+            'MIÉRCOLES': 'MIERCOLES',
         }
-        dia = dias_con_tilde.get(dia_raw, dia_raw)
+        dia = dias_sin_tilde.get(dia_raw, dia_raw)
 
         print(f"📱 Solicitando Cargue App: {vendedor_id} - {dia} (raw: {dia_raw}) - {fecha}")
 
@@ -2960,22 +2958,22 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                     })
 
         # Crear la venta con los datos procesados
-        print("=" * 60)
-        print("📦 DATOS A VALIDAR:")
+
+
         print(f"data keys: {data.keys()}")
         print(f"vendedor: {data.get('vendedor')}")
         print(f"cliente_nombre: {data.get('cliente_nombre')}")
         print(f"total: {data.get('total')}")
         print(f"detalles type: {type(data.get('detalles'))}, valor: {data.get('detalles')}")
         print(f"productos_vencidos type: {type(data.get('productos_vencidos'))}, valor: {data.get('productos_vencidos')}")
-        print("=" * 60)
+
         
         serializer = self.get_serializer(data=data)
         
         if not serializer.is_valid():
             print("❌ ERRORES DE VALIDACIÓN:")
             print(serializer.errors)
-            print("=" * 60)
+
             
         serializer.is_valid(raise_exception=True)
         venta = serializer.save()

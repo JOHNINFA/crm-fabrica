@@ -169,7 +169,7 @@ export default function MenuSheets() {
         if (responsablesCache) {
           try {
             const responsablesIniciales = JSON.parse(responsablesCache);
-            console.log('⚡ CACHÉ: Usando responsables cacheados para', dia, responsablesIniciales);
+
 
             const nuevosIds = {
               ID1: { nombreResponsable: responsablesIniciales.ID1 || "RESPONSABLE", datosTabla: {} },
@@ -189,7 +189,7 @@ export default function MenuSheets() {
         }
       }
 
-      console.log('🔄 CARGANDO: Responsables desde BD para', dia);
+
 
       // Cargar desde localStorage como fallback inicial
       const responsablesGuardados = localStorage.getItem('responsables_cargue');
@@ -198,7 +198,7 @@ export default function MenuSheets() {
       if (responsablesGuardados) {
         try {
           responsablesIniciales = JSON.parse(responsablesGuardados);
-          console.log('📦 Responsables desde localStorage:', responsablesIniciales);
+
         } catch (error) {
           console.error('❌ Error parsing responsables localStorage:', error);
         }
@@ -219,14 +219,14 @@ export default function MenuSheets() {
 
       // 🚀 CORREGIDO: Cargar todos los vendedores desde la BD
       try {
-        console.log('🔍 Cargando todos los responsables desde BD...');
+
 
         const response = await fetch('http://localhost:8000/api/vendedores/');
         let resultados = [];
 
         if (response.ok) {
           const vendedoresDB = await response.json();
-          console.log('📡 Vendedores desde BD:', vendedoresDB);
+
 
           // Mapear los vendedores a resultados
           resultados = vendedoresDB.map(v => ({
@@ -234,7 +234,7 @@ export default function MenuSheets() {
             responsable: v.nombre
           }));
 
-          console.log('📡 Resultados mapeados:', resultados);
+
         } else {
           console.error('❌ Error cargando vendedores desde BD');
           // Usar valores por defecto
@@ -254,7 +254,7 @@ export default function MenuSheets() {
         });
 
         if (hayChangios) {
-          console.log('🔄 Actualizando estado con nuevos responsables');
+
           setDatosIds({ ...nuevosIds });
 
           // Guardar en caché
@@ -271,9 +271,9 @@ export default function MenuSheets() {
           localStorage.setItem(`${cacheKey}_timestamp`, ahora.toString());
           localStorage.setItem('responsables_cargue', JSON.stringify(responsablesParaCache));
 
-          console.log('💾 Responsables guardados en caché para', dia);
+
         } else {
-          console.log('✅ No hay cambios en responsables');
+
         }
 
       } catch (error) {
@@ -307,7 +307,7 @@ export default function MenuSheets() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Responsable actualizado en BD:', data);
+
 
         // Actualizar estado local solo si la BD se actualizó correctamente
         setDatosIds(prev => ({
@@ -321,7 +321,7 @@ export default function MenuSheets() {
         // 🚀 Actualizar localStorage usando utilidad (incluye evento automático)
         responsableStorage.set(idSeleccionado, tempNombre);
 
-        console.log('✅ Responsable guardado exitosamente en BD y localStorage');
+
       } else {
         const error = await response.json();
         console.error('❌ Error actualizando responsable:', error);
