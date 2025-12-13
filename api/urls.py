@@ -47,6 +47,14 @@ router.register(r'ventas-ruta', VentaRutaViewSet, basename='ventas-ruta')
 # Configuración
 router.register(r'configuracion-impresion', ConfiguracionImpresionViewSet, basename='configuracion-impresion')
 
+# Caja y POS
+router.register(r'movimientos-caja', MovimientoCajaViewSet, basename='movimientos-caja')
+router.register(r'arqueo-caja', ArqueoCajaViewSet, basename='arqueo-caja')
+router.register(r'sucursales', SucursalViewSet, basename='sucursales')
+router.register(r'cajeros', CajeroViewSet, basename='cajeros')
+router.register(r'turnos', TurnoViewSet, basename='turnos')
+router.register(r'ventas-cajero', VentaCajeroViewSet, basename='ventas-cajero')
+
 # Snapshot Planeación
 router.register(r'registros-planeacion-dia', RegistrosPlaneacionDiaViewSet, basename='registros-planeacion-dia')
 

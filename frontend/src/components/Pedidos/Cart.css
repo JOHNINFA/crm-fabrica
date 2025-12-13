@@ -304,9 +304,9 @@
     margin-bottom: 10px;
 }
 
-.cart-note input {
+.pedidos-screen .cart-note input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 4px 12px !important;
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 14px;
@@ -324,7 +324,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    margin-top: 5px !important;
+    margin-top: 0px !important;
 }
 
 .pedidos-screen .checkout-button:hover {
@@ -381,10 +381,12 @@
 .pedidos-screen .product-badge {
     background-color: #28a745 !important;
     color: white !important;
-    font-size: 11px;
-    font-weight: 500;
-    padding: 4px 8px;
+    font-size: 0.68rem !important;
+    font-weight: 600;
+    padding: 0.2rem 0.45rem !important;
     border-radius: 4px;
+    width: fit-content !important;
+    display: inline-block !important;
 }
 
 /* Resp

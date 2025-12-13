@@ -65,15 +65,38 @@
 
 /* Cuerpo del carrito */
 .cart-body {
-  padding: 1rem !important;
+  padding: 0.5rem !important;
   margin-bottom: 0 !important;
-  height: 240px !important;
-  min-height: 240px !important;
-  max-height: 240px !important;
+  height: 620px !important;
+  min-height: 620px !important;
+  max-height: 620px !important;
   flex: 0 0 auto !important;
   user-select: none;
   -webkit-user-select: none;
   overflow-y: auto !important;
+}
+
+/* ... (código intermedio sin cambios) ... */
+
+/* Responsive para pantallas grandes */
+@media (min-width: 1600px) {
+  .cart-body {
+    height: 750px !important;
+    min-height: 750px !important;
+    max-height: 750px !important;
+  }
+
+  /* ... */
+}
+
+@media (min-width: 2560px) {
+  .cart-body {
+    height: 900px !important;
+    min-height: 900px !important;
+    max-height: 900px !important;
+  }
+
+  /* ... */
 }
 
 .cart-body:has(.cart-item) {
@@ -86,8 +109,8 @@
 
 /* Elementos del carrito */
 .cart-item {
-  margin-bottom: 0.75rem !important;
-  padding: 0.75rem;
+  margin-bottom: 0.5rem !important;
+  padding: 0.5rem;
   border: 1px solid var(--color-border, #f0f0f0);
   border-radius: 8px;
   transition: all 0.2s;
@@ -132,13 +155,16 @@
 }
 
 .product-badge {
-  background-color: #dc3545;
-  color: white;
-  font-size: 0.7rem;
+  background-color: rgba(220, 53, 69, 0.6) !important;
+  color: white !important;
+  font-size: 0.68rem !important;
   font-weight: 600;
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.45rem !important;
   border-radius: 4px;
   margin-left: 0.5rem;
+  width: fit-content !important;
+  display: inline-block !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 
 .cart-item-actions button {
@@ -248,7 +274,7 @@
 
 /* Pie del carrito */
 .cart-footer {
-  padding: 1rem;
+  padding: 0.5rem 1rem 2rem 1rem !important;
   border-top: 2px solid var(--color-border, #dee2e6);
   background-color: #fff;
   flex-shrink: 0;
@@ -258,7 +284,7 @@
 
 /* Resumen del carrito */
 .cart-summary {
-  margin-top: 0.5rem !important;
+  margin-top: 0 !important;
   margin-bottom: 0.5rem !important;
 }
 
@@ -335,7 +361,7 @@
   margin-bottom: 0.75rem;
 }
 
-.cart-note input {
+.pos-screen .cart-note input {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border, #ced4da);
