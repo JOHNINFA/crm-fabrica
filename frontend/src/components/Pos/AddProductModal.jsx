@@ -32,6 +32,10 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
     disponible_cargue: true,
     disponible_pedidos: true,
     disponible_inventario: true,
+    disponible_app_cargue: true,
+    disponible_app_sugeridos: true,
+    disponible_app_rendimiento: true,
+    disponible_app_ventas: true,
   });
 
   // Cargar datos del producto seleccionado
@@ -42,7 +46,11 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
         pos: productToEdit.disponible_pos,
         cargue: productToEdit.disponible_cargue,
         pedidos: productToEdit.disponible_pedidos,
-        inventario: productToEdit.disponible_inventario
+        inventario: productToEdit.disponible_inventario,
+        app_cargue: productToEdit.disponible_app_cargue,
+        app_sugeridos: productToEdit.disponible_app_sugeridos,
+        app_rendimiento: productToEdit.disponible_app_rendimiento,
+        app_ventas: productToEdit.disponible_app_ventas
       });
       setFormData({
         nombre: productToEdit.name || "",
@@ -61,6 +69,10 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
         disponible_cargue: productToEdit.disponible_cargue !== undefined ? productToEdit.disponible_cargue : true,
         disponible_pedidos: productToEdit.disponible_pedidos !== undefined ? productToEdit.disponible_pedidos : true,
         disponible_inventario: productToEdit.disponible_inventario !== undefined ? productToEdit.disponible_inventario : true,
+        disponible_app_cargue: productToEdit.disponible_app_cargue !== undefined ? productToEdit.disponible_app_cargue : true,
+        disponible_app_sugeridos: productToEdit.disponible_app_sugeridos !== undefined ? productToEdit.disponible_app_sugeridos : true,
+        disponible_app_rendimiento: productToEdit.disponible_app_rendimiento !== undefined ? productToEdit.disponible_app_rendimiento : true,
+        disponible_app_ventas: productToEdit.disponible_app_ventas !== undefined ? productToEdit.disponible_app_ventas : true,
       });
     }
   }, [productToEdit]);
@@ -300,67 +312,154 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
                 Disponibilidad por Módulo
               </span>
               <span className="badge bg-secondary">
-                {[formData.disponible_pos, formData.disponible_cargue, formData.disponible_pedidos, formData.disponible_inventario].filter(Boolean).length}/4
+                {[formData.disponible_pos, formData.disponible_cargue, formData.disponible_pedidos, formData.disponible_inventario, formData.disponible_app_cargue, formData.disponible_app_sugeridos, formData.disponible_app_rendimiento, formData.disponible_app_ventas].filter(Boolean).length}/8
               </span>
             </div>
 
             {showDisponibilidad && (
-              <div className="border border-top-0 rounded-bottom p-3">
-                <div className="row g-2">
-                  <div className="col-6 col-md-3">
-                    <div className="form-check form-switch">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="disponible_pos"
-                        checked={formData.disponible_pos}
-                        onChange={(e) => updateFormData('disponible_pos', e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="disponible_pos">
-                        POS
-                      </label>
+              <div className="border border-top-0 rounded-bottom p-3" style={{ backgroundColor: '#f8f9fa' }}>
+                {/* CRM Web */}
+                <div className="mb-4 p-3 bg-white rounded shadow-sm">
+                  <h6 className="fw-bold mb-3" style={{ color: '#495057' }}>
+                    <i className="bi bi-laptop me-2"></i>CRM Web
+                  </h6>
+                  <div className="row g-3">
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_pos"
+                          checked={formData.disponible_pos}
+                          onChange={(e) => updateFormData('disponible_pos', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_pos" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          POS
+                        </label>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_cargue"
+                          checked={formData.disponible_cargue}
+                          onChange={(e) => updateFormData('disponible_cargue', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_cargue" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Cargue
+                        </label>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_pedidos"
+                          checked={formData.disponible_pedidos}
+                          onChange={(e) => updateFormData('disponible_pedidos', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_pedidos" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Pedidos
+                        </label>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_inventario"
+                          checked={formData.disponible_inventario}
+                          onChange={(e) => updateFormData('disponible_inventario', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_inventario" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Inventario
+                        </label>
+                      </div>
                     </div>
                   </div>
-                  <div className="col-6 col-md-3">
-                    <div className="form-check form-switch">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="disponible_cargue"
-                        checked={formData.disponible_cargue}
-                        onChange={(e) => updateFormData('disponible_cargue', e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="disponible_cargue">
-                        Cargue
-                      </label>
+                </div>
+
+                {/* App Móvil */}
+                <div className="p-3 bg-white rounded shadow-sm">
+                  <h6 className="fw-bold mb-3" style={{ color: '#495057' }}>
+                    <i className="bi bi-phone me-2"></i>App Móvil
+                  </h6>
+                  <div className="row g-3">
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_app_cargue"
+                          checked={formData.disponible_app_cargue}
+                          onChange={(e) => updateFormData('disponible_app_cargue', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_app_cargue" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Cargue
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <div className="form-check form-switch">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="disponible_pedidos"
-                        checked={formData.disponible_pedidos}
-                        onChange={(e) => updateFormData('disponible_pedidos', e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="disponible_pedidos">
-                        Pedidos
-                      </label>
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_app_sugeridos"
+                          checked={formData.disponible_app_sugeridos}
+                          onChange={(e) => updateFormData('disponible_app_sugeridos', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_app_sugeridos" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Sugeridos
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <div className="form-check form-switch">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="disponible_inventario"
-                        checked={formData.disponible_inventario}
-                        onChange={(e) => updateFormData('disponible_inventario', e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="disponible_inventario">
-                        Inventario
-                      </label>
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_app_rendimiento"
+                          checked={formData.disponible_app_rendimiento}
+                          onChange={(e) => updateFormData('disponible_app_rendimiento', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_app_rendimiento" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Rendimiento
+                        </label>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="form-check form-switch d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="disponible_app_ventas"
+                          checked={formData.disponible_app_ventas}
+                          onChange={(e) => updateFormData('disponible_app_ventas', e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label className="form-check-label ms-2" htmlFor="disponible_app_ventas" style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}>
+                          Ventas
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>

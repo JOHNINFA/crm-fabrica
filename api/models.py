@@ -30,11 +30,17 @@ class Producto(models.Model):
     ubicacion_inventario = models.CharField(max_length=20, choices=UBICACION_INVENTARIO_CHOICES, default='PRODUCCION', db_index=True)  # Para filtrar en Inventario
     fecha_creacion = models.DateTimeField(default=timezone.now)
     
-    # 🆕 DISPONIBILIDAD POR MÓDULO
+    # 🆕 DISPONIBILIDAD POR MÓDULO (CRM Web)
     disponible_pos = models.BooleanField(default=True, verbose_name="Disponible en POS")
-    disponible_cargue = models.BooleanField(default=True, verbose_name="Disponible en Cargue")
+    disponible_cargue = models.BooleanField(default=True, verbose_name="Disponible en Cargue (CRM)")
     disponible_pedidos = models.BooleanField(default=True, verbose_name="Disponible en Pedidos")
     disponible_inventario = models.BooleanField(default=True, verbose_name="Disponible en Inventario")
+    
+    # 🆕 DISPONIBILIDAD POR MÓDULO (App Móvil)
+    disponible_app_cargue = models.BooleanField(default=True, verbose_name="App: Cargue")
+    disponible_app_sugeridos = models.BooleanField(default=True, verbose_name="App: Sugeridos")
+    disponible_app_rendimiento = models.BooleanField(default=True, verbose_name="App: Rendimiento")
+    disponible_app_ventas = models.BooleanField(default=True, verbose_name="App: Ventas")
     
     activo = models.BooleanField(default=True)
     

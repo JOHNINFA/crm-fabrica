@@ -72,6 +72,10 @@ export const UnifiedProductProvider = ({ children }) => {
         disponible_cargue: product.disponible_cargue !== undefined ? product.disponible_cargue : true,
         disponible_pedidos: product.disponible_pedidos !== undefined ? product.disponible_pedidos : true,
         disponible_inventario: product.disponible_inventario !== undefined ? product.disponible_inventario : true,
+        disponible_app_cargue: product.disponible_app_cargue !== undefined ? product.disponible_app_cargue : true,
+        disponible_app_sugeridos: product.disponible_app_sugeridos !== undefined ? product.disponible_app_sugeridos : true,
+        disponible_app_rendimiento: product.disponible_app_rendimiento !== undefined ? product.disponible_app_rendimiento : true,
+        disponible_app_ventas: product.disponible_app_ventas !== undefined ? product.disponible_app_ventas : true,
     }), []);
 
     // Convertir producto a formato Inventario/Cargue
@@ -151,6 +155,10 @@ export const UnifiedProductProvider = ({ children }) => {
                         disponible_cargue: p.disponible_cargue !== undefined ? p.disponible_cargue : true,
                         disponible_pedidos: p.disponible_pedidos !== undefined ? p.disponible_pedidos : true,
                         disponible_inventario: p.disponible_inventario !== undefined ? p.disponible_inventario : true,
+                        disponible_app_cargue: p.disponible_app_cargue !== undefined ? p.disponible_app_cargue : true,
+                        disponible_app_sugeridos: p.disponible_app_sugeridos !== undefined ? p.disponible_app_sugeridos : true,
+                        disponible_app_rendimiento: p.disponible_app_rendimiento !== undefined ? p.disponible_app_rendimiento : true,
+                        disponible_app_ventas: p.disponible_app_ventas !== undefined ? p.disponible_app_ventas : true,
                     }));
 
                 setProducts(formattedProducts);
@@ -213,6 +221,10 @@ export const UnifiedProductProvider = ({ children }) => {
                 disponible_cargue: productData.disponible_cargue !== undefined ? productData.disponible_cargue : true,
                 disponible_pedidos: productData.disponible_pedidos !== undefined ? productData.disponible_pedidos : true,
                 disponible_inventario: productData.disponible_inventario !== undefined ? productData.disponible_inventario : true,
+                disponible_app_cargue: productData.disponible_app_cargue !== undefined ? productData.disponible_app_cargue : true,
+                disponible_app_sugeridos: productData.disponible_app_sugeridos !== undefined ? productData.disponible_app_sugeridos : true,
+                disponible_app_rendimiento: productData.disponible_app_rendimiento !== undefined ? productData.disponible_app_rendimiento : true,
+                disponible_app_ventas: productData.disponible_app_ventas !== undefined ? productData.disponible_app_ventas : true,
                 activo: true
             };
 
@@ -273,7 +285,15 @@ export const UnifiedProductProvider = ({ children }) => {
                 image: productData.imagen,
                 purchasePrice: productData.precioCompra || 0,
                 orden: productData.orden || 0,
-                ubicacionInventario: productData.ubicacionInventario || 'PRODUCCION'
+                ubicacionInventario: productData.ubicacionInventario || 'PRODUCCION',
+                disponible_pos: productData.disponible_pos !== undefined ? productData.disponible_pos : true,
+                disponible_cargue: productData.disponible_cargue !== undefined ? productData.disponible_cargue : true,
+                disponible_pedidos: productData.disponible_pedidos !== undefined ? productData.disponible_pedidos : true,
+                disponible_inventario: productData.disponible_inventario !== undefined ? productData.disponible_inventario : true,
+                disponible_app_cargue: productData.disponible_app_cargue !== undefined ? productData.disponible_app_cargue : true,
+                disponible_app_sugeridos: productData.disponible_app_sugeridos !== undefined ? productData.disponible_app_sugeridos : true,
+                disponible_app_rendimiento: productData.disponible_app_rendimiento !== undefined ? productData.disponible_app_rendimiento : true,
+                disponible_app_ventas: productData.disponible_app_ventas !== undefined ? productData.disponible_app_ventas : true,
             };
 
             // Actualizar estado

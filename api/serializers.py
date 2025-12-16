@@ -37,6 +37,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             'stock_total', 'stock_actual', 'categoria', 'categoria_nombre', 'imagen', 
             'codigo_barras', 'marca', 'impuesto', 'orden', 'ubicacion_inventario',
             'disponible_pos', 'disponible_cargue', 'disponible_pedidos', 'disponible_inventario',
+            'disponible_app_cargue', 'disponible_app_sugeridos', 'disponible_app_rendimiento', 'disponible_app_ventas',
             'fecha_creacion', 'activo'
         ]
         read_only_fields = ('fecha_creacion', 'stock_actual')

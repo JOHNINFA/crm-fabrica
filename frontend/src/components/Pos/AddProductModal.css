@@ -233,3 +233,44 @@ h5 {
     width: 95%;
   }
 }
+
+/* Estilos personalizados para switches de disponibilidad */
+.form-check-input[type="checkbox"] {
+  width: 3em !important;
+  height: 1.5em !important;
+  border-radius: 2em !important;
+  background-color: #d1d5db !important;
+  border: none !important;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  background-image: none !important;
+}
+
+.form-check-input[type="checkbox"]:checked {
+  background-color: #003d82 !important;
+  border-color: #003d82 !important;
+}
+
+.form-check-input[type="checkbox"]:focus {
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+.form-check-input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 1.2em;
+  height: 1.2em;
+  border-radius: 50%;
+  background-color: white;
+  top: 50%;
+  left: 0.15em;
+  transform: translateY(-50%);
+  transition: left 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.form-check-input[type="checkbox"]:checked::before {
+  left: calc(100% - 1.35em);
+}

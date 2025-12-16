@@ -30,7 +30,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 
 class ProductoViewSet(viewsets.ModelViewSet):
     """API para gestionar productos"""
-    queryset = Producto.objects.all().order_by('id')  # Orden consistente por ID
+    queryset = Producto.objects.filter(activo=True).order_by('id')  # Solo productos activos
     serializer_class = ProductoSerializer
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]

@@ -1,7 +1,7 @@
 # signals.py - Señales para actualizar Planeación automáticamente
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from .models import MovimientoInventario, Planeacion, Stock
+from .models import MovimientoInventario, Planeacion, Stock, Producto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
 from datetime import date
 
 
@@ -63,3 +63,49 @@ def actualizar_existencias_desde_stock(sender, instance, **kwargs):
         
     except Exception as e:
         print(f"❌ Error actualizando planeación desde stock: {e}")
+
+
+@receiver(pre_save, sender=Producto)
+def actualizar_nombre_en_cargue(sender, instance, **kwargs):
+    """
+    Cuando se cambia el nombre de un producto, actualiza automáticamente
+    ese nombre en todas las tablas de Cargue (CargueID1-6).
+    """
+    # Solo procesar si el producto ya existe (no es nuevo)
+    if not instance.pk:
+        return
+    
+    try:
+        # Obtener el nombre anterior del producto
+        producto_anterior = Producto.objects.get(pk=instance.pk)
+        nombre_anterior = producto_anterior.nombre
+        nombre_nuevo = instance.nombre
+        
+        # Si el nombre no cambió, no hacer nada
+        if nombre_anterior == nombre_nuevo:
+            return
+        
+        print(f"🔄 Actualizando nombre de producto en Cargue:")
+        print(f"   Anterior: {nombre_anterior}")
+        print(f"   Nuevo: {nombre_nuevo}")
+        
+        # Actualizar en todas las tablas de Cargue
+        modelos_cargue = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+        total_actualizados = 0
+        
+        for Modelo in modelos_cargue:
+            count = Modelo.objects.filter(producto=nombre_anterior).update(producto=nombre_nuevo)
+            if count > 0:
+                print(f"   ✅ {Modelo.__name__}: {count} registros actualizados")
+                total_actualizados += count
+        
+        if total_actualizados > 0:
+            print(f"   📊 Total: {total_actualizados} registros actualizados en Cargue")
+        else:
+            print(f"   ℹ️ No se encontraron registros con el nombre anterior")
+            
+    except Producto.DoesNotExist:
+        # El producto es nuevo, no hacer nada
+        pass
+    except Exception as e:
+        print(f"❌ Error actualizando nombre en Cargue: {e}")
