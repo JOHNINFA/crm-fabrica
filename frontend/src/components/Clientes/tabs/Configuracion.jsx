@@ -71,21 +71,48 @@ const Configuracion = ({ clienteData, setClienteData }) => {
           ))}
         </select>
       </div>
-      <div className="col-md-3">
-        <label className="form-label">Día de Entrega</label>
-        <select
-          className="form-select"
-          value={clienteData.dia_entrega || ''}
-          onChange={(e) => handleChange('dia_entrega', e.target.value)}
-        >
-          <option value="">Sin día</option>
-          <option value="LUNES">Lunes</option>
-          <option value="MARTES">Martes</option>
-          <option value="MIERCOLES">Miércoles</option>
-          <option value="JUEVES">Jueves</option>
-          <option value="VIERNES">Viernes</option>
-          <option value="SABADO">Sábado</option>
-        </select>
+      <div className="col-md-6">
+        <label className="form-label">Días de Entrega</label>
+        <div className="d-flex flex-wrap gap-2" style={{ marginTop: '8px' }}>
+          {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'].map((dia) => {
+            // Verificar si el día está seleccionado
+            const diasActuales = (clienteData.dia_entrega || '').split(',').map(d => d.trim()).filter(Boolean);
+            const isChecked = diasActuales.includes(dia);
+
+            const toggleDia = () => {
+              let nuevoDias;
+              if (isChecked) {
+                // Quitar el día
+                nuevoDias = diasActuales.filter(d => d !== dia);
+              } else {
+                // Agregar el día
+                nuevoDias = [...diasActuales, dia];
+              }
+              handleChange('dia_entrega', nuevoDias.join(','));
+            };
+
+            return (
+              <button
+                key={dia}
+                type="button"
+                onClick={toggleDia}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: '0.7rem',
+                  fontWeight: isChecked ? 'bold' : '500',
+                  borderRadius: '12px',
+                  backgroundColor: isChecked ? '#06386d' : 'transparent',
+                  color: isChecked ? 'white' : '#06386d',
+                  border: `1.5px solid ${isChecked ? '#06386d' : '#b0c4de'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {dia.substring(0, 3)}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="col-md-3">
         <label className="form-label">Centro de Costo</label>

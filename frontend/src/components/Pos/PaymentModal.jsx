@@ -60,6 +60,20 @@ const PaymentModal = ({
     setEntregado(safeTotal);
   }, [safeTotal]);
 
+  // Cambiar banco según método de pago
+  useEffect(() => {
+    if (metodoPago === 'Transf' || metodoPago === 'T_Credito' || metodoPago === 'Tarjeta') {
+      setBanco('NEQUI');
+    } else {
+      // Restaurar a Caja General o el primer banco disponible
+      if (bancos.length > 0) {
+        setBanco(bancos[0].nombre);
+      } else {
+        setBanco('Caja General');
+      }
+    }
+  }, [metodoPago, bancos]);
+
   // Ocultar elementos sticky cuando el modal está abierto
   useEffect(() => {
     if (show) {
@@ -164,8 +178,8 @@ const PaymentModal = ({
             console.error('Error al intentar imprimir:', printError);
             // No detenemos el flujo, mostramos el mensaje de éxito igual
           }
-        }
-
+        } 
+        
         // Limpiar y cerrar
         clearCart();
         onClose();
@@ -206,6 +220,44 @@ const PaymentModal = ({
   // Función para actualizar el dinero entregado al valor del total
   const setDineroExacto = () => {
     setEntregado(safeTotal);
+  };
+
+  // Función para abrir el cajón monedero (imprimiendo un ticket vacío)
+  const abrirCajon = () => {
+    // Solo intentar abrir cajón si el método de pago es Efectivo
+    if (metodoPago !== 'Efectivo') return;
+
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+      <html>
+        <head>
+        <style>
+            @page { size: auto; margin: 0mm; } 
+            body { margin: 0; padding: 0; }
+        </style>
+        </head>
+        <body>.</body>
+      </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 500);
+    }, 500);
   };
 
   // Función para imprimir el ticket
@@ -256,7 +308,10 @@ const PaymentModal = ({
     const piePagina = configImpresion?.pie_pagina_ticket || '';
     const mensajeGracias = configImpresion?.mensaje_agradecimiento || '¡Gracias por su compra!';
     const mostrarLogo = configImpresion?.mostrar_logo !== false;
-    const logoUrl = configImpresion?.logo ? `http://localhost:8000${configImpresion.logo}` : null;
+    // Usar logo_base64 si está disponible (viene del backend ya codificado)
+    const logoSrc = configImpresion?.logo_base64 || null;
+    // Fuente del ticket (configurable desde Configuración de Impresión)
+    const fuenteTicket = configImpresion?.fuente_ticket || 'Courier New';
 
     return `
       <!DOCTYPE html>
@@ -279,7 +334,7 @@ const PaymentModal = ({
           body {
             margin: 0;
             padding: 10px;
-            font-family: 'Courier New', monospace;
+            font-family: '${fuenteTicket}', monospace, sans-serif;
             font-size: 12px;
             background: white;
             color: black;
@@ -400,7 +455,7 @@ const PaymentModal = ({
       <body>
         <div class="ticket-container">
           <div class="ticket-header">
-            ${mostrarLogo && logoUrl ? `<img src="${logoUrl}" class="ticket-logo" />` : ''}
+            ${mostrarLogo && logoSrc ? `<img src="${logoSrc}" class="ticket-logo" />` : ''}
             <div class="ticket-business-name">${nombreNegocio}</div>
             ${nitNegocio ? `<div class="ticket-business-info">NIT: ${nitNegocio}</div>` : ''}
             ${direccionNegocio ? `<div class="ticket-business-info">${direccionNegocio}</div>` : ''}
@@ -546,6 +601,8 @@ const PaymentModal = ({
                     type="text"
                     className="form-control money-input"
                     value={`$ ${entregado.toLocaleString()}`}
+                    onFocus={(e) => e.target.select()}
+                    onClick={(e) => e.target.select()}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^\d]/g, '').replace('$ ', '');
                       setEntregado(value ? Number(value) : 0);
@@ -631,13 +688,22 @@ const PaymentModal = ({
             {/* Fila con Bancos y Centro de Costo */}
             <div className="form-row compact-row">
               <div className="form-group">
-                <label className="form-label compact-label">Bancos</label>
+                <label className="form-label compact-label">
+                  {metodoPago === 'Transf' || metodoPago === 'T_Credito' || metodoPago === 'Tarjeta' ? 'Tipo de Pago' : 'Bancos'}
+                </label>
                 <select
                   className="form-select compact-select"
                   value={banco}
                   onChange={(e) => setBanco(e.target.value)}
                 >
-                  {bancos.length === 0 ? (
+                  {(metodoPago === 'Transf' || metodoPago === 'T_Credito' || metodoPago === 'Tarjeta') ? (
+                    <>
+                      <option value="NEQUI">NEQUI</option>
+                      <option value="DAVIPLATA">DAVIPLATA</option>
+                      <option value="TARJETA">TARJETA</option>
+                      <option value="OTROS">OTROS</option>
+                    </>
+                  ) : bancos.length === 0 ? (
                     <option>Caja General</option>
                   ) : (
                     bancos.map(b => (

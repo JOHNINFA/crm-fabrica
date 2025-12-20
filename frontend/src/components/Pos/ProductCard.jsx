@@ -10,6 +10,7 @@ export default function ProductCard({ product, onClick }) {
   const cachedImage = productImages?.[product.id];
   const [imageSource, setImageSource] = useState(cachedImage || product.image || null);
   const [isClicked, setIsClicked] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   // Siempre mostrar el precio base del producto en la tarjeta
   const precioMostrar = product.price;
@@ -39,6 +40,8 @@ export default function ProductCard({ product, onClick }) {
 
     loadLocalImage();
   }, [product.id, product.image, cachedImage]);
+
+
 
   // Formatear precio
   const formatPrice = (price) => {
@@ -82,22 +85,35 @@ export default function ProductCard({ product, onClick }) {
     >
       <div className="card-body d-flex flex-column align-items-center text-center" style={{ padding: '4px' }}>
         {/* Imagen o icono por defecto */}
-        {imageSource ? (
-          <img
-            src={imageSource}
-            alt={product.name || 'Producto'}
-            style={{
-              maxHeight: 45,
-              maxWidth: '100%',
-              objectFit: 'contain',
-              marginBottom: '3px'
-            }}
-          />
-        ) : (
-          <span style={{ fontSize: 22, marginBottom: '3px' }} className="material-icons">
-            paid
-          </span>
-        )}
+        <div style={{
+          height: '50px',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '3px',
+          overflow: 'hidden',
+          backgroundColor: '#f8f9fa', // Fondo suave mientras carga
+          borderRadius: '4px'
+        }}>
+          {imageSource ? (
+            <img
+              src={imageSource}
+              alt={product.name || 'Producto'}
+              loading="eager"
+              style={{
+                height: '100%',
+                width: 'auto',
+                maxWidth: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          ) : (
+            <span style={{ fontSize: 22 }} className="material-icons">
+              paid
+            </span>
+          )}
+        </div>
 
         {/* Precio */}
         <div style={{ fontSize: '14px', color: '#495057', fontWeight: '700', marginBottom: '2px' }}>

@@ -344,14 +344,17 @@ const InventarioPlaneacion = () => {
       }
 
       // 🎯 Usar stocks como productos (api_stock ya tiene todos los de PRODUCCION)
-      const productosProduccion = stocksBD.map(s => ({
-        id: s.producto_id,
-        nombre: s.producto_nombre,
-        descripcion: s.producto_descripcion,
-        stock_total: s.cantidad_actual
-      }));
+      // 🆕 Filtrar productos con disponible_inventario = true
+      const productosProduccion = stocksBD
+        .filter(s => s.disponible_inventario !== false) // Excluir productos sin inventario
+        .map(s => ({
+          id: s.producto_id,
+          nombre: s.producto_nombre,
+          descripcion: s.producto_descripcion,
+          stock_total: s.cantidad_actual
+        }));
 
-      console.log(`📦 Productos desde api_stock: ${productosProduccion.length}`);
+      console.log(`📦 Productos desde api_stock: ${productosProduccion.length} (de ${stocksBD.length} totales)`);
 
 
       // 🧠 CONSULTAR PREDICCIONES DE IA CON REDES NEURONALES

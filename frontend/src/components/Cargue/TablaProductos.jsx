@@ -196,7 +196,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
               </td>
               <td className="text-center total-cell">{p.total || 0}</td>
               <td className="text-center valor-cell">
-                {p.valor ? `$${p.valor.toLocaleString()}` : '$0'}
+                {p.valor ? `$${Math.round(parseFloat(p.valor)).toLocaleString()}` : '$0'}
               </td>
               <td className="text-center neto-cell">
                 {p.neto ? `$${Math.round(p.neto).toLocaleString()}` : '$0'}

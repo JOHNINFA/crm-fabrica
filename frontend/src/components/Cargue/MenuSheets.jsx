@@ -429,15 +429,29 @@ export default function MenuSheets() {
                             const vAnterior = producto.vendedor;
                             const vNuevo = datosProductoServidor.v || false;
 
-                            if (vAnterior !== vNuevo) {
-                              console.log(`✅ ${id} - ${producto.producto}: V cambió de ${vAnterior} a ${vNuevo}`);
+                            // Detectar cambios en cualquier campo importante
+                            const huboCambios =
+                              vAnterior !== vNuevo ||
+                              (producto.vendidas || 0) !== (datosProductoServidor.vendidas || 0) ||
+                              (producto.vencidas || 0) !== (datosProductoServidor.vencidas || 0) ||
+                              (producto.devoluciones || 0) !== (datosProductoServidor.devoluciones || 0) ||
+                              (producto.cantidad || 0) !== (datosProductoServidor.cantidad || 0);
+
+                            if (huboCambios) {
+                              console.log(`✅ ${id} - ${producto.producto}: Actualizando datos desde servidor`);
                               checksActualizados++;
                             }
 
                             return {
                               ...producto,
+                              cantidad: datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad,
+                              adicional: datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional,
+                              devoluciones: datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones,
+                              vendidas: datosProductoServidor.vendidas !== undefined ? datosProductoServidor.vendidas : producto.vendidas, // 🆕 Importante para ventas
+                              vencidas: datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas, // 🆕 Importante para vencidas
                               vendedor: vNuevo,
-                              despachador: datosProductoServidor.d || producto.despachador
+                              despachador: datosProductoServidor.d || producto.despachador,
+                              // Recalcular totales si es necesario? Mejor dejar que el componente lo haga
                             };
                           }
                           return producto;
@@ -465,12 +479,17 @@ export default function MenuSheets() {
                   detail: { dia, fecha: fechaAUsar, totalActualizados }
                 }));
 
+                // 🆕 4. Disparar evento para recargar pedidos
+                window.dispatchEvent(new CustomEvent('recargarPedidos', {
+                  detail: { dia, fecha: fechaAUsar }
+                }));
+
                 // Mostrar resultado
                 setSincronizando(false);
                 if (totalActualizados > 0) {
-                  alert(`✅ Sincronización completada\n${totalActualizados} checks V actualizados desde la app móvil`);
+                  alert(`✅ Sincronización completada\n${totalActualizados} datos actualizados + pedidos recargados`);
                 } else {
-                  alert('✅ Sincronización completada\nNo hay cambios nuevos en los checks V');
+                  alert('✅ Sincronización completada\nPedidos actualizados');
                 }
               }}
               title="Sincronizar checks V desde la app móvil"

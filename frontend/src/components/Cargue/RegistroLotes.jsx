@@ -84,6 +84,49 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                     setLotes([]);
                 }
             } else {
+                // 🆕 NUEVO: Si localStorage está vacío, intentar cargar desde BD
+                console.log(`🔍 LOTES - No hay localStorage, intentando cargar desde BD...`);
+
+                try {
+                    const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+                        idSheet === 'ID2' ? 'cargue-id2' :
+                            idSheet === 'ID3' ? 'cargue-id3' :
+                                idSheet === 'ID4' ? 'cargue-id4' :
+                                    idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+                    const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+                    const response = await fetch(url);
+
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        if (Array.isArray(data) && data.length > 0) {
+                            // Buscar el campo de lotes en CUALQUIER registro
+                            for (const registro of data) {
+                                if (registro.lotes_produccion && registro.lotes_produccion !== '[]') {
+                                    try {
+                                        const lotesDB = typeof registro.lotes_produccion === 'string'
+                                            ? JSON.parse(registro.lotes_produccion)
+                                            : registro.lotes_produccion;
+
+                                        if (Array.isArray(lotesDB) && lotesDB.length > 0) {
+                                            console.log(`✅ LOTES - Cargados desde BD:`, lotesDB);
+                                            setLotes(lotesDB);
+                                            // Guardar en localStorage para próximas cargas
+                                            localStorage.setItem(keyLocal, JSON.stringify(lotesDB));
+                                            return;
+                                        }
+                                    } catch (error) {
+                                        console.error('❌ Error parsing lotes desde BD:', error);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Error cargando lotes desde BD:', error);
+                }
+
                 setLotes([]);
             }
         } catch (error) {

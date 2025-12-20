@@ -45,11 +45,23 @@ export const CajeroProvider = ({ children }) => {
                     setTurnoActivo(turno);
                 }
 
-                // Si no hay cajero, cargar sucursal por defecto
+                // Si no hay cajero, intentar recuperar sucursal activa guardada o cargar defecto
                 if (!cajeroGuardado) {
-                    const sucursalDefault = await sucursalService.getDefault();
-                    if (sucursalDefault) {
-                        setSucursalActiva(sucursalDefault);
+                    const sucursalGuardada = localStorage.getItem('sucursal_activa');
+                    if (sucursalGuardada) {
+                        try {
+                            const sucursal = JSON.parse(sucursalGuardada);
+                            setSucursalActiva(sucursal);
+                        } catch (e) {
+                            console.error('Error parseando sucursal guardada', e);
+                            const sucursalDefault = await sucursalService.getDefault();
+                            if (sucursalDefault) setSucursalActiva(sucursalDefault);
+                        }
+                    } else {
+                        const sucursalDefault = await sucursalService.getDefault();
+                        if (sucursalDefault) {
+                            setSucursalActiva(sucursalDefault);
+                        }
                     }
                 }
             } catch (error) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Form, Table, Spinner, Alert, Badge, Tabs, Tab, Modal } from 'react-bootstrap';
 import { cajaService } from '../services/cajaService';
 import { ventaService, productoService } from '../services/api';
@@ -13,6 +13,7 @@ import '../styles/CajaScreen.css';
 const CajaScreenContent = () => {
     usePageTitle('Caja');
     const navigate = useNavigate();
+    const location = useLocation();
     const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva } = useCajero();
     const [cajero, setCajero] = useState('jose');
     const [banco, setBanco] = useState('Todos');
@@ -76,6 +77,21 @@ const CajaScreenContent = () => {
             setCajero(cajeroLogueado.nombre);
         }
     }, [isAuthenticated, cajeroLogueado]);
+
+    // Leer parámetro de URL para abrir modal de movimiento automáticamente
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tipoMovimientoUrl = params.get('movimiento');
+
+        if (tipoMovimientoUrl === 'INGRESO' || tipoMovimientoUrl === 'EGRESO') {
+            // Establecer el tipo de movimiento y abrir el modal de movimientos
+            setTipoMovimiento(tipoMovimientoUrl);
+            setShowMovimientosBancarios(true); // Abrir modal de movimientos de caja
+
+            // Limpiar el parámetro de la URL para evitar que se abra de nuevo
+            navigate('/caja', { replace: true });
+        }
+    }, [location.search, navigate]);
 
     // Estados para ventas del día
     const [ventasDelDia, setVentasDelDia] = useState([]);
@@ -1473,10 +1489,6 @@ const CajaScreenContent = () => {
                                     )}
                                     Refrescar
                                 </Button>
-                                <Button variant="primary" size="sm" onClick={handleImprimir}>
-                                    <i className="bi bi-printer me-1"></i>
-                                    Imprimir
-                                </Button>
                             </div>
                         </Col>
                     </Row>
@@ -1574,43 +1586,7 @@ const CajaScreenContent = () => {
                                         )}
                                         Refrescar Datos
                                     </Button>
-                                    <Button variant="outline-info" size="sm" className="btn-compact" onClick={async () => {
 
-
-
-                                        // Probar ventaService directamente
-                                        try {
-                                            const todasLasVentas = await ventaService.getAll();
-
-
-                                            if (todasLasVentas && !todasLasVentas.error) {
-                                                const ventasHoy = todasLasVentas.filter(venta => {
-                                                    // Usar solo la parte de fecha sin conversión UTC
-                                                    const fechaVenta = venta.fecha.split('T')[0];
-                                                    console.log(`🔍 Comparando: ${fechaVenta} === ${fechaConsulta}`);
-                                                    return fechaVenta === fechaConsulta;
-                                                });
-
-
-                                                ventasHoy.forEach(venta => {
-                                                    console.log(`💰 Venta ID: ${venta.id}, Método: ${venta.metodo_pago}, Total: ${venta.total}, Fecha: ${venta.fecha}`);
-                                                });
-                                            }
-                                        } catch (error) {
-                                            console.error('❌ Error en diagnóstico:', error);
-                                        }
-
-                                        // Probar cajaService
-                                        try {
-                                            const resumenCaja = await cajaService.getResumenVentasDelDia(fechaConsulta);
-
-                                        } catch (error) {
-                                            console.error('❌ Error en cajaService:', error);
-                                        }
-                                    }}>
-                                        <i className="bi bi-bug me-1"></i>
-                                        Debug
-                                    </Button>
                                 </div>
                             </Col>
                         </Row>
@@ -1953,7 +1929,10 @@ const CajaScreenContent = () => {
                                             )}
                                             Actualizar
                                         </Button>
-                                        <Badge bg="primary" className="fs-6 px-3 py-2">
+                                        <Badge
+                                            className="fs-6 px-3 py-2"
+                                            style={{ backgroundColor: 'rgb(6, 56, 109)' }}
+                                        >
                                             {ventasDelDia?.length || 0} ventas
                                         </Badge>
                                     </div>

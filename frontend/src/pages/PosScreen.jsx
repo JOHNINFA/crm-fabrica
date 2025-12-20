@@ -35,7 +35,7 @@ function PosMainContent() {
     return getProductsByModule ? getProductsByModule('pos') : allProducts;
   }, [allProducts, getProductsByModule]);
 
-  // 🔍 DEBUG: Ver qué productos se están mostrando
+
 
 
 
@@ -88,7 +88,6 @@ function PosMainContent() {
         // Buscar la primera lista activa
         const listaActiva = Object.keys(listas).find(nombre => listas[nombre] === true);
         if (listaActiva) {
-          console.log(`💰 POS usando lista de precios: ${listaActiva}`);
           return listaActiva;
         }
       }
@@ -158,7 +157,7 @@ function PosMainContent() {
   return (
     <ModalProvider>
       <div className="d-flex pos-screen">
-        <Sidebar onWidthChange={setSidebarWidth} />
+        <Sidebar onWidthChange={setSidebarWidth} onOpenCategoryManager={() => setShowCategoryManager(true)} />
         <div className="flex-grow-1 pos-main-container">
           <Topbar onOpenCategoryManager={() => setShowCategoryManager(true)} />
           <main style={{ padding: "20px 24px 0px 24px" }}>

@@ -16,6 +16,11 @@ const ProductFormScreenContent = () => {
     const [showAddProductModal, setShowAddProductModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
+    // 🆕 Estados para drag-and-drop
+    const [draggedIndex, setDraggedIndex] = useState(null);
+    const [orderedProducts, setOrderedProducts] = useState([]);
+    const [isSavingOrder, setIsSavingOrder] = useState(false);
+
     // ProductContext ya sincroniza automáticamente con el inventario
 
     // Obtener el origen desde sessionStorage (por defecto '/pos')
@@ -50,6 +55,66 @@ const ProductFormScreenContent = () => {
     const handleCloseAddModal = () => {
         setShowAddProductModal(false);
         setSelectedProduct(null);
+    };
+
+    // 🆕 DRAG AND DROP - Funciones
+    const handleDragStart = (e, index) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDrop = async (e, dropIndex) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === dropIndex) {
+            setDraggedIndex(null);
+            return;
+        }
+
+        // Reordenar productos localmente
+        const newProducts = [...filteredProducts];
+        const draggedItem = newProducts[draggedIndex];
+        newProducts.splice(draggedIndex, 1);
+        newProducts.splice(dropIndex, 0, draggedItem);
+
+        setDraggedIndex(null);
+
+        // Guardar el nuevo orden en la BD
+        await saveNewOrder(newProducts);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIndex(null);
+    };
+
+    // 🆕 Guardar nuevo orden en la BD
+    const saveNewOrder = async (reorderedProducts) => {
+        setIsSavingOrder(true);
+        try {
+            // Actualizar el campo 'orden' de cada producto
+            for (let i = 0; i < reorderedProducts.length; i++) {
+                const product = reorderedProducts[i];
+                const newOrder = i + 1;
+
+                await fetch(`http://localhost:8000/api/productos/${product.id}/`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orden: newOrder })
+                });
+            }
+
+            console.log('✅ Orden de productos actualizado en BD');
+            // Recargar productos para reflejar el nuevo orden
+            await loadProductsFromBackend();
+        } catch (error) {
+            console.error('❌ Error guardando orden:', error);
+            alert('Error al guardar el orden. Intente nuevamente.');
+        }
+        setIsSavingOrder(false);
     };
 
     return (
@@ -98,16 +163,23 @@ const ProductFormScreenContent = () => {
                 >
                     <i className={`bi bi-arrow-repeat ${isSyncing ? 'spin' : ''}`}></i> {isSyncing ? 'Actualizando...' : 'Actualizar'}
                 </button>
-                <button className="btn btn-secondary">
-                    <i className="bi bi-download"></i>
-                </button>
-                <button className="btn btn-secondary">
-                    <i className="bi bi-printer"></i>
-                </button>
-                <button className="btn btn-danger">
-                    <i className="bi bi-trash"></i> Desactivar Productos
-                </button>
             </div>
+
+            {/* 🆕 Indicador de guardando orden */}
+            {isSavingOrder && (
+                <div style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#e3f2fd',
+                    borderRadius: '8px',
+                    marginBottom: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                }}>
+                    <i className="bi bi-arrow-repeat spin" style={{ color: '#1976d2' }}></i>
+                    <span style={{ color: '#1976d2', fontWeight: '500' }}>Guardando nuevo orden...</span>
+                </div>
+            )}
 
             {/* Table */}
             <div className="table-section">
@@ -115,6 +187,7 @@ const ProductFormScreenContent = () => {
                     <table className="table table-hover">
                         <thead>
                             <tr>
+                                <th style={{ width: '50px' }} title="Arrastra para reordenar">Orden</th>
                                 <th><input type="checkbox" /></th>
                                 <th>Acción</th>
                                 <th>Nombre</th>
@@ -127,8 +200,43 @@ const ProductFormScreenContent = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredProducts.map((product) => (
-                                <tr key={product.id}>
+                            {filteredProducts.map((product, index) => (
+                                <tr
+                                    key={product.id}
+                                    draggable={!searchQuery} // Solo arrastrar si no hay búsqueda
+                                    onDragStart={(e) => handleDragStart(e, index)}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, index)}
+                                    onDragEnd={handleDragEnd}
+                                    style={{
+                                        cursor: searchQuery ? 'default' : (draggedIndex === index ? 'grabbing' : 'grab'),
+                                        backgroundColor: draggedIndex === index ? '#e3f2fd' : 'white',
+                                        opacity: draggedIndex === index ? 0.5 : 1,
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    {/* 🆕 Columna de orden/drag */}
+                                    <td style={{ width: '50px', textAlign: 'center' }}>
+                                        {!searchQuery && (
+                                            <span
+                                                style={{
+                                                    cursor: 'grab',
+                                                    color: '#9CA3AF',
+                                                    fontSize: '16px'
+                                                }}
+                                                title="Arrastra para reordenar"
+                                            >
+                                                <i className="bi bi-grip-vertical"></i>
+                                            </span>
+                                        )}
+                                        <span style={{
+                                            marginLeft: '4px',
+                                            color: '#6B7280',
+                                            fontSize: '12px'
+                                        }}>
+                                            {product.orden || index + 1}
+                                        </span>
+                                    </td>
                                     <td><input type="checkbox" /></td>
                                     <td>
                                         <div className="action-buttons">
@@ -139,9 +247,6 @@ const ProductFormScreenContent = () => {
                                             >
                                                 <i className="bi bi-pencil"></i>
                                             </button>
-                                            <button className="btn btn-warning" title="Actualizar">
-                                                <i className="bi bi-arrow-repeat"></i>
-                                            </button>
                                             <button
                                                 className="btn btn-danger"
                                                 onClick={() => {
@@ -151,9 +256,6 @@ const ProductFormScreenContent = () => {
                                                 title="Eliminar"
                                             >
                                                 <i className="bi bi-x-lg"></i>
-                                            </button>
-                                            <button className="btn btn-success" title="Agregar al carrito">
-                                                <i className="bi bi-cart-plus"></i>
                                             </button>
                                         </div>
                                     </td>

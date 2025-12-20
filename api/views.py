@@ -8,15 +8,171 @@ import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
     CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer,
-    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer
+    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer
 )
+
+# 🆕 ViewSet para pagos de Cargue (múltiples filas por día/vendedor)
+class CarguePagosViewSet(viewsets.ModelViewSet):
+    """API para gestionar filas de pagos del módulo Cargue"""
+    queryset = CarguePagos.objects.filter(activo=True).order_by('id')
+    serializer_class = CarguePagosSerializer
+    permission_classes = [permissions.AllowAny]
+    filterset_fields = ['vendedor_id', 'dia', 'fecha']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        vendedor_id = self.request.query_params.get('vendedor_id')
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        
+        if vendedor_id:
+            queryset = queryset.filter(vendedor_id=vendedor_id)
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        
+        return queryset
+
+    @action(detail=False, methods=['post'])
+    def sync_pagos(self, request):
+        """
+        Sincroniza todas las filas de pagos para un vendedor/día/fecha.
+        Elimina las anteriores y crea las nuevas.
+        """
+        vendedor_id = request.data.get('vendedor_id')
+        dia = request.data.get('dia', '').upper()
+        fecha = request.data.get('fecha')
+        filas = request.data.get('filas', [])
+        usuario = request.data.get('usuario', 'Sistema')
+
+        if not all([vendedor_id, dia, fecha]):
+            return Response(
+                {'error': 'Se requiere vendedor_id, dia y fecha'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                # Eliminar filas anteriores
+                CarguePagos.objects.filter(
+                    vendedor_id=vendedor_id,
+                    dia=dia,
+                    fecha=fecha
+                ).delete()
+
+                # Crear nuevas filas
+                nuevas_filas = []
+                for fila in filas:
+                    if fila.get('concepto') or fila.get('descuentos', 0) > 0 or fila.get('nequi', 0) > 0 or fila.get('daviplata', 0) > 0:
+                        nuevas_filas.append(CarguePagos(
+                            vendedor_id=vendedor_id,
+                            dia=dia,
+                            fecha=fecha,
+                            concepto=fila.get('concepto', ''),
+                            descuentos=fila.get('descuentos', 0),
+                            nequi=fila.get('nequi', 0),
+                            daviplata=fila.get('daviplata', 0),
+                            usuario=usuario
+                        ))
+
+                if nuevas_filas:
+                    CarguePagos.objects.bulk_create(nuevas_filas)
+
+                return Response({
+                    'success': True,
+                    'message': f'Sincronizadas {len(nuevas_filas)} filas de pagos',
+                    'count': len(nuevas_filas)
+                })
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# 🆕 Importar CargueResumen para estado
+from .models import CargueResumen
+
+
+# 🆕 Endpoints para estado del cargue
+@api_view(['GET'])
+def obtener_estado_cargue(request):
+    """Obtiene el estado del cargue para un día/fecha"""
+    dia = request.query_params.get('dia', '').upper()
+    fecha = request.query_params.get('fecha')
+    
+    if not dia or not fecha:
+        return Response({'error': 'Se requiere dia y fecha'}, status=400)
+    
+    try:
+        # Buscar en CargueResumen (usamos ID1 como referencia global)
+        resumen = CargueResumen.objects.filter(
+            dia=dia,
+            fecha=fecha,
+            activo=True
+        ).first()
+        
+        if resumen:
+            return Response({
+                'success': True,
+                'estado': resumen.estado_cargue,
+                'vendedor_id': resumen.vendedor_id
+            })
+        else:
+            return Response({
+                'success': True,
+                'estado': 'ALISTAMIENTO',  # Default si no existe
+                'vendedor_id': None
+            })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+def actualizar_estado_cargue(request):
+    """Actualiza el estado del cargue para un día/fecha"""
+    dia = request.data.get('dia', '').upper()
+    fecha = request.data.get('fecha')
+    estado = request.data.get('estado', 'ALISTAMIENTO')
+    vendedor_id = request.data.get('vendedor_id', 'ID1')  # ID1 como referencia global
+    
+    if not dia or not fecha:
+        return Response({'error': 'Se requiere dia y fecha'}, status=400)
+    
+    estados_validos = ['ALISTAMIENTO', 'SUGERIDO', 'DESPACHO', 'COMPLETADO', 'ALISTAMIENTO_ACTIVO', 'FINALIZAR']
+    if estado not in estados_validos:
+        return Response({'error': f'Estado inválido. Válidos: {estados_validos}'}, status=400)
+    
+    try:
+        # Crear o actualizar en CargueResumen
+        resumen, created = CargueResumen.objects.update_or_create(
+            dia=dia,
+            fecha=fecha,
+            vendedor_id=vendedor_id,
+            defaults={
+                'estado_cargue': estado,
+                'activo': True
+            }
+        )
+        
+        return Response({
+            'success': True,
+            'estado': resumen.estado_cargue,
+            'action': 'created' if created else 'updated',
+            'message': f'Estado actualizado a {estado}'
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
 
 class RegistroViewSet(viewsets.ModelViewSet):
     queryset = Registro.objects.all()
@@ -30,7 +186,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 
 class ProductoViewSet(viewsets.ModelViewSet):
     """API para gestionar productos"""
-    queryset = Producto.objects.filter(activo=True).order_by('id')  # Solo productos activos
+    queryset = Producto.objects.filter(activo=True).order_by('orden', 'nombre')  # 🆕 Ordenar por campo 'orden'
     serializer_class = ProductoSerializer
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
@@ -2566,16 +2722,58 @@ def obtener_cargue(request):
         
         # Formatear respuesta para la App
         data = {}
+        
+        # 🆕 Verificar si el turno ya está cerrado (algún producto tiene devoluciones > 0)
+        turno_cerrado = registros.filter(devoluciones__gt=0).exists()
+        
         for reg in registros:
+            # 🆕 Stock disponible para vender = total - vendidas - vencidas
+            # Las vencidas también restan porque el vendedor da producto fresco como cambio
+            # Si el turno está cerrado, stock = 0
+            if turno_cerrado:
+                stock_disponible = 0
+            else:
+                stock_disponible = (reg.total or reg.cantidad) - (reg.vendidas or 0) - (reg.vencidas or 0)
+            
+            quantity_value = str(max(0, stock_disponible))  # No permitir negativos
             data[reg.producto] = {
-                'quantity': str(reg.total or reg.cantidad),  # Total calculado
+                'quantity': quantity_value,  # Stock disponible (total - vendidas)
                 'cantidad': reg.cantidad or 0,  # Cantidad base
                 'adicional': reg.adicional or 0,  # Adicionales
                 'dctos': reg.dctos or 0,  # Descuentos
+                'vendidas': reg.vendidas or 0,  # 🆕 Vendidas
+                'vencidas': reg.vencidas or 0,  # 🆕 Vencidas
+                'devoluciones': reg.devoluciones or 0,  # 🆕 Devoluciones
+                'turno_cerrado': turno_cerrado,  # 🆕 Flag para indicar que el turno está cerrado
                 'v': reg.v,  # Check vendedor
-                'd': reg.d   # Check despachador
+                'd': reg.d,   # Check despachador
+                # 🆕 Campos adicionales para sincronización completa
+                'lotes_vencidos': reg.lotes_vencidos or '',  # JSON string de lotes
+                'total': reg.total or 0,
+                'valor': float(reg.valor) if reg.valor else 0,
+                'neto': float(reg.neto) if reg.neto else 0,
+                # Pagos (pueden estar en el mismo registro)
+                'nequi': float(reg.nequi) if reg.nequi else 0,
+                'daviplata': float(reg.daviplata) if reg.daviplata else 0,
+                'concepto': reg.concepto or '',
+                'descuentos': float(reg.descuentos) if reg.descuentos else 0,
+                # Resumen
+                'base_caja': float(reg.base_caja) if reg.base_caja else 0,
+                # Cumplimiento
+                'licencia_transporte': reg.licencia_transporte or '',
+                'soat': reg.soat or '',
+                'uniforme': reg.uniforme or '',
+                'no_locion': reg.no_locion or '',
+                'no_accesorios': reg.no_accesorios or '',
+                'capacitacion_carnet': reg.capacitacion_carnet or '',
+                'higiene': reg.higiene or '',
+                'estibas': reg.estibas or '',
+                'desinfeccion': reg.desinfeccion or '',
             }
-            
+            # 🆕 Debug
+            if 'CANASTILLA' in reg.producto.upper():
+                print(f"🔍 BACKEND - CANASTILLA: cantidad={reg.cantidad}, adicional={reg.adicional}, total={reg.total}, quantity_value='{quantity_value}'")
+
         return Response(data)
 
     except Exception as e:
@@ -3021,6 +3219,131 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 imagen=evidencia_info['imagen']
             )
         
+        # ========== 🆕 SINCRONIZAR VENCIDAS A CARGUEIDx ==========
+        productos_vencidos = data.get('productos_vencidos', [])
+        print(f"🔍 DEBUG - productos_vencidos recibidos: {productos_vencidos}")
+        print(f"🔍 DEBUG - tipo: {type(productos_vencidos)}, longitud: {len(productos_vencidos) if productos_vencidos else 0}")
+        
+        # Si es string, parsearlo a JSON
+        if isinstance(productos_vencidos, str):
+            try:
+                productos_vencidos = json.loads(productos_vencidos)
+                print(f"✅ JSON parseado correctamente: {productos_vencidos}")
+            except json.JSONDecodeError as e:
+                print(f"❌ Error parseando JSON: {e}")
+                productos_vencidos = []
+        
+        if productos_vencidos and len(productos_vencidos) > 0:
+            try:
+                # Obtener ID del vendedor y fecha
+                id_vendedor = venta.vendedor.id_vendedor  # ID1, ID2, etc.
+                fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+                
+                print(f"🔄 Sincronizando vencidas a CargueIDx: {id_vendedor} - {fecha_venta}")
+                print(f"   Productos vencidos: {productos_vencidos}")
+                
+                # Mapeo de ID a Modelo
+                modelo_map = {
+                    'ID1': CargueID1,
+                    'ID2': CargueID2,
+                    'ID3': CargueID3,
+                    'ID4': CargueID4,
+                    'ID5': CargueID5,
+                    'ID6': CargueID6,
+                }
+                
+                ModeloCargue = modelo_map.get(id_vendedor)
+                if ModeloCargue:
+                    # Actualizar cada producto vencido en el cargue
+                    for item_vencido in productos_vencidos:
+                        nombre_producto = item_vencido.get('nombre', '') or item_vencido.get('producto', '')
+                        cantidad_vencida = item_vencido.get('cantidad', 0)
+                        
+                        if nombre_producto and cantidad_vencida > 0:
+                            # Buscar el producto en el cargue
+                            cargue = ModeloCargue.objects.filter(
+                                fecha=fecha_venta,
+                                producto__iexact=nombre_producto,
+                                activo=True
+                            ).first()
+                            
+                            if cargue:
+                                # Sumar a las vencidas existentes
+                                vencidas_actuales = cargue.vencidas or 0
+                                cargue.vencidas = vencidas_actuales + cantidad_vencida
+                                cargue.save(update_fields=['vencidas'])
+                                print(f"   ✅ {nombre_producto}: {vencidas_actuales} + {cantidad_vencida} = {cargue.vencidas}")
+                            else:
+                                print(f"   ⚠️ No se encontró cargue para: {nombre_producto}")
+                else:
+                    print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
+                    
+            except Exception as e:
+                print(f"❌ Error sincronizando vencidas: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        
+        # ========== 🆕 SINCRONIZAR VENDIDAS A CARGUEIDx ==========
+        try:
+            # Obtener ID del vendedor y fecha
+            id_vendedor = venta.vendedor.id_vendedor if hasattr(venta.vendedor, 'id_vendedor') else None
+            fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+            
+            if id_vendedor:
+                print(f"🔄 Sincronizando vendidas a CargueIDx: {id_vendedor} - {fecha_venta}")
+                
+                # Mapeo de modelos
+                modelo_map = {
+                    'ID1': CargueID1,
+                    'ID2': CargueID2,
+                    'ID3': CargueID3,
+                    'ID4': CargueID4,
+                    'ID5': CargueID5,
+                    'ID6': CargueID6,
+                }
+                
+                ModeloCargue = modelo_map.get(id_vendedor)
+                if ModeloCargue:
+                    # Parsear detalles de la venta
+                    detalles_json = data.get('detalles', '[]')
+                    if isinstance(detalles_json, str):
+                        try:
+                            detalles = json.loads(detalles_json)
+                        except:
+                            detalles = []
+                    else:
+                        detalles = detalles_json
+                    
+                    print(f"   📦 Detalles de venta: {len(detalles)} productos")
+                    
+                    # Actualizar vendidas por cada producto en la venta
+                    for item in detalles:
+                        nombre_producto = item.get('nombre', '')
+                        cantidad_vendida = int(item.get('cantidad', 0))
+                        
+                        if nombre_producto and cantidad_vendida > 0:
+                            # Buscar el producto en el cargue
+                            cargue = ModeloCargue.objects.filter(
+                                fecha=fecha_venta,
+                                producto__iexact=nombre_producto,
+                                activo=True
+                            ).first()
+                            
+                            if cargue:
+                                # Sumar a las vendidas existentes
+                                vendidas_actuales = cargue.vendidas or 0
+                                cargue.vendidas = vendidas_actuales + cantidad_vendida
+                                cargue.save(update_fields=['vendidas'])
+                                print(f"   ✅ {nombre_producto}: {vendidas_actuales} + {cantidad_vendida} = {cargue.vendidas}")
+                            else:
+                                print(f"   ⚠️ No se encontró cargue para: {nombre_producto}")
+                else:
+                    print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
+        except Exception as e:
+            print(f"❌ Error sincronizando vendidas: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -3134,3 +3457,631 @@ class RegistrosPlaneacionDiaViewSet(viewsets.ModelViewSet):
             'cantidad': registros.count(),
             'registros': serializer.data
         })
+
+
+# ==================== 🔗 INTEGRACIÓN APP ↔ WEB ====================
+# Endpoints para conectar ventas de app móvil con cargue web
+
+@api_view(['GET'])
+def calcular_devoluciones_automaticas(request, id_vendedor, fecha):
+    """
+    Calcula devoluciones automáticamente basándose en:
+    - Cargue inicial (de CargueIDx)
+    - Ventas reales (de VentaRuta desde app móvil)
+    - Vencidas (registradas manualmente)
+    
+    Fórmula: DEVOLUCIONES = CARGUE_INICIAL - VENTAS_APP - VENCIDAS
+    
+    Parámetros:
+        id_vendedor: ID1, ID2, ID3, ID4, ID5, ID6
+        fecha: YYYY-MM-DD
+    
+    Retorna:
+        {
+            "id_vendedor": "ID1",
+            "fecha": "2025-12-17",
+            "productos": [
+                {
+                    "producto": "AREPA TIPO OBLEA",
+                    "cantidad_inicial": 200,
+                    "cantidad_vendida": 150,
+                    "vencidas": 5,
+                    "devoluciones": 45
+                }
+            ]
+        }
+    """
+    try:
+        from django.db.models import Sum
+        
+        # Mapeo de ID a Modelo
+        modelo_map = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+        
+        ModeloCargue = modelo_map.get(id_vendedor)
+        if not ModeloCargue:
+            return Response({'error': 'ID de vendedor inválido'}, status=400)
+        
+        # Obtener cargue del día
+        cargues = ModeloCargue.objects.filter(
+            fecha=fecha,
+            activo=True
+        )
+        
+        if not cargues.exists():
+            return Response({
+                'id_vendedor': id_vendedor,
+                'fecha': fecha,
+                'mensaje': 'No hay datos de cargue para esta fecha',
+                'productos': []
+            })
+        
+        resultado = []
+        
+        for cargue in cargues:
+            # Cantidad inicial con la que salió (cantidad - dctos + adicional)
+            cantidad_inicial = cargue.cantidad - cargue.dctos + cargue.adicional
+            
+            # Ventas registradas en app (buscar por vendedor_id que viene del modelo Vendedor)
+            ventas_app = VentaRuta.objects.filter(
+                vendedor__id_vendedor=id_vendedor,
+                fecha__date=fecha
+            )
+            
+            # Sumar cantidades vendidas por producto (del campo JSON 'detalles')
+            cantidad_vendida = 0
+            for venta in ventas_app:
+                detalles = venta.detalles or []
+                for detalle in detalles:
+                    nombre_detalle = detalle.get('nombre', '') or detalle.get('producto', '')
+                    if nombre_detalle.upper() == cargue.producto.upper():
+                        cantidad_vendida += detalle.get('cantidad', 0)
+            
+            # Vencidas (registradas manualmente en cargue)
+            vencidas = cargue.vencidas or 0
+            
+            # Calcular devoluciones (no puede ser negativo)
+            devoluciones = max(0, cantidad_inicial - cantidad_vendida - vencidas)
+            
+            resultado.append({
+                'producto': cargue.producto,
+                'cantidad_inicial': cantidad_inicial,
+                'cantidad_vendida': cantidad_vendida,
+                'vencidas': vencidas,
+                'devoluciones': devoluciones
+            })
+        
+        return Response({
+            'id_vendedor': id_vendedor,
+            'fecha': fecha,
+            'productos': resultado
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def ventas_tiempo_real(request, id_vendedor, fecha):
+    """
+    Obtiene ventas del día en tiempo real desde VentaRuta (app móvil).
+    Agrupado por producto y método de pago.
+    
+    Parámetros:
+        id_vendedor: ID1, ID2, ID3, ID4, ID5, ID6
+        fecha: YYYY-MM-DD
+    
+    Retorna:
+        {
+            "id_vendedor": "ID1",
+            "fecha": "2025-12-17",
+            "totalVentas": 5,
+            "total_dinero": 125000,
+            "productos_vendidos": [
+                {"producto": "AREPA TIPO OBLEA", "cantidad": 50}
+            ],
+            "ventas_por_metodo": {
+                "EFECTIVO": 75000,
+                "NEQUI": 35000,
+                "DAVIPLATA": 15000
+            }
+        }
+    """
+    try:
+        from django.db.models import Sum, Count
+        
+        # Obtener ventas del día para el vendedor
+        ventas = VentaRuta.objects.filter(
+            vendedor__id_vendedor=id_vendedor,
+            fecha__date=fecha
+        )
+        
+        if not ventas.exists():
+            return Response({
+                'id_vendedor': id_vendedor,
+                'fecha': fecha,
+                'total_ventas': 0,
+                'total_dinero': 0,
+                'productos_vendidos': [],
+                'ventas_por_metodo': {
+                    'EFECTIVO': 0,
+                    'NEQUI': 0,
+                    'DAVIPLATA': 0
+                }
+            })
+        
+        # Agrupar por producto (procesar JSON 'detalles')
+        ventas_por_producto = {}
+        total_dinero = 0
+        ventas_por_metodo = {
+            'EFECTIVO': 0,
+            'NEQUI': 0,
+            'DAVIPLATA': 0,
+            'TRANSFERENCIA': 0
+        }
+        
+        for venta in ventas:
+            # Acumular totales
+            total_dinero += float(venta.total or 0)
+            metodo = venta.metodo_pago or 'EFECTIVO'
+            ventas_por_metodo[metodo] = ventas_por_metodo.get(metodo, 0) + float(venta.total or 0)
+            
+            # Procesar productos del JSON 'detalles'
+            detalles = venta.detalles or []
+            for detalle in detalles:
+                nombre = detalle.get('nombre', '') or detalle.get('producto', 'Sin nombre')
+                cantidad = detalle.get('cantidad', 0)
+                
+                if nombre in ventas_por_producto:
+                    ventas_por_producto[nombre] += cantidad
+                else:
+                    ventas_por_producto[nombre] = cantidad
+        
+        # Convertir a lista
+        productos_vendidos = [
+            {'producto': k, 'cantidad': v}
+            for k, v in sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)
+        ]
+        
+        return Response({
+            'id_vendedor': id_vendedor,
+            'fecha': fecha,
+            'total_ventas': ventas.count(),
+            'total_dinero': total_dinero,
+            'productos_vendidos': productos_vendidos,
+            'ventas_por_metodo': ventas_por_metodo
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+def cerrar_turno_vendedor(request):
+    """
+    Cierra el turno del vendedor desde la app móvil.
+    Calcula devoluciones automáticamente y las guarda en CargueIDx.
+    
+    POST /api/cargue/cerrar-turno/
+    
+    Body:
+    {
+        "id_vendedor": "ID1",
+        "fecha": "2025-12-17",
+        "productos_vencidos": [
+            {"producto": "AREPA TIPO OBLEA 500Gr", "cantidad": 5}
+        ]
+    }
+    
+    Retorna:
+    {
+        "success": true,
+        "mensaje": "Turno cerrado correctamente",
+        "resumen": [
+            {
+                "producto": "AREPA TIPO OBLEA 500Gr",
+                "cargado": 200,
+                "vendido": 150,
+                "vencidas": 5,
+                "devuelto": 45
+            }
+        ]
+    }
+    """
+    try:
+        id_vendedor = request.data.get('id_vendedor')
+        fecha = request.data.get('fecha')
+        productos_vencidos = request.data.get('productos_vencidos', [])
+        
+        print(f"🔒 CERRAR TURNO: {id_vendedor} - {fecha}")
+        print(f"   Productos vencidos: {productos_vencidos}")
+        
+        if not id_vendedor or not fecha:
+            return Response({
+                'error': 'Se requiere id_vendedor y fecha'
+            }, status=400)
+        
+        # Mapeo de ID a Modelo
+        modelo_map = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+        
+        ModeloCargue = modelo_map.get(id_vendedor)
+        if not ModeloCargue:
+            return Response({
+                'error': f'ID de vendedor inválido: {id_vendedor}'
+            }, status=400)
+        
+        # Obtener cargue del día
+        cargues = ModeloCargue.objects.filter(fecha=fecha, activo=True)
+        
+        if not cargues.exists():
+            return Response({
+                'error': f'No hay datos de cargue para {id_vendedor} en {fecha}'
+            }, status=404)
+        
+        # 🆕 VALIDACIÓN: Verificar si el turno ya fue cerrado
+        # Si algún producto tiene devoluciones > 0, significa que ya se cerró el turno
+        ya_cerrado = cargues.filter(devoluciones__gt=0).exists()
+        if ya_cerrado:
+            print(f"⚠️ TURNO YA CERRADO para {id_vendedor} en {fecha}")
+            return Response({
+                'error': 'TURNO_YA_CERRADO',
+                'message': f'El turno para {id_vendedor} en {fecha} ya fue cerrado anteriormente. No se pueden enviar devoluciones duplicadas.'
+            }, status=409)
+        
+        resumen = []
+        total_cargado = 0
+        total_vendido = 0
+        total_vencidas = 0
+        total_devuelto = 0
+        
+        # Procesar cada producto del cargue
+        for cargue in cargues:
+            # Cantidad inicial con la que salió
+            cantidad_inicial = cargue.cantidad - cargue.dctos + cargue.adicional
+            
+            # 🆕 Usar el campo vendidas que ya se sincroniza automáticamente
+            cantidad_vendida = cargue.vendidas or 0
+            
+            # Buscar vencidas reportadas para este producto (si viene en el request)
+            vencidas = cargue.vencidas or 0  # 🆕 Usar vencidas ya guardadas
+            for item_vencido in productos_vencidos:
+                producto_vencido = item_vencido.get('producto', '')
+                if producto_vencido.upper() == cargue.producto.upper():
+                    vencidas_adicionales = item_vencido.get('cantidad', 0)
+                    if vencidas_adicionales > 0:
+                        vencidas = vencidas_adicionales  # Actualizar si viene en request
+                    break
+            
+            # 🔢 Calcular devoluciones automáticamente
+            # Fórmula: devoluciones = (cantidad + adicional) - vendidas - vencidas
+            devoluciones = max(0, cantidad_inicial - cantidad_vendida - vencidas)
+            
+            print(f"  📦 {cargue.producto}:")
+            print(f"     Cargado: {cantidad_inicial}")
+            print(f"     Vendido: {cantidad_vendida}")
+            print(f"     Vencidas: {vencidas}")
+            print(f"     📊 Devoluciones calculadas: {devoluciones}")
+            
+            # ✅ GUARDAR en BD
+            cargue.vencidas = vencidas
+            cargue.devoluciones = devoluciones
+            cargue.save()
+            
+            # Acumular totales
+            total_cargado += cantidad_inicial
+            total_vendido += cantidad_vendida
+            total_vencidas += vencidas
+            total_devuelto += devoluciones
+            
+            resumen.append({
+                'producto': cargue.producto,
+                'cargado': cantidad_inicial,
+                'vendido': cantidad_vendida,
+                'vencidas': vencidas,
+                'devuelto': devoluciones
+            })
+        
+        # 🆕 MARCAR TURNO COMO CERRADO EN LA BD
+        try:
+            from .models import TurnoVendedor
+            turno = TurnoVendedor.objects.filter(
+                vendedor_id=vendedor_id_numerico,
+                fecha=fecha
+            ).first()
+            
+            if turno:
+                turno.estado = 'CERRADO'
+                turno.hora_cierre = timezone.now()
+                turno.total_ventas = total_vendido
+                turno.total_dinero = total_cargado  # Ajustar según necesites
+                turno.save()
+                print(f"✅ Turno marcado como CERRADO en BD")
+        except Exception as e:
+            print(f"⚠️ Error actualizando turno en BD: {e}")
+        
+        print(f"✅ Turno cerrado para {id_vendedor}")
+        print(f"   Total cargado: {total_cargado}")
+        print(f"   Total vendido: {total_vendido}")
+        print(f"   Total vencidas: {total_vencidas}")
+        print(f"   Total devuelto: {total_devuelto}")
+        
+        return Response({
+            'success': True,
+            'mensaje': 'Turno cerrado correctamente',
+            'resumen': resumen,
+            'totales': {
+                'cargado': total_cargado,
+                'vendido': total_vendido,
+                'vencidas': total_vencidas,
+                'devuelto': total_devuelto
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"❌ Error cerrando turno: {str(e)}")
+        return Response({
+            'error': str(e),
+            'mensaje': 'Error al cerrar turno'
+        }, status=500)
+
+
+# ========================================
+# ENDPOINTS PARA GESTIÓN DE TURNOS (App Móvil)
+# ========================================
+
+@api_view(['GET'])
+def verificar_turno_activo(request):
+    """
+    Verificar si hay un turno abierto para un vendedor.
+    Permite sincronización entre dispositivos.
+    
+    Query params:
+    - vendedor_id: ID del vendedor (numérico o cadena ID1, ID2, etc.)
+    - fecha: Fecha opcional (default: hoy)
+    """
+    try:
+        from .models import TurnoVendedor
+        from datetime import date
+        
+        vendedor_id = request.query_params.get('vendedor_id')
+        fecha_param = request.query_params.get('fecha')
+        
+        if not vendedor_id:
+            return Response({
+                'error': 'vendedor_id es requerido'
+            }, status=400)
+        
+        # Convertir ID de vendedor a numérico
+        if vendedor_id.upper().startswith('ID'):
+            vendedor_id_numerico = int(vendedor_id[2:])
+        else:
+            vendedor_id_numerico = int(vendedor_id)
+        
+        # Fecha (hoy por defecto)
+        if fecha_param:
+            from datetime import datetime
+            fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        else:
+            fecha = date.today()
+        
+        # Buscar turno activo
+        # Si se especifica fecha, buscar para esa fecha
+        if fecha_param:
+            turno = TurnoVendedor.objects.filter(
+                vendedor_id=vendedor_id_numerico,
+                fecha=fecha,
+                estado='ABIERTO'
+            ).first()
+        else:
+            # Si NO se especifica fecha, buscar CUALQUIER turno abierto (el más reciente)
+            # Esto ayuda con problemas de zona horaria y recupera sesiones pendientes
+            turno = TurnoVendedor.objects.filter(
+                vendedor_id=vendedor_id_numerico,
+                estado='ABIERTO'
+            ).order_by('-fecha', '-hora_apertura').first()
+        
+        if turno:
+            return Response({
+                'turno_activo': True,
+                'turno_id': turno.id,
+                'dia': turno.dia,
+                'fecha': turno.fecha.isoformat(),
+                'hora_apertura': turno.hora_apertura.isoformat() if turno.hora_apertura else None,
+                'vendedor_nombre': turno.vendedor_nombre,
+                'total_ventas': turno.total_ventas,
+                'total_dinero': float(turno.total_dinero)
+            })
+        else:
+            return Response({
+                'turno_activo': False,
+                'mensaje': 'No hay turno abierto para esta fecha'
+            })
+            
+    except Exception as e:
+        print(f"❌ Error verificando turno: {e}")
+        return Response({
+            'error': str(e)
+        }, status=500)
+
+
+@api_view(['POST'])
+def abrir_turno(request):
+    """
+    Abrir un nuevo turno para un vendedor.
+    Si ya hay turno abierto para ese día, retorna el existente.
+    
+    Body:
+    - vendedor_id: ID del vendedor
+    - vendedor_nombre: Nombre del vendedor (opcional)
+    - dia: Día de la semana (LUNES, MARTES, etc.)
+    - fecha: Fecha del turno (YYYY-MM-DD)
+    """
+    try:
+        from .models import TurnoVendedor
+        from datetime import datetime
+        
+        vendedor_id = request.data.get('vendedor_id')
+        vendedor_nombre = request.data.get('vendedor_nombre', '')
+        dia = request.data.get('dia', '').upper()
+        fecha_str = request.data.get('fecha')
+        dispositivo = request.data.get('dispositivo', '')
+        
+        if not vendedor_id or not dia or not fecha_str:
+            return Response({
+                'error': 'vendedor_id, dia y fecha son requeridos'
+            }, status=400)
+        
+        # Convertir ID de vendedor a numérico
+        if str(vendedor_id).upper().startswith('ID'):
+            vendedor_id_numerico = int(vendedor_id[2:])
+        else:
+            vendedor_id_numerico = int(vendedor_id)
+        
+        # Parsear fecha
+        fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        
+        # Verificar si ya existe turno para este día
+        turno_existente = TurnoVendedor.objects.filter(
+            vendedor_id=vendedor_id_numerico,
+            fecha=fecha
+        ).first()
+        
+        if turno_existente:
+            if turno_existente.estado == 'ABIERTO':
+                # Ya hay un turno abierto, retornarlo
+                return Response({
+                    'success': True,
+                    'nuevo': False,
+                    'mensaje': 'Ya hay un turno abierto para este día',
+                    'turno_id': turno_existente.id,
+                    'dia': turno_existente.dia,
+                    'fecha': turno_existente.fecha.isoformat(),
+                    'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
+                    'estado': turno_existente.estado
+                })
+            else:
+                # El turno ya fue cerrado
+                return Response({
+                    'error': 'TURNO_YA_CERRADO',
+                    'mensaje': 'El turno para este día ya fue cerrado'
+                }, status=400)
+        
+        # Crear nuevo turno
+        turno = TurnoVendedor.objects.create(
+            vendedor_id=vendedor_id_numerico,
+            vendedor_nombre=vendedor_nombre,
+            dia=dia,
+            fecha=fecha,
+            estado='ABIERTO',
+            hora_apertura=timezone.now(),
+            dispositivo=dispositivo
+        )
+        
+        print(f"✅ Turno abierto: {vendedor_nombre} - {dia} {fecha}")
+        
+        return Response({
+            'success': True,
+            'nuevo': True,
+            'mensaje': 'Turno abierto correctamente',
+            'turno_id': turno.id,
+            'dia': turno.dia,
+            'fecha': turno.fecha.isoformat(),
+            'hora_apertura': turno.hora_apertura.isoformat(),
+            'estado': turno.estado
+        })
+        
+    except Exception as e:
+        print(f"❌ Error abriendo turno: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'error': str(e)
+        }, status=500)
+
+
+@api_view(['POST'])
+def cerrar_turno_estado(request):
+    """
+    Cerrar turno (cambiar estado a CERRADO).
+    Solo cambia el estado, no procesa devoluciones.
+    
+    Body:
+    - vendedor_id: ID del vendedor
+    - fecha: Fecha del turno
+    """
+    try:
+        from .models import TurnoVendedor
+        from datetime import datetime
+        
+        vendedor_id = request.data.get('vendedor_id')
+        fecha_str = request.data.get('fecha')
+        
+        if not vendedor_id or not fecha_str:
+            return Response({
+                'error': 'vendedor_id y fecha son requeridos'
+            }, status=400)
+        
+        # Convertir ID de vendedor a numérico
+        if str(vendedor_id).upper().startswith('ID'):
+            vendedor_id_numerico = int(vendedor_id[2:])
+        else:
+            vendedor_id_numerico = int(vendedor_id)
+        
+        # Parsear fecha
+        fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        
+        # Buscar turno
+        turno = TurnoVendedor.objects.filter(
+            vendedor_id=vendedor_id_numerico,
+            fecha=fecha
+        ).first()
+        
+        if not turno:
+            return Response({
+                'error': 'No se encontró turno para esta fecha'
+            }, status=404)
+        
+        if turno.estado == 'CERRADO':
+            return Response({
+                'error': 'TURNO_YA_CERRADO',
+                'mensaje': 'El turno ya estaba cerrado'
+            }, status=400)
+        
+        # Cerrar turno
+        turno.estado = 'CERRADO'
+        turno.hora_cierre = timezone.now()
+        turno.save()
+        
+        print(f"✅ Turno cerrado (estado): {turno.vendedor_nombre} - {turno.dia} {turno.fecha}")
+        
+        return Response({
+            'success': True,
+            'mensaje': 'Turno cerrado correctamente',
+            'turno_id': turno.id,
+            'hora_cierre': turno.hora_cierre.isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error cerrando turno: {e}")
+        return Response({
+            'error': str(e)
+        }, status=500)

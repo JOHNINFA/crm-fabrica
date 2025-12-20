@@ -38,22 +38,54 @@ export const cargueApiService = {
             cantidad: datos.cantidad,
             adicional: datos.adicional,
             dctos: datos.dctos,
-            total: datos.quantity
+            devoluciones: datos.devoluciones,
+            vencidas: datos.vencidas,
+            total: datos.total || datos.quantity
           });
+
+          // Parsear lotes_vencidos si es string JSON
+          let lotesVencidos = [];
+          if (datos.lotes_vencidos) {
+            try {
+              lotesVencidos = typeof datos.lotes_vencidos === 'string'
+                ? JSON.parse(datos.lotes_vencidos)
+                : datos.lotes_vencidos;
+            } catch (e) {
+              console.error('Error parsing lotes_vencidos:', e);
+            }
+          }
+
           return {
             id: Math.random(), // Temporal, se reemplazará con el ID real del producto
             producto: nombreProducto,
-            cantidad: parseInt(datos.cantidad) || 0,  // ✅ Cantidad base
-            dctos: parseInt(datos.dctos) || 0,        // ✅ Descuentos
-            adicional: parseInt(datos.adicional) || 0, // ✅ Adicionales
-            devoluciones: 0,
-            vencidas: 0,
-            total: parseInt(datos.quantity) || 0,
-            valor: 0, // Se calculará después
-            neto: 0,
+            cantidad: parseInt(datos.cantidad) || 0,
+            dctos: parseInt(datos.dctos) || 0,
+            adicional: parseInt(datos.adicional) || 0,
+            devoluciones: parseInt(datos.devoluciones) || 0,  // ✅ Ahora usa el valor real
+            vencidas: parseInt(datos.vencidas) || 0,  // ✅ Ahora usa el valor real
+            vendidas: parseInt(datos.vendidas) || 0,  // ✅ Vendidas
+            total: parseInt(datos.total) || parseInt(datos.quantity) || 0,
+            valor: parseFloat(datos.valor) || 0,
+            neto: parseFloat(datos.neto) || 0,
             vendedor: datos.v || false,
             despachador: datos.d || false,
-            lotesVencidos: []
+            lotesVencidos: lotesVencidos,  // ✅ Lotes vencidos
+            // Campos globales (se toman del primer producto)
+            nequi: parseFloat(datos.nequi) || 0,
+            daviplata: parseFloat(datos.daviplata) || 0,
+            concepto: datos.concepto || '',
+            descuentos: parseFloat(datos.descuentos) || 0,
+            base_caja: parseFloat(datos.base_caja) || 0,
+            // Cumplimiento
+            licencia_transporte: datos.licencia_transporte || '',
+            soat: datos.soat || '',
+            uniforme: datos.uniforme || '',
+            no_locion: datos.no_locion || '',
+            no_accesorios: datos.no_accesorios || '',
+            capacitacion_carnet: datos.capacitacion_carnet || '',
+            higiene: datos.higiene || '',
+            estibas: datos.estibas || '',
+            desinfeccion: datos.desinfeccion || '',
           };
         });
 
@@ -273,6 +305,75 @@ export const cargueApiService = {
   }
 };
 
+// ===== FUNCIÓN AUXILIAR: Extraer y guardar datos globales =====
+const extraerYGuardarDatosGlobales = (dia, idSheet, fecha, productos) => {
+  if (!productos || productos.length === 0) return;
+
+  // Buscar el primer producto que tenga datos de pagos o cumplimiento
+  const productoConDatosGlobales = productos.find(p =>
+    p.nequi > 0 || p.daviplata > 0 || p.concepto || p.descuentos > 0 ||
+    p.licencia_transporte || p.soat || p.uniforme
+  ) || productos[0];
+
+  if (!productoConDatosGlobales) return;
+
+  console.log(`🔍 GLOBAL: Extrayendo datos globales de ${productoConDatosGlobales.producto}`);
+
+  // 1. Guardar datos de PAGOS (conceptos)
+  const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fecha}`;
+  const datosConceptosExistentes = localStorage.getItem(conceptosKey);
+
+  // Solo guardar si no existen datos locales O si los datos del servidor tienen valores
+  if (!datosConceptosExistentes || productoConDatosGlobales.nequi > 0 || productoConDatosGlobales.daviplata > 0) {
+    const conceptoPago = {
+      concepto: productoConDatosGlobales.concepto || '',
+      descuentos: productoConDatosGlobales.descuentos || 0,
+      nequi: productoConDatosGlobales.nequi || 0,
+      daviplata: productoConDatosGlobales.daviplata || 0
+    };
+
+    if (conceptoPago.nequi > 0 || conceptoPago.daviplata > 0 || conceptoPago.concepto) {
+      localStorage.setItem(conceptosKey, JSON.stringify([conceptoPago]));
+      console.log(`💾 GLOBAL: Pagos guardados en localStorage:`, conceptoPago);
+    }
+  }
+
+  // 2. Guardar BASE CAJA
+  const baseCajaKey = `base_caja_${dia}_${idSheet}_${fecha}`;
+  if (productoConDatosGlobales.base_caja > 0) {
+    localStorage.setItem(baseCajaKey, productoConDatosGlobales.base_caja.toString());
+    console.log(`💾 GLOBAL: Base caja guardada: ${productoConDatosGlobales.base_caja}`);
+  }
+
+  // 3. Guardar datos de CUMPLIMIENTO
+  const cumplimientoKey = `cumplimiento_${dia}_${idSheet}_${fecha}`;
+  const datosCumplimientoExistentes = localStorage.getItem(cumplimientoKey);
+
+  // Solo guardar si no existen datos locales O si los datos del servidor tienen valores
+  const tieneCumplimiento = productoConDatosGlobales.licencia_transporte ||
+    productoConDatosGlobales.soat ||
+    productoConDatosGlobales.uniforme;
+
+  if (!datosCumplimientoExistentes || tieneCumplimiento) {
+    const cumplimiento = {
+      licencia_transporte: productoConDatosGlobales.licencia_transporte || '',
+      soat: productoConDatosGlobales.soat || '',
+      uniforme: productoConDatosGlobales.uniforme || '',
+      no_locion: productoConDatosGlobales.no_locion || '',
+      no_accesorios: productoConDatosGlobales.no_accesorios || '',
+      capacitacion_carnet: productoConDatosGlobales.capacitacion_carnet || '',
+      higiene: productoConDatosGlobales.higiene || '',
+      estibas: productoConDatosGlobales.estibas || '',
+      desinfeccion: productoConDatosGlobales.desinfeccion || ''
+    };
+
+    if (tieneCumplimiento) {
+      localStorage.setItem(cumplimientoKey, JSON.stringify(cumplimiento));
+      console.log(`💾 GLOBAL: Cumplimiento guardado:`, cumplimiento);
+    }
+  }
+};
+
 // ===== SERVICIO DE INTEGRACIÓN HÍBRIDA =====
 export const cargueHybridService = {
 
@@ -354,6 +455,9 @@ export const cargueHybridService = {
           localStorage.setItem(key, JSON.stringify(datosMergeados));
           console.log(`✅ HYBRID: Merge completado y guardado - ${productosMergeados.length} productos`);
 
+          // 🆕 Extraer y guardar datos globales (pagos, cumplimiento)
+          extraerYGuardarDatosGlobales(dia, idSheet, fecha, productosMergeados);
+
           return {
             success: true,
             data: datosMergeados,
@@ -363,6 +467,9 @@ export const cargueHybridService = {
           // No hay datos locales, usar datos de app tal cual
           localStorage.setItem(key, JSON.stringify(resultadoServidor.data));
           console.log(`✅ HYBRID: Datos de app móvil guardados (sin merge)`);
+
+          // 🆕 Extraer y guardar datos globales (pagos, cumplimiento)
+          extraerYGuardarDatosGlobales(dia, idSheet, fecha, resultadoServidor.data.productos);
 
           return {
             success: true,
@@ -529,8 +636,10 @@ export const cargueApiConfig = {
 };
 
 // ===== EXPORTACIÓN PRINCIPAL =====
-export default {
+const cargueServices = {
   api: cargueApiService,
   hybrid: cargueHybridService,
   config: cargueApiConfig
 };
+
+export default cargueServices;

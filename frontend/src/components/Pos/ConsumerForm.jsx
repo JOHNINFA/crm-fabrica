@@ -66,9 +66,11 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
       setIsSearching(true);
       const clientes = await clienteService.getAll();
       if (clientes && !clientes.error) {
+        const termLower = term.toLowerCase();
         const filteredClientes = clientes.filter(c =>
-          c.nombre_completo.toLowerCase().includes(term.toLowerCase()) ||
-          c.identificacion.includes(term)
+          (c.nombre_completo || '').toLowerCase().includes(termLower) ||
+          (c.alias || '').toLowerCase().includes(termLower) ||  // Buscar por nombre del negocio
+          (c.identificacion || '').includes(term)
         ).slice(0, 5); // Limitar a 5 resultados
 
         setClienteSuggestions(filteredClientes);
@@ -80,7 +82,8 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
 
   // Seleccionar un cliente de las sugerencias
   const selectCliente = (cliente) => {
-    setClient(cliente.nombre_completo);
+    // Usar el nombre del negocio si existe, si no usar el nombre del contacto
+    setClient(cliente.alias || cliente.nombre_completo);
     setClienteSuggestions([]);
     setIsSearching(false);
   };
@@ -130,8 +133,12 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                   className="cliente-suggestion-item"
                   onClick={() => selectCliente(cliente)}
                 >
-                  <div className="cliente-name">{cliente.nombre_completo}</div>
-                  <div className="cliente-id">{cliente.identificacion}</div>
+                  <div className="cliente-name" style={{ fontWeight: 'bold' }}>
+                    {cliente.alias || cliente.nombre_completo}
+                  </div>
+                  <div className="cliente-id" style={{ fontSize: '11px', color: '#6c757d' }}>
+                    {cliente.alias ? `${cliente.nombre_completo} • ` : ''}{cliente.identificacion}
+                  </div>
                 </div>
               ))}
             </div>

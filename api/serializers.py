@@ -19,11 +19,15 @@ class CategoriaSerializer(serializers.ModelSerializer):
 class StockSerializer(serializers.ModelSerializer):
     """Serializer para stock de productos"""
     producto_id = serializers.IntegerField(source='producto.id', read_only=True)
+    # 🆕 Agregar disponible_inventario para filtrar en Planeación
+    disponible_inventario = serializers.BooleanField(source='producto.disponible_inventario', read_only=True)
+    # 🆕 Agregar orden para ordenamiento consistente
+    orden = serializers.IntegerField(source='producto.orden', read_only=True)
     
     class Meta:
         model = Stock
-        fields = ['producto', 'producto_id', 'producto_nombre', 'producto_descripcion', 'cantidad_actual', 'fecha_actualizacion']
-        read_only_fields = ('fecha_actualizacion', 'producto_nombre', 'producto_descripcion')
+        fields = ['producto', 'producto_id', 'producto_nombre', 'producto_descripcion', 'cantidad_actual', 'fecha_actualizacion', 'disponible_inventario', 'orden']
+        read_only_fields = ('fecha_actualizacion', 'producto_nombre', 'producto_descripcion', 'disponible_inventario', 'orden')
 
 class ProductoSerializer(serializers.ModelSerializer):
     """Serializer para productos"""
@@ -173,7 +177,7 @@ class CargueID1Serializer(serializers.ModelSerializer):
         model = CargueID1
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
+            'adicional', 'devoluciones', 'vendidas', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
@@ -198,7 +202,7 @@ class CargueID2Serializer(serializers.ModelSerializer):
         model = CargueID2
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
+            'adicional', 'devoluciones', 'vendidas', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
@@ -215,7 +219,7 @@ class CargueID3Serializer(serializers.ModelSerializer):
         model = CargueID3
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
+            'adicional', 'devoluciones', 'vendidas', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
@@ -232,7 +236,7 @@ class CargueID4Serializer(serializers.ModelSerializer):
         model = CargueID4
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
+            'adicional', 'devoluciones', 'vendidas', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
@@ -249,7 +253,7 @@ class CargueID5Serializer(serializers.ModelSerializer):
         model = CargueID5
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
+            'adicional', 'devoluciones', 'vendidas', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
@@ -266,7 +270,7 @@ class CargueID6Serializer(serializers.ModelSerializer):
         model = CargueID6
         fields = [
             'id', 'dia', 'fecha', 'v', 'd', 'producto', 'cantidad', 'dctos', 
-            'adicional', 'devoluciones', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
+            'adicional', 'devoluciones', 'vendidas', 'vencidas', 'lotes_vencidos', 'lotes_produccion', 'total', 
             'valor', 'neto', 'concepto', 'descuentos', 'nequi', 'daviplata',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
@@ -287,7 +291,7 @@ class CargueProductosSerializer(serializers.ModelSerializer):
         model = CargueProductos
         fields = [
             'id', 'vendedor_id', 'dia', 'fecha', 'producto',
-            'cantidad', 'dctos', 'adicional', 'devoluciones', 'vencidas',
+            'cantidad', 'dctos', 'adicional', 'devoluciones', 'vendidas', 'vencidas',
             'total', 'valor', 'neto', 'v', 'd',
             'lotes_vencidos', 'lotes_produccion',
             'responsable', 'usuario', 'ruta', 'activo',
@@ -796,18 +800,50 @@ class DomiciliarioSerializer(serializers.ModelSerializer):
 
 class ConfiguracionImpresionSerializer(serializers.ModelSerializer):
     """Serializer para configuración de impresión de tickets"""
+    logo_base64 = serializers.SerializerMethodField()
     
     class Meta:
         model = ConfiguracionImpresion
         fields = [
             'id', 'nombre_negocio', 'nit_negocio', 'direccion_negocio',
             'telefono_negocio', 'email_negocio', 'encabezado_ticket',
-            'pie_pagina_ticket', 'mensaje_agradecimiento', 'logo',
-            'ancho_papel', 'mostrar_logo', 'mostrar_codigo_barras',
+            'pie_pagina_ticket', 'mensaje_agradecimiento', 'logo', 'logo_base64',
+            'ancho_papel', 'fuente_ticket', 'mostrar_logo', 'mostrar_codigo_barras',
             'impresora_predeterminada', 'resolucion_facturacion',
             'regimen_tributario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
         ]
-        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion', 'logo_base64')
+    
+    def get_logo_base64(self, obj):
+        """Convierte el logo a Base64 para evitar problemas de CORS"""
+        import base64
+        import os
+        
+        if obj.logo and obj.mostrar_logo:
+            try:
+                # Obtener la ruta del archivo
+                logo_path = obj.logo.path
+                if os.path.exists(logo_path):
+                    with open(logo_path, 'rb') as f:
+                        logo_data = f.read()
+                    # Detectar tipo de imagen
+                    if logo_path.lower().endswith('.png'):
+                        mime_type = 'image/png'
+                    elif logo_path.lower().endswith('.jpg') or logo_path.lower().endswith('.jpeg'):
+                        mime_type = 'image/jpeg'
+                    elif logo_path.lower().endswith('.gif'):
+                        mime_type = 'image/gif'
+                    else:
+                        mime_type = 'image/png'  # Default
+                    
+                    # Codificar a Base64
+                    encoded = base64.b64encode(logo_data).decode('utf-8')
+                    return f"data:{mime_type};base64,{encoded}"
+            except Exception as e:
+                print(f"Error convirtiendo logo a Base64: {e}")
+                return None
+        return None
+
 
 # ===== SERIALIZERS RUTAS Y VENTAS RUTA =====
 from .models import Ruta, ClienteRuta, VentaRuta, EvidenciaVenta

@@ -5,6 +5,9 @@ import { pedidoService } from '../services/api';
 import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
 import usePageTitle from '../hooks/usePageTitle';
 
+// 🆕 Días de la semana
+const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+
 export default function PedidosDiaScreen() {
   const { dia } = useParams();
   usePageTitle(`Pedidos ${dia || ''}`);
@@ -13,6 +16,9 @@ export default function PedidosDiaScreen() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(
     searchParams.get('fecha') || new Date().toISOString().split('T')[0]
   );
+
+  // 🆕 Estado para días seleccionados (array de días)
+  const [diasSeleccionados, setDiasSeleccionados] = useState(dia ? [dia] : []);
 
   // Función para obtener la fecha del próximo día de la semana
   const obtenerProximaFecha = (diaSemana) => {
@@ -41,6 +47,19 @@ export default function PedidosDiaScreen() {
 
     return fechaObjetivo.toISOString().split('T')[0];
   };
+
+  // 🆕 Función para alternar día seleccionado
+  const toggleDia = (d) => {
+    setDiasSeleccionados(prev => {
+      if (prev.includes(d)) {
+        // Si solo queda un día, no quitarlo
+        if (prev.length === 1) return prev;
+        return prev.filter(x => x !== d);
+      }
+      return [...prev, d];
+    });
+  };
+
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pedidosRealizados, setPedidosRealizados] = useState({});
@@ -116,10 +135,13 @@ export default function PedidosDiaScreen() {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/clientes/`);
       if (response.ok) {
         const data = await response.json();
-        // Filtrar clientes por día de entrega
-        const clientesFiltrados = data.filter(
-          cliente => cliente.dia_entrega === dia && cliente.activo
-        );
+        // Filtrar clientes por día de entrega (soporta múltiples días: "MARTES,JUEVES,SABADO")
+        const clientesFiltrados = data.filter(cliente => {
+          if (!cliente.activo) return false;
+          // Dividir los días del cliente y verificar si incluye el día actual
+          const diasCliente = (cliente.dia_entrega || '').split(',').map(d => d.trim().toUpperCase());
+          return diasCliente.includes(dia);
+        });
         setClientes(clientesFiltrados);
       }
     } catch (error) {
@@ -161,7 +183,7 @@ export default function PedidosDiaScreen() {
   };
 
   const verDetallePedido = (cliente) => {
-    const pedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+    const pedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
     if (pedido) {
       setPedidoSeleccionado(pedido);
       setShowModal(true);
@@ -171,13 +193,13 @@ export default function PedidosDiaScreen() {
 
 
   const handleRowClick = (cliente) => {
-    const tienePedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+    const tienePedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
     if (tienePedido) {
       verDetallePedido(cliente);
     } else {
       // Navegar a crear pedido
       const clienteData = encodeURIComponent(JSON.stringify({
-        nombre: cliente.nombre_completo,
+        nombre: cliente.alias || cliente.nombre_completo,
         direccion: cliente.direccion,
         vendedor: cliente.vendedor_asignado,
         lista_precio: cliente.tipo_lista_precio,
@@ -197,7 +219,7 @@ export default function PedidosDiaScreen() {
   };
 
   const abrirModalAnular = (cliente) => {
-    const pedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+    const pedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
 
     if (!pedido) {
       alert('No se encontró el pedido para anular');
@@ -281,15 +303,15 @@ export default function PedidosDiaScreen() {
         <div className="d-flex align-items-center gap-3">
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className="btn btn-sm text-white" // Quitado btn-primary, agregado text-white
             style={{
               fontSize: '0.9rem',
               padding: '0.4rem 0.8rem',
               fontWeight: 'bold',
               borderRadius: '8px',
               pointerEvents: 'none',
-              backgroundColor: '#06386d',
-              borderColor: '#06386d'
+              backgroundColor: 'rgb(6, 56, 109)', // RGB explícito
+              borderColor: 'rgb(6, 56, 109)'
             }}
           >
             {dia}
@@ -352,18 +374,19 @@ export default function PedidosDiaScreen() {
                   <th style={{ padding: '6px 16px', width: '3%', textAlign: 'center', height: '45px' }} scope="col">
                     <span className="material-icons" style={{ fontSize: '16px', color: '#9CA3AF' }}>drag_indicator</span>
                   </th>
-                  <th style={{ padding: '6px 16px', width: '17%', textAlign: 'center', height: '45px' }} scope="col">Cliente</th>
-                  <th style={{ padding: '6px 16px', width: '11%', textAlign: 'center', height: '45px' }} scope="col">Vendedor</th>
-                  <th style={{ padding: '6px 16px', width: '21%', textAlign: 'center', height: '45px' }} scope="col">Dirección</th>
-                  <th style={{ padding: '6px 16px', width: '11%', textAlign: 'center', height: '45px' }} scope="col">Lista Precio</th>
-                  <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Estado</th>
-                  <th style={{ padding: '6px 16px', width: '6%', textAlign: 'center', height: '45px' }} scope="col">Anular</th>
-                  <th style={{ padding: '6px 16px', width: '21%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
+                  <th style={{ padding: '6px 16px', width: '15%', textAlign: 'center', height: '45px' }} scope="col">Negocio</th>
+                  <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Días</th>
+                  <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Vendedor</th>
+                  <th style={{ padding: '6px 16px', width: '18%', textAlign: 'center', height: '45px' }} scope="col">Dirección</th>
+                  <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Lista Precio</th>
+                  <th style={{ padding: '6px 16px', width: '9%', textAlign: 'center', height: '45px' }} scope="col">Estado</th>
+                  <th style={{ padding: '6px 16px', width: '5%', textAlign: 'center', height: '45px' }} scope="col">Anular</th>
+                  <th style={{ padding: '6px 16px', width: '20%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
                 </tr>
               </thead>
               <tbody>
                 {clientesOrdenados.map((cliente, index) => {
-                  const tienePedido = pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+                  const tienePedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
                   return (
                     <tr
                       key={cliente.id}
@@ -409,8 +432,18 @@ export default function PedidosDiaScreen() {
                         verticalAlign: 'middle',
                         height: '45px'
                       }} scope="row">
-                        {cliente.nombre_completo}
+                        {cliente.alias || cliente.nombre_completo}
                       </th>
+                      <td style={{
+                        padding: '4px 8px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        height: '45px',
+                        fontSize: '11px',
+                        color: '#4B5563'
+                      }}>
+                        {(cliente.dia_entrega || '').split(',').map(d => d.trim().substring(0, 3)).join('/')}
+                      </td>
                       <td style={{
                         padding: '4px 16px',
                         textAlign: 'center',

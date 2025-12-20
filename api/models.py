@@ -488,6 +488,7 @@ class CargueID1(models.Model):
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
+    vendidas = models.IntegerField(default=0)  # 🆕 Cantidades vendidas en el día
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
@@ -576,6 +577,7 @@ class CargueID2(models.Model):
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
+    vendidas = models.IntegerField(default=0)  # 🆕 Cantidades vendidas en el día
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
@@ -657,6 +659,7 @@ class CargueID3(models.Model):
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
+    vendidas = models.IntegerField(default=0)  # 🆕 Cantidades vendidas en el día
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
@@ -719,6 +722,17 @@ class ConfiguracionImpresion(models.Model):
         ('80mm', '80mm'),
     ]
     
+    FUENTE_TICKET_CHOICES = [
+        ('Courier New', 'Courier New (Clásico)'),
+        ('Consolas', 'Consolas (Moderno)'),
+        ('Monaco', 'Monaco'),
+        ('Lucida Console', 'Lucida Console'),
+        ('Arial', 'Arial'),
+        ('Verdana', 'Verdana'),
+        ('Tahoma', 'Tahoma'),
+    ]
+
+    
     # Información del negocio
     nombre_negocio = models.CharField(max_length=255, default='MI NEGOCIO')
     nit_negocio = models.CharField(max_length=50, blank=True, null=True)
@@ -734,6 +748,7 @@ class ConfiguracionImpresion(models.Model):
     # Configuración de impresión
     logo = models.ImageField(upload_to='configuracion/', null=True, blank=True)
     ancho_papel = models.CharField(max_length=10, choices=ANCHO_PAPEL_CHOICES, default='80mm')
+    fuente_ticket = models.CharField(max_length=50, choices=FUENTE_TICKET_CHOICES, default='Courier New', verbose_name='Fuente del Ticket')
     mostrar_logo = models.BooleanField(default=True)
     mostrar_codigo_barras = models.BooleanField(default=False)
     impresora_predeterminada = models.CharField(max_length=255, blank=True, null=True)
@@ -780,6 +795,7 @@ class CargueID4(models.Model):
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
+    vendidas = models.IntegerField(default=0)  # 🆕 Cantidades vendidas en el día
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
@@ -860,6 +876,7 @@ class CargueID5(models.Model):
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
+    vendidas = models.IntegerField(default=0)  # 🆕 Cantidades vendidas en el día
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
@@ -940,6 +957,7 @@ class CargueID6(models.Model):
     dctos = models.IntegerField(default=0)
     adicional = models.IntegerField(default=0)
     devoluciones = models.IntegerField(default=0)
+    vendidas = models.IntegerField(default=0)  # 🆕 Cantidades vendidas en el día
     vencidas = models.IntegerField(default=0)
     lotes_vencidos = models.TextField(blank=True)  # JSON string con lotes y motivos
     lotes_produccion = models.TextField(blank=True)  # JSON string con lotes del día
@@ -1054,7 +1072,7 @@ class CargueProductos(models.Model):
     
     def save(self, *args, **kwargs):
         # Calcular total y neto automáticamente
-        self.total = self.cantidad - self.dctos + self.adicional - self.devoluciones - self.vencidas
+        self.total = self.cantidad - self.dctos + self.adicional - self.vencidas
         self.neto = self.total * self.valor
         super().save(*args, **kwargs)
     
@@ -1084,6 +1102,15 @@ class CargueResumen(models.Model):
     total_dctos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # 🆕 Estado del proceso de cargue
+    ESTADO_CARGUE_CHOICES = [
+        ('ALISTAMIENTO', 'Alistamiento'),
+        ('SUGERIDO', 'Sugerido'),
+        ('DESPACHO', 'Despacho'),
+        ('COMPLETADO', 'Completado'),
+    ]
+    estado_cargue = models.CharField(max_length=20, choices=ESTADO_CARGUE_CHOICES, default='ALISTAMIENTO')
     
     # Metadatos
     usuario = models.CharField(max_length=100, default='Sistema')
@@ -1856,3 +1883,47 @@ class RegistrosPlaneacionDia(models.Model):
     
     def __str__(self):
         return f"{self.fecha} - {self.producto_nombre} - Sol:{self.solicitadas}"
+
+
+# ========================================
+# MODELO PARA GESTIÓN DE TURNOS
+# ========================================
+
+class TurnoVendedor(models.Model):
+    """
+    Modelo para gestionar el estado de turnos de vendedores.
+    Permite sincronización entre dispositivos - si el turno está abierto
+    en un dispositivo, se refleja en todos.
+    """
+    ESTADO_CHOICES = [
+        ('ABIERTO', 'Abierto'),
+        ('CERRADO', 'Cerrado'),
+    ]
+    
+    vendedor_id = models.IntegerField(db_index=True)  # ID del vendedor (userId)
+    vendedor_nombre = models.CharField(max_length=100, blank=True)
+    dia = models.CharField(max_length=10)  # LUNES, MARTES, etc.
+    fecha = models.DateField()  # Fecha del turno
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO')
+    hora_apertura = models.DateTimeField(default=timezone.now)  # Hora de apertura
+    hora_cierre = models.DateTimeField(null=True, blank=True)  # Hora de cierre
+    
+    # Estadísticas del turno
+    total_ventas = models.IntegerField(default=0)
+    total_dinero = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Metadatos
+    dispositivo = models.CharField(max_length=100, blank=True)  # Info del dispositivo
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_turno_vendedor'
+        # Un vendedor solo puede tener un turno por día
+        unique_together = ['vendedor_id', 'fecha']
+        verbose_name = 'Turno Vendedor'
+        verbose_name_plural = 'Turnos Vendedores'
+        ordering = ['-fecha', 'vendedor_id']
+    
+    def __str__(self):
+        return f"Turno {self.vendedor_nombre} - {self.dia} {self.fecha} - {self.estado}"

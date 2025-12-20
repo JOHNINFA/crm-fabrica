@@ -33,6 +33,7 @@ export default function TicketPrint({
     const cargarConfiguracion = async () => {
         const data = await configuracionImpresionService.getActiva();
         setConfig(data);
+        // El logo ya viene como Base64 desde el backend (campo logo_base64)
     };
 
     const formatCurrency = (amount) => {
@@ -63,12 +64,19 @@ export default function TicketPrint({
             <div className="ticket-content">
                 {/* ENCABEZADO */}
                 <div className="ticket-header">
-                    {config.mostrar_logo && config.logo && (
-                        <img
-                            src={`http://localhost:8000${config.logo}`}
-                            alt="Logo"
-                            className="ticket-logo"
-                        />
+                    {/* LOGO */}
+                    {config.mostrar_logo && config.logo_base64 && (
+                        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                            <img
+                                src={config.logo_base64}
+                                alt="Logo"
+                                style={{
+                                    maxWidth: '120px',
+                                    height: 'auto',
+                                    display: 'inline-block'
+                                }}
+                            />
+                        </div>
                     )}
                     <h2 className="ticket-business-name">{config.nombre_negocio}</h2>
                     {config.nit_negocio && (

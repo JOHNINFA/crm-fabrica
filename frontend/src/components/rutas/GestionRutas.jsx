@@ -123,8 +123,11 @@ const GestionRutas = () => {
                 {/* LISTA DE RUTAS */}
                 <Col md={4}>
                     <Card className="shadow-sm mb-4">
-                        <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h5 className="mb-0">Rutas</h5>
+                        <Card.Header
+                            className="d-flex justify-content-between align-items-center"
+                            style={{ backgroundColor: 'rgb(6, 56, 109)', color: 'white' }} // Color explícito en contenedor
+                        >
+                            <h5 className="mb-0" style={{ color: 'white' }}>Rutas</h5>
                             <Button variant="light" size="sm" onClick={() => {
                                 setEditingRuta(null);
                                 setFormData({ nombre: '', vendedor: '' });
@@ -135,18 +138,30 @@ const GestionRutas = () => {
                         </Card.Header>
                         <Card.Body className="p-0">
                             <div className="list-group list-group-flush">
-                                {rutas.map(ruta => (
-                                    <button
-                                        key={ruta.id}
-                                        className={`list-group-item list-group-item-action ${selectedRuta?.id === ruta.id ? 'active' : ''}`}
-                                        onClick={() => handleSelectRuta(ruta)}
-                                    >
-                                        <div className="d-flex w-100 justify-content-between">
-                                            <h6 className="mb-1">{ruta.nombre}</h6>
-                                            <small>{ruta.vendedor_nombre || 'Sin vendedor'}</small>
-                                        </div>
-                                    </button>
-                                ))}
+                                {rutas.map(ruta => {
+                                    const isActive = selectedRuta?.id === ruta.id;
+                                    return (
+                                        <button
+                                            key={ruta.id}
+                                            className={`list-group-item list-group-item-action ${isActive ? '' : ''}`}
+                                            onClick={() => handleSelectRuta(ruta)}
+                                            style={isActive ? {
+                                                backgroundColor: 'rgb(6, 56, 109)',
+                                                borderColor: 'rgb(6, 56, 109)',
+                                                color: 'white'
+                                            } : {}}
+                                        >
+                                            <div className="d-flex w-100 justify-content-between">
+                                                <h6 className="mb-1" style={{ color: isActive ? 'white' : 'inherit' }}>
+                                                    {ruta.nombre}
+                                                </h6>
+                                                <small style={{ color: isActive ? 'rgba(255,255,255,0.8)' : 'text-muted' }}>
+                                                    {ruta.vendedor_nombre || 'Sin vendedor'}
+                                                </small>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                                 {rutas.length === 0 && <div className="p-3 text-center text-muted">No hay rutas creadas</div>}
                             </div>
                         </Card.Body>

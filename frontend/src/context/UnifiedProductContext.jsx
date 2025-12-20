@@ -163,7 +163,6 @@ export const UnifiedProductProvider = ({ children }) => {
 
                 setProducts(formattedProducts);
                 syncToLocalStorage(formattedProducts);
-                console.log(`✅ ${formattedProducts.length} productos cargados desde backend`);
             }
 
             // Cargar categorías
@@ -242,7 +241,6 @@ export const UnifiedProductProvider = ({ children }) => {
             let categoriaId = categoriasMap[categoriaName.toLowerCase()];
 
             if (!categoriaId) {
-                console.log(`📁 Creando categoría: ${categoriaName}`);
                 const createdCat = await categoriaService.create(categoriaName);
                 if (createdCat?.id) {
                     categoriaId = createdCat.id;
@@ -330,7 +328,6 @@ export const UnifiedProductProvider = ({ children }) => {
             setProducts(updatedProducts);
             syncToLocalStorage(updatedProducts);
 
-            console.log('⚠️ Producto guardado localmente (offline)');
             return newProduct;
         }
     }, [products, categories, syncToLocalStorage, saveToLocalStorage]);
@@ -568,7 +565,6 @@ export const UnifiedProductProvider = ({ children }) => {
                 });
             }
             setProductImages(imagesMap);
-            console.log(`🖼️ ${Object.keys(imagesMap).length} imágenes cargadas en memoria`);
         } catch (error) {
             console.error('Error cargando imágenes locales:', error);
         }
@@ -591,7 +587,6 @@ export const UnifiedProductProvider = ({ children }) => {
             const localCategories = getFromLocalStorage('categories', ['General', 'Servicios']);
 
             if (localProducts.length > 0) {
-                console.log(`⚡ ${localProducts.length} productos cargados desde caché local`);
                 setProducts(localProducts);
                 setCategories(localCategories);
                 setIsInitialLoading(false);

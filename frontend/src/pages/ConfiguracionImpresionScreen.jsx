@@ -23,6 +23,7 @@ export default function ConfiguracionImpresionScreen() {
     const [logo, setLogo] = useState(null);
     const [logoPreview, setLogoPreview] = useState(null);
     const [anchoPapel, setAnchoPapel] = useState('80mm');
+    const [fuenteTicket, setFuenteTicket] = useState('Courier New');
     const [mostrarLogo, setMostrarLogo] = useState(true);
     const [mostrarCodigoBarras, setMostrarCodigoBarras] = useState(false);
     const [impresoraPredeterminada, setImpresoraPredeterminada] = useState('');
@@ -49,14 +50,22 @@ export default function ConfiguracionImpresionScreen() {
                 setPiePaginaTicket(data.pie_pagina_ticket || '');
                 setMensajeAgradecimiento(data.mensaje_agradecimiento || '¡Gracias por su compra!');
                 setAnchoPapel(data.ancho_papel || '80mm');
+                setFuenteTicket(data.fuente_ticket || 'Courier New');
                 setMostrarLogo(data.mostrar_logo !== false);
                 setMostrarCodigoBarras(data.mostrar_codigo_barras || false);
                 setImpresoraPredeterminada(data.impresora_predeterminada || '');
                 setResolucionFacturacion(data.resolucion_facturacion || '');
                 setRegimenTributario(data.regimen_tributario || '');
 
-                if (data.logo) {
-                    setLogoPreview(`http://localhost:8000${data.logo}`);
+                if (data.logo_base64) {
+                    // Usar Base64 si está disponible (más confiable)
+                    setLogoPreview(data.logo_base64);
+                } else if (data.logo) {
+                    // Si el logo ya viene con http, usarlo directo
+                    const logoUrl = data.logo.startsWith('http')
+                        ? data.logo
+                        : `http://localhost:8000${data.logo}`;
+                    setLogoPreview(logoUrl);
                 }
             }
         } catch (error) {
@@ -94,6 +103,7 @@ export default function ConfiguracionImpresionScreen() {
                 pie_pagina_ticket: piePaginaTicket,
                 mensaje_agradecimiento: mensajeAgradecimiento,
                 ancho_papel: anchoPapel,
+                fuente_ticket: fuenteTicket,
                 mostrar_logo: mostrarLogo,
                 mostrar_codigo_barras: mostrarCodigoBarras,
                 impresora_predeterminada: impresoraPredeterminada,
@@ -298,6 +308,23 @@ export default function ConfiguracionImpresionScreen() {
                                 >
                                     <option value="58mm">58mm</option>
                                     <option value="80mm">80mm</option>
+                                </select>
+                            </div>
+
+                            <div className="col-md-6 mb-3">
+                                <label className="form-label">Fuente del Ticket</label>
+                                <select
+                                    className="form-select"
+                                    value={fuenteTicket}
+                                    onChange={(e) => setFuenteTicket(e.target.value)}
+                                >
+                                    <option value="Courier New">Courier New (Clásico)</option>
+                                    <option value="Consolas">Consolas (Moderno)</option>
+                                    <option value="Monaco">Monaco</option>
+                                    <option value="Lucida Console">Lucida Console</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Verdana">Verdana</option>
+                                    <option value="Tahoma">Tahoma</option>
                                 </select>
                             </div>
 

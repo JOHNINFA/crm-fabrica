@@ -19,10 +19,90 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
   const [baseCaja, setBaseCaja] = useState(0);
 
+  // 🆕 Helper para cargar base caja desde BD
+  const cargarBaseCajaDesdeDB = async (fechaActual) => {
+    try {
+      const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+        idSheet === 'ID2' ? 'cargue-id2' :
+          idSheet === 'ID3' ? 'cargue-id3' :
+            idSheet === 'ID4' ? 'cargue-id4' :
+              idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+      const urlCargue = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+      const responseCargue = await fetch(urlCargue);
+
+      if (responseCargue.ok) {
+        const dataCargue = await responseCargue.json();
+        if (Array.isArray(dataCargue) && dataCargue.length > 0) {
+          for (const item of dataCargue) {
+            if (item.base_caja && parseFloat(item.base_caja) > 0) {
+              setBaseCaja(parseFloat(item.base_caja));
+              console.log(`✅ RESUMEN - ${idSheet} Base caja cargada desde BD: ${item.base_caja}`);
+              break;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ RESUMEN - Error cargando base caja:`, error);
+    }
+  };
+
   // 🚀 MEJORADO: Cargar datos según el estado (COMPLETADO = BD, otros = localStorage)
   const cargarDatos = async () => {
     try {
       const fechaActual = fechaSeleccionada;
+
+      // 🆕 NUEVO: SIEMPRE intentar cargar desde BD primero (para modo incógnito)
+      console.log(`🔍 RESUMEN - ${idSheet} Iniciando carga de datos desde BD...`);
+
+      // Primero intentar cargar desde cargue-pagos (tabla dedicada de pagos)
+      const urlPagos = `http://localhost:8000/api/cargue-pagos/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+      console.log(`🔍 RESUMEN - ${idSheet} Cargando pagos desde: ${urlPagos}`);
+
+      const responsePagos = await fetch(urlPagos);
+
+      if (responsePagos.ok) {
+        const dataPagos = await responsePagos.json();
+        console.log(`✅ RESUMEN - ${idSheet} Filas de pagos desde BD:`, dataPagos.length);
+
+        if (Array.isArray(dataPagos) && dataPagos.length > 0) {
+          // Convertir las filas del endpoint a formato del componente
+          const conceptosFromDB = Array(10).fill().map(() => ({
+            concepto: '',
+            descuentos: 0,
+            nequi: 0,
+            daviplata: 0
+          }));
+
+          dataPagos.forEach((pago, index) => {
+            if (index < 10) {
+              conceptosFromDB[index] = {
+                concepto: pago.concepto || '',
+                descuentos: Math.round(parseFloat(pago.descuentos)) || 0,
+                nequi: Math.round(parseFloat(pago.nequi)) || 0,
+                daviplata: Math.round(parseFloat(pago.daviplata)) || 0
+              };
+            }
+          });
+
+          console.log(`✅ RESUMEN - ${idSheet} Pagos cargados desde BD:`, conceptosFromDB.filter(f => f.concepto || f.nequi > 0 || f.daviplata > 0 || f.descuentos > 0));
+
+          // Marcar que estamos cargando desde BD para evitar resincronización
+          cargandoDesdeBD.current = true;
+          setFilas(conceptosFromDB);
+          setTimeout(() => {
+            cargandoDesdeBD.current = false;
+          }, 500);
+
+          // También cargar base caja desde CargueIDx
+          await cargarBaseCajaDesdeDB(fechaActual);
+          return; // Datos cargados desde BD exitosamente
+        }
+      }
+
+      // Si no hay datos en cargue-pagos, intentar cargar desde CargueIDx
+      console.log(`📂 RESUMEN - ${idSheet} No hay datos en cargue-pagos, intentando CargueIDx...`);
 
       // 🚀 CORREGIDO: Verificar estado COMPLETADO desde localStorage
       const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaActual}`) || 'ALISTAMIENTO';
@@ -94,25 +174,42 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                 });
               }
 
-              // 🚀 CORREGIDO: Tomar solo el primer registro con datos de pagos
-              // Los datos de pagos solo se guardan en el primer producto para evitar duplicación
+              // 🚀 CORREGIDO: Buscar el registro con los valores MÁS ALTOS de pagos
+              // Los datos de pagos se guardan en el primer producto, pero necesitamos encontrarlos
+              const descuentosActual = parseFloat(item.descuentos) || 0;
+              const nequiActual = parseFloat(item.nequi) || 0;
+              const daviplataActual = parseFloat(item.daviplata) || 0;
               const tieneConcepto = item.concepto && item.concepto.trim();
-              const tieneMontos = parseFloat(item.descuentos) > 0 || parseFloat(item.nequi) > 0 || parseFloat(item.daviplata) > 0;
+              const tieneMontos = descuentosActual > 0 || nequiActual > 0 || daviplataActual > 0;
 
-              if ((tieneConcepto || tieneMontos) && conceptosMap.size === 0) {
-                // Solo tomar el primer registro con datos de pagos
-                conceptosMap.set('PAGOS', {
-                  concepto: item.concepto || '',
-                  descuentos: parseFloat(item.descuentos) || 0,
-                  nequi: parseFloat(item.nequi) || 0,
-                  daviplata: parseFloat(item.daviplata) || 0
-                });
+              if (tieneConcepto || tieneMontos) {
+                // Buscar si ya tenemos datos guardados
+                const pagosExistentes = conceptosMap.get('PAGOS');
 
-                console.log(`🔍 RESUMEN - Datos de pagos cargados para ${idSheet}:`, {
+                if (!pagosExistentes) {
+                  // Primer registro con datos
+                  conceptosMap.set('PAGOS', {
+                    concepto: item.concepto || '',
+                    descuentos: descuentosActual,
+                    nequi: nequiActual,
+                    daviplata: daviplataActual
+                  });
+                } else {
+                  // Ya hay datos, tomar los valores MÁS ALTOS (último actualizado)
+                  conceptosMap.set('PAGOS', {
+                    concepto: item.concepto || pagosExistentes.concepto,
+                    descuentos: Math.max(descuentosActual, pagosExistentes.descuentos),
+                    nequi: Math.max(nequiActual, pagosExistentes.nequi),
+                    daviplata: Math.max(daviplataActual, pagosExistentes.daviplata)
+                  });
+                }
+
+                console.log(`🔍 RESUMEN - Datos de pagos procesados para ${idSheet}:`, {
                   concepto: item.concepto,
-                  descuentos: item.descuentos,
-                  nequi: item.nequi,
-                  daviplata: item.daviplata
+                  descuentos: descuentosActual,
+                  nequi: nequiActual,
+                  daviplata: daviplataActual,
+                  registro: conceptosMap.get('PAGOS')
                 });
               }
 
@@ -178,8 +275,85 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
           console.error(`❌ RESUMEN - ${idSheet} Error cargando conceptos:`, error);
         }
       } else {
-        console.log(`📂 RESUMEN - ${idSheet} No hay conceptos guardados, usando array vacío`);
-        // Inicializar con array vacío si no hay datos
+        // 🆕 NUEVO: Si localStorage está vacío, intentar cargar desde el endpoint dedicado cargue-pagos
+        console.log(`📂 RESUMEN - ${idSheet} No hay conceptos en localStorage, intentando cargar desde cargue-pagos...`);
+
+        try {
+          // Primero intentar con el nuevo endpoint cargue-pagos
+          const urlPagos = `http://localhost:8000/api/cargue-pagos/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+          console.log(`🔍 RESUMEN - ${idSheet} Cargando pagos desde: ${urlPagos}`);
+
+          const responsePagos = await fetch(urlPagos);
+
+          if (responsePagos.ok) {
+            const dataPagos = await responsePagos.json();
+            console.log(`✅ RESUMEN - ${idSheet} Filas de pagos desde BD:`, dataPagos.length);
+
+            if (Array.isArray(dataPagos) && dataPagos.length > 0) {
+              // Convertir las filas del endpoint a formato del componente
+              const conceptosFromDB = Array(10).fill().map(() => ({
+                concepto: '',
+                descuentos: 0,
+                nequi: 0,
+                daviplata: 0
+              }));
+
+              dataPagos.forEach((pago, index) => {
+                if (index < 10) {
+                  conceptosFromDB[index] = {
+                    concepto: pago.concepto || '',
+                    descuentos: Math.round(parseFloat(pago.descuentos)) || 0,
+                    nequi: Math.round(parseFloat(pago.nequi)) || 0,
+                    daviplata: Math.round(parseFloat(pago.daviplata)) || 0
+                  };
+                }
+              });
+
+              console.log(`✅ RESUMEN - ${idSheet} Pagos cargados:`, conceptosFromDB.filter(f => f.concepto || f.nequi > 0 || f.daviplata > 0));
+
+              // 🆕 IMPORTANTE: Marcar que estamos cargando desde BD para evitar resincronización
+              cargandoDesdeBD.current = true;
+              setFilas(conceptosFromDB);
+              // Desactivar el flag después de que React procese el cambio
+              setTimeout(() => {
+                cargandoDesdeBD.current = false;
+              }, 500);
+
+              // Guardar en localStorage para próximas cargas
+              localStorage.setItem(conceptosKey, JSON.stringify(conceptosFromDB));
+
+              // También cargar base caja desde CargueIDx
+              const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+                idSheet === 'ID2' ? 'cargue-id2' :
+                  idSheet === 'ID3' ? 'cargue-id3' :
+                    idSheet === 'ID4' ? 'cargue-id4' :
+                      idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+              const urlCargue = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+              const responseCargue = await fetch(urlCargue);
+
+              if (responseCargue.ok) {
+                const dataCargue = await responseCargue.json();
+                if (Array.isArray(dataCargue) && dataCargue.length > 0) {
+                  for (const item of dataCargue) {
+                    if (item.base_caja && parseFloat(item.base_caja) > 0) {
+                      setBaseCaja(parseFloat(item.base_caja));
+                      localStorage.setItem(baseCajaKey, item.base_caja.toString());
+                      break;
+                    }
+                  }
+                }
+              }
+
+              return;
+            }
+          }
+        } catch (error) {
+          console.error(`❌ RESUMEN - ${idSheet} Error cargando desde cargue-pagos:`, error);
+        }
+
+        // Si no hay datos en cargue-pagos, inicializar vacío
+        console.log(`📂 RESUMEN - ${idSheet} No hay datos, usando array vacío`);
         setFilas(Array(10).fill().map(() => ({
           concepto: '',
           descuentos: 0,
@@ -264,61 +438,24 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
   // 🆕 Ref para evitar sincronización en carga inicial de conceptos
   const cargaInicialConceptos = useRef(true);
+  // 🆕 NUEVO: Ref para indicar que estamos cargando datos desde BD (no sincronizar)
+  const cargandoDesdeBD = useRef(false);
 
   useEffect(() => {
     const fechaActual = fechaSeleccionada;
 
     // 🚀 CORREGIDO: Guardar CONCEPTOS específicos por ID
     const hayDatos = filas.some(fila => fila.concepto || fila.descuentos > 0 || fila.nequi > 0 || fila.daviplata > 0);
+
+    console.log(`🔍 SYNC DEBUG - idSheet: ${idSheet}, hayDatos: ${hayDatos}, cargaInicial: ${cargaInicialConceptos.current}`);
+
     if (hayDatos && idSheet) {
       const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fechaActual}`;
       localStorage.setItem(conceptosKey, JSON.stringify(filas));
       console.log(`💾 RESUMEN - ${idSheet} Conceptos guardados: ${conceptosKey}`, filas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0));
 
-      // 🆕 SINCRONIZACIÓN EN TIEMPO REAL (solo si no es carga inicial)
-      if (!cargaInicialConceptos.current) {
-        // Convertir fecha a formato YYYY-MM-DD si es objeto Date
-        let fechaParaBD;
-        if (fechaSeleccionada instanceof Date) {
-          const year = fechaSeleccionada.getFullYear();
-          const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-          const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-          fechaParaBD = `${year}-${month}-${day}`;
-        } else {
-          fechaParaBD = fechaSeleccionada;
-        }
-
-        // Calcular totales para sincronizar
-        const totalDescuentos = filas.reduce((sum, f) => sum + (f.descuentos || 0), 0);
-        const totalNequi = filas.reduce((sum, f) => sum + (f.nequi || 0), 0);
-        const totalDaviplata = filas.reduce((sum, f) => sum + (f.daviplata || 0), 0);
-        const conceptosTexto = filas.filter(f => f.concepto).map(f => f.concepto).join(', ');
-
-        // Sincronizar campos de pagos
-        const camposASincronizar = {
-          concepto: conceptosTexto,
-          descuentos: totalDescuentos,
-          nequi: totalNequi,
-          daviplata: totalDaviplata
-        };
-
-        // Sincronizar cada campo
-        Object.entries(camposASincronizar).forEach(([campo, valor]) => {
-          cargueRealtimeService.actualizarCampoGlobal(
-            idSheet,
-            dia,
-            fechaParaBD,
-            campo,
-            valor,
-            'Sistema'
-          ).then(result => {
-            if (result.success) {
-              console.log(`✅ Pago sincronizado: ${campo} = ${valor} (${result.action})`);
-            }
-          }).catch(err => console.error(`❌ Error sincronizando ${campo}:`, err));
-        });
-      }
-      cargaInicialConceptos.current = false;
+      // 🚫 NO sincronizar aquí - solo en handleInputChange para evitar sobreescrituras
+      // La sincronización con BD solo debe ocurrir cuando el usuario EDITA manualmente
     }
   }, [filas, dia, idSheet, fechaSeleccionada]);
 
@@ -328,6 +465,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   };
 
   const handleInputChange = (index, campo, value) => {
+    console.log(`🔥🔥🔥 handleInputChange EJECUTADO - index: ${index}, campo: ${campo}, value: ${value}`);
     const newFilas = [...filas];
     if (campo === 'concepto') {
       newFilas[index][campo] = value;
@@ -357,7 +495,34 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
     console.log(`🔄 Sincronizando pagos: concepto=${conceptosTexto}, desc=${totalDescuentos}, nequi=${totalNequi}, davi=${totalDaviplata}`);
 
-    // Sincronizar campos de pagos
+    // 🆕 NUEVO: Sincronizar FILAS COMPLETAS con el endpoint dedicado
+    const filasConDatos = newFilas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0);
+
+    console.log(`🔄 Sincronizando ${filasConDatos.length} filas con BD...`);
+    console.log(`📤 PAYLOAD: vendedor=${idSheet}, dia=${dia.toUpperCase()}, fecha=${fechaParaBD}, filas:`, filasConDatos);
+
+    fetch('http://localhost:8000/api/cargue-pagos/sync_pagos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendedor_id: idSheet,
+        dia: dia.toUpperCase(),
+        fecha: fechaParaBD,
+        filas: filasConDatos,
+        usuario: 'CRM'
+      })
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          console.log(`✅ Pagos sincronizados: ${result.message}`);
+        } else {
+          console.error(`❌ Error sincronizando pagos:`, result.error);
+        }
+      })
+      .catch(err => console.error(`❌ Error en fetch sync_pagos:`, err));
+
+    // También sincronizar TOTALES en CargueIDx (retrocompatibilidad)
     const camposASincronizar = {
       concepto: conceptosTexto,
       descuentos: totalDescuentos,
@@ -375,7 +540,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
         'Sistema'
       ).then(result => {
         if (result.success) {
-          console.log(`✅ Pago sincronizado: ${campoSync} = ${valor}`);
+          console.log(`✅ Total sincronizado: ${campoSync} = ${valor}`);
         }
       }).catch(err => console.error(`❌ Error sincronizando ${campoSync}:`, err));
     });

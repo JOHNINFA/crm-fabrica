@@ -41,17 +41,6 @@ const AddProductModal = ({ show, onClose, selectedProduct }) => {
   // Cargar datos del producto seleccionado
   useEffect(() => {
     if (productToEdit) {
-
-      console.log('Disponibilidad:', {
-        pos: productToEdit.disponible_pos,
-        cargue: productToEdit.disponible_cargue,
-        pedidos: productToEdit.disponible_pedidos,
-        inventario: productToEdit.disponible_inventario,
-        app_cargue: productToEdit.disponible_app_cargue,
-        app_sugeridos: productToEdit.disponible_app_sugeridos,
-        app_rendimiento: productToEdit.disponible_app_rendimiento,
-        app_ventas: productToEdit.disponible_app_ventas
-      });
       setFormData({
         nombre: productToEdit.name || "",
         precio: productToEdit.price || 0,

@@ -92,6 +92,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         return "RESPONSABLE";
     });
 
+    // 🆕 Estado para modal de vendidas
+    const [mostrarModalVendidas, setMostrarModalVendidas] = useState(false);
+
     // 🧮 Función para recalcular totales correctamente
     const recalcularTotales = (productos) => {
         return productos.map(p => {
@@ -99,6 +102,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             const dctos = parseInt(p.dctos) || 0;
             const adicional = parseInt(p.adicional) || 0;
             const devoluciones = parseInt(p.devoluciones) || 0;
+            const vendidas = parseInt(p.vendidas) || 0;
             const vencidas = parseInt(p.vencidas) || 0;
             const valor = parseInt(p.valor) || 0;
 
@@ -111,6 +115,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 dctos,
                 adicional,
                 devoluciones,
+                vendidas,
                 vencidas,
                 valor,
                 total,
@@ -204,6 +209,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     const cambioManualRef = useRef(false);
     // 🚩 NUEVO: Evitar bucles infinitos en actualización de contexto
     const contextoActualizadoRef = useRef(false);
+    // 🆕 NUEVO: Debounce para sincronización (evitar enviar cada tecla)
+    const debounceTimerRef = useRef({});
     const [, forceUpdate] = useState(0); // Solo para forzar re-render cuando sea necesario
 
     // ✅ CARGA INMEDIATA CON CACHÉ: Cargar datos desde localStorage con precios cacheados
@@ -423,9 +430,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         dctos: p.dctos || 0,
                         adicional: p.adicional || 0,
                         devoluciones: p.devoluciones || 0,
+                        vendidas: p.vendidas || 0,
                         vencidas: p.vencidas || 0,
                         lotesVencidos: lotesVencidos,
-                        total: p.total || p.cantidad || 0,
+                        total: p.total !== undefined ? p.total : ((p.cantidad || 0) - (p.dctos || 0) + (p.adicional || 0) - (p.devoluciones || 0) - (p.vencidas || 0)),
                         valor: p.valor || 0,
                         neto: p.neto || ((p.total || p.cantidad || 0) * (p.valor || 0)),
                         vendedor: p.v || p.vendedor || false,
@@ -463,9 +471,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         dctos: p.dctos || 0,
                         adicional: p.adicional || 0,
                         devoluciones: p.devoluciones || 0,
+                        vendidas: p.vendidas || 0,
                         vencidas: p.vencidas || 0,
                         lotesVencidos: lotesVencidos,
-                        total: p.total || p.cantidad || 0,
+                        total: p.total !== undefined ? p.total : ((p.cantidad || 0) - (p.dctos || 0) + (p.adicional || 0) - (p.devoluciones || 0) - (p.vencidas || 0)),
                         valor: p.valor || 0,
                         neto: p.neto || ((p.total || p.cantidad || 0) * (p.valor || 0)),
                         vendedor: p.v || p.vendedor || false,
@@ -490,14 +499,49 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                 console.warn(`📋 ${idSheet} - Mapa de orden:`, ordenProductos);
 
-                const productosOrdenados = [...productosDesdeDB].sort((a, b) => {
-                    const ordenA = ordenProductos[a.producto] !== undefined ? ordenProductos[a.producto] : 999999;
-                    const ordenB = ordenProductos[b.producto] !== undefined ? ordenProductos[b.producto] : 999999;
-                    return ordenA - ordenB;
+                // 🚀 FUSIONAR con el contexto para asegurar que estén TODOS los productos (36)
+                // Esto es crucial porque la BD puede devolver solo registros parciales (ej: solo los que tienen ventas)
+
+                const productosCompletos = products.map(product => {
+                    // Buscar si existe en la respuesta de la BD
+                    const productoBD = productosDesdeDB.find(p => p.producto === product.name);
+
+                    if (productoBD) {
+                        const valorReal = preciosLista[product.id] !== undefined ? preciosLista[product.id] : (productoBD.valor || Math.round(product.price * 0.65));
+                        const totalReal = productoBD.total || 0;
+
+                        return {
+                            ...productoBD,
+                            id: product.id || productoBD.id, // Preferir ID del contexto si existe
+                            valor: valorReal,
+                            neto: totalReal * valorReal, // 🚀 RECALCULAR NETO (Total * Valor)
+                            // Asegurar que check vendedor/despachador se mantengan
+                            vendedor: productoBD.vendedor || false,
+                            despachador: productoBD.despachador || false
+                        };
+                    } else {
+                        // Si no está en BD, crear vacío
+                        return {
+                            id: product.id,
+                            producto: product.name,
+                            cantidad: 0,
+                            dctos: 0,
+                            adicional: 0,
+                            devoluciones: 0,
+                            vendidas: 0,
+                            vencidas: 0,
+                            lotesVencidos: [],
+                            total: 0,
+                            valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65),
+                            neto: 0,
+                            vendedor: false,
+                            despachador: false
+                        };
+                    }
                 });
 
-                console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosOrdenados.length} productos (ordenados)`);
-                setProductosOperativos(productosOrdenados);
+                console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosCompletos.length} productos (fusionados BD + Contexto)`);
+                setProductosOperativos(productosCompletos);
 
                 // 🚀 CORREGIDO: Calcular totalPedidos real desde la BD
                 const totalNeto = productosDesdeDB.reduce((sum, p) => sum + (p.neto || 0), 0);
@@ -613,23 +657,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     return;
                 }
 
-                // Ordenar por el campo 'orden' si existe, sino por ID
-                const productosOrdenados = [...products].sort((a, b) => {
-                    const ordenA = a.orden !== undefined ? a.orden : 999999;
-                    const ordenB = b.orden !== undefined ? b.orden : 999999;
-
-                    if (ordenA !== ordenB) {
-                        return ordenA - ordenB;
-                    }
-
-                    return (a.id || 0) - (b.id || 0);
-                });
-
-                const productosConDatos = productosOrdenados.map(product => {
+                // 🔧 Siempre mostrar TODOS los productos del contexto (tabla Producto)
+                // Cargar datos de localStorage si existen, sino mostrar en 0
+                const productosConDatos = products.map(product => {
+                    // Buscar si existe en localStorage
                     const productoGuardado = datos.productos.find(p => p.producto === product.name);
 
                     if (productoGuardado) {
-                        console.log(`✅ ${idSheet} - Cargando producto: ${product.name} - Cantidad: ${productoGuardado.cantidad}`);
+                        console.log(`✅ ${idSheet} - Datos guardados: ${product.name}`);
                         return {
                             id: product.id,
                             producto: product.name,
@@ -637,33 +672,35 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             dctos: productoGuardado.dctos || 0,
                             adicional: productoGuardado.adicional || 0,
                             devoluciones: productoGuardado.devoluciones || 0,
+                            vendidas: productoGuardado.vendidas || 0,
                             vencidas: productoGuardado.vencidas || 0,
                             lotesVencidos: productoGuardado.lotesVencidos || [],
                             total: productoGuardado.total || 0,
-                            valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65), // Usar precio de lista o fallback
+                            valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : (productoGuardado.valor || Math.round(product.price * 0.65)),
                             neto: productoGuardado.neto || 0,
                             vendedor: productoGuardado.vendedor || false,
                             despachador: productoGuardado.despachador || false
                         };
                     } else {
-                        console.log(`❌ ${idSheet} - NO encontrado: ${product.name}`);
+                        // No existe en localStorage, crear con valores en 0
+                        console.log(`⚠️ ${idSheet} - Sin datos: ${product.name} (creando vacío)`);
+                        return {
+                            id: product.id,
+                            producto: product.name,
+                            cantidad: 0,
+                            dctos: 0,
+                            adicional: 0,
+                            devoluciones: 0,
+                            vendidas: 0,
+                            vencidas: 0,
+                            lotesVencidos: [],
+                            total: 0,
+                            valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65),
+                            neto: 0,
+                            vendedor: false,
+                            despachador: false
+                        };
                     }
-
-                    return {
-                        id: product.id,
-                        producto: product.name,
-                        cantidad: 0,
-                        dctos: 0,
-                        adicional: 0,
-                        devoluciones: 0,
-                        vencidas: 0,
-                        lotesVencidos: [],
-                        total: 0,
-                        valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : Math.round(product.price * 0.65),
-                        neto: 0,
-                        vendedor: false,
-                        despachador: false
-                    };
                 });
 
                 // 🧮 Recalcular totales para asegurar consistencia
@@ -754,8 +791,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
-        if (estadoBoton === 'COMPLETADO') {
-            console.log(`🔍 ${idSheet} - Día COMPLETADO detectado, cargando desde BD...`);
+        // 🆕 CAMBIO: Cargar desde BD tanto en DESPACHO como en COMPLETADO
+        if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
+            console.log(`🔍 ${idSheet} - Estado ${estadoBoton} detectado, cargando desde BD...`);
             cargarDatosDesdeDB();
         } else {
             console.log(`📂 ${idSheet} - Día no completado, cargando desde localStorage...`);
@@ -769,8 +807,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     useEffect(() => {
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
 
-        if (estadoBoton === 'COMPLETADO') {
-            console.log(`🔍 ${idSheet} - Componente montado con día COMPLETADO, cargando desde BD...`);
+        // 🆕 CAMBIO: Cargar desde BD tanto en DESPACHO como en COMPLETADO
+        if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
+            console.log(`🔍 ${idSheet} - Componente montado con estado ${estadoBoton}, cargando desde BD...`);
             cargarDatosDesdeDB();
         } else {
             // 🚀 NUEVO: Siempre cargar datos al montar (para datos de app móvil)
@@ -803,10 +842,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
         window.addEventListener('pedidoCreado', handleNuevoPedido);
         window.addEventListener('pedidoActualizado', handleNuevoPedido);
+        window.addEventListener('recargarPedidos', handleNuevoPedido); // 🆕 Para el botón de sincronizar
 
         return () => {
             window.removeEventListener('pedidoCreado', handleNuevoPedido);
             window.removeEventListener('pedidoActualizado', handleNuevoPedido);
+            window.removeEventListener('recargarPedidos', handleNuevoPedido);
         };
     }, [fechaSeleccionada, idSheet]);
 
@@ -814,9 +855,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     useEffect(() => {
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
 
-        // 🚀 NUEVO: No recalcular automáticamente si está COMPLETADO (usar valores de BD)
-        if (estadoBoton === 'COMPLETADO') {
-            console.log(`⏭️ ${idSheet} - Día COMPLETADO, no recalculando resumen automáticamente (usar valores de BD)`);
+        // 🆕 CAMBIO: No recalcular automáticamente si está DESPACHO o COMPLETADO (usar valores de BD)
+        if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
+            console.log(`⏭️ ${idSheet} - Estado ${estadoBoton}, no recalculando resumen automáticamente (usar valores de BD)`);
             return;
         }
 
@@ -844,9 +885,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     useEffect(() => {
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
-        // No procesar contexto si el día está COMPLETADO (usar datos de BD)
-        if (estadoBoton === 'COMPLETADO') {
-            console.log(`⏭️ ${idSheet} - Día COMPLETADO, omitiendo actualización por contexto`);
+        // No procesar contexto si el día está DESPACHO o COMPLETADO (usar datos de BD)
+        if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
+            console.log(`⏭️ ${idSheet} - Estado ${estadoBoton}, omitiendo actualización por contexto`);
             return;
         }
 
@@ -988,12 +1029,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
         // Obtener nombre del producto
         const productoActual = productosOperativos.find(p => p.id === id);
-        console.log(`🔍 Buscando producto ID=${id} en productosOperativos (${productosOperativos.length} productos)`);
-        console.log(`🔍 Producto encontrado:`, productoActual ? productoActual.producto : 'NO ENCONTRADO');
-
-
+        console.log(`🔍 DEBUG - Buscando producto ID=${id} en productosOperativos (${productosOperativos.length} productos)`);
+        console.log(`🔍 DEBUG - Producto encontrado:`, productoActual ? productoActual.producto : 'NO ENCONTRADO');
+        console.log(`🔍 DEBUG - Campo a sincronizar: ${campo}, Valor: ${valor}`);
+        console.log(`🔍 DEBUG - Estado botón actual: ${estadoBoton}`);
+        console.log(`🔍 DEBUG - Fecha para BD: ${fechaParaBD}`);
 
         if (productoActual) {
+            console.log(`✅ DEBUG - Producto ${productoActual.producto} encontrado, iniciando sincronización...`);
             // Mapear nombres de campos del frontend al backend
             const campoBackend = campo === 'vendedor' ? 'v' : campo === 'despachador' ? 'd' : campo;
             console.log(`🔄 Sincronizando: ${productoActual.producto} | ${campo} → ${campoBackend} = ${valor}`);
@@ -1001,27 +1044,37 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             // Obtener responsable actual
             const responsableActual = responsableStorage.get(idSheet) || 'Sistema';
 
+            // 🆕 DEBOUNCE: Cancelar sincronización anterior si existe
+            const timerKey = `${id}_${campo}`;
+            if (debounceTimerRef.current[timerKey]) {
+                clearTimeout(debounceTimerRef.current[timerKey]);
+                console.log(`⏱️ Cancelando sincronización anterior de ${productoActual.producto}.${campo}`);
+            }
 
+            // 🆕 DEBOUNCE: Esperar 500ms antes de sincronizar
+            debounceTimerRef.current[timerKey] = setTimeout(() => {
+                console.log(`📤 Enviando a BD después de debounce: ${productoActual.producto}.${campoBackend} = ${valor}`);
 
-            // Sincronizar con BD en tiempo real
-            cargueRealtimeService.actualizarCampoProducto(
-                idSheet,
-                dia,
-                fechaParaBD,
-                productoActual.producto,
-                campoBackend,
-                valor,
-                productoActual.valor || 0,
-                responsableActual
-            ).then(result => {
-                if (result.success) {
-                    console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valor} (${result.action})`);
-                } else {
-                    console.error(`❌ Error sincronizando BD:`, result.error);
-                }
-            }).catch(err => {
-                console.error(`❌ Error en sincronización:`, err);
-            });
+                // Sincronizar con BD en tiempo real
+                cargueRealtimeService.actualizarCampoProducto(
+                    idSheet,
+                    dia,
+                    fechaParaBD,
+                    productoActual.producto,
+                    campoBackend,
+                    valor,
+                    productoActual.valor || 0,
+                    responsableActual
+                ).then(result => {
+                    if (result.success) {
+                        console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valor} (${result.action})`);
+                    } else {
+                        console.error(`❌ Error sincronizando BD:`, result.error);
+                    }
+                }).catch(err => {
+                    console.error(`❌ Error en sincronización:`, err);
+                });
+            }, 1500); // 1500ms de espera - tiempo suficiente para escribir números completos
         }
     };
 
@@ -1192,13 +1245,18 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     try {
                         const datos = JSON.parse(datosString);
                         if (datos.productos && datos.productos.length > 0) {
-                            // Actualizar productos con los nuevos checks V
+                            // Actualizar productos con TODOS los datos nuevos
                             setProductosOperativos(prev => {
                                 return prev.map(producto => {
                                     const productoActualizado = datos.productos.find(p => p.producto === producto.producto);
                                     if (productoActualizado) {
                                         return {
                                             ...producto,
+                                            cantidad: productoActualizado.cantidad ?? producto.cantidad,
+                                            adicional: productoActualizado.adicional ?? producto.adicional,
+                                            devoluciones: productoActualizado.devoluciones ?? producto.devoluciones,
+                                            vendidas: productoActualizado.vendidas ?? producto.vendidas,
+                                            vencidas: productoActualizado.vencidas ?? producto.vencidas,
                                             vendedor: productoActualizado.vendedor || false,
                                             despachador: productoActualizado.despachador || false
                                         };
@@ -1206,7 +1264,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                     return producto;
                                 });
                             });
-                            console.log(`✅ ${idSheet} - Checks V actualizados en UI`);
+                            console.log(`✅ ${idSheet} - Datos actualizados en UI (vendidas, vencidas, checks)`);
                         }
                     } catch (error) {
                         console.error(`❌ ${idSheet} - Error procesando checksVActualizados:`, error);
@@ -1231,26 +1289,45 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             <div className="row mb-3">
                 <div className="col-12">
                     <div className="d-flex align-items-center justify-content-between">
-                        <div className="d-flex align-items-center">
-                            <span className="me-2 fw-bold">VENDEDOR:</span>
+                        <div className="d-flex align-items-center gap-3">
+                            <div className="d-flex align-items-center">
+                                <span className="me-2 fw-bold">VENDEDOR:</span>
+                                <button
+                                    type="button"
+                                    className="btn btn-link p-0 responsable-title"
+                                    onClick={onEditarNombre}
+                                    style={{
+                                        textDecoration: 'none',
+                                        fontSize: '1.2rem',
+                                        fontWeight: 'bold',
+                                        color: '#FF3333 !important',
+                                        cursor: 'pointer',
+                                        border: 'none',
+                                        background: 'none'
+                                    }}
+                                    title="Hacer clic para editar nombre"
+                                >
+                                    {nombreResponsable || 'RESPONSABLE'}
+                                </button>
+                                <i className="bi bi-pencil-square ms-2 text-muted" style={{ fontSize: '0.9rem' }}></i>
+                            </div>
+
+                            {/* 🆕 Botón para ver vendidas */}
                             <button
-                                type="button"
-                                className="btn btn-link p-0 responsable-title"
-                                onClick={onEditarNombre}
-                                style={{
-                                    textDecoration: 'none',
-                                    fontSize: '1.2rem',
-                                    fontWeight: 'bold',
-                                    color: '#FF3333 !important',
-                                    cursor: 'pointer',
-                                    border: 'none',
-                                    background: 'none'
-                                }}
-                                title="Hacer clic para editar nombre"
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => setMostrarModalVendidas(true)}
+                                title="Ver detalle de vendidas"
+                                style={{ color: '#0d6efd', fontWeight: '500' }}
                             >
-                                {nombreResponsable || 'RESPONSABLE'}
+                                📊 Vendidas
                             </button>
-                            <i className="bi bi-pencil-square ms-2 text-muted" style={{ fontSize: '0.9rem' }}></i>
+
+                            {/* 🆕 Botón para ver pedidos */}
+                            <BotonVerPedidos
+                                dia={dia}
+                                idSheet={idSheet}
+                                fechaSeleccionada={fechaSeleccionada}
+                            />
                         </div>
                         <div className="text-muted small">
                             {dia} - {fechaSeleccionada} - {idSheet}
@@ -1314,12 +1391,6 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         )}
                     </div>
 
-                    <BotonVerPedidos
-                        dia={dia}
-                        idSheet={idSheet}
-                        fechaSeleccionada={fechaSeleccionada}
-                    />
-
                     <BotonCorreccionNuevo
                         dia={dia}
                         idSheet={idSheet}
@@ -1342,6 +1413,70 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     </div>
                 </div>
             </div>
+
+            {/* 🆕 Modal de Vendidas */}
+            {mostrarModalVendidas && (
+                <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div className="modal-content">
+                            <div className="modal-header" style={{
+                                borderBottom: '3px solid #667eea'
+                            }}>
+                                <h5 className="modal-title fw-bold text-primary">📊 Detalle de Vendidas - {dia} {fechaSeleccionada}</h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setMostrarModalVendidas(false)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                <table className="table table-sm table-hover">
+                                    <thead className="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th className="text-center">Vendidas</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {productosOperativos
+                                            .filter(p => (p.vendidas || 0) > 0)
+                                            .map((p, idx) => (
+                                                <tr key={idx}>
+                                                    <td>{p.producto}</td>
+                                                    <td className="text-center fw-bold text-success">{p.vendidas || 0}</td>
+                                                </tr>
+                                            ))}
+                                        {productosOperativos.filter(p => (p.vendidas || 0) > 0).length === 0 && (
+                                            <tr>
+                                                <td colSpan="2" className="text-center text-muted">
+                                                    No hay productos vendidos registrados
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                    <tfoot className="table-light">
+                                        <tr>
+                                            <th>TOTAL</th>
+                                            <th className="text-center text-success">
+                                                {productosOperativos.reduce((sum, p) => sum + (parseInt(p.vendidas) || 0), 0)}
+                                            </th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setMostrarModalVendidas(false)}
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

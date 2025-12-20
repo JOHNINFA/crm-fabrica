@@ -15,6 +15,7 @@ import MenuSheets from './components/Cargue/MenuSheets';
 import InformeVentasGeneral from './pages/InformeVentasGeneral';
 import InformePedidosScreen from './pages/InformePedidosScreen';
 import ClientesScreen from './pages/ClientesScreen';
+import ClienteIAScreen from './pages/ClienteIAScreen';
 import ListaClientesScreen from './pages/ListaClientesScreen';
 import ListaPreciosScreen from './pages/ListaPreciosScreen';
 import MaestroListaPreciosScreen from './pages/MaestroListaPreciosScreen';
@@ -32,6 +33,7 @@ import ConfiguracionImpresionScreen from './pages/ConfiguracionImpresionScreen';
 import ReportesAvanzadosScreen from './pages/ReportesAvanzadosScreen';
 import TrazabilidadScreen from './pages/TrazabilidadScreen';
 import PreciosCargueScreen from './pages/PreciosCargueScreen';
+import ReporteTransferenciasScreen from './pages/ReporteTransferenciasScreen';
 
 function App() {
   return (
@@ -50,9 +52,11 @@ function App() {
               <Route path="/cargue" element={<SelectorDia />} />
               <Route path="/cargue/:dia" element={<MenuSheets />} />
               <Route path="/informes/general" element={<InformeVentasGeneral />} />
+              <Route path="/informes/transferencias" element={<ReporteTransferenciasScreen />} />
               <Route path="/informes/pedidos" element={<InformePedidosScreen />} />
               <Route path="/clientes" element={<ListaClientesScreen />} />
               <Route path="/clientes/nuevo" element={<ClientesScreen />} />
+              <Route path="/clientes/ia" element={<ClienteIAScreen />} />
               <Route path="/clientes/editar/:id" element={<ClientesScreen />} />
               <Route path="/clientes/ver/:id" element={<ClientesScreen />} />
               <Route path="/lista-precios" element={<MaestroListaPreciosScreen />} />

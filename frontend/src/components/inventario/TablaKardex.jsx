@@ -19,52 +19,22 @@ const TablaKardex = () => {
     return existencias > 0 ? 'bg-light-green' : 'bg-light-red';
   };
 
-  // Orden específico de productos para Kardex
-  const ordenEspecificoKardex = [
-    "AREPA TIPO OBLEA 500Gr",
-    "AREPA MEDIANA 330Gr",
-    "AREPA TIPO PINCHO 330Gr",
-    "AREPA QUESO CORRIENTE 450Gr",
-    "AREPA QUESO ESPECIAL GRANDE 600Gr",
-    "AREPA CON QUESO ESPECIAL PEQUEÑA 600Gr",
-    "AREPA BOYACENSE X 10",
-    "AREPA DE CHOCLO CORRIENTE 300Gr",
-    "AREPA DE CHOCLO CON QUESO GRANDE 1200Gr",
-    "ALMOJABANA X 5 300Gr",
-    "AREPA CON QUESO CUADRADA 450Gr",
-    "AREPA QUESO MINI X10",
-    "AREPA SANTANDEREANA 450Gr",
-    "AREPA DE CHOCLO CON QUESO PEQUEÑA 700Gr",
-    "AREPA CON SEMILLA DE QUINUA 450Gr",
-    "AREPA DE CHOCLO CON QUESO PEQUEÑA 700 Gr",
-    "ALMOJABANAS X 10 600Gr",
-    "AREPA BOYACENSE X 5 450Gr"
-  ];
-
-  // Función para ordenar productos según el orden específico
+  // 🆕 NUEVO: Usar el campo 'orden' de la BD para ordenar productos
+  // Ya no se usa una lista fija hardcodeada
   const ordenarProductos = (productos) => {
     return productos.sort((a, b) => {
-      const nombreA = a.producto || a.nombre;
-      const nombreB = b.producto || b.nombre;
+      // Usar el campo 'orden' que viene de la BD
+      const ordenA = a.orden || 999;
+      const ordenB = b.orden || 999;
 
-      const indiceA = ordenEspecificoKardex.findIndex(orden =>
-        nombreA.toUpperCase().includes(orden.toUpperCase()) || orden.toUpperCase().includes(nombreA.toUpperCase())
-      );
-      const indiceB = ordenEspecificoKardex.findIndex(orden =>
-        nombreB.toUpperCase().includes(orden.toUpperCase()) || orden.toUpperCase().includes(nombreB.toUpperCase())
-      );
-
-      // Si ambos están en el orden específico, usar ese orden
-      if (indiceA !== -1 && indiceB !== -1) {
-        return indiceA - indiceB;
+      // Si tienen el mismo orden, ordenar alfabéticamente
+      if (ordenA === ordenB) {
+        const nombreA = a.producto || a.nombre || '';
+        const nombreB = b.producto || b.nombre || '';
+        return nombreA.localeCompare(nombreB);
       }
 
-      // Si solo uno está en el orden específico, ese va primero
-      if (indiceA !== -1) return -1;
-      if (indiceB !== -1) return 1;
-
-      // Si ninguno está en el orden específico, orden alfabético
-      return nombreA.localeCompare(nombreB);
+      return ordenA - ordenB;
     });
   };
 
@@ -94,21 +64,23 @@ const TablaKardex = () => {
       if (!stockResponse.ok) throw new Error('Error al obtener stocks');
       const stocksBD = await stockResponse.json();
 
-
-
+      // 🆕 Filtrar solo productos con disponible_inventario = true
+      const stocksFiltrados = stocksBD.filter(s => s.disponible_inventario !== false);
 
       // Crear mapa de stocks
       const stockMap = {};
-      stocksBD.forEach(s => {
+      stocksFiltrados.forEach(s => {
         stockMap[s.producto_id] = s.cantidad_actual;
       });
 
       // 🎯 Usar stocks como productos (ya tiene todo lo necesario)
-      const productosProduccion = stocksBD.map(s => ({
+      // 🆕 Incluir campo 'orden' para ordenamiento
+      const productosProduccion = stocksFiltrados.map(s => ({
         id: s.producto_id,
         nombre: s.producto_nombre,
         descripcion: s.producto_descripcion,
-        stock_total: s.cantidad_actual
+        stock_total: s.cantidad_actual,
+        orden: s.orden || 999 // Campo orden del producto
       }));
 
       // 🚀 OPTIMIZADO: Solo obtener últimos registros (limitar a 100)
@@ -144,7 +116,8 @@ const TablaKardex = () => {
             usuario: ultimoMov.usuario,
             lote: '-',
             fechaVencimiento: '-',
-            registrado: true
+            registrado: true,
+            orden: producto.orden || 999 // 🆕 Campo orden para ordenamiento
           };
         } else {
           // Producto sin movimientos (nuevo o sin registros)
@@ -160,7 +133,8 @@ const TablaKardex = () => {
             usuario: 'Sin usuario',
             lote: '-',
             fechaVencimiento: '-',
-            registrado: false
+            registrado: false,
+            orden: producto.orden || 999 // 🆕 Campo orden para ordenamiento
           };
         }
       });

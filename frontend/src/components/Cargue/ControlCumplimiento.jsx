@@ -113,30 +113,62 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
         }
       }
 
-      // 2. Si no hay datos locales, cargar desde PostgreSQL
-      console.log(`🔍 CUMPLIMIENTO - Cargando desde PostgreSQL: ${dia} - ${idSheet} - ${fechaAUsar}`);
-      const url = `http://localhost:8000/api/control-cumplimiento/?dia=${dia.toUpperCase()}&id_sheet=${idSheet}&fecha=${fechaAUsar}`;
+      // 🆕 NUEVO: Si no hay datos en localStorage, intentar cargar desde CargueIDx
+      console.log(`🔍 CUMPLIMIENTO - No hay localStorage, cargando desde BD CargueIDx: ${dia} - ${idSheet} - ${fechaParaBD}`);
+
+      const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
+        idSheet === 'ID2' ? 'cargue-id2' :
+          idSheet === 'ID3' ? 'cargue-id3' :
+            idSheet === 'ID4' ? 'cargue-id4' :
+              idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+      const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+      console.log(`🔍 CUMPLIMIENTO - URL: ${url}`);
       const response = await fetch(url);
 
       if (response.ok) {
         const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          const registro = data.results[0];
+        console.log(`✅ CUMPLIMIENTO - Datos desde BD:`, data.length, 'registros');
+
+        if (Array.isArray(data) && data.length > 0) {
+          // Buscar el primer registro que tenga datos de cumplimiento
+          let registro = data.find(r =>
+            r.licencia_transporte || r.soat || r.uniforme ||
+            r.no_locion || r.no_accesorios || r.capacitacion_carnet ||
+            r.higiene || r.estibas || r.desinfeccion
+          );
+
+          // Si no hay ninguno con datos, tomar el primero
+          if (!registro) {
+            registro = data[0];
+          }
+
           const cumplimientoData = {};
 
           items.forEach(item => {
-            if (registro[item.key] && registro[item.key] !== null) {
-              cumplimientoData[item.key] = registro[item.key];
+            const valor = registro[item.key];
+            if (valor && valor !== null && valor !== '') {
+              cumplimientoData[item.key] = valor;
+              console.log(`✅ CUMPLIMIENTO - ${item.key}: "${valor}"`);
             }
           });
 
-          setCumplimiento(cumplimientoData);
-          // Guardar en localStorage para próxima vez
-          localStorage.setItem(keyLocal, JSON.stringify(cumplimientoData));
+          if (Object.keys(cumplimientoData).length > 0) {
+            setCumplimiento(cumplimientoData);
+            // Guardar en localStorage para próxima vez
+            localStorage.setItem(keyLocal, JSON.stringify(cumplimientoData));
+            console.log(`💾 CUMPLIMIENTO - Datos de BD guardados en localStorage`);
+          } else {
+            setCumplimiento({});
+          }
         } else {
           setCumplimiento({});
         }
+      } else {
+        console.log('❌ CUMPLIMIENTO - Error en response:', response.status);
+        setCumplimiento({});
       }
+
       setCargaInicial(false);
     } catch (error) {
       console.error('❌ Error cargando cumplimiento:', error);

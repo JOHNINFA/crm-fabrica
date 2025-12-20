@@ -12,7 +12,7 @@ const base64ToFile = (base64String, filename = 'image.jpg') => {
   if (!base64String || typeof base64String !== 'string' || !base64String.startsWith('data:')) {
     return null;
   }
-  
+
   try {
     // Extraer el tipo MIME y los datos
     const arr = base64String.split(',');
@@ -20,11 +20,11 @@ const base64ToFile = (base64String, filename = 'image.jpg') => {
     const bstr = atob(arr[1]);
     let n = bstr.length;
     const u8arr = new Uint8Array(n);
-    
+
     while (n--) {
       u8arr[n] = bstr.charCodeAt(n);
     }
-    
+
     return new File([u8arr], filename, { type: mime });
   } catch (error) {
     console.error('Error al convertir base64 a archivo:', error);
@@ -66,32 +66,32 @@ export const productoService = {
   create: async (productoData) => {
     try {
 
-      
+
       // Verificar si hay una imagen en formato base64
       if (productoData.imagen && typeof productoData.imagen === 'string' && productoData.imagen.startsWith('data:')) {
         // Usar FormData para enviar la imagen
         const formData = new FormData();
-        
+
         // Convertir la imagen base64 a un archivo
         const imageFile = base64ToFile(productoData.imagen, 'producto.jpg');
         if (imageFile) {
           formData.append('imagen', imageFile);
         }
-        
+
         // Agregar el resto de los datos del producto
         Object.keys(productoData).forEach(key => {
           if (key !== 'imagen' && productoData[key] !== null && productoData[key] !== undefined) {
             formData.append(key, productoData[key]);
           }
         });
-        
+
 
         const response = await fetch(`${API_URL}/productos/`, {
           method: 'POST',
           body: formData,
           // No establecer Content-Type, fetch lo hará automáticamente con el boundary correcto
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error('Error response:', errorText);
@@ -130,9 +130,9 @@ export const productoService = {
         console.error('ID de producto inválido:', id);
         return { error: true, message: `ID de producto inválido: ${id}` };
       }
-      
 
-      
+
+
       // Verificar primero si el producto existe
       try {
         const checkResponse = await fetch(`${API_URL}/productos/${id}/`);
@@ -143,32 +143,32 @@ export const productoService = {
       } catch (checkError) {
         console.error('Error al verificar producto:', checkError);
       }
-      
+
       // Verificar si hay una imagen en formato base64
       if (productoData.imagen && typeof productoData.imagen === 'string' && productoData.imagen.startsWith('data:')) {
         // Usar FormData para enviar la imagen
         const formData = new FormData();
-        
+
         // Convertir la imagen base64 a un archivo
         const imageFile = base64ToFile(productoData.imagen, 'producto.jpg');
         if (imageFile) {
           formData.append('imagen', imageFile);
         }
-        
+
         // Agregar el resto de los datos del producto
         Object.keys(productoData).forEach(key => {
           if (key !== 'imagen' && productoData[key] !== null && productoData[key] !== undefined) {
             formData.append(key, productoData[key]);
           }
         });
-        
+
 
         const response = await fetch(`${API_URL}/productos/${id}/`, {
           method: 'PATCH',
           body: formData,
           // No establecer Content-Type, fetch lo hará automáticamente con el boundary correcto
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error al actualizar producto ${id}:`, response.status, errorText);
@@ -207,13 +207,13 @@ export const productoService = {
         console.error('ID de producto inválido:', id);
         return { error: true, message: `ID de producto inválido: ${id}` };
       }
-      
 
-      
+
+
       // Primero obtener el stock actual
       let stockActual = 0;
       let productoExiste = false;
-      
+
       try {
         const getResponse = await fetch(`${API_URL}/productos/${id}/`);
         if (getResponse.ok) {
@@ -229,12 +229,12 @@ export const productoService = {
         console.warn('Error al obtener stock actual:', getError);
         return { error: true, message: `Error al obtener producto: ${getError.message}` };
       }
-      
+
       // Si el producto no existe, no continuar
       if (!productoExiste) {
         return { error: true, message: `Producto con ID ${id} no encontrado` };
       }
-      
+
       // Enviar actualización de stock
       try {
         const response = await fetch(`${API_URL}/productos/${id}/actualizar_stock/`, {
@@ -242,9 +242,9 @@ export const productoService = {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ 
-            cantidad, 
-            usuario, 
+          body: JSON.stringify({
+            cantidad,
+            usuario,
             nota,
             stock_actual: stockActual // Enviar el stock actual para referencia
           }),
@@ -255,7 +255,7 @@ export const productoService = {
           console.error(`Error al actualizar stock del producto ${id}:`, response.status, errorText);
           return { error: true, message: `Error al actualizar stock: ${response.status}` };
         }
-        
+
         const result = await response.json();
         console.log(`Stock actualizado exitosamente para producto ${id}. Nuevo stock: ${result.stock_actual || 'N/A'}`);
         return result;
@@ -268,36 +268,36 @@ export const productoService = {
       return handleApiError(error);
     }
   },
-  
+
   // Subir una imagen para un producto
   uploadImage: async (id, imageData) => {
     try {
 
-      
+
       if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:')) {
         throw new Error('Formato de imagen inválido');
       }
-      
+
       // Convertir la imagen base64 a un archivo
       const imageFile = base64ToFile(imageData, 'producto.jpg');
       if (!imageFile) {
         throw new Error('No se pudo convertir la imagen');
       }
-      
+
       const formData = new FormData();
       formData.append('imagen', imageFile);
-      
+
       const response = await fetch(`${API_URL}/productos/${id}/`, {
         method: 'PATCH',
         body: formData,
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
         throw new Error(`Error al subir imagen: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error en uploadImage:', error);
@@ -378,12 +378,12 @@ export const categoriaService = {
         console.error('Error response:', errorText);
         throw new Error(`Error al eliminar categoría: ${response.status}`);
       }
-      
+
       // DELETE puede retornar 204 No Content
       if (response.status === 204) {
         return { success: true };
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error en delete categoría:', error);
@@ -399,7 +399,7 @@ export const loteService = {
     try {
       let url = `${API_URL}/lotes/`;
       if (productoId) url += `?producto=${productoId}`;
-      
+
 
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Error al obtener lotes: ${response.status}`);
@@ -450,7 +450,7 @@ export const cleanTablesService = {
         console.error('Error response:', errorText);
         throw new Error(`Error al limpiar tablas: ${response.status}`);
       }
-      
+
 
       return await response.json();
     } catch (error) {
@@ -470,11 +470,11 @@ export const movimientoService = {
       Object.keys(params).forEach(key => {
         if (params[key]) queryParams.append(key, params[key]);
       });
-      
+
       const url = `${API_URL}/movimientos/?${queryParams.toString()}`;
 
       const response = await fetch(url);
-      
+
       if (!response.ok) throw new Error(`Error al obtener movimientos: ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -513,10 +513,10 @@ export const ventaService = {
       Object.keys(params).forEach(key => {
         if (params[key]) queryParams.append(key, params[key]);
       });
-      
+
       const url = `${API_URL}/ventas/?${queryParams.toString()}`;
 
-      
+
       // Intentar con API primero
       try {
         const response = await fetch(url);
@@ -532,10 +532,10 @@ export const ventaService = {
       // Fallback: usar localStorage
 
       const ventasGuardadas = localStorage.getItem('ventas_pos');
-      
+
       if (ventasGuardadas) {
         let ventas = JSON.parse(ventasGuardadas);
-        
+
         // Verificar ventas anuladas y actualizar estados
         const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
         if (ventasAnuladas.length > 0) {
@@ -547,14 +547,14 @@ export const ventaService = {
             return venta;
           });
         }
-        
+
 
         return ventas;
       } else {
 
         return [];
       }
-      
+
     } catch (error) {
       console.error('Error en getAll ventas:', error);
       return [];
@@ -578,10 +578,61 @@ export const ventaService = {
         console.error('Error response:', errorText);
         throw new Error(`Error al crear venta: ${response.status}`);
       }
-      return await response.json();
+      const data = await response.json();
+
+      // Intentar sincronizar pendientes si hay conexión exitosa
+      /* 
+      // Comentado para no afectar rendimiento ahora, se puede activar después
+      setTimeout(() => {
+         const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
+         if (pendientes.length > 0) {
+             console.log('Intentando sincronizar ventas pendientes...');
+             // Lógica de sincronización background
+         }
+      }, 5000);
+      */
+
+      return data;
     } catch (error) {
-      console.error('Error en create venta:', error);
-      return handleApiError(error);
+      console.error('⚠️ Error de conexión al crear venta. Guardando en modo OFFLINE:', error);
+
+      try {
+        // 1. Obtener cola de pendientes
+        const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
+
+        // 2. Crear objeto de venta temporal
+        const ventaOffline = {
+          ...ventaData,
+          id: `TEMP_${Date.now()}_${Math.floor(Math.random() * 1000)}`, // ID temporal único
+          fecha: new Date().toISOString(), // Fecha actual
+          estado: 'PAGADO', // Asumir pagado
+          sincronizado: false,
+          created_at_local: Date.now()
+        };
+
+        // 3. Guardar en localStorage
+        pendientes.push(ventaOffline);
+        localStorage.setItem('ventas_pendientes', JSON.stringify(pendientes));
+
+        // 4. Actualizar también el listado local de ventas para que aparezca en el historial inmediato
+        const ventasLocales = JSON.parse(localStorage.getItem('ventas_pos') || '[]');
+        ventasLocales.unshift(ventaOffline); // Agregar al principio
+        localStorage.setItem('ventas_pos', JSON.stringify(ventasLocales));
+
+        console.log('✅ Venta guardada localmente (OFFLINE). ID:', ventaOffline.id);
+
+        // 5. Retornar éxito simulado para que la UI continúe (impresión, limpiar carrito, etc.)
+        return {
+          ...ventaOffline,
+          success: true,
+          offline: true,
+          message: 'Venta guardada localmente (Sin conexión)'
+        };
+
+      } catch (localError) {
+        console.error('❌ Error crítico: Falló incluso el guardado local:', localError);
+        return handleApiError(error);
+      }
     }
   },
 
@@ -589,7 +640,7 @@ export const ventaService = {
   getById: async (id) => {
     try {
 
-      
+
       // Intentar con API primero
       try {
         const response = await fetch(`${API_URL}/ventas/${id}/`);
@@ -609,12 +660,12 @@ export const ventaService = {
 
       const ventasGuardadas = localStorage.getItem('ventas_pos');
 
-      
+
       if (ventasGuardadas) {
         const ventas = JSON.parse(ventasGuardadas);
 
         let venta = ventas.find(v => v.id === parseInt(id));
-        
+
         if (venta) {
           // Verificar si está anulada
           const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
@@ -622,7 +673,7 @@ export const ventaService = {
             venta = { ...venta, estado: 'ANULADA' };
 
           }
-          
+
 
 
           return venta;
@@ -631,9 +682,9 @@ export const ventaService = {
 
         }
       }
-      
+
       throw new Error('Venta no encontrada en API ni localStorage');
-      
+
     } catch (error) {
       console.error('❌ Error en getById venta:', error);
       return { error: true, message: error.message };
@@ -644,7 +695,7 @@ export const ventaService = {
   anularVenta: async (id) => {
     try {
 
-      
+
       // Intentar con API primero - usando PATCH para actualizar el estado
       try {
 
@@ -652,7 +703,7 @@ export const ventaService = {
           estado: 'ANULADA'
         };
 
-        
+
         const response = await fetch(`${API_URL}/ventas/${id}/`, {
           method: 'PATCH',
           headers: {
@@ -662,13 +713,13 @@ export const ventaService = {
         });
 
 
-        
+
         if (response.ok) {
           const result = await response.json();
 
 
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: 'Venta anulada exitosamente en base de datos',
             venta: result
           };
@@ -707,7 +758,7 @@ export const ventaService = {
       // Fallback: marcar como anulada localmente (temporal hasta que API esté disponible)
       console.log('⚠️ API no disponible, usando fallback local temporal');
 
-      
+
       // Crear lista de ventas anuladas para persistir el estado
       const ventasAnuladas = JSON.parse(localStorage.getItem('ventas_anuladas') || '[]');
       if (!ventasAnuladas.includes(parseInt(id))) {
@@ -715,17 +766,17 @@ export const ventaService = {
         localStorage.setItem('ventas_anuladas', JSON.stringify(ventasAnuladas));
 
       }
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: 'Venta anulada exitosamente (pendiente sincronización con base de datos)',
         venta: { id: parseInt(id), estado: 'ANULADA' }
       };
-      
+
     } catch (error) {
       console.error('Error en anularVenta:', error);
-      return { 
-        error: true, 
+      return {
+        error: true,
         message: error.message || 'Error al anular la venta'
       };
     }
@@ -743,10 +794,10 @@ export const pedidoService = {
       Object.keys(params).forEach(key => {
         if (params[key]) queryParams.append(key, params[key]);
       });
-      
+
       const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
 
-      
+
       // Intentar con API primero
       try {
         const response = await fetch(url);
@@ -762,10 +813,10 @@ export const pedidoService = {
       // Fallback: usar localStorage
 
       const pedidosGuardados = localStorage.getItem('pedidos_sistema');
-      
+
       if (pedidosGuardados) {
         let pedidos = JSON.parse(pedidosGuardados);
-        
+
         // Verificar pedidos anulados y actualizar estados
         const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
         if (pedidosAnulados.length > 0) {
@@ -777,14 +828,14 @@ export const pedidoService = {
             return pedido;
           });
         }
-        
+
 
         return pedidos;
       } else {
 
         return [];
       }
-      
+
     } catch (error) {
       console.error('Error en getAll pedidos:', error);
       return [];
@@ -795,7 +846,7 @@ export const pedidoService = {
   create: async (remisionData) => {
     try {
 
-      
+
       // Intentar con API primero
       try {
         const response = await fetch(`${API_URL}/pedidos/`, {
@@ -809,10 +860,10 @@ export const pedidoService = {
         if (response.ok) {
           const result = await response.json();
 
-          
+
           // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
           window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: result }));
-          
+
           return result;
         } else {
           const errorText = await response.text();
@@ -821,29 +872,29 @@ export const pedidoService = {
         }
       } catch (apiError) {
         console.warn('API no disponible, guardando en localStorage:', apiError);
-        
+
         // Fallback: guardar en localStorage
         const pedidosGuardados = JSON.parse(localStorage.getItem('pedidos_sistema') || '[]');
-        
+
         // Generar ID único y número de pedido
         const nuevoId = Date.now();
         const numeroPedido = `PED-${String(nuevoId).slice(-6)}`;
-        
+
         const nuevoPedido = {
           id: nuevoId,
           numero_pedido: numeroPedido,
           ...remisionData,
           fecha_creacion: new Date().toISOString()
         };
-        
+
         pedidosGuardados.push(nuevoPedido);
         localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosGuardados));
-        
 
-        
+
+
         // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
         window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: nuevoPedido }));
-        
+
         return nuevoPedido;
       }
     } catch (error) {
@@ -856,7 +907,7 @@ export const pedidoService = {
   getById: async (id) => {
     try {
 
-      
+
       // Intentar con API primero
       try {
         const response = await fetch(`${API_URL}/pedidos/${id}/`);
@@ -874,27 +925,27 @@ export const pedidoService = {
       // Fallback: buscar en localStorage
 
       const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
-      
+
       if (remisionesGuardadas) {
         const remisiones = JSON.parse(remisionesGuardadas);
         let remision = remisiones.find(r => r.id === parseInt(id));
-        
+
         if (remision) {
           // Verificar si está anulada
           const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
           if (remisionesAnuladas.includes(parseInt(id))) {
             remision = { ...remision, estado: 'ANULADA' };
           }
-          
+
 
           return remision;
         } else {
           console.log('❌ Remisión no encontrada en localStorage con ID:', id);
         }
       }
-      
+
       throw new Error('Remisión no encontrada en API ni localStorage');
-      
+
     } catch (error) {
       console.error('❌ Error en getById remisión:', error);
       return { error: true, message: error.message };
@@ -905,7 +956,7 @@ export const pedidoService = {
   anularPedido: async (id, motivo = 'Anulado desde gestión de pedidos') => {
     try {
 
-      
+
       // Intentar con el endpoint específico de anulación
       try {
         const response = await fetch(`${API_URL}/pedidos/${id}/anular/`, {
@@ -919,8 +970,8 @@ export const pedidoService = {
         if (response.ok) {
           const result = await response.json();
 
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: result.message || 'Pedido anulado exitosamente',
             pedido: result.pedido
           };
@@ -933,11 +984,11 @@ export const pedidoService = {
         console.error('❌ Error en API al anular pedido:', apiError);
         throw apiError;
       }
-      
+
     } catch (error) {
       console.error('❌ Error en anularPedido:', error);
-      return { 
-        error: true, 
+      return {
+        error: true,
         message: error.message || 'Error al anular el pedido'
       };
     }
@@ -952,7 +1003,7 @@ export const pedidoService = {
   updateEstado: async (id, nuevoEstado) => {
     try {
 
-      
+
       const response = await fetch(`${API_URL}/pedidos/${id}/`, {
         method: 'PATCH',
         headers: {
@@ -1029,24 +1080,24 @@ export const configuracionImpresionService = {
   create: async (configData) => {
     try {
       const formData = new FormData();
-      
+
       // Agregar campos de texto
       Object.keys(configData).forEach(key => {
         if (key !== 'logo' && configData[key] !== null && configData[key] !== undefined) {
           formData.append(key, configData[key]);
         }
       });
-      
+
       // Agregar logo si existe
       if (configData.logo && configData.logo instanceof File) {
         formData.append('logo', configData.logo);
       }
-      
+
       const response = await fetch(`${API_URL}/configuracion-impresion/`, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -1059,24 +1110,24 @@ export const configuracionImpresionService = {
   update: async (id, configData) => {
     try {
       const formData = new FormData();
-      
+
       // Agregar campos de texto
       Object.keys(configData).forEach(key => {
         if (key !== 'logo' && configData[key] !== null && configData[key] !== undefined) {
           formData.append(key, configData[key]);
         }
       });
-      
+
       // Agregar logo si existe y es un archivo nuevo
       if (configData.logo && configData.logo instanceof File) {
         formData.append('logo', configData.logo);
       }
-      
+
       const response = await fetch(`${API_URL}/configuracion-impresion/${id}/`, {
         method: 'PUT',
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -1091,7 +1142,7 @@ export const configuracionImpresionService = {
       const response = await fetch(`${API_URL}/configuracion-impresion/${id}/`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       return { success: true };
     } catch (error) {

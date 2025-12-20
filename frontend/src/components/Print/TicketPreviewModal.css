@@ -37,60 +37,83 @@
     padding: 15px;
 }
 
-/* Ocultar el footer al imprimir */
+/* ===== ESTILOS DE IMPRESIÓN SIMPLIFICADOS ===== */
 @media print {
 
-    /* Ocultar todo excepto el ticket */
+    /* Ocultar TODA la página excepto el ticket */
     body * {
-        visibility: hidden;
-    }
-
-    /* Hacer visible solo el modal y su contenido */
-    .ticket-preview-modal,
-    .ticket-preview-modal * {
-        visibility: visible;
-    }
-
-    /* Ocultar header y footer del modal */
-    .ticket-preview-modal .modal-header,
-    .ticket-preview-modal .modal-footer,
-    .no-print {
         display: none !important;
     }
 
-    /* Posicionar el modal para impresión */
-    .ticket-preview-modal .modal-dialog {
-        position: absolute;
-        left: 0;
-        top: 0;
-        max-width: 100%;
-        margin: 0;
-        width: 80mm;
-    }
-
-    .ticket-preview-modal .modal-content {
-        border: none;
-        box-shadow: none;
-        background: white;
-    }
-
-    .ticket-preview-modal .modal-body {
-        padding: 0;
-        background: white;
-    }
-
-    .preview-container {
-        border: none;
-        box-shadow: none;
-        padding: 0;
-        max-height: none;
-        overflow: visible;
-        background: white;
-    }
-
-    /* Asegurar que el ticket sea visible */
-    .ticket-container,
-    .ticket-container * {
+    body,
+    body .modal,
+    body .modal-dialog,
+    body .modal-content,
+    body .modal-body,
+    body .preview-container,
+    body #ticket-to-print,
+    body .ticket-container,
+    body .ticket-container * {
+        display: block !important;
         visibility: visible !important;
+    }
+
+    /* Forzar la imagen del logo */
+    body .ticket-container img,
+    body .ticket-logo {
+        display: block !important;
+        visibility: visible !important;
+        max-width: 150px !important;
+        max-height: 80px !important;
+        margin: 0 auto 10px auto !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Posicionar todo en la esquina superior izquierda */
+    body .modal,
+    body .modal-dialog,
+    body .modal-content {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
+
+    body .modal-header,
+    body .modal-footer,
+    body .no-print,
+    body .navbar,
+    body aside,
+    body header {
+        display: none !important;
+    }
+
+    body .modal-body,
+    body .preview-container {
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    body .ticket-container {
+        width: 80mm !important;
+        max-width: 80mm !important;
+        padding: 5mm !important;
+        background: white !important;
+    }
+
+    @page {
+        size: 80mm auto;
+        margin: 0;
     }
 }

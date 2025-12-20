@@ -68,10 +68,14 @@ export const cargueRealtimeService = {
         const registroId = registros[0].id;
         console.log(`📝 Registro existe (ID: ${registroId}) → PATCH`);
 
+        // 🆕 LOG DEBUG: Ver valor exacto que se envía
+        const patchData = { [campo]: valor };
+        console.log(`📤 PATCH Data:`, JSON.stringify(patchData), `(tipo: ${typeof valor}, longitud: ${String(valor).length})`);
+
         const patchResponse = await fetch(`${API_URL}/${endpoint}/${registroId}/`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ [campo]: valor })
+          body: JSON.stringify(patchData)
         });
 
         if (patchResponse.ok) {
@@ -239,15 +243,31 @@ export const cargueRealtimeService = {
   actualizarCampoGlobal: async (idSheet, dia, fecha, campo, valor, responsable = 'Sistema') => {
     try {
       const endpoint = ENDPOINT_MAP[idSheet];
-      console.log(`🔄 Sincronizando campo global: ${idSheet} | ${dia} | ${fecha} | ${campo} = ${valor}`);
+
+      // 🆕 Normalizar fecha a formato YYYY-MM-DD
+      let fechaFormateada = fecha;
+      if (fecha instanceof Date) {
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        fechaFormateada = `${year}-${month}-${day}`;
+      }
+
+      console.log(`🔄 Sincronizando campo global: ${idSheet} | ${dia} | ${fechaFormateada} | ${campo} = ${valor}`);
 
       // Buscar registros de productos reales (excluir _GLOBAL_) - INCLUIR DIA
-      const searchUrl = `${API_URL}/${endpoint}/?fecha=${fecha}&dia=${dia.toUpperCase()}`;
+      const searchUrl = `${API_URL}/${endpoint}/?fecha=${fechaFormateada}&dia=${dia.toUpperCase()}`;
       console.log(`🔍 Buscando registros en: ${searchUrl}`);
       const searchResponse = await fetch(searchUrl);
+
+      if (!searchResponse.ok) {
+        console.error(`❌ Error en búsqueda: ${searchResponse.status} ${searchResponse.statusText}`);
+        return { success: false, error: 'Error en búsqueda' };
+      }
+
       const registros = await searchResponse.json();
-      console.log(`📋 Registros encontrados: ${registros.length}`, registros.map(r => ({ id: r.id, fecha: r.fecha, producto: r.producto })));
-      
+      console.log(`📋 Registros encontrados: ${registros.length}`);
+
       // Filtrar solo registros de productos reales (no _GLOBAL_)
       const registrosReales = registros.filter(r => r.producto && r.producto !== '_GLOBAL_');
       console.log(`📋 Registros reales (sin _GLOBAL_): ${registrosReales.length}`);
@@ -255,8 +275,8 @@ export const cargueRealtimeService = {
       if (registrosReales.length > 0) {
         // Actualizar el primer registro con el campo global
         const registroId = registrosReales[0].id;
-        console.log(`🎯 Actualizando registro ID: ${registroId} con fecha: ${registrosReales[0].fecha}`);
-        
+        console.log(`🎯 Actualizando registro ID: ${registroId} | Campo: ${campo} | Valor: ${valor}`);
+
         const patchResponse = await fetch(`${API_URL}/${endpoint}/${registroId}/`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -264,15 +284,19 @@ export const cargueRealtimeService = {
         });
 
         if (patchResponse.ok) {
+          const data = await patchResponse.json();
           console.log(`✅ Campo global actualizado: ${campo} = ${valor}`);
-          return { success: true, action: 'updated' };
+          return { success: true, action: 'updated', data };
+        } else {
+          const errorText = await patchResponse.text();
+          console.error(`❌ Error en PATCH: ${patchResponse.status} - ${errorText}`);
+          return { success: false, action: 'update_failed', error: errorText };
         }
-        return { success: false, action: 'update_failed' };
 
       } else {
         // No hay registros de productos, guardar solo en localStorage
         // Los campos globales se sincronizarán cuando se creen productos
-        console.log(`⚠️ No hay productos para ${fecha}, campo global guardado solo en localStorage`);
+        console.log(`⚠️ No hay productos para ${fechaFormateada}, campo global guardado solo en localStorage`);
         return { success: true, action: 'pending_sync' };
       }
 

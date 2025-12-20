@@ -7,12 +7,10 @@ import AddProductModal from './AddProductModal';
 import logo from '../../assets/images/icono.png';
 import './Sidebar.css';
 
-export default function Sidebar({ onWidthChange }) {
+export default function Sidebar({ onWidthChange, onOpenCategoryManager }) {
   const { openProductsModal } = useModalContext();
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
-  const [showInformesSubmenu, setShowInformesSubmenu] = useState(false);
 
   // Sidebar siempre colapsado por defecto, se expande solo al hacer clic en hamburguesa
   const sidebarWidth = isExpanded ? 210 : 0;
@@ -128,169 +126,101 @@ export default function Sidebar({ onWidthChange }) {
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
               <span style={{ fontSize: '14px' }}>Productos</span>
             </li>
-            {/* Lista de precios con submenu */}
+
+
             <li
               className="nav-item sidebar-item py-2"
-              onClick={() => setShowPreciosSubmenu(!showPreciosSubmenu)}
+              onClick={() => {
+                navigate('/caja?movimiento=INGRESO');
+                setIsExpanded(false);
+              }}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>attach_money</span>
-              <span style={{ fontSize: '14px' }}>Precios</span>
-              <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
-                {showPreciosSubmenu ? 'expand_less' : 'expand_more'}
-              </span>
-            </li>
-
-            {/* Submenu de Lista de precios */}
-            {showPreciosSubmenu && (
-              <>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => {
-                    sessionStorage.setItem('origenModulo', 'pos');
-                    navigate('/lista-precios');
-                    setIsExpanded(false);
-                  }}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Lista de precios</span>
-                </li>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => {
-                    sessionStorage.setItem('origenModulo', 'pos');
-                    navigate('/informe-lista-precios');
-                    setIsExpanded(false);
-                  }}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Informe de lista de precios</span>
-                </li>
-              </>
-            )}
-
-            {/* Factura Rápida */}
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>point_of_sale</span>
-              <span style={{ fontSize: '14px' }}>Factura Rápida(POS)</span>
-            </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>keyboard_double_arrow_down</span>
               <span style={{ fontSize: '14px' }}>Ingresos</span>
             </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+            <li
+              className="nav-item sidebar-item py-2"
+              onClick={() => {
+                navigate('/caja?movimiento=EGRESO');
+                setIsExpanded(false);
+              }}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>upload</span>
               <span style={{ fontSize: '14px' }}>Gastos</span>
             </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+            <li
+              className="nav-item sidebar-item py-2"
+              onClick={() => {
+                // Guardar 'kardex' en localStorage para que abra directamente en esa pestaña
+                localStorage.setItem('inventarioActiveTab', 'kardex');
+                window.open('/inventario', '_blank');
+                setIsExpanded(false);
+              }}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>balance</span>
               <span style={{ fontSize: '14px' }}>Inventarios</span>
             </li>
+
+
             <li
               className="nav-item sidebar-item py-2"
-              onClick={() => setShowInformesSubmenu(!showInformesSubmenu)}
+              onClick={() => {
+                window.open('/remisiones', '_blank');
+                setIsExpanded(false);
+              }}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>assessment</span>
-              <span style={{ fontSize: '14px' }}>Informes</span>
-              <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
-                {showInformesSubmenu ? 'expand_less' : 'expand_more'}
-              </span>
-            </li>
-
-            {/* Submenu de Informes */}
-            {showInformesSubmenu && (
-              <>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => console.log('Venta x rutas')}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Venta x rutas</span>
-                </li>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => console.log('Venta TAT vs remisiones por ruta')}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Venta TAT vs remisiones por ruta</span>
-                </li>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => console.log('Cantidad de unidades vendidas')}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Cantidad de unidades vendidas</span>
-                </li>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => console.log('Cantidad total de devoluciones')}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Cantidad total de devoluciones</span>
-                </li>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => console.log('Ganancia x utilidades total')}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Ganancia x utilidades total</span>
-                </li>
-                <li
-                  className="nav-item sidebar-item py-1"
-                  onClick={() => console.log('Historial de clientes ventas y devoluciones')}
-                  style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                >
-                  <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                  <span>Historial de clientes ventas y devoluciones</span>
-                </li>
-              </>
-            )}
-
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
               <span style={{ fontSize: '14px' }}>Pedidos</span>
             </li>
             <li
               className="nav-item sidebar-item py-2"
               onClick={() => {
-                navigate('/clientes');
+                window.open('/informes/general', '_blank');
                 setIsExpanded(false);
               }}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>
-              <span style={{ fontSize: '14px' }}>Clientes</span>
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>assessment</span>
+              <span style={{ fontSize: '14px' }}>Informe de Ventas</span>
             </li>
             <li
               className="nav-item sidebar-item py-2"
               onClick={() => {
-                navigate('/vendedores');
+                window.open('/caja', '_blank');
                 setIsExpanded(false);
               }}
               style={{ cursor: 'pointer', ...getMenuItemStyle() }}
             >
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>badge</span>
-              <span style={{ fontSize: '14px' }}>Vendedores</span>
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>point_of_sale</span>
+              <span style={{ fontSize: '14px' }}>Caja</span>
             </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person_search</span>
-              <span style={{ fontSize: '14px' }}>Proveedores</span>
+            <li
+              className="nav-item sidebar-item py-2"
+              onClick={() => {
+                if (onOpenCategoryManager) {
+                  onOpenCategoryManager();
+                }
+                setIsExpanded(false);
+              }}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
+              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>settings</span>
+              <span style={{ fontSize: '14px' }}>Gestionar</span>
             </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+            <li
+              className="nav-item sidebar-item py-2"
+              onClick={() => {
+                window.open('/informes/transferencias', '_blank');
+                setIsExpanded(false);
+              }}
+              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+            >
               <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>account_balance</span>
               <span style={{ fontSize: '14px' }}>Bancos</span>
-            </li>
-            <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>calculate</span>
-              <span style={{ fontSize: '14px' }}>Contabilidad</span>
             </li>
           </ul>
         </div>

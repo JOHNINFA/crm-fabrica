@@ -29,9 +29,31 @@ const ListaClientesScreen = () => {
     }
   };
 
+  const handleEliminar = async (cliente) => {
+    const confirmar = window.confirm(
+      `¿Estás seguro de eliminar el cliente "${cliente.alias || cliente.nombre_completo}"?\n\nEsta acción no se puede deshacer.`
+    );
+
+    if (confirmar) {
+      try {
+        const resultado = await clienteService.delete(cliente.id);
+        if (resultado && !resultado.error) {
+          alert('✅ Cliente eliminado exitosamente');
+          cargarClientes(); // Recargar lista
+        } else {
+          alert('❌ Error al eliminar el cliente');
+        }
+      } catch (error) {
+        console.error('Error eliminando cliente:', error);
+        alert('❌ Error de conexión');
+      }
+    }
+  };
+
   const clientesFiltrados = clientes.filter(cliente =>
-    cliente.nombre_completo.toLowerCase().includes(busqueda.toLowerCase()) ||
-    cliente.identificacion.includes(busqueda)
+    (cliente.nombre_completo || '').toLowerCase().includes(busqueda.toLowerCase()) ||
+    (cliente.alias || '').toLowerCase().includes(busqueda.toLowerCase()) ||
+    (cliente.identificacion || '').includes(busqueda)
   );
 
   return (
@@ -43,6 +65,27 @@ const ListaClientesScreen = () => {
             <div className="d-flex justify-content-between align-items-center">
               <h2 className="mb-0">Gestión de Clientes</h2>
               <div>
+                <Button
+                  variant="outline-primary"
+                  className="me-2"
+                  onClick={() => navigate('/clientes/ia')}
+                  style={{
+                    color: '#06386d',
+                    borderColor: '#06386d',
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#06386d';
+                    e.target.style.color = '#fff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#06386d';
+                  }}
+                >
+                  <i className="bi bi-robot me-2"></i>
+                  Asistente
+                </Button>
                 <Button
                   variant="success"
                   className="me-2"
@@ -105,9 +148,9 @@ const ListaClientesScreen = () => {
                       <thead className="table-light">
                         <tr>
                           <th>Identificación</th>
-                          <th>Nombre Completo</th>
+                          <th>Negocio / Contacto</th>
                           <th>Teléfono</th>
-                          <th>Email</th>
+                          <th>Días Visita</th>
                           <th>Ciudad</th>
                           <th>Estado</th>
                           <th>Acciones</th>
@@ -124,11 +167,11 @@ const ListaClientesScreen = () => {
                               </td>
                               <td>
                                 <div>
-                                  {cliente.nombre_completo}
-                                  {cliente.alias && (
+                                  <strong>{cliente.alias || cliente.nombre_completo}</strong>
+                                  {cliente.alias && cliente.nombre_completo && (
                                     <>
                                       <br />
-                                      <small className="text-muted">({cliente.alias})</small>
+                                      <small className="text-muted">Contacto: {cliente.nombre_completo}</small>
                                     </>
                                   )}
                                 </div>
@@ -145,7 +188,17 @@ const ListaClientesScreen = () => {
                                   )}
                                 </div>
                               </td>
-                              <td>{cliente.email_1 || '-'}</td>
+                              <td>
+                                {cliente.dia_entrega ? (
+                                  <span style={{ color: '#06386d', fontSize: '0.85rem' }}>
+                                    {cliente.dia_entrega.split(',').map(dia =>
+                                      dia.trim().charAt(0).toUpperCase() + dia.trim().slice(1).toLowerCase()
+                                    ).join(', ')}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted">-</span>
+                                )}
+                              </td>
                               <td>{cliente.ciudad || '-'}</td>
                               <td>
                                 <span className={`badge ${cliente.activo ? 'bg-success' : 'bg-secondary'}`}>
@@ -156,17 +209,28 @@ const ListaClientesScreen = () => {
                                 <Button
                                   variant="outline-primary"
                                   size="sm"
-                                  className="me-2"
+                                  className="me-1"
                                   onClick={() => navigate(`/clientes/editar/${cliente.id}`)}
+                                  title="Editar cliente"
                                 >
-                                  <i className="bi bi-pencil"></i> Editar
+                                  <i className="bi bi-pencil"></i>
                                 </Button>
                                 <Button
                                   variant="outline-info"
                                   size="sm"
+                                  className="me-1"
                                   onClick={() => navigate(`/clientes/ver/${cliente.id}`)}
+                                  title="Ver cliente"
                                 >
-                                  <i className="bi bi-eye"></i> Ver
+                                  <i className="bi bi-eye"></i>
+                                </Button>
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  onClick={() => handleEliminar(cliente)}
+                                  title="Eliminar cliente"
+                                >
+                                  <i className="bi bi-trash"></i>
                                 </Button>
                               </td>
                             </tr>

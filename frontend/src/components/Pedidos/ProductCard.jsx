@@ -98,22 +98,36 @@ export default function ProductCard({ product, onClick, priceList }) {
         >
             <div className="card-body d-flex flex-column align-items-center text-center">
                 {/* Imagen o icono por defecto - EXACTAMENTE IGUAL QUE POS */}
-                {imageSource ? (
-                    <img
-                        src={imageSource}
-                        alt={product.name || 'Producto'}
-                        style={{
-                            maxHeight: 45,
-                            maxWidth: '100%',
-                            objectFit: 'contain',
-                            marginBottom: '3px'
-                        }}
-                    />
-                ) : (
-                    <span style={{ fontSize: 22, marginBottom: '3px' }} className="material-icons">
-                        paid
-                    </span>
-                )}
+                {/* Imagen o icono por defecto - EXACTAMENTE IGUAL QUE POS */}
+                <div style={{
+                    height: '50px',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '3px',
+                    overflow: 'hidden',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '4px'
+                }}>
+                    {imageSource ? (
+                        <img
+                            src={imageSource}
+                            alt={product.name || 'Producto'}
+                            loading="eager"
+                            style={{
+                                height: '100%',
+                                width: 'auto',
+                                maxWidth: '100%',
+                                objectFit: 'contain'
+                            }}
+                        />
+                    ) : (
+                        <span style={{ fontSize: 22 }} className="material-icons">
+                            paid
+                        </span>
+                    )}
+                </div>
 
                 {/* Precio */}
                 <div className="product-price">

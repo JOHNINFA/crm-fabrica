@@ -10,8 +10,13 @@ from .views import (
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
     PrediccionIAView, guardar_sugerido, obtener_cargue, obtener_rendimiento_cargue, actualizar_check_vendedor, verificar_estado_dia,
+    calcular_devoluciones_automaticas, ventas_tiempo_real, cerrar_turno_vendedor,
     RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
-    RegistrosPlaneacionDiaViewSet
+    RegistrosPlaneacionDiaViewSet,
+    CarguePagosViewSet,
+    obtener_estado_cargue, actualizar_estado_cargue,  # 🆕 Estado de cargue
+    # 🆕 Endpoints de turno
+    verificar_turno_activo, abrir_turno, cerrar_turno_estado
 )
 
 router = DefaultRouter()
@@ -35,6 +40,7 @@ router.register(r'cargue-id3', CargueID3ViewSet, basename='cargue-id3')
 router.register(r'cargue-id4', CargueID4ViewSet, basename='cargue-id4')
 router.register(r'cargue-id5', CargueID5ViewSet, basename='cargue-id5')
 router.register(r'cargue-id6', CargueID6ViewSet, basename='cargue-id6')
+router.register(r'cargue-pagos', CarguePagosViewSet, basename='cargue-pagos')  # 🆕 Pagos de cargue
 
 # Domiciliarios
 router.register(r'domiciliarios', DomiciliarioViewSet, basename='domiciliarios')
@@ -64,6 +70,26 @@ urlpatterns = router.urls + [
     path('obtener-cargue/', obtener_cargue, name='obtener-cargue'),
     path('rendimiento-cargue/', obtener_rendimiento_cargue, name='rendimiento-cargue'),
     path('actualizar-check-vendedor/', actualizar_check_vendedor, name='actualizar-check-vendedor'),
-    path('verificar-estado-dia/', verificar_estado_dia, name='verificar-estado-dia'),  # Nuevo endpoint
+    path('verificar-estado-dia/', verificar_estado_dia, name='verificar-estado-dia'),
+    
+    # 🔗 Integración App ↔ Web
+    path('cargue/devoluciones-automaticas/<str:id_vendedor>/<str:fecha>/', 
+         calcular_devoluciones_automaticas, 
+         name='devoluciones-automaticas'),
+    path('cargue/ventas-tiempo-real/<str:id_vendedor>/<str:fecha>/', 
+         ventas_tiempo_real, 
+         name='ventas-tiempo-real'),
+    path('cargue/cerrar-turno/', 
+         cerrar_turno_vendedor, 
+         name='cerrar-turno'),
+    
+    # 🆕 Gestión de turnos (App Móvil)
+    path('turno/verificar/', verificar_turno_activo, name='verificar-turno'),
+    path('turno/abrir/', abrir_turno, name='abrir-turno'),
+    path('turno/cerrar/', cerrar_turno_estado, name='cerrar-turno-estado'),
+    
+    # 🆕 Estado del cargue
+    path('estado-cargue/', obtener_estado_cargue, name='obtener-estado-cargue'),
+    path('estado-cargue/actualizar/', actualizar_estado_cargue, name='actualizar-estado-cargue'),
 ]
 

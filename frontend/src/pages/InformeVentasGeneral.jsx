@@ -618,21 +618,10 @@ const InformeVentasGeneral = () => {
                   <i className="bi bi-arrow-left me-1"></i>
                   Volver al POS
                 </Button>
-                <Dropdown className="me-3">
-                  <Dropdown.Toggle variant="link" id="dropdown-venta" className="text-white text-decoration-none p-0" style={{ fontSize: '14px' }}>
-                    📦 Venta
-                  </Dropdown.Toggle>
-                </Dropdown>
-                <Dropdown className="me-3">
-                  <Dropdown.Toggle variant="link" id="dropdown-informes-ventas" className="text-white text-decoration-none p-0" style={{ fontSize: '14px' }}>
-                    Informes de Ventas
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu>
-                    <Dropdown.Item onClick={() => navigate('/informes/general')}>
-                      Informe de Ventas General
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
+
+                <div className="text-white nav-link p-0" style={{ fontSize: '14px', cursor: 'default' }}>
+                  Informes de Ventas
+                </div>
               </div>
             </Col>
           </Row>
@@ -646,17 +635,7 @@ const InformeVentasGeneral = () => {
             <h6 className="mb-2" style={{ fontSize: '16px', fontWeight: 'normal' }}>
               Historial de Ventas / Ingresos
             </h6>
-            <div className="d-flex align-items-center" style={{ fontSize: '12px' }}>
-              <Button variant="link" className="me-3 text-decoration-none p-0" style={{ fontSize: '12px', color: '#0c2c53' }}>
-                📁 Importar Facturas y Cuentas x Cobrar
-              </Button>
-              <Button variant="link" className="me-3 text-decoration-none p-0" style={{ fontSize: '12px', color: '#0c2c53' }}>
-                📄 Importar Facturas
-              </Button>
-              <Button variant="link" className="text-decoration-none p-0" style={{ fontSize: '12px', color: '#0c2c53' }}>
-                💰 Recalcular Costos en Transacciones
-              </Button>
-            </div>
+
           </Col>
         </Row>
 
@@ -754,9 +733,7 @@ const InformeVentasGeneral = () => {
                 size="sm"
                 style={{ fontSize: '12px', backgroundColor: '#0c2c53', color: 'white', border: 'none' }}
                 onClick={() => {
-                  // Las métricas se recalculan automáticamente con useMemo
-
-
+                  cargarVentas();
                 }}
               >
                 🔍 Consultar Transacciones
@@ -881,9 +858,7 @@ const InformeVentasGeneral = () => {
                             <th>Vendedor</th>
                             <th>Cliente</th>
                             <th>T.Facturado</th>
-                            <th>T.A Pagar</th>
                             <th>T.Abonado</th>
-                            <th>T.Pend Pago</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -910,14 +885,12 @@ const InformeVentasGeneral = () => {
                                 <td>{transaccion.vendedor}</td>
                                 <td>{transaccion.cliente}</td>
                                 <td>{formatCurrency(transaccion.facturado)}</td>
-                                <td>{formatCurrency(transaccion.pagar)}</td>
                                 <td>{formatCurrency(transaccion.abonado)}</td>
-                                <td>{formatCurrency(transaccion.pendiente)}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan="11" className="text-center p-4">
+                              <td colSpan="9" className="text-center p-4">
                                 No hay ventas registradas
                               </td>
                             </tr>

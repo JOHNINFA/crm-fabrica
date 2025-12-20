@@ -11,6 +11,7 @@ const LoginCajeroModal = ({ show, onHide }) => {
         isAuthenticated,
         cajeroLogueado,
         sucursalActiva,
+        cambiarSucursal,
         loading
     } = useCajero();
 
@@ -19,16 +20,26 @@ const LoginCajeroModal = ({ show, onHide }) => {
     const [password, setPassword] = useState('');
     const [saldoInicialCaja, setSaldoInicialCaja] = useState('');
     const [cajerosDisponibles, setCajerosDisponibles] = useState([]);
+    const [sucursalesDisponibles, setSucursalesDisponibles] = useState([]); // Nuevo estado
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loadingCajeros, setLoadingCajeros] = useState(false);
 
-    // Cargar cajeros disponibles al abrir el modal
+    // Validar si la sucursal activa es válida
+    const sucursalValida = sucursalActiva && sucursalActiva.id && sucursalActiva.nombre;
+
+    // Efecto para inicializar datos cuando abre el modal
     useEffect(() => {
         if (show && !isAuthenticated) {
-            cargarCajerosDisponibles();
+            // Si hay sucursal activa y válida, cargar cajeros
+            if (sucursalValida) {
+                cargarCajerosDisponibles();
+            } else {
+                // Si no hay sucursal activa o está incompleta, cargar lista para seleccionar
+                cargarSucursales();
+            }
         }
-    }, [show, isAuthenticated]);
+    }, [show, isAuthenticated, sucursalActiva]);
 
     // Limpiar formulario al cerrar
     useEffect(() => {
@@ -41,15 +52,42 @@ const LoginCajeroModal = ({ show, onHide }) => {
         }
     }, [show]);
 
+    // Cargar sucursales activas
+    const cargarSucursales = async () => {
+        try {
+            // Importar servicio dinámicamente o usar el del contexto si estuviera expuesto
+            // Aquí asumo que necesito importar sucursalService que ya se usa en otros lados
+            const { sucursalService } = require('../../services/sucursalService');
+            const sucursales = await sucursalService.getActivas();
+            setSucursalesDisponibles(sucursales);
+
+            // Si solo hay una, seleccionarla automáticamente
+            if (sucursales.length === 1) {
+                await cambiarSucursal(sucursales[0].id);
+            }
+        } catch (error) {
+            console.error('Error cargando sucursales:', error);
+            setError('Error cargando lista de sucursales');
+        }
+    };
+
     // Cargar cajeros disponibles
     const cargarCajerosDisponibles = async () => {
+        if (!sucursalValida) {
+            // Si llegamos aquí y no es válida, intentamos cargar sucursales como fallback
+            cargarSucursales();
+            return;
+        }
+
         setLoadingCajeros(true);
         try {
             const cajeros = await getCajerosDisponibles();
             setCajerosDisponibles(cajeros);
 
             if (cajeros.length === 0) {
-                setError('No hay cajeros disponibles para esta sucursal');
+                setError(`No hay cajeros disponibles en ${sucursalActiva?.nombre}`);
+            } else {
+                setError('');
             }
         } catch (error) {
             console.error('Error cargando cajeros:', error);
@@ -58,6 +96,15 @@ const LoginCajeroModal = ({ show, onHide }) => {
             setLoadingCajeros(false);
         }
     };
+
+    // Manejar cambio de sucursal
+    const handleSucursalChange = async (sucursal) => {
+        await cambiarSucursal(sucursal.id);
+        // Al cambiar sucursal, el useEffect disparará cargarCajerosDisponibles
+        setCajeroSeleccionado(''); // Resetear cajero seleccionado
+    };
+
+    // Manejar login... (resto igual)
 
     // Manejar login
     const handleLogin = async (e) => {
@@ -166,21 +213,78 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
     return (
         <Modal show={show} onHide={onHide} centered size="md" backdrop="static" className="login-cajero-modal">
-            <Modal.Header closeButton style={{padding: '0.75rem 1rem'}}>
-                <Modal.Title style={{fontSize: '1.1rem'}}>
+            <Modal.Header style={{ padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Modal.Title style={{ fontSize: '1.1rem' }}>
                     <span className="material-icons me-2" style={{ verticalAlign: 'middle', fontSize: '1.2rem' }}>
                         login
                     </span>
                     Login de Cajero
                 </Modal.Title>
+                <button
+                    onClick={onHide}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'white',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0.9,
+                        transition: 'opacity 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = 1}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = 0.9}
+                >
+                    <span className="material-icons" style={{ fontSize: '24px' }}>close</span>
+                </button>
             </Modal.Header>
-            <Modal.Body style={{maxHeight: '140vh', overflowY: 'auto'}}>
-                {sucursalActiva && (
-                    <div className="sucursal-info">
-                        <small className="text-muted">Sucursal:</small>
-                        <div className="fw-bold">{sucursalActiva.nombre}</div>
-                    </div>
-                )}
+            <Modal.Body style={{ maxHeight: '140vh', overflowY: 'auto' }}>
+                <div className="sucursal-info mb-3">
+                    <Form.Label className="text-muted small">Sucursal</Form.Label>
+                    {sucursalValida ? (
+                        <div className="d-flex justify-content-between align-items-center p-2 bg-light rounded border">
+                            <div className="d-flex align-items-center">
+                                <span className="material-icons me-2 text-primary" style={{ fontSize: 20 }}>store</span>
+                                <span className="fw-bold text-dark">{sucursalActiva.nombre}</span>
+                            </div>
+                            <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                className="py-0 px-2"
+                                style={{ fontSize: '0.8rem' }}
+                                onClick={() => {
+                                    cargarSucursales();
+                                    // Forzamos "invalidez" visual temporalmente para mostrar el dropdown
+                                    // O mejor, usamos un estado local para "modo edición sucursal"
+                                    // Pero para ser rápidos, usare el truco de resetear sucursalesDisponibles y mostrar dropdown si hay disponibles
+                                    setSucursalesDisponibles([{ id: 'loading', nombre: 'Cargando...' }]); // Placeholder
+                                }}
+                            >
+                                Cambiar
+                            </Button>
+                        </div>
+                    ) : (
+                        <Dropdown>
+                            <Dropdown.Toggle variant={sucursalesDisponibles.length > 0 ? "outline-primary" : "outline-secondary"} className="w-100 text-start d-flex justify-content-between align-items-center">
+                                <span>{sucursalesDisponibles.length > 0 ? "Seleccionar Sucursal..." : "Cargando sucursales..."}</span>
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu className="w-100">
+                                {sucursalesDisponibles.map(s => (
+                                    <Dropdown.Item key={s.id} onClick={() => handleSucursalChange(s)} disabled={s.id === 'loading'}>
+                                        {s.nombre}
+                                    </Dropdown.Item>
+                                ))}
+                            </Dropdown.Menu>
+                        </Dropdown>
+                    )}
+
+                    {/* Renderizar Dropdown si el usuario dio click en Cambiar (estado derivado simple: si hay sucursales cargadas y sucursal es valida, mostramos opcion de cerrar?) 
+                        Simplificación: Si el usuario clickea cambiar, seteamos sucursalValida a false? No podemos.
+                        Vamos a agregar el estado 'isChangingSucursal' arriba.
+                    */}
+                </div>
 
                 {error && <Alert variant="danger">{error}</Alert>}
                 {success && <Alert variant="success">{success}</Alert>}

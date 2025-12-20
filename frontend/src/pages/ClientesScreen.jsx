@@ -1,70 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Form, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
 import usePageTitle from '../hooks/usePageTitle';
 import './ClientesScreen.css';
 
-// Componentes de pestañas
-import InformacionBasica from '../components/Clientes/tabs/InformacionBasica';
-import DatosGeograficos from '../components/Clientes/tabs/DatosGeograficos';
-import Detalles from '../components/Clientes/tabs/Detalles';
-import Configuracion from '../components/Clientes/tabs/Configuracion';
-import Saldos from '../components/Clientes/tabs/Saldos';
-import Contactos from '../components/Clientes/tabs/Contactos';
+// Días de la semana
+const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 
 const ClientesScreen = () => {
   usePageTitle('Cliente');
   const navigate = useNavigate();
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState('informacionBasica');
   const [modoEdicion, setModoEdicion] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  // Datos para los dropdowns
+  const [vendedores, setVendedores] = useState([]);
+  const [listaPrecios, setListaPrecios] = useState([]);
+  const [rutas, setRutas] = useState([]);
+
+  // Datos del cliente
   const [clienteData, setClienteData] = useState({
-    regimen: 'SIMPLIFICADO',
-    tipo_persona: 'NATURAL',
     tipo_identificacion: 'CC',
     identificacion: '',
-    nombre_completo: '',
-    alias: '',
-    primer_nombre: '',
-    segundo_nombre: '',
-    primer_apellido: '',
-    segundo_apellido: '',
-    telefono_1: '',
+    nombre_completo: '', // Nombre del contacto
+    alias: '', // Nombre del negocio
     movil: '',
-    email_1: '',
-    contacto: '',
-    telefono_contacto: '',
-    pais: 'Colombia',
+    direccion: '',
+    dia_entrega: '',
+    medio_pago_defecto: 'EFECTIVO',
     departamento: '',
     ciudad: '',
-    direccion: '',
-    zona_barrio: '',
-    tipo_contacto: 'CLIENTE',
-    sucursal: 'Todas',
-    medio_pago_defecto: '',
-    nota: '',
-    tipo_lista_precio: '',
     vendedor_asignado: '',
-    centro_costo: '',
-    dia_entrega: '',
-    notificar_cartera: false,
-    notificar_rotacion: false,
-    cliente_predeterminado: false,
-    permite_venta_credito: false,
-    cupo_endeudamiento: 0,
-    dias_vencimiento_cartera: 30,
+    zona_barrio: '', // Usaremos para la ruta
+    tipo_lista_precio: '',
     activo: true
   });
 
-  // Cargar cliente si estamos editando
+  // Cargar datos iniciales
   useEffect(() => {
+    cargarDatosIniciales();
     if (id) {
       cargarCliente(id);
       setModoEdicion(true);
     }
   }, [id]);
+
+  const cargarDatosIniciales = async () => {
+    try {
+      // Cargar vendedores
+      const resVendedores = await fetch('http://localhost:8000/api/vendedores/');
+      if (resVendedores.ok) {
+        setVendedores(await resVendedores.json());
+      }
+
+      // Cargar lista de precios
+      const resPrecios = await fetch('http://localhost:8000/api/lista-precios/?activo=true');
+      if (resPrecios.ok) {
+        setListaPrecios(await resPrecios.json());
+      }
+
+      // Cargar rutas
+      const resRutas = await fetch('http://localhost:8000/api/rutas/');
+      if (resRutas.ok) {
+        setRutas(await resRutas.json());
+      }
+    } catch (error) {
+      console.error('Error cargando datos iniciales:', error);
+    }
+  };
 
   const cargarCliente = async (clienteId) => {
     try {
@@ -80,187 +86,341 @@ const ClientesScreen = () => {
     }
   };
 
+  const handleChange = (field, value) => {
+    setClienteData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Toggle día de entrega
+  const toggleDia = (dia) => {
+    const diasActuales = (clienteData.dia_entrega || '').split(',').map(d => d.trim()).filter(Boolean);
+    let nuevosDias;
+
+    if (diasActuales.includes(dia)) {
+      nuevosDias = diasActuales.filter(d => d !== dia);
+    } else {
+      nuevosDias = [...diasActuales, dia];
+    }
+
+    handleChange('dia_entrega', nuevosDias.join(','));
+  };
+
   const handleGuardar = async () => {
+    // Validaciones básicas
+    if (!clienteData.identificacion?.trim()) {
+      alert('La identificación es obligatoria');
+      return;
+    }
+    if (!clienteData.nombre_completo?.trim()) {
+      alert('El nombre del contacto es obligatorio');
+      return;
+    }
+
     try {
+      setGuardando(true);
       if (modoEdicion && id) {
-        // Actualizar cliente existente
         const resultado = await clienteService.update(id, clienteData);
         if (resultado && !resultado.error) {
-          alert('Cliente actualizado exitosamente');
+          alert('✅ Cliente actualizado exitosamente');
           navigate('/clientes');
         }
       } else {
-        // Crear nuevo cliente
         const resultado = await clienteService.create(clienteData);
         if (resultado && !resultado.error) {
-          alert('Cliente creado exitosamente');
+          alert('✅ Cliente creado exitosamente');
           navigate('/clientes');
         }
       }
     } catch (error) {
       console.error('Error al guardar cliente:', error);
-      alert('Error al guardar cliente');
+      alert('❌ Error al guardar cliente');
+    } finally {
+      setGuardando(false);
     }
   };
 
-  const limpiarFormulario = () => {
-    setClienteData({
-      regimen: 'SIMPLIFICADO',
-      tipo_persona: 'NATURAL',
-      tipo_identificacion: 'CC',
-      identificacion: '',
-      nombre_completo: '',
-      alias: '',
-      primer_nombre: '',
-      segundo_nombre: '',
-      primer_apellido: '',
-      segundo_apellido: '',
-      telefono_1: '',
-      movil: '',
-      email_1: '',
-      contacto: '',
-      telefono_contacto: '',
-      pais: 'Colombia',
-      departamento: '',
-      ciudad: '',
-      direccion: '',
-      zona_barrio: '',
-      tipo_contacto: 'CLIENTE',
-      sucursal: 'Todas',
-      medio_pago_defecto: '',
-      nota: '',
-      tipo_lista_precio: '',
-      vendedor_asignado: '',
-      centro_costo: '',
-      dia_entrega: '',
-      notificar_cartera: false,
-      notificar_rotacion: false,
-      cliente_predeterminado: false,
-      permite_venta_credito: false,
-      cupo_endeudamiento: 0,
-      dias_vencimiento_cartera: 30,
-      activo: true
-    });
-    setActiveTab('informacionBasica');
-  };
-
-  const handleCancelar = () => {
-    navigate('/clientes');
-  };
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'informacionBasica':
-        return <InformacionBasica clienteData={clienteData} setClienteData={setClienteData} />;
-      case 'datosGeograficos':
-        return <DatosGeograficos clienteData={clienteData} setClienteData={setClienteData} />;
-      case 'detalles':
-        return <Detalles clienteData={clienteData} setClienteData={setClienteData} />;
-      case 'configuracion':
-        return <Configuracion clienteData={clienteData} setClienteData={setClienteData} />;
-      case 'saldos':
-        return <Saldos clienteData={clienteData} setClienteData={setClienteData} />;
-      case 'contactos':
-        return <Contactos />;
-      default:
-        return <InformacionBasica clienteData={clienteData} setClienteData={setClienteData} />;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="clientes-container">
       <Container fluid>
         <Row>
           <Col md={12}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h2 className="mb-0">
-                {modoEdicion ? `Editar Cliente - ${clienteData.identificacion}` : 'Nuevo Cliente'}
+            {/* Header */}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h2 className="mb-0" style={{ color: '#06386d', fontWeight: 'bold' }}>
+                {modoEdicion ? `Editar Cliente` : 'Nuevo Cliente'}
               </h2>
-              <Button variant="light" onClick={() => navigate('/clientes')}>
-                Regresar a Lista
+              <Button variant="outline-secondary" onClick={() => navigate('/clientes')}>
+                ← Regresar a Lista
               </Button>
             </div>
 
-            {/* Navegación de Pestañas */}
-            <Nav variant="tabs" className="mb-3">
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'informacionBasica'}
-                  onClick={() => setActiveTab('informacionBasica')}
-                >
-                  <i className="bi bi-person-lines-fill me-2"></i>Información Básica
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'datosGeograficos'}
-                  onClick={() => setActiveTab('datosGeograficos')}
-                >
-                  <i className="bi bi-geo-alt-fill me-2"></i>Datos Geográficos
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'detalles'}
-                  onClick={() => setActiveTab('detalles')}
-                >
-                  <i className="bi bi-list-check me-2"></i>Detalles
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'configuracion'}
-                  onClick={() => setActiveTab('configuracion')}
-                >
-                  <i className="bi bi-gear-fill me-2"></i>Configuración
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'saldos'}
-                  onClick={() => setActiveTab('saldos')}
-                >
-                  <i className="bi bi-currency-dollar me-2"></i>Saldos
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'contactos'}
-                  onClick={() => setActiveTab('contactos')}
-                >
-                  <i className="bi bi-person-rolodex me-2"></i>Contactos
-                </Nav.Link>
-              </Nav.Item>
-            </Nav>
-
-            {/* Contenido de la Pestaña */}
-            <Card>
+            {/* Formulario */}
+            <Card style={{ borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
               <Card.Body className="p-4">
-                {renderTabContent()}
+                <div className="row g-3">
+
+                  {/* Tipo Identificación e Identificación */}
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Tipo Identificación</label>
+                    <select
+                      className="form-select"
+                      value={clienteData.tipo_identificacion || 'CC'}
+                      onChange={(e) => handleChange('tipo_identificacion', e.target.value)}
+                    >
+                      <option value="CC">Cédula (CC)</option>
+                      <option value="NIT">NIT</option>
+                      <option value="RUT">RUT</option>
+                      <option value="CE">Cédula Extranjería</option>
+                      <option value="PASAPORTE">Pasaporte</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Identificación *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clienteData.identificacion || ''}
+                      onChange={(e) => handleChange('identificacion', e.target.value)}
+                      placeholder="Ej: 123456789"
+                    />
+                  </div>
+
+                  {/* Nombre del Contacto */}
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Nombre del Contacto *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clienteData.nombre_completo || ''}
+                      onChange={(e) => handleChange('nombre_completo', e.target.value)}
+                      placeholder="Ej: Juan Pérez"
+                    />
+                  </div>
+
+                  {/* Nombre del Negocio */}
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Nombre del Negocio</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clienteData.alias || ''}
+                      onChange={(e) => handleChange('alias', e.target.value)}
+                      placeholder="Ej: Tienda El Sol"
+                    />
+                  </div>
+
+                  {/* Celular */}
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Celular</label>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      value={clienteData.movil || ''}
+                      onChange={(e) => handleChange('movil', e.target.value)}
+                      placeholder="Ej: 3001234567"
+                      maxLength={10}
+                    />
+                  </div>
+
+                  {/* Método de Pago */}
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Método de Pago</label>
+                    <select
+                      className="form-select"
+                      value={clienteData.medio_pago_defecto || 'EFECTIVO'}
+                      onChange={(e) => handleChange('medio_pago_defecto', e.target.value)}
+                    >
+                      <option value="EFECTIVO">Efectivo</option>
+                      <option value="TRANSFERENCIA">Transferencia</option>
+                      <option value="CREDITO">Crédito</option>
+                      <option value="MIXTO">Mixto</option>
+                    </select>
+                  </div>
+
+                  {/* Dirección */}
+                  <div className="col-md-12">
+                    <label className="form-label fw-semibold">Dirección</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clienteData.direccion || ''}
+                      onChange={(e) => handleChange('direccion', e.target.value)}
+                      placeholder="Ej: Calle 123 #45-67, Barrio Centro"
+                    />
+                  </div>
+
+                  {/* Departamento y Ciudad */}
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Departamento</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clienteData.departamento || ''}
+                      onChange={(e) => handleChange('departamento', e.target.value)}
+                      placeholder="Ej: Cundinamarca"
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Ciudad</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clienteData.ciudad || ''}
+                      onChange={(e) => handleChange('ciudad', e.target.value)}
+                      placeholder="Ej: Bogotá"
+                    />
+                  </div>
+
+                  {/* Vendedor */}
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Vendedor</label>
+                    <select
+                      className="form-select"
+                      value={clienteData.vendedor_asignado || ''}
+                      onChange={(e) => handleChange('vendedor_asignado', e.target.value)}
+                    >
+                      <option value="">Ninguno</option>
+                      {vendedores.map(v => (
+                        <option key={v.id_vendedor} value={v.nombre}>
+                          {v.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Zona/Ruta */}
+                  <div className="col-md-3">
+                    <label className="form-label fw-semibold">Zona / Ruta</label>
+                    <select
+                      className="form-select"
+                      value={clienteData.zona_barrio || ''}
+                      onChange={(e) => handleChange('zona_barrio', e.target.value)}
+                    >
+                      <option value="">Sin ruta</option>
+                      {rutas.map(r => (
+                        <option key={r.id} value={r.nombre}>
+                          {r.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Lista de Precios */}
+                  <div className="col-md-4">
+                    <label className="form-label fw-semibold">Lista de Precios</label>
+                    <select
+                      className="form-select"
+                      value={clienteData.tipo_lista_precio || ''}
+                      onChange={(e) => handleChange('tipo_lista_precio', e.target.value)}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {listaPrecios.map(lp => (
+                        <option key={lp.id} value={lp.nombre}>
+                          {lp.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Días de Entrega */}
+                  <div className="col-md-8">
+                    <label className="form-label fw-semibold">Días de Entrega</label>
+                    <div className="d-flex flex-wrap gap-2" style={{ marginTop: '8px' }}>
+                      {DIAS_SEMANA.map((dia) => {
+                        const diasActuales = (clienteData.dia_entrega || '').split(',').map(d => d.trim()).filter(Boolean);
+                        const isChecked = diasActuales.includes(dia);
+
+                        return (
+                          <button
+                            key={dia}
+                            type="button"
+                            onClick={() => toggleDia(dia)}
+                            style={{
+                              padding: '4px 8px', // Más pequeños
+                              fontSize: '0.75rem', // Letra más pequeña
+                              fontWeight: isChecked ? 'bold' : '500',
+                              borderRadius: '12px', // Bordes más redondeados pero pequeños
+                              backgroundColor: isChecked ? '#06386d' : 'transparent',
+                              color: isChecked ? 'white' : '#06386d',
+                              border: `1px solid ${isChecked ? '#06386d' : '#b0c4de'}`, // Borde más delgado
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              minWidth: '40px'
+                            }}
+                          >
+                            {dia.substring(0, 3)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Botones de Acción */}
+                <div className="d-flex justify-content-between align-items-center mt-4 pt-3" style={{ borderTop: '1px solid #eee' }}>
+                  <Form.Check
+                    type="switch"
+                    id="activar-cliente"
+                    label={clienteData.activo ? "Cliente Activo" : "Cliente Inactivo"}
+                    checked={clienteData.activo}
+                    onChange={(e) => handleChange('activo', e.target.checked)}
+                    style={{ fontSize: '0.9rem' }}
+                  />
+                  <div>
+                    <Button
+                      variant="outline-secondary"
+                      className="me-2"
+                      onClick={() => navigate('/clientes')}
+                    >
+                      Cancelar
+                    </Button>
+                    <button
+                      type="button"
+                      className="btn text-white"
+                      onClick={handleGuardar}
+                      disabled={guardando}
+                      style={{
+                        backgroundColor: 'rgb(6, 56, 109)',
+                        borderColor: 'rgb(6, 56, 109)',
+                        minWidth: '120px',
+                        fontWeight: '600',
+                        opacity: guardando ? 0.7 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = 'rgb(5, 45, 87)';
+                        e.target.style.borderColor = 'rgb(5, 45, 87)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = 'rgb(6, 56, 109)';
+                        e.target.style.borderColor = 'rgb(6, 56, 109)';
+                      }}
+                    >
+                      {guardando ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2"></span>
+                          Guardando...
+                        </>
+                      ) : (
+                        modoEdicion ? 'Actualizar' : 'Guardar'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
               </Card.Body>
             </Card>
-
-            {/* Botones de Acción */}
-            <div className="mt-4 d-flex justify-content-between align-items-center">
-              <div>
-                <Form.Check
-                  type="checkbox"
-                  id="activar"
-                  label="Activar / Inactivar"
-                  checked={clienteData.activo}
-                  onChange={(e) => setClienteData({ ...clienteData, activo: e.target.checked })}
-                  className="d-inline-block me-3"
-                />
-              </div>
-              <div>
-                <Button variant="success" className="me-2" onClick={handleGuardar}>
-                  {modoEdicion ? 'Actualizar' : 'Guardar'}
-                </Button>
-                <Button variant="light" onClick={handleCancelar}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
           </Col>
         </Row>
       </Container>

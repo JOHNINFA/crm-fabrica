@@ -306,44 +306,44 @@ label:has(+ textarea.compact-textarea) {
   box-shadow: none;
 }
 
-/* Botón principal del PaymentModal - Tema amarillo POS */
+/* Botón principal del PaymentModal - Azul oscuro POS */
 .payment-modal-overlay .payment-modal .btn-primary {
-  background-color: #ffc600 !important;
-  border: 1px solid #ffc600 !important;
-  color: #002149 !important;
+  background-color: #002149 !important;
+  border: 1px solid #002149 !important;
+  color: white !important;
 }
 
 .payment-modal-overlay .payment-modal .btn-primary:hover {
-  background-color: #002149 !important;
-  border-color: #002149 !important;
+  background-color: #003366 !important;
+  border-color: #003366 !important;
   color: white !important;
 }
 
 .payment-modal-overlay .payment-modal .btn-primary:focus {
-  background-color: #ffc600 !important;
-  border-color: #ffc600 !important;
-  color: #002149 !important;
-  box-shadow: 0 0 0 0.2rem rgba(255, 198, 0, 0.25) !important;
+  background-color: #002149 !important;
+  border-color: #002149 !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 33, 73, 0.25) !important;
 }
 
-/* Clase específica para el botón de confirmar pago - POS - Máxima especificidad */
+/* Clase específica para el botón de confirmar pago - POS - Azul oscuro */
 .payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn {
-  background-color: #ffc600 !important;
-  border: 1px solid #ffc600 !important;
-  color: #002149 !important;
+  background-color: #002149 !important;
+  border: 1px solid #002149 !important;
+  color: white !important;
 }
 
 .payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:hover {
-  background-color: #002149 !important;
-  border-color: #002149 !important;
+  background-color: #003366 !important;
+  border-color: #003366 !important;
   color: white !important;
 }
 
 .payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:focus {
-  background-color: #ffc600 !important;
-  border-color: #ffc600 !important;
-  color: #002149 !important;
-  box-shadow: 0 0 0 0.2rem rgba(255, 198, 0, 0.25) !important;
+  background-color: #002149 !important;
+  border-color: #002149 !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 33, 73, 0.25) !important;
 }
 
 .payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:disabled {
@@ -354,8 +354,8 @@ label:has(+ textarea.compact-textarea) {
 }
 
 .payment-modal-overlay .payment-modal .payment-modal-footer .btn.btn-primary.pos-payment-confirm-btn:active {
-  background-color: #002149 !important;
-  border-color: #002149 !important;
+  background-color: #003366 !important;
+  border-color: #003366 !important;
   color: white !important;
 }
 
@@ -386,40 +386,41 @@ label:has(+ textarea.compact-textarea) {
   }
 }
 
-/ * Sobrescribir Bootstrap específicamente para POS PaymentModal */ .payment-modal-overlay .payment-modal .btn-primary,
+/* Sobrescribir Bootstrap específicamente para POS PaymentModal - Azul oscuro */
+.payment-modal-overlay .payment-modal .btn-primary,
 .payment-modal-overlay .payment-modal button.btn-primary,
 .payment-modal-overlay .payment-modal .btn.btn-primary {
-  background-color: #ffc600 !important;
-  background-image: none !important;
-  border-color: #ffc600 !important;
-  color: #002149 !important;
-}
-
-.payment-modal-overlay .payment-modal .btn-primary:hover,
-.payment-modal-overlay .payment-modal button.btn-primary:hover,
-.payment-modal-overlay .payment-modal .btn.btn-primary:hover {
   background-color: #002149 !important;
   background-image: none !important;
   border-color: #002149 !important;
   color: white !important;
 }
 
+.payment-modal-overlay .payment-modal .btn-primary:hover,
+.payment-modal-overlay .payment-modal button.btn-primary:hover,
+.payment-modal-overlay .payment-modal .btn.btn-primary:hover {
+  background-color: #003366 !important;
+  background-image: none !important;
+  border-color: #003366 !important;
+  color: white !important;
+}
+
 .payment-modal-overlay .payment-modal .btn-primary:focus,
 .payment-modal-overlay .payment-modal button.btn-primary:focus,
 .payment-modal-overlay .payment-modal .btn.btn-primary:focus {
-  background-color: #ffc600 !important;
+  background-color: #002149 !important;
   background-image: none !important;
-  border-color: #ffc600 !important;
-  color: #002149 !important;
-  box-shadow: 0 0 0 0.2rem rgba(255, 198, 0, 0.25) !important;
+  border-color: #002149 !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 33, 73, 0.25) !important;
 }
 
 .payment-modal-overlay .payment-modal .btn-primary:active,
 .payment-modal-overlay .payment-modal button.btn-primary:active,
 .payment-modal-overlay .payment-modal .btn.btn-primary:active {
-  background-color: #002149 !important;
+  background-color: #003366 !important;
   background-image: none !important;
-  border-color: #002149 !important;
+  border-color: #003366 !important;
   color: white !important;
 }
 

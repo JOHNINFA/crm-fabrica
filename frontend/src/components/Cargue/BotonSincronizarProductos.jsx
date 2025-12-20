@@ -7,7 +7,7 @@ const BotonSincronizarProductos = () => {
     const { loadFromBackend } = useUnifiedProducts();
 
     const handleSincronizar = async () => {
-        if (window.confirm('¿Deseas sincronizar los productos desde el servidor? Esto actualizará los nombres y precios.')) {
+        if (window.confirm('¿Deseas sincronizar productos y pedidos? Esto actualizará todos los datos.')) {
             setSincronizando(true);
 
             try {
@@ -16,15 +16,16 @@ const BotonSincronizarProductos = () => {
                 localStorage.removeItem('productos');
                 localStorage.removeItem('precios_cargue_cache');
 
-
-
                 // Forzar carga desde backend
                 await loadFromBackend();
 
+                // 🆕 Disparar evento para recargar pedidos sin refrescar la página
+                window.dispatchEvent(new CustomEvent('recargarPedidos'));
 
-
-                // Recargar la página para aplicar cambios
-                window.location.reload();
+                // 🆕 Pequeño delay y luego recargar para aplicar cambios
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
             } catch (error) {
                 console.error('❌ Error sincronizando productos:', error);
                 alert('Error al sincronizar productos. Revisa la consola.');

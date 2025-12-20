@@ -58,9 +58,10 @@ const InventarioProduccion = () => {
 
   // Memorizar productos ordenados y filtrados para Producción
   const productosOrdenados = useMemo(() => {
-    // Filtrar solo productos de Producción
+    // Filtrar solo productos de Producción Y que tengan disponible_inventario
     const productosFiltrados = productos.filter(p =>
-      !p.ubicacionInventario || p.ubicacionInventario === 'PRODUCCION'
+      (!p.ubicacionInventario || p.ubicacionInventario === 'PRODUCCION') &&
+      p.disponible_inventario !== false // 🆕 Excluir productos sin flag de inventario
     );
 
     // Ordenar los productos filtrados
@@ -146,6 +147,7 @@ const InventarioProduccion = () => {
             categoria: producto.category || "General",
             imagen: producto.image || null,
             orden: producto.orden || 0,
+            disponible_inventario: producto.disponible_inventario !== false, // 🆕 Incluir flag
           }));
 
           // Ordenar por el campo 'orden' si existe, sino por ID
@@ -187,6 +189,7 @@ const InventarioProduccion = () => {
                 precio: parseFloat(p.precio) || 0,
                 categoria: p.categoria_nombre || "General",
                 orden: p.orden || 0,
+                disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
               }));
 
               // Ordenar por el campo 'orden' si existe, sino por ID
@@ -237,6 +240,7 @@ const InventarioProduccion = () => {
           categoria: p.categoria_nombre || "General",
           cantidad: 0,
           orden: p.orden || 0, // ✅ Incluir campo orden
+          disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
         }));
         localStorage.setItem(
           "productos",
@@ -254,6 +258,7 @@ const InventarioProduccion = () => {
           tax: p.impuesto || "IVA(0%)",
           image: p.imagen || null,
           orden: p.orden || 0, // ✅ Incluir campo orden
+          disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
         }));
 
         // Guardar en localStorage
