@@ -4085,3 +4085,72 @@ def cerrar_turno_estado(request):
         return Response({
             'error': str(e)
         }, status=500)
+
+
+# ========================================
+# CONFIGURACIÓN DE PRODUCCIÓN
+# ========================================
+
+@api_view(['GET'])
+def obtener_configuracion_produccion(request):
+    """Obtiene una configuración de producción por clave"""
+    from .models import ConfiguracionProduccion
+    
+    clave = request.query_params.get('clave', 'usuario_produccion')
+    
+    try:
+        config = ConfiguracionProduccion.objects.get(clave=clave)
+        return Response({
+            'success': True,
+            'clave': config.clave,
+            'valor': config.valor,
+            'descripcion': config.descripcion,
+            'fecha_actualizacion': config.fecha_actualizacion
+        })
+    except ConfiguracionProduccion.DoesNotExist:
+        # Si no existe, devolver valor por defecto
+        return Response({
+            'success': True,
+            'clave': clave,
+            'valor': 'Usuario Predeterminado',
+            'descripcion': 'No configurado',
+            'fecha_actualizacion': None
+        })
+
+
+@api_view(['POST', 'PUT'])
+def guardar_configuracion_produccion(request):
+    """Guarda o actualiza una configuración de producción"""
+    from .models import ConfiguracionProduccion
+    
+    clave = request.data.get('clave', 'usuario_produccion')
+    valor = request.data.get('valor', '')
+    descripcion = request.data.get('descripcion', '')
+    
+    if not valor:
+        return Response({
+            'error': 'El valor es requerido'
+        }, status=400)
+    
+    try:
+        config, created = ConfiguracionProduccion.objects.update_or_create(
+            clave=clave,
+            defaults={
+                'valor': valor,
+                'descripcion': descripcion
+            }
+        )
+        
+        return Response({
+            'success': True,
+            'action': 'created' if created else 'updated',
+            'clave': config.clave,
+            'valor': config.valor,
+            'descripcion': config.descripcion,
+            'fecha_actualizacion': config.fecha_actualizacion
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=500)

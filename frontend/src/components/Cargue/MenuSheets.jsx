@@ -89,7 +89,9 @@ const productosPorDiaYId = {
   }
 };
 
-const ids = ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6", "PRODUCCION"];
+// 🔧 PRODUCCION quitado del menú - se usa planeación ahora
+// Para restaurar: cambiar a ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6", "PRODUCCION"]
+const ids = ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6"];
 
 export default function MenuSheets() {
   // Capturamos el parámetro :dia de la URL
@@ -447,11 +449,28 @@ export default function MenuSheets() {
                               cantidad: datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad,
                               adicional: datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional,
                               devoluciones: datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones,
-                              vendidas: datosProductoServidor.vendidas !== undefined ? datosProductoServidor.vendidas : producto.vendidas, // 🆕 Importante para ventas
-                              vencidas: datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas, // 🆕 Importante para vencidas
+                              vendidas: datosProductoServidor.vendidas !== undefined ? datosProductoServidor.vendidas : producto.vendidas,
+                              vencidas: datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas,
                               vendedor: vNuevo,
                               despachador: datosProductoServidor.d || producto.despachador,
-                              // Recalcular totales si es necesario? Mejor dejar que el componente lo haga
+                              // 🆕 RECALCULAR TOTALES EN LOCALSTORAGE
+                              total: (() => {
+                                const cant = datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad;
+                                const dctos = producto.dctos || 0;
+                                const adic = datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional;
+                                const devol = datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones;
+                                const venc = datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas;
+                                return (cant || 0) - (dctos || 0) + (adic || 0) - (devol || 0) - (venc || 0);
+                              })(),
+                              neto: (() => {
+                                const cant = datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad;
+                                const dctos = producto.dctos || 0;
+                                const adic = datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional;
+                                const devol = datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones;
+                                const venc = datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas;
+                                const total = (cant || 0) - (dctos || 0) + (adic || 0) - (devol || 0) - (venc || 0);
+                                return Math.round(total * (producto.valor || 0));
+                              })()
                             };
                           }
                           return producto;

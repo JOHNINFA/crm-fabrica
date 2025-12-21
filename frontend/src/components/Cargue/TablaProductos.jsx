@@ -6,6 +6,9 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
   const [estadoBoton, setEstadoBoton] = useState('ALISTAMIENTO');
   const [esCompletado, setEsCompletado] = useState(false);
 
+  // 🆕 Estados donde los campos están bloqueados (antes de ALISTAMIENTO_ACTIVO)
+  const camposBloqueados = estadoBoton === 'ALISTAMIENTO' || estadoBoton === 'SUGERIDO';
+
   // 🎯 Calcular si todos los productos con cantidad están listos (V y D marcados)
   const todosListosParaDespacho = () => {
     const productosConCantidad = productos.filter(p => (p.cantidad || 0) > 0);
@@ -57,7 +60,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
       return;
     }
 
-    if (campo === 'despachador' && estadoBoton === 'ALISTAMIENTO') {
+    if (campo === 'despachador' && camposBloqueados) {
       return;
     }
 
@@ -116,11 +119,11 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   type="checkbox"
                   checked={!!p.despachador}
                   onChange={(e) => handleCheckboxChange(p.id, 'despachador', e.target.checked)}
-                  disabled={esCompletado || estadoBoton === 'ALISTAMIENTO'}
+                  disabled={esCompletado || camposBloqueados}
                   style={{
                     accentColor: '#06386d',
-                    opacity: (esCompletado || estadoBoton === 'ALISTAMIENTO') ? 0.4 : 1,
-                    cursor: (esCompletado || estadoBoton === 'ALISTAMIENTO') ? 'not-allowed' : 'pointer'
+                    opacity: (esCompletado || camposBloqueados) ? 0.4 : 1,
+                    cursor: (esCompletado || camposBloqueados) ? 'not-allowed' : 'pointer'
                   }}
                 />
               </td>
@@ -147,8 +150,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado || estadoBoton === 'ALISTAMIENTO'}
-                  style={(esCompletado || estadoBoton === 'ALISTAMIENTO') ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
+                  disabled={esCompletado || camposBloqueados}
+                  style={(esCompletado || camposBloqueados) ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
                 />
               </td>
               <td>
@@ -159,8 +162,8 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                   onFocus={handleFocus}
                   className="form-control form-control-sm text-center"
                   min="0"
-                  disabled={esCompletado}
-                  style={esCompletado ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
+                  disabled={esCompletado || camposBloqueados}
+                  style={(esCompletado || camposBloqueados) ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
                 />
               </td>
               <td>

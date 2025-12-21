@@ -10,7 +10,6 @@ export default function ProductCard({ product, onClick }) {
   const cachedImage = productImages?.[product.id];
   const [imageSource, setImageSource] = useState(cachedImage || product.image || null);
   const [isClicked, setIsClicked] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
 
   // Siempre mostrar el precio base del producto en la tarjeta
   const precioMostrar = product.price;
@@ -84,7 +83,7 @@ export default function ProductCard({ product, onClick }) {
       onKeyDown={handleKeyDown}
     >
       <div className="card-body d-flex flex-column align-items-center text-center" style={{ padding: '4px' }}>
-        {/* Imagen o icono por defecto */}
+        {/* Imagen o icono por defecto - Sin animaciones para carga instantánea */}
         <div style={{
           height: '50px',
           width: '100%',
@@ -93,7 +92,7 @@ export default function ProductCard({ product, onClick }) {
           justifyContent: 'center',
           marginBottom: '3px',
           overflow: 'hidden',
-          backgroundColor: '#f8f9fa', // Fondo suave mientras carga
+          backgroundColor: imageSource ? 'transparent' : '#f8f9fa',
           borderRadius: '4px'
         }}>
           {imageSource ? (
@@ -101,6 +100,7 @@ export default function ProductCard({ product, onClick }) {
               src={imageSource}
               alt={product.name || 'Producto'}
               loading="eager"
+              decoding="sync"
               style={{
                 height: '100%',
                 width: 'auto',

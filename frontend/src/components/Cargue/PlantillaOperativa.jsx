@@ -664,7 +664,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     const productoGuardado = datos.productos.find(p => p.producto === product.name);
 
                     if (productoGuardado) {
-                        console.log(`✅ ${idSheet} - Datos guardados: ${product.name}`);
+                        // 🆕 DEBUG: Log específico para productos con vencidas
+                        if (productoGuardado.vencidas > 0) {
+                            console.log(`🔍 ${idSheet} - ${product.name}: vencidas=${productoGuardado.vencidas}`);
+                        }
                         return {
                             id: product.id,
                             producto: product.name,
@@ -675,7 +678,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             vendidas: productoGuardado.vendidas || 0,
                             vencidas: productoGuardado.vencidas || 0,
                             lotesVencidos: productoGuardado.lotesVencidos || [],
-                            total: productoGuardado.total || 0,
+                            total: productoGuardado.total || 0, // Se recalculará después
                             valor: preciosLista[product.id] !== undefined ? preciosLista[product.id] : (productoGuardado.valor || Math.round(product.price * 0.65)),
                             neto: productoGuardado.neto || 0,
                             vendedor: productoGuardado.vendedor || false,
@@ -683,7 +686,6 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         };
                     } else {
                         // No existe en localStorage, crear con valores en 0
-                        console.log(`⚠️ ${idSheet} - Sin datos: ${product.name} (creando vacío)`);
                         return {
                             id: product.id,
                             producto: product.name,
@@ -706,8 +708,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 // 🧮 Recalcular totales para asegurar consistencia
                 const productosConDatosRecalculados = recalcularTotales(productosConDatos);
 
+                // 🆕 DEBUG: Mostrar productos recalculados con vencidas
+                productosConDatosRecalculados.filter(p => p.vencidas > 0).forEach(p => {
+                    console.log(`🧮 ${p.producto}: cant=${p.cantidad} + adic=${p.adicional} - venc=${p.vencidas} = TOTAL ${p.total}`);
+                });
+
                 console.log(`✅ ${idSheet} - Datos cargados correctamente desde localStorage`);
-                console.log(`🔄 ${idSheet} - Estableciendo productos:`, productosConDatosRecalculados.filter(p => p.cantidad > 0).map(p => `${p.producto}: ${p.cantidad}`));
                 setProductosOperativos(productosConDatosRecalculados);
                 return;
             }
@@ -750,31 +756,36 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     };
 
-    // ✅ ACTUALIZACIÓN: Solo recargar si no hay datos o si cambia día/fecha
+    // ✅ ACTUALIZACIÓN: Siempre recalcular totales al cargar (para asegurar vencidas/devoluciones)
     useEffect(() => {
-        // Si ya hay productos cargados desde el estado inicial, solo actualizar precios
+        // Si ya hay productos cargados desde el estado inicial, recalcular totales
         if (productosOperativos.length > 0 && Object.keys(preciosLista).length > 0) {
-            console.log(`🔄 ${idSheet} - Productos ya cargados, actualizando precios si es necesario...`);
+            console.log(`🔄 ${idSheet} - Productos ya cargados, recalculando totales...`);
 
-            // Verificar si algún precio cambió
-            let preciosCambiaron = false;
-            productosOperativos.forEach(p => {
-                const nuevoPrecio = preciosLista[p.id];
-                if (nuevoPrecio !== undefined && nuevoPrecio !== p.valor) {
-                    preciosCambiaron = true;
+            // 🆕 SIEMPRE recalcular totales para asegurar que vencidas/devoluciones se resten
+            setProductosOperativos(prev => prev.map(p => {
+                const cantidad = parseInt(p.cantidad) || 0;
+                const dctos = parseInt(p.dctos) || 0;
+                const adicional = parseInt(p.adicional) || 0;
+                const devoluciones = parseInt(p.devoluciones) || 0;
+                const vencidas = parseInt(p.vencidas) || 0;
+                const nuevoPrecio = preciosLista[p.id] !== undefined ? preciosLista[p.id] : p.valor;
+
+                const total = cantidad - dctos + adicional - devoluciones - vencidas;
+                const neto = Math.round(total * nuevoPrecio);
+
+                // Solo loguear si hay vencidas o devoluciones
+                if (vencidas > 0 || devoluciones > 0) {
+                    console.log(`🧮 ${p.producto}: ${cantidad} - ${dctos} + ${adicional} - ${devoluciones} - ${vencidas} = ${total}`);
                 }
-            });
 
-            if (preciosCambiaron) {
-                setProductosOperativos(prev => prev.map(p => {
-                    const nuevoPrecio = preciosLista[p.id];
-                    if (nuevoPrecio !== undefined && nuevoPrecio !== p.valor) {
-                        const total = (parseInt(p.cantidad) || 0) - (parseInt(p.dctos) || 0) + (parseInt(p.adicional) || 0) - (parseInt(p.devoluciones) || 0) - (parseInt(p.vencidas) || 0);
-                        return { ...p, valor: nuevoPrecio, neto: Math.round(total * nuevoPrecio) };
-                    }
-                    return p;
-                }));
-            }
+                return {
+                    ...p,
+                    valor: nuevoPrecio,
+                    total: total,
+                    neto: neto
+                };
+            }));
             return;
         }
 
@@ -1038,7 +1049,10 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         if (productoActual) {
             console.log(`✅ DEBUG - Producto ${productoActual.producto} encontrado, iniciando sincronización...`);
             // Mapear nombres de campos del frontend al backend
-            const campoBackend = campo === 'vendedor' ? 'v' : campo === 'despachador' ? 'd' : campo;
+            const campoBackend = campo === 'vendedor' ? 'v'
+                : campo === 'despachador' ? 'd'
+                    : campo === 'lotesVencidos' ? 'lotes_vencidos'  // 🆕 Mapear lotes vencidos
+                        : campo;
             console.log(`🔄 Sincronizando: ${productoActual.producto} | ${campo} → ${campoBackend} = ${valor}`);
 
             // Obtener responsable actual
@@ -1051,9 +1065,20 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 console.log(`⏱️ Cancelando sincronización anterior de ${productoActual.producto}.${campo}`);
             }
 
-            // 🆕 DEBOUNCE: Esperar 500ms antes de sincronizar
+            // 🆕 DEBOUNCE: Esperar antes de sincronizar
+            // Para lotes vencidos usar debounce más corto
+            const debounceTime = campo === 'lotesVencidos' ? 500 : 1500;
+
             debounceTimerRef.current[timerKey] = setTimeout(() => {
-                console.log(`📤 Enviando a BD después de debounce: ${productoActual.producto}.${campoBackend} = ${valor}`);
+                // 🆕 Convertir lotesVencidos a JSON string para la BD
+                let valorParaBD = valor;
+                if (campo === 'lotesVencidos' || campoBackend === 'lotes_vencidos') {
+                    // Convertir array a JSON string
+                    valorParaBD = Array.isArray(valor) ? JSON.stringify(valor) : valor;
+                    console.log(`📤 Enviando lotes_vencidos a BD: ${productoActual.producto} = ${valorParaBD}`);
+                } else {
+                    console.log(`📤 Enviando a BD después de debounce: ${productoActual.producto}.${campoBackend} = ${valor}`);
+                }
 
                 // Sincronizar con BD en tiempo real
                 cargueRealtimeService.actualizarCampoProducto(
@@ -1061,20 +1086,20 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     dia,
                     fechaParaBD,
                     productoActual.producto,
-                    campoBackend,
-                    valor,
+                    campoBackend === 'lotesVencidos' ? 'lotes_vencidos' : campoBackend,  // 🆕 Mapear nombre de campo
+                    valorParaBD,
                     productoActual.valor || 0,
                     responsableActual
                 ).then(result => {
                     if (result.success) {
-                        console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valor} (${result.action})`);
+                        console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valorParaBD} (${result.action})`);
                     } else {
                         console.error(`❌ Error sincronizando BD:`, result.error);
                     }
                 }).catch(err => {
                     console.error(`❌ Error en sincronización:`, err);
                 });
-            }, 1500); // 1500ms de espera - tiempo suficiente para escribir números completos
+            }, debounceTime);
         }
     };
 
@@ -1245,18 +1270,35 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     try {
                         const datos = JSON.parse(datosString);
                         if (datos.productos && datos.productos.length > 0) {
-                            // Actualizar productos con TODOS los datos nuevos
+                            // Actualizar productos con TODOS los datos nuevos Y RECALCULAR TOTALES
                             setProductosOperativos(prev => {
                                 return prev.map(producto => {
                                     const productoActualizado = datos.productos.find(p => p.producto === producto.producto);
                                     if (productoActualizado) {
+                                        // Tomar valores actualizados o mantener los existentes
+                                        const cantidad = productoActualizado.cantidad ?? producto.cantidad ?? 0;
+                                        const dctos = productoActualizado.dctos ?? producto.dctos ?? 0;
+                                        const adicional = productoActualizado.adicional ?? producto.adicional ?? 0;
+                                        const devoluciones = productoActualizado.devoluciones ?? producto.devoluciones ?? 0;
+                                        const vencidas = productoActualizado.vencidas ?? producto.vencidas ?? 0;
+                                        const valor = producto.valor || 0;
+
+                                        // 🆕 RECALCULAR TOTAL y NETO
+                                        const total = cantidad - dctos + adicional - devoluciones - vencidas;
+                                        const neto = Math.round(total * valor);
+
+                                        console.log(`🧮 ${producto.producto}: ${cantidad} - ${dctos} + ${adicional} - ${devoluciones} - ${vencidas} = ${total}`);
+
                                         return {
                                             ...producto,
-                                            cantidad: productoActualizado.cantidad ?? producto.cantidad,
-                                            adicional: productoActualizado.adicional ?? producto.adicional,
-                                            devoluciones: productoActualizado.devoluciones ?? producto.devoluciones,
-                                            vendidas: productoActualizado.vendidas ?? producto.vendidas,
-                                            vencidas: productoActualizado.vencidas ?? producto.vencidas,
+                                            cantidad,
+                                            dctos,
+                                            adicional,
+                                            devoluciones,
+                                            vendidas: productoActualizado.vendidas ?? producto.vendidas ?? 0,
+                                            vencidas,
+                                            total,  // 🆕 TOTAL recalculado
+                                            neto,   // 🆕 NETO recalculado
                                             vendedor: productoActualizado.vendedor || false,
                                             despachador: productoActualizado.despachador || false
                                         };
@@ -1264,7 +1306,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                     return producto;
                                 });
                             });
-                            console.log(`✅ ${idSheet} - Datos actualizados en UI (vendidas, vencidas, checks)`);
+                            console.log(`✅ ${idSheet} - Datos actualizados con TOTALES recalculados`);
                         }
                     } catch (error) {
                         console.error(`❌ ${idSheet} - Error procesando checksVActualizados:`, error);
@@ -1328,6 +1370,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 idSheet={idSheet}
                                 fechaSeleccionada={fechaSeleccionada}
                             />
+
+                            {/* 🆕 Botón para actualizar precios y productos */}
+                            <BotonSincronizarProductos />
                         </div>
                         <div className="text-muted small">
                             {dia} - {fechaSeleccionada} - {idSheet}

@@ -97,8 +97,7 @@ export default function ProductCard({ product, onClick, priceList }) {
             onKeyDown={handleKeyDown}
         >
             <div className="card-body d-flex flex-column align-items-center text-center">
-                {/* Imagen o icono por defecto - EXACTAMENTE IGUAL QUE POS */}
-                {/* Imagen o icono por defecto - EXACTAMENTE IGUAL QUE POS */}
+                {/* Imagen o icono por defecto - Sin animaciones para carga instantánea */}
                 <div style={{
                     height: '50px',
                     width: '100%',
@@ -107,7 +106,7 @@ export default function ProductCard({ product, onClick, priceList }) {
                     justifyContent: 'center',
                     marginBottom: '3px',
                     overflow: 'hidden',
-                    backgroundColor: '#f8f9fa',
+                    backgroundColor: imageSource ? 'transparent' : '#f8f9fa',
                     borderRadius: '4px'
                 }}>
                     {imageSource ? (
@@ -115,6 +114,7 @@ export default function ProductCard({ product, onClick, priceList }) {
                             src={imageSource}
                             alt={product.name || 'Producto'}
                             loading="eager"
+                            decoding="sync"
                             style={{
                                 height: '100%',
                                 width: 'auto',

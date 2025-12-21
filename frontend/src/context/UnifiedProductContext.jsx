@@ -163,6 +163,31 @@ export const UnifiedProductProvider = ({ children }) => {
 
                 setProducts(formattedProducts);
                 syncToLocalStorage(formattedProducts);
+
+                // 🆕 PRE-CARGAR IMÁGENES: Descargar imágenes en segundo plano para evitar flash al renderizar
+                const imagesToPreload = formattedProducts
+                    .filter(p => p.image && typeof p.image === 'string')
+                    .map(p => p.image);
+
+                if (imagesToPreload.length > 0) {
+                    // Precargar en paralelo (máximo 5 a la vez)
+                    const preloadImage = (src) => {
+                        return new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => resolve(true);
+                            img.onerror = () => resolve(false);
+                            img.src = src;
+                        });
+                    };
+
+                    // Precargar en lotes de 5 para no saturar
+                    const batchSize = 5;
+                    for (let i = 0; i < imagesToPreload.length; i += batchSize) {
+                        const batch = imagesToPreload.slice(i, i + batchSize);
+                        await Promise.all(batch.map(preloadImage));
+                    }
+                    console.log(`✅ ${imagesToPreload.length} imágenes precargadas en caché`);
+                }
             }
 
             // Cargar categorías

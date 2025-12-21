@@ -614,8 +614,8 @@ class PedidoSerializer(serializers.ModelSerializer):
             'id', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
             'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
-            'descuentos', 'total', 'estado', 'nota', 'fecha_creacion',
-            'fecha_actualizacion', 'detalles',
+            'descuentos', 'total', 'estado', 'nota', 'metodo_pago',  # 🆕 Agregado
+            'fecha_creacion', 'fecha_actualizacion', 'detalles',
             # Nuevos campos
             'afectar_inventario_inmediato', 'asignado_a_tipo', 
             'asignado_a_id', 'inventario_afectado'
@@ -887,3 +887,13 @@ class RegistrosPlaneacionDiaSerializer(serializers.ModelSerializer):
             'pedidos', 'total', 'orden', 'ia', 'fecha_congelado', 'usuario'
         ]
         read_only_fields = ('fecha_congelado',)
+
+
+class ConfiguracionProduccionSerializer(serializers.ModelSerializer):
+    """Serializer para configuración de producción"""
+    
+    class Meta:
+        from .models import ConfiguracionProduccion
+        model = ConfiguracionProduccion
+        fields = ['clave', 'valor', 'descripcion', 'fecha_actualizacion']
+        read_only_fields = ('fecha_actualizacion',)

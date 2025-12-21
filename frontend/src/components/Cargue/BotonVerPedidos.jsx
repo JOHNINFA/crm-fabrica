@@ -73,6 +73,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 telefono: p.telefono_contacto || '',
                 total: parseFloat(p.total || 0),
                 estado: p.estado,
+                metodo_pago: p.metodo_pago || 'EFECTIVO', // 🆕 Método de pago (default: EFECTIVO)
                 detalles: p.detalles || [],
                 fechaCreacion: p.fecha_creacion
             })));
@@ -169,6 +170,32 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
             alert(`❌ Error al anular el pedido: ${error.message}`);
         } finally {
             setAnulando(false);
+        }
+    };
+
+    // 🆕 Función para cambiar método de pago
+    const handleCambiarMetodoPago = async (pedidoId, nuevoMetodo) => {
+        try {
+            const response = await fetch(`http://localhost:8000/api/pedidos/${pedidoId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ metodo_pago: nuevoMetodo })
+            });
+
+            if (response.ok) {
+                // Actualizar estado local
+                setPedidosClientes(prev => prev.map(p =>
+                    p.id === pedidoId ? { ...p, metodo_pago: nuevoMetodo } : p
+                ));
+                console.log(`✅ Método de pago actualizado a ${nuevoMetodo} para pedido ${pedidoId}`);
+            } else {
+                alert('Error al actualizar método de pago');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al actualizar método de pago');
         }
     };
 
@@ -390,6 +417,39 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                             >
                                                                 <i className="bi bi-trash"></i>
                                                             </button>
+                                                            {/* 🆕 Selector de Método de Pago */}
+                                                            <select
+                                                                value={pedido.metodo_pago || 'EFECTIVO'}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleCambiarMetodoPago(pedido.id, e.target.value);
+                                                                }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                style={{
+                                                                    marginLeft: '8px',
+                                                                    padding: '4px 8px',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: '600',
+                                                                    borderRadius: '6px',
+                                                                    border: '1px solid #e0e0e0',
+                                                                    backgroundColor:
+                                                                        pedido.metodo_pago === 'EFECTIVO' ? '#dcfce7' :
+                                                                            pedido.metodo_pago === 'NEQUI' ? '#fce7f3' :
+                                                                                pedido.metodo_pago === 'DAVIPLATA' ? '#fee2e2' :
+                                                                                    '#f3f4f6',
+                                                                    color:
+                                                                        pedido.metodo_pago === 'EFECTIVO' ? '#166534' :
+                                                                            pedido.metodo_pago === 'NEQUI' ? '#9d174d' :
+                                                                                pedido.metodo_pago === 'DAVIPLATA' ? '#dc2626' :
+                                                                                    '#6b7280',
+                                                                    cursor: 'pointer',
+                                                                    minWidth: '100px'
+                                                                }}
+                                                            >
+                                                                <option value="EFECTIVO">Efectivo</option>
+                                                                <option value="NEQUI">Nequi</option>
+                                                                <option value="DAVIPLATA">Daviplata</option>
+                                                            </select>
                                                         </div>
                                                     </div>
                                                 </div>

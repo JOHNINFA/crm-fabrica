@@ -29,7 +29,8 @@ const InventarioProduccion = () => {
     useProductos();
 
   // Estados de producción
-  const [usuario, setUsuario] = useState("Usuario Predeterminado");
+  // 🆕 Usuario se carga desde la API (persistente en BD)
+  const [usuario, setUsuario] = useState('Usuario Predeterminado');
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [lote, setLote] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
@@ -324,6 +325,28 @@ const InventarioProduccion = () => {
 
     // 🎯 NUEVO: Cargar datos de confirmación del día actual
     cargarDatosConfirmacionActual();
+
+    // 🆕 Cargar usuario desde la API (BD)
+    const cargarUsuarioDesdeAPI = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/configuracion-produccion/?clave=usuario_produccion');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.valor && data.valor !== 'Usuario Predeterminado') {
+            setUsuario(data.valor);
+            console.log('✅ Usuario cargado desde BD:', data.valor);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error cargando usuario desde API:', error);
+        // Fallback a localStorage
+        const usuarioLocal = localStorage.getItem('usuario_produccion');
+        if (usuarioLocal) {
+          setUsuario(usuarioLocal);
+        }
+      }
+    };
+    cargarUsuarioDesdeAPI();
 
     // Event listeners con debounce para evitar recargas mientras se edita
     let debounceTimer = null;
@@ -1049,9 +1072,33 @@ const InventarioProduccion = () => {
     setYaSeGrabo(true);
   };
 
-  const handleCambiarUsuario = (nuevoUsuario) => {
+  const handleCambiarUsuario = async (nuevoUsuario) => {
     setUsuario(nuevoUsuario);
-    mostrarMensaje("Usuario cambiado correctamente", "info");
+
+    // 🆕 Guardar en la API (BD)
+    try {
+      const response = await fetch('http://localhost:8000/api/configuracion-produccion/guardar/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clave: 'usuario_produccion',
+          valor: nuevoUsuario,
+          descripcion: 'Usuario que opera en Producción'
+        })
+      });
+
+      if (response.ok) {
+        mostrarMensaje("✅ Usuario guardado en base de datos", "success");
+        console.log('✅ Usuario guardado en BD:', nuevoUsuario);
+      } else {
+        throw new Error('Error al guardar');
+      }
+    } catch (error) {
+      console.error('❌ Error guardando usuario en API:', error);
+      // Fallback: guardar en localStorage
+      localStorage.setItem('usuario_produccion', nuevoUsuario);
+      mostrarMensaje("Usuario guardado localmente", "info");
+    }
   };
 
   const handleDateSelect = async (date) => {

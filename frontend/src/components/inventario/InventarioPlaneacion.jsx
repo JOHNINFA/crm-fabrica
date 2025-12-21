@@ -351,7 +351,8 @@ const InventarioPlaneacion = () => {
           id: s.producto_id,
           nombre: s.producto_nombre,
           descripcion: s.producto_descripcion,
-          stock_total: s.cantidad_actual
+          stock_total: s.cantidad_actual,
+          orden: s.orden || 999999 // 🆕 Incluir campo orden para ordenamiento
         }));
 
       console.log(`📦 Productos desde api_stock: ${productosProduccion.length} (de ${stocksBD.length} totales)`);
@@ -458,21 +459,19 @@ const InventarioPlaneacion = () => {
 
       setSolicitadasCargadas(true);
 
-      // Definir el orden específico de los productos (igual que en Kardex)
-      const ordenProductos = {
-        'AREPA TIPO OBLEA 500GR': 1,
-        'AREPA MEDIANA 330GR': 2,
-        'AREPA TIPO PINCHO 330GR': 3,
-        'AREPA QUESO CORRIENTE 450GR': 4,
-        'AREPA QUESO ESPECIAL GRANDE 600GR': 5,
-        'AREPA CON QUESO ESPECIAL PEQUEÑA 600GR': 6
-      };
-
-      // Ordenar productos según el orden específico
+      // 🆕 ORDENAR PRODUCTOS usando el campo 'orden' de la BD (obtenido desde api_stock)
+      // Así el orden coincide con /productos
       productosConPlaneacion.sort((a, b) => {
-        const ordenA = ordenProductos[a.nombre?.toUpperCase()] || 999;
-        const ordenB = ordenProductos[b.nombre?.toUpperCase()] || 999;
-        return ordenA - ordenB;
+        // Usar el campo orden que viene de api_stock/productos
+        const ordenA = a.orden !== undefined ? a.orden : 999999;
+        const ordenB = b.orden !== undefined ? b.orden : 999999;
+
+        if (ordenA !== ordenB) {
+          return ordenA - ordenB;
+        }
+
+        // Si el orden es igual, ordenar por ID
+        return (a.id || 0) - (b.id || 0);
       });
 
       // Log detallado antes de setear productos

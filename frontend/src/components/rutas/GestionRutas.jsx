@@ -210,7 +210,13 @@ const GestionRutas = () => {
                                                 <td><Badge bg="secondary">{cliente.tipo_negocio || 'N/A'}</Badge></td>
                                                 <td>
                                                     {cliente.dia_visita ? cliente.dia_visita.split(',').map((dia, idx) => (
-                                                        <Badge key={idx} bg="info" className="me-1">{dia.trim()}</Badge>
+                                                        <Badge
+                                                            key={idx}
+                                                            className="me-1"
+                                                            style={{ backgroundColor: 'rgb(6, 56, 109)' }}
+                                                        >
+                                                            {dia.trim()}
+                                                        </Badge>
                                                     )) : <Badge bg="secondary">N/A</Badge>}
                                                 </td>
                                                 <td>{cliente.direccion || '-'}</td>

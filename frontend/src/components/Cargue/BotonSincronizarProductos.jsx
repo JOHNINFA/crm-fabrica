@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Button } from 'react-bootstrap';
 import { useUnifiedProducts } from '../../context/UnifiedProductContext';
 
 const BotonSincronizarProductos = () => {
@@ -36,14 +35,15 @@ const BotonSincronizarProductos = () => {
     };
 
     return (
-        <Button
-            variant="info"
+        <button
+            className="btn btn-outline-secondary btn-sm"
             onClick={handleSincronizar}
             disabled={sincronizando}
-            style={{ marginLeft: '10px' }}
+            title="Actualizar catálogo de productos y precios desde el servidor"
+            style={{ color: '#6c757d', fontWeight: '500' }}
         >
-            {sincronizando ? '🔄 Sincronizando...' : '🔄 Sincronizar Productos'}
-        </Button>
+            {sincronizando ? '🔄 Actualizando...' : '🔄 Actualizar Precios y Productos'}
+        </button>
     );
 };
 

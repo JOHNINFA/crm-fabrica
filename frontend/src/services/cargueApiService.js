@@ -429,16 +429,24 @@ export const cargueHybridService = {
                 final: { cantidad: cantidadFinal, adicional: adicionalFinal, dctos: dctosFinal }
               });
 
+              // 🆕 RECALCULAR TOTAL después del merge
+              const devoluciones = productoLocal.devoluciones || 0;
+              const vencidas = productoLocal.vencidas || 0;
+              const totalRecalculado = cantidadFinal - dctosFinal + adicionalFinal - devoluciones - vencidas;
+              const netoRecalculado = Math.round(totalRecalculado * (productoLocal.valor || productoApp.valor || 0));
+
               return {
                 ...productoApp,
                 id: productoLocal.id, // Preservar ID local
                 cantidad: cantidadFinal,
-                adicional: adicionalFinal, // ✅ Tomar el mayor entre app y CRM
-                dctos: dctosFinal, // ✅ Tomar el mayor entre app y CRM
-                devoluciones: productoLocal.devoluciones || 0, // ✅ Preservar devoluciones del CRM (nunca viene de app)
-                vencidas: productoLocal.vencidas || 0, // ✅ Preservar vencidas del CRM (nunca viene de app)
-                lotesVencidos: productoLocal.lotesVencidos || [], // ✅ Preservar lotes del CRM (nunca viene de app)
-                valor: productoLocal.valor || productoApp.valor // Preservar valor si existe
+                adicional: adicionalFinal,
+                dctos: dctosFinal,
+                devoluciones: devoluciones,
+                vencidas: vencidas,
+                lotesVencidos: productoLocal.lotesVencidos || [],
+                valor: productoLocal.valor || productoApp.valor,
+                total: totalRecalculado,  // 🆕 Total recalculado
+                neto: netoRecalculado     // 🆕 Neto recalculado
               };
             }
 

@@ -16,7 +16,9 @@ from .views import (
     CarguePagosViewSet,
     obtener_estado_cargue, actualizar_estado_cargue,  # 🆕 Estado de cargue
     # 🆕 Endpoints de turno
-    verificar_turno_activo, abrir_turno, cerrar_turno_estado
+    verificar_turno_activo, abrir_turno, cerrar_turno_estado,
+    # 🆕 Configuración de producción
+    obtener_configuracion_produccion, guardar_configuracion_produccion
 )
 
 router = DefaultRouter()
@@ -91,5 +93,9 @@ urlpatterns = router.urls + [
     # 🆕 Estado del cargue
     path('estado-cargue/', obtener_estado_cargue, name='obtener-estado-cargue'),
     path('estado-cargue/actualizar/', actualizar_estado_cargue, name='actualizar-estado-cargue'),
+    
+    # 🆕 Configuración de producción
+    path('configuracion-produccion/', obtener_configuracion_produccion, name='obtener-configuracion-produccion'),
+    path('configuracion-produccion/guardar/', guardar_configuracion_produccion, name='guardar-configuracion-produccion'),
 ]
 

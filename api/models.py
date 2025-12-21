@@ -1616,6 +1616,14 @@ class Pedido(models.Model):
     )  # Ej: 'ID1', 'ID2', 'DOM1', 'DOM2', etc.
     inventario_afectado = models.BooleanField(default=False, verbose_name='Inventario ya afectado')
     
+    # 🆕 Método de pago
+    METODO_PAGO_CHOICES = [
+        ('EFECTIVO', 'Efectivo'),
+        ('NEQUI', 'Nequi'),
+        ('DAVIPLATA', 'Daviplata'),
+    ]
+    metodo_pago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='EFECTIVO')
+    
     # Estado y control
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     nota = models.TextField(blank=True, null=True)
@@ -1927,3 +1935,31 @@ class TurnoVendedor(models.Model):
     
     def __str__(self):
         return f"Turno {self.vendedor_nombre} - {self.dia} {self.fecha} - {self.estado}"
+
+
+# ========================================
+# CONFIGURACIÓN DE PRODUCCIÓN
+# ========================================
+
+class ConfiguracionProduccion(models.Model):
+    """Modelo para guardar configuración de producción como usuario actual"""
+    
+    # Clave única para identificar la configuración
+    clave = models.CharField(max_length=50, unique=True, primary_key=True)
+    
+    # Valor de la configuración
+    valor = models.CharField(max_length=255)
+    
+    # Descripción opcional
+    descripcion = models.TextField(blank=True)
+    
+    # Metadatos
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'api_configuracion_produccion'
+        verbose_name = 'Configuración de Producción'
+        verbose_name_plural = 'Configuraciones de Producción'
+    
+    def __str__(self):
+        return f"{self.clave}: {self.valor}"
