@@ -14,7 +14,7 @@ services:
       PGTZ: America/Bogota
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backup_actual.sql:/docker-entrypoint-initdb.d/backup.sql
+      - ./backup_db_20251221.sql:/docker-entrypoint-initdb.d/backup.sql
     ports:
       - "5432:5432"
     healthcheck:
