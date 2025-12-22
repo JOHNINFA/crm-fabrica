@@ -220,19 +220,29 @@ const VendedoresScreen = () => {
     <div className="container-fluid mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Vendedores</h2>
-        <Button
-          variant="primary"
+        <button
+          type="button"
           onClick={() => abrirModal()}
-          style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
+          style={{
+            backgroundColor: '#163864',
+            borderColor: '#163864',
+            color: 'white',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: '500',
+            fontSize: '14px'
+          }}
         >
           + Nuevo Vendedor
-        </Button>
+        </button>
       </div>
 
       <div className="card">
         <div className="card-body">
           <Table striped bordered hover responsive>
-            <thead style={{ backgroundColor: '#06386d', color: 'white' }}>
+            <thead style={{ backgroundColor: '#163864', color: 'white' }}>
               <tr>
                 <th>Nombre</th>
                 <th>ID</th>
@@ -253,19 +263,38 @@ const VendedoresScreen = () => {
                   <tr key={vendedor.id}>
                     <td className="fw-bold">{vendedor.nombre}</td>
                     <td>
-                      <span className="badge bg-primary">{vendedor.idVendedor}</span>
+                      <span
+                        style={{
+                          backgroundColor: '#163864',
+                          color: 'white',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {vendedor.idVendedor}
+                      </span>
                     </td>
                     <td>{vendedor.ruta}</td>
                     <td>{new Date(vendedor.fechaCreacion).toLocaleDateString()}</td>
                     <td>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        className="me-2"
+                      <button
+                        type="button"
                         onClick={() => abrirModal(vendedor)}
+                        style={{
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          color: '#163864',
+                          padding: '4px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          marginRight: '8px'
+                        }}
                       >
                         Editar
-                      </Button>
+                      </button>
                       <Button
                         variant="outline-danger"
                         size="sm"
@@ -343,13 +372,22 @@ const VendedoresScreen = () => {
           <Button variant="secondary" onClick={cerrarModal}>
             Cancelar
           </Button>
-          <Button
-            variant="primary"
+          <button
+            type="button"
             onClick={guardarVendedor}
-            style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
+            style={{
+              backgroundColor: '#163864',
+              borderColor: '#163864',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
           >
             {editingVendedor ? 'Actualizar' : 'Crear'} Vendedor
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

@@ -124,6 +124,26 @@ body {
   font-size: 1.1em;
 }
 
+/* Botón personalizado que sobrescribe Bootstrap */
+.btn-custom-dark {
+  background-color: #0d2540 !important;
+  border-color: #0d2540 !important;
+  color: white !important;
+}
+
+.btn-custom-dark:hover {
+  background-color: #0a1d33 !important;
+  border-color: #0a1d33 !important;
+  color: white !important;
+}
+
+.btn-custom-dark:focus,
+.btn-custom-dark:active {
+  background-color: #0d2540 !important;
+  border-color: #0d2540 !important;
+  box-shadow: 0 0 0 0.2rem rgba(13, 37, 64, 0.5) !important;
+}
+
 /* Scrollbar Moderno */
 ::-webkit-scrollbar {
   width: 10px;
