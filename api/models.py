@@ -1963,3 +1963,17 @@ class ConfiguracionProduccion(models.Model):
     
     def __str__(self):
         return f"{self.clave}: {self.valor}"
+
+
+class RutaOrden(models.Model):
+    """Modelo para guardar el orden personalizado de clientes (ruta) por día"""
+    dia = models.CharField(max_length=20, unique=True)  # LUNES, MARTES, etc.
+    clientes_ids = models.JSONField(default=list)  # Lista de IDs de clientes en orden [1, 5, 12, ...]
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Ruta {self.dia} - {len(self.clientes_ids)} clientes"
+
+    class Meta:
+        verbose_name = "Orden de Ruta"
+        verbose_name_plural = "Ordenes de Rutas"

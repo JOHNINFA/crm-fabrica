@@ -14,7 +14,7 @@ export default function MainMenu() {
       <div style={{ marginBottom: '5px', textAlign: 'center' }}>
         <img src={icono} alt="Logo" style={{ width: '230px', height: 'auto', objectFit: 'contain', imageRendering: 'high-quality' }} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 220px)', gridTemplateRows: 'repeat(2, 140px)', columnGap: '50px', rowGap: '25px', justifyContent: 'center', padding: '30px 40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 240px)', gridTemplateRows: 'repeat(2, 140px)', columnGap: '40px', rowGap: '25px', justifyContent: 'center', padding: '30px 40px' }}>
         <div onClick={() => navigate("/pos")} className="menu-card">
           <i className="bi bi-cart"></i>
           <h3>Punto de Venta (POS)</h3>
@@ -28,7 +28,7 @@ export default function MainMenu() {
         <div onClick={() => navigate("/cargue")} className="menu-card">
           <i className="bi bi-people"></i>
           <h3>Cargue</h3>
-          <p>Registra la producción y devoluciones de los vendedores.</p>
+          <p>Gestiona producción y devoluciones de vendedores.</p>
         </div>
         <div onClick={() => navigate("/remisiones")} className="menu-card">
           <i className="bi bi-file-text"></i>

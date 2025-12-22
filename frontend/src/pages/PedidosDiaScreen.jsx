@@ -90,32 +90,59 @@ export default function PedidosDiaScreen() {
   }, [dia]);
 
   // Cargar orden guardado cuando cambian día o fecha
+  // Cargar orden guardado (API + LocalStorage backup)
   useEffect(() => {
     if (clientes.length > 0) {
-      const ordenKey = `orden_${dia}`;
-      const ordenGuardado = localStorage.getItem(ordenKey);
+      const cargarOrden = async () => {
+        let idsOrdenados = null;
 
-      if (ordenGuardado) {
+        // 1. Intentar cargar desde API (Fuente de la verdad)
         try {
-          const idsOrdenados = JSON.parse(ordenGuardado);
+          const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/ruta-orden/?dia=${dia}`);
+          if (res.ok) {
+            const data = await res.json();
+            // Data es un array (filtrado por dia)
+            if (data && data.length > 0 && data[0].clientes_ids) {
+              idsOrdenados = data[0].clientes_ids;
+              console.log("✅ Orden cargado desde BD para", dia);
+            }
+          }
+        } catch (e) {
+          console.error("⚠️ Error cargando orden BD:", e);
+        }
+
+        // 2. Si no hay en API, intentar LocalStorage (Backup)
+        if (!idsOrdenados) {
+          const ordenKey = `orden_${dia}`;
+          const ordenGuardado = localStorage.getItem(ordenKey);
+          if (ordenGuardado) {
+            try {
+              idsOrdenados = JSON.parse(ordenGuardado);
+              console.log("⚠️ Orden cargado desde LocalStorage (Backup)");
+            } catch (e) { }
+          }
+        }
+
+        // 3. Aplicar orden
+        if (idsOrdenados) {
           // Reordenar clientes según el orden guardado
           const clientesReordenados = idsOrdenados
             .map(id => clientes.find(cliente => cliente.id === id))
-            .filter(Boolean); // Filtrar elementos undefined
+            .filter(Boolean);
 
-          // Agregar clientes nuevos que no estén en el orden guardado
+          // Agregar clientes nuevos al final
           const clientesNuevos = clientes.filter(
             cliente => !idsOrdenados.includes(cliente.id)
           );
 
           setClientesOrdenados([...clientesReordenados, ...clientesNuevos]);
-        } catch (error) {
-          console.error('Error al cargar orden guardado:', error);
+        } else {
+          // Sin orden previo
           setClientesOrdenados(clientes);
         }
-      } else {
-        setClientesOrdenados(clientes);
-      }
+      };
+
+      cargarOrden();
     }
   }, [clientes, dia]); // Solo depende del día, no de la fecha
 
@@ -288,12 +315,26 @@ export default function PedidosDiaScreen() {
     setClientesOrdenados(newClientes);
     setDraggedIndex(null);
 
-    // Guardar el nuevo orden en localStorage
-    const ordenKey = `orden_${dia}`;
     const idsOrdenados = newClientes.map(cliente => cliente.id);
+
+    // 1. Guardar en localStorage (Inmediato)
+    const ordenKey = `orden_${dia}`;
     localStorage.setItem(ordenKey, JSON.stringify(idsOrdenados));
 
-    console.log(`✅ Orden guardado para ${dia} (aplica a todas las fechas)`);
+    // 2. Guardar en API (Persistente)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/ruta-orden/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dia: dia,
+        clientes_ids: idsOrdenados
+      })
+    }).then(res => {
+      if (res.ok) console.log("✅ Orden persistido en BD");
+      else console.error("❌ Error guardando orden BD");
+    }).catch(err => console.error("❌ Error conexión guardar orden:", err));
+
+    console.log(`✅ Orden actualizado localmente para ${dia}`);
   };
 
   return (

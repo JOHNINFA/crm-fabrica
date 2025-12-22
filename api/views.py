@@ -2,20 +2,20 @@ from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view
 from django.conf import settings
-from django.db import transaction
+from django.db import transaction, models  # 🆕 Agregar models para Q
 from django.utils import timezone
 import os
 import base64
 import re
 import uuid
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden
 from .serializers import (
     PlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
     CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer,
-    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer
+    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer
 )
 
 # 🆕 ViewSet para pagos de Cargue (múltiples filas por día/vendedor)
@@ -1801,14 +1801,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
                         if producto.stock_total < cantidad_a_descontar:
                             print(f"⚠️ ADVERTENCIA: {producto.nombre} - Stock insuficiente ({producto.stock_total} < {cantidad_a_descontar})")
                         
-                        # Descontar del stock
+                        # 🔧 FIX: Solo crear MovimientoInventario (que se encarga del descuento automáticamente)
+                        # NO hacer descuento manual porque causa DOBLE descuento
                         stock_anterior = producto.stock_total
-                        producto.stock_total -= cantidad_a_descontar
-                        producto.save()
                         
-                        print(f"✅ {producto.nombre}: {stock_anterior} → {producto.stock_total} (-{cantidad_a_descontar})")
-                        
-                        # Crear movimiento de inventario
+                        # Crear movimiento de inventario (esto descuenta automáticamente en el save())
                         MovimientoInventario.objects.create(
                             producto=producto,
                             tipo='SALIDA',
@@ -1816,6 +1813,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
                             usuario=request.data.get('usuario', 'Sistema'),
                             nota=f'Corrección manual - Pedido #{pedido.numero_pedido} - {pedido.destinatario}'
                         )
+                        
+                        # Refrescar para ver el stock actualizado
+                        producto.refresh_from_db()
+                        print(f"✅ {producto.nombre}: {stock_anterior} → {producto.stock_total} (-{cantidad_a_descontar})")
                         
                     except Exception as e:
                         print(f"❌ Error afectando inventario para {detalle.producto.nombre}: {str(e)}")
@@ -3730,10 +3731,82 @@ def cerrar_turno_vendedor(request):
         # Obtener cargue del día
         cargues = ModeloCargue.objects.filter(fecha=fecha, activo=True)
         
+        # 🆕 LÓGICA INTELIGENTE: Si no hay cargue para hoy, buscar si hay un turno abierto de ayer o antes
         if not cargues.exists():
+            try:
+                print(f"🕵️ No hay cargue para {fecha}. Buscando turno abierto pendiente...")
+                from .models import TurnoVendedor
+                v_id_num = int(id_vendedor.replace('ID', '')) if 'ID' in id_vendedor else 0
+                
+                # Buscar el último turno abierto de este vendedor
+                turno_abierto = TurnoVendedor.objects.filter(
+                    vendedor_id=v_id_num,
+                    estado='ABIERTO'
+                ).order_by('-fecha').first()
+                
+                if turno_abierto:
+                    fecha_turno = str(turno_abierto.fecha)
+                    # Si encontré un turno abierto y es diferente a la fecha enviada
+                    if fecha_turno != fecha:
+                        print(f"🔄 REDIRECCIONANDO CIERRE: Usando fecha del turno abierto {fecha_turno} en lugar de {fecha}")
+                        # Intentar buscar cargues con la fecha del turno abierto
+                        cargues_turno = ModeloCargue.objects.filter(fecha=fecha_turno, activo=True)
+                        if cargues_turno.exists():
+                            print("✅ ¡Cargues encontrados para el turno abierto!")
+                            cargues = cargues_turno
+                            fecha = fecha_turno  # Actualizar fecha oficial del proceso
+            except Exception as e_recup:
+                print(f"⚠️ Error intentando recuperar turno abierto: {e_recup}")
+
+        # Si sigue sin haber cargues, procedemos al cierre vacío (fallback)
+        if not cargues.exists():
+            print(f"⚠️ No hay cargue para {id_vendedor} en {fecha}. Cerrando turno vacío.")
+            # Intentar cerrar el turno Vendedor aunque no haya cargue
+            try:
+                from .models import TurnoVendedor
+                # Mapear ID1 -> 1, ID2 -> 2, etc. (OJO: Asegurarse que vendedor_id en TurnoVendedor es int)
+                # Si id_vendedor es 'ID1', extraemos 1.
+                v_id_num = int(id_vendedor.replace('ID', '')) if 'ID' in id_vendedor else 0
+                
+                # Buscar turno abierto
+                turno = TurnoVendedor.objects.filter(
+                    vendedor_id=v_id_num,
+                    fecha=fecha,
+                    estado='ABIERTO'
+                ).first()
+                
+                if turno:
+                    turno.estado = 'CERRADO'
+                    turno.hora_cierre = timezone.now()
+                    turno.save()
+                    print(f"✅ Turno {turno.id} marcado como CERRADO (sin cargue)")
+                
+                # También actualizar estado global en CargueResumen a COMPLETADO si existe
+                try:
+                    from .models import CargueResumen
+                    CargueResumen.objects.update_or_create(
+                        dia=turno.dia if turno else 'DESCONOCIDO', # Fallback si no hay turno
+                        fecha=fecha,
+                        vendedor_id=id_vendedor,
+                        defaults={'estado_cargue': 'COMPLETADO', 'activo': True}
+                    )
+                except Exception as ex_resumen:
+                     print(f"⚠️ Error actualizando CargueResumen sin cargue: {ex_resumen}")
+
+            except Exception as e:
+                print(f"⚠️ Error intentando cerrar turno vacío: {e}")
+
             return Response({
-                'error': f'No hay datos de cargue para {id_vendedor} en {fecha}'
-            }, status=404)
+                'success': True,
+                'mensaje': 'Turno cerrado correctamente (Sin registros de cargue)',
+                'resumen': [],
+                'totales': {
+                    'cargado': 0,
+                    'vendido': 0,
+                    'vencidas': 0,
+                    'devuelto': 0
+                }
+            })
         
         # 🆕 VALIDACIÓN: Verificar si el turno ya fue cerrado
         # Si algún producto tiene devoluciones > 0, significa que ya se cerró el turno
@@ -4154,3 +4227,319 @@ def guardar_configuracion_produccion(request):
         return Response({
             'error': str(e)
         }, status=500)
+
+
+# ========================================
+# 🆕 TRAZABILIDAD DE LOTES
+# ========================================
+
+@api_view(['GET'])
+def buscar_lote(request):
+    """
+    Busca un lote específico en todas las tablas de cargue.
+    Retorna: producción, despachos y vencidas.
+    """
+    import json
+    from .models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Lote
+    
+    lote_numero = request.query_params.get('lote', '').upper().strip()
+    
+    if not lote_numero:
+        return Response({'error': 'Debe proporcionar un número de lote'}, status=400)
+    
+    resultado = {
+        'lote': lote_numero,
+        'produccion': None,
+        'despachos': [],
+        'vencidas': []
+    }
+    
+    # 1. Buscar en tabla Lote (lotes registrados en producción)
+    try:
+        lote_obj = Lote.objects.filter(lote__iexact=lote_numero).first()
+        if lote_obj:
+            resultado['produccion'] = {
+                'fecha': str(lote_obj.fecha_produccion),
+                'usuario': lote_obj.usuario,
+                'fecha_vencimiento': str(lote_obj.fecha_vencimiento) if lote_obj.fecha_vencimiento else None,
+                'activo': lote_obj.activo
+            }
+    except Exception as e:
+        print(f"Error buscando en Lote: {e}")
+    
+    # 2. Buscar en tablas CargueIDx (lotes_produccion y lotes_vencidos)
+    cargue_models = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+    vendedor_ids = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6']
+    
+    for idx, CargueModel in enumerate(cargue_models):
+        vendedor_id = vendedor_ids[idx]
+        
+        try:
+            # Buscar registros con lotes_produccion o lotes_vencidos que contengan este lote
+            registros = CargueModel.objects.filter(
+                models.Q(lotes_produccion__icontains=lote_numero) |
+                models.Q(lotes_vencidos__icontains=lote_numero)
+            )
+            
+            for reg in registros:
+                # Procesar lotes_produccion
+                if reg.lotes_produccion and lote_numero in reg.lotes_produccion:
+                    try:
+                        lotes_prod = json.loads(reg.lotes_produccion) if reg.lotes_produccion else []
+                        if lote_numero in lotes_prod:
+                            resultado['despachos'].append({
+                                'fecha': str(reg.fecha),
+                                'dia': reg.dia,
+                                'vendedor_id': vendedor_id,
+                                'responsable': reg.responsable,
+                                'producto': reg.producto,
+                                'cantidad': reg.cantidad,
+                                'lotes': lotes_prod
+                            })
+                    except json.JSONDecodeError:
+                        # Si no es JSON válido, verificar si es el texto directamente
+                        if lote_numero in str(reg.lotes_produccion):
+                            resultado['despachos'].append({
+                                'fecha': str(reg.fecha),
+                                'dia': reg.dia,
+                                'vendedor_id': vendedor_id,
+                                'responsable': reg.responsable,
+                                'producto': reg.producto,
+                                'cantidad': reg.cantidad,
+                                'lotes': [reg.lotes_produccion]
+                            })
+                
+                # Procesar lotes_vencidos
+                if reg.lotes_vencidos and lote_numero in reg.lotes_vencidos:
+                    try:
+                        lotes_venc = json.loads(reg.lotes_vencidos) if reg.lotes_vencidos else []
+                        for lv in lotes_venc:
+                            if isinstance(lv, dict) and lv.get('lote', '').upper() == lote_numero:
+                                resultado['vencidas'].append({
+                                    'fecha': str(reg.fecha),
+                                    'dia': reg.dia,
+                                    'vendedor_id': vendedor_id,
+                                    'responsable': reg.responsable,
+                                    'producto': reg.producto,
+                                    'cantidad': reg.vencidas,
+                                    'motivo': lv.get('motivo', 'N/A'),
+                                    'lote': lv.get('lote', lote_numero)
+                                })
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            print(f"Error buscando en {CargueModel.__name__}: {e}")
+    
+    return Response(resultado)
+
+
+@api_view(['GET'])
+def lotes_por_fecha(request):
+    """
+    Obtiene todos los lotes de producción para una fecha específica.
+    """
+    import json
+    from .models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Lote
+    
+    fecha = request.query_params.get('fecha', '')
+    
+    if not fecha:
+        return Response({'error': 'Debe proporcionar una fecha'}, status=400)
+    
+    lotes = []
+    
+    # 1. Buscar en tabla Lote
+    try:
+        lotes_obj = Lote.objects.filter(fecha_produccion=fecha)
+        for lote in lotes_obj:
+            lotes.append({
+                'lote': lote.lote,
+                'fecha': str(lote.fecha_produccion),
+                'usuario': lote.usuario,
+                'fecha_vencimiento': str(lote.fecha_vencimiento) if lote.fecha_vencimiento else None,
+                'origen': 'Producción'
+            })
+    except Exception as e:
+        print(f"Error buscando lotes por fecha: {e}")
+    
+    # 2. Buscar lotes en tablas CargueIDx
+    cargue_models = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+    vendedor_ids = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6']
+    
+    lotes_encontrados = set()  # Para evitar duplicados
+    
+    for idx, CargueModel in enumerate(cargue_models):
+        vendedor_id = vendedor_ids[idx]
+        
+        try:
+            registros = CargueModel.objects.filter(
+                fecha=fecha,
+                lotes_produccion__isnull=False
+            ).exclude(lotes_produccion='')
+            
+            for reg in registros:
+                try:
+                    lotes_prod = json.loads(reg.lotes_produccion) if reg.lotes_produccion else []
+                    for lote_num in lotes_prod:
+                        if lote_num and lote_num not in lotes_encontrados:
+                            lotes_encontrados.add(lote_num)
+                            lotes.append({
+                                'lote': lote_num,
+                                'fecha': str(reg.fecha),
+                                'vendedor_id': vendedor_id,
+                                'responsable': reg.responsable,
+                                'producto': reg.producto,
+                                'cantidad': reg.cantidad,
+                                'origen': f'Cargue {vendedor_id}'
+                            })
+                except json.JSONDecodeError:
+                    # Si no es JSON, tratar como texto
+                    if reg.lotes_produccion and reg.lotes_produccion not in lotes_encontrados:
+                        lotes_encontrados.add(reg.lotes_produccion)
+                        lotes.append({
+                            'lote': reg.lotes_produccion,
+                            'fecha': str(reg.fecha),
+                            'vendedor_id': vendedor_id,
+                            'responsable': reg.responsable,
+                            'producto': reg.producto,
+                            'cantidad': reg.cantidad,
+                            'origen': f'Cargue {vendedor_id}'
+                        })
+        except Exception as e:
+            print(f"Error buscando lotes en {CargueModel.__name__}: {e}")
+    
+    return Response({
+        'fecha': fecha,
+        'total_lotes': len(lotes),
+        'lotes': lotes
+    })
+
+
+@api_view(['GET'])
+def lotes_por_mes(request):
+    """
+    Obtiene todos los lotes de producción para un mes específico.
+    """
+    import json
+    from datetime import datetime
+    from .models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Lote
+    
+    mes = request.query_params.get('mes', '')  # Formato: YYYY-MM
+    
+    if not mes:
+        return Response({'error': 'Debe proporcionar un mes (formato: YYYY-MM)'}, status=400)
+    
+    try:
+        year, month = mes.split('-')
+        year = int(year)
+        month = int(month)
+    except:
+        return Response({'error': 'Formato de mes inválido. Use YYYY-MM'}, status=400)
+    
+    lotes = []
+    lotes_por_fecha = {}
+    
+    # 1. Buscar en tabla Lote
+    try:
+        lotes_obj = Lote.objects.filter(
+            fecha_produccion__year=year,
+            fecha_produccion__month=month
+        )
+        for lote in lotes_obj:
+            fecha_str = str(lote.fecha_produccion)
+            if fecha_str not in lotes_por_fecha:
+                lotes_por_fecha[fecha_str] = []
+            
+            lotes_por_fecha[fecha_str].append({
+                'lote': lote.lote,
+                'usuario': lote.usuario,
+                'fecha_vencimiento': str(lote.fecha_vencimiento) if lote.fecha_vencimiento else None,
+                'origen': 'Producción'
+            })
+    except Exception as e:
+        print(f"Error buscando lotes del mes: {e}")
+    
+    # 2. Buscar en tablas CargueIDx
+    cargue_models = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
+    vendedor_ids = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6']
+    
+    for idx, CargueModel in enumerate(cargue_models):
+        vendedor_id = vendedor_ids[idx]
+        
+        try:
+            registros = CargueModel.objects.filter(
+                fecha__year=year,
+                fecha__month=month,
+                lotes_produccion__isnull=False
+            ).exclude(lotes_produccion='')
+            
+            for reg in registros:
+                try:
+                    lotes_prod = json.loads(reg.lotes_produccion) if reg.lotes_produccion else []
+                    for lote_num in lotes_prod:
+                        if lote_num:
+                            fecha_str = str(reg.fecha)
+                            if fecha_str not in lotes_por_fecha:
+                                lotes_por_fecha[fecha_str] = []
+                            
+                            lotes_por_fecha[fecha_str].append({
+                                'lote': lote_num,
+                                'vendedor_id': vendedor_id,
+                                'responsable': reg.responsable,
+                                'producto': reg.producto,
+                                'cantidad': reg.cantidad,
+                                'origen': f'Cargue {vendedor_id}'
+                            })
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            print(f"Error: {e}")
+    
+    # Convertir a lista ordenada por fecha
+    resultado = []
+    for fecha in sorted(lotes_por_fecha.keys()):
+        resultado.append({
+            'fecha': fecha,
+            'lotes': lotes_por_fecha[fecha]
+        })
+    
+    return Response({
+        'mes': mes,
+        'total_fechas': len(resultado),
+        'datos': resultado
+    })
+
+
+class RutaOrdenViewSet(viewsets.ModelViewSet):
+    """ViewSet para manejar órdenes de ruta"""
+    queryset = RutaOrden.objects.all()
+    serializer_class = RutaOrdenSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'dia'
+
+    def get_queryset(self):
+        """Permite filtrar por dia"""
+        queryset = super().get_queryset()
+        dia = self.request.query_params.get('dia', None)
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        """Crear o actualizar orden de ruta para un día"""
+        dia = request.data.get('dia')
+        if dia:
+             dia = dia.upper()
+        clientes_ids = request.data.get('clientes_ids', [])
+        
+        if not dia:
+            return Response({'error': 'Se requiere dia'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        obj, created = RutaOrden.objects.update_or_create(
+            dia=dia,
+            defaults={'clientes_ids': clientes_ids}
+        )
+        
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

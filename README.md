@@ -1,279 +1,426 @@
-# 📱 Sistema Integrado de Gestión - Documentación Completa
+# 🏭 CRM Fábrica - Sistema de Gestión Integral para Distribución de Alimentos
 
-## 🎯 Bienvenido
-
-Este es un **sistema empresarial completo** construido con **Django REST Framework** (backend) y **React** (frontend) que integra múltiples módulos de negocio para una fábrica/distribuidora de productos.
-
----
-
-## 📚 Documentación
-
-Toda la documentación está disponible en la carpeta `DOCUMENTACION/`:
-
-### 🚀 Comienza Aquí
-- **[INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)** - Guía de 5 minutos para entender el sistema
-- **[INDICE.md](DOCUMENTACION/INDICE.md)** - Índice completo de documentación
-
-### 📖 Documentación General
-- **[README_GENERAL.md](DOCUMENTACION/README_GENERAL.md)** - Arquitectura, estructura y flujos generales
-
-### 🔧 Módulos Específicos
-- **[README_POS.md](DOCUMENTACION/README_POS.md)** - Módulo de Punto de Venta
-- **[README_CARGUE.md](DOCUMENTACION/README_CARGUE.md)** - Módulo de Cargue Operativo
-- **[README_INVENTARIO.md](DOCUMENTACION/README_INVENTARIO.md)** - Módulo de Inventario
-- **[README_PEDIDOS.md](DOCUMENTACION/README_PEDIDOS.md)** - Módulo de Pedidos
-- **[README_OTROS.md](DOCUMENTACION/README_OTROS.md)** - Módulo de Administración y Configuración
+<p align="center">
+  <img src="https://img.shields.io/badge/Django-4.x-green?style=for-the-badge&logo=django" alt="Django">
+  <img src="https://img.shields.io/badge/React-18.x-blue?style=for-the-badge&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Expo-React%20Native-black?style=for-the-badge&logo=expo" alt="Expo">
+  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite" alt="SQLite">
+  <img src="https://img.shields.io/badge/TensorFlow-IA-FF6F00?style=for-the-badge&logo=tensorflow" alt="TensorFlow">
+</p>
 
 ---
 
-## 🏗️ Estructura del Proyecto
+## 📋 Descripción
+
+**CRM Fábrica** es un sistema integral de gestión diseñado específicamente para empresas de distribución de alimentos perecederos (como arepas). El sistema conecta la **planeación de producción**, los **vendedores en ruta**, el **punto de venta (POS)** y el **inventario** en tiempo real.
+
+### 🎯 Problema que Resuelve
+- Control de inventario en tiempo real
+- Gestión de múltiples vendedores en ruta
+- Reducción de pérdidas por productos vencidos
+- Trazabilidad completa de lotes
+- Sincronización entre producción y ventas
+- **Predicción inteligente de demanda con IA** (en desarrollo)
+
+---
+
+## 🏗️ Arquitectura del Sistema
 
 ```
-proyecto/
-├── DOCUMENTACION/                 # 📚 Documentación completa
-│   ├── INICIO_RAPIDO.md          # Guía rápida
-│   ├── INDICE.md                 # Índice de documentación
-│   ├── README_GENERAL.md         # Visión general
-│   ├── README_POS.md             # Módulo POS
-│   ├── README_CARGUE.md          # Módulo Cargue
-│   ├── README_INVENTARIO.md      # Módulo Inventario
-│   ├── README_PEDIDOS.md         # Módulo Pedidos
-│   └── README_OTROS.md           # Módulo Otros (Administración)
-│
-├── backend_crm/                   # 🔧 Backend Django
-│   ├── settings.py               # Configuración
-│   ├── urls.py                   # Rutas principales
-│   ├── wsgi.py                   # Servidor WSGI
-│   └── asgi.py                   # Servidor ASGI
-│
-├── api/                           # 📡 API REST
-│   ├── models.py                 # Modelos de datos
-│   ├── views.py                  # Endpoints
-│   ├── serializers.py            # Serializadores
-│   ├── urls.py                   # Rutas de API
-│   ├── admin.py                  # Panel administrativo
-│   └── migrations/               # Migraciones BD
-│
-├── frontend/                      # 🎨 Frontend React
-│   ├── src/
-│   │   ├── pages/                # Pantallas principales
-│   │   ├── components/           # Componentes
-│   │   ├── services/             # Servicios API
-│   │   ├── context/              # Estado global
-│   │   ├── hooks/                # Custom hooks
-│   │   ├── utils/                # Utilidades
-│   │   └── styles/               # Estilos CSS
-│   ├── public/                   # Archivos estáticos
-│   └── package.json              # Dependencias
-│
-├── manage.py                      # Gestor de Django
-└── README.md                      # Este archivo
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          CRM FÁBRICA                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐  │
+│  │   FRONTEND   │    │   BACKEND    │    │      APP MÓVIL           │  │
+│  │   (React)    │◄──►│   (Django)   │◄──►│   (React Native/Expo)    │  │
+│  │   Puerto:3000│    │  Puerto:8000 │    │        AP GUERRERO       │  │
+│  └──────────────┘    └──────────────┘    └──────────────────────────┘  │
+│         │                   │                        │                  │
+│         └───────────────────┼────────────────────────┘                  │
+│                             │                                            │
+│                    ┌────────▼────────┐                                  │
+│                    │    SQLite DB    │                                  │
+│                    │   + Modelos IA  │                                  │
+│                    └─────────────────┘                                  │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Inicio Rápido
+## 🛠️ Tecnologías Utilizadas
 
 ### Backend
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| Python | 3.10+ | Lenguaje principal |
+| Django | 4.x | Framework web |
+| Django REST Framework | 3.x | API REST |
+| SQLite | 3.x | Base de datos |
+| TensorFlow/Keras | 2.x | Redes neuronales (IA) |
+
+### Frontend Web
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| React | 18.x | Framework UI |
+| React Router | 6.x | Navegación SPA |
+| Bootstrap | 5.x | Estilos y componentes |
+| Chart.js | 4.x | Gráficos y visualizaciones |
+
+### App Móvil
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| React Native | 0.72+ | Framework móvil |
+| Expo | 49+ | Desarrollo y build |
+| AsyncStorage | - | Almacenamiento local |
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+crm-fabrica/
+├── 📂 api/                      # Backend Django
+│   ├── models.py               # Modelos de datos
+│   ├── views.py                # Vistas y endpoints API
+│   ├── serializers.py          # Serializadores REST
+│   ├── urls.py                 # Rutas de la API
+│   └── services/               # Servicios (IA, etc.)
+│
+├── 📂 backend_crm/              # Configuración Django
+│   ├── settings.py             # Configuración general
+│   └── urls.py                 # URLs principales
+│
+├── 📂 frontend/                 # Aplicación Web React
+│   ├── src/
+│   │   ├── components/         # Componentes React
+│   │   │   ├── Cargue/        # Módulo de Cargue
+│   │   │   ├── Pedidos/       # Módulo de Pedidos
+│   │   │   ├── inventario/    # Control de Inventario
+│   │   │   └── IA/            # Módulo de IA (próximo)
+│   │   ├── pages/             # Pantallas principales
+│   │   ├── services/          # Servicios y API calls
+│   │   └── styles/            # Estilos CSS
+│   └── public/
+│
+├── 📂 AP GUERRERO/              # App Móvil (Expo)
+│   ├── components/             # Componentes móviles
+│   │   ├── Ventas/            # Módulo de ventas
+│   │   └── Cargue.js          # Pantalla de cargue
+│   ├── services/              # Servicios móviles
+│   └── App.js                 # Entrada principal
+│
+├── 📂 modelos_ia/               # Modelos de IA entrenados
+│   └── *.keras                 # Archivos de modelos
+│
+├── 📂 docs/                     # Documentación
+│
+├── 📄 manage.py                 # CLI Django
+├── 📄 requirements.txt          # Dependencias Python
+└── 📄 README.md                 # Este archivo
+```
+
+---
+
+## 🚀 Instalación y Ejecución
+
+### Prerrequisitos
+- Python 3.10+
+- Node.js 18+
+- npm o yarn
+- Expo CLI (para app móvil)
+
+### 1️⃣ Backend (Django)
+
 ```bash
-# 1. Crear entorno virtual
+# Clonar repositorio
+cd crm-fabrica
+
+# Crear entorno virtual (opcional pero recomendado)
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+# o: venv\Scripts\activate  # Windows
 
-# 2. Instalar dependencias
+# Instalar dependencias
 pip install -r requirements.txt
 
-# 3. Configurar base de datos
-# Editar backend_crm/settings.py con credenciales PostgreSQL
-
-# 4. Ejecutar migraciones
+# Aplicar migraciones
 python manage.py migrate
 
-# 5. Crear superusuario
-python manage.py createsuperuser
-
-# 6. Ejecutar servidor
-python manage.py runserver
-# Acceder a: http://localhost:8000/api/
+# Ejecutar servidor
+python manage.py runserver 0.0.0.0:8000
 ```
 
-### Frontend
+### 2️⃣ Frontend Web (React)
+
 ```bash
-# 1. Instalar dependencias
+# En otra terminal
 cd frontend
+
+# Instalar dependencias
 npm install
 
-# 2. Configurar API
-# Editar frontend/src/config/api.js si es necesario
-
-# 3. Ejecutar servidor
+# Ejecutar en desarrollo
 npm start
-# Acceder a: http://localhost:3000
+```
+
+### 3️⃣ App Móvil (Expo)
+
+```bash
+# En otra terminal
+cd "AP GUERRERO"
+
+# Instalar dependencias
+npm install
+
+# Ejecutar con Expo
+npx expo start
 ```
 
 ---
 
-## 📊 Módulos Principales
+## 📱 Módulos del Sistema
 
-### 🛒 POS (Punto de Venta)
-- Búsqueda y selección de productos
-- Carrito de compras
-- Múltiples métodos de pago
-- Generación de facturas
-- **Gestión de Caja**: Apertura/cierre de turno, arqueo
-- **Historial de Ventas**: Registro de transacciones
+### 1. 📦 Módulo de Cargue
+Gestiona el despacho diario de productos a los vendedores.
 
-### 📦 CARGUE (Operativo de Vendedores)
-- Registro de productos despachados
-- Control de devoluciones y vencidas
-- Registro de pagos
-- Control de cumplimiento
-- Múltiples rutas (ID1-ID6)
+**Funcionalidades:**
+- Registro de cargue por vendedor (ID1-ID6)
+- Control de fechas y días de la semana
+- Validación de lotes vencidos
+- Sincronización con inventario
+- Cierre global de turno
 
-### 📊 INVENTARIO
-- Visualización de stock
-- Movimientos de entrada/salida
-- Gestión de lotes
-- **Kardex**: Historial de movimientos (trazabilidad)
-- Planeación de producción
+### 2. 🛒 Módulo de Pedidos
+Gestión de pedidos de clientes.
 
-### 📋 PEDIDOS
-- Creación de pedidos
-- **Gestión de Clientes**: Información y configuración
-- **Historial de Pedidos**: Seguimiento de estado
-- Generación de remisiones
-- Integración con inventario
+**Funcionalidades:**
+- Registro de pedidos por cliente
+- Asignación de rutas
+- Estados: Pendiente, Entregado, Anulado
+- Ordenamiento drag & drop
+- Historial de pedidos
+
+### 3. 📊 Módulo de Inventario
+Control de stock y kardex.
+
+**Funcionalidades:**
+- Stock en tiempo real
+- Kardex de movimientos
+- Alertas de stock bajo
+- Trazabilidad de lotes
+
+### 4. 💰 Módulo de Ventas (App Móvil)
+Aplicación para vendedores en ruta.
+
+**Funcionalidades:**
+- Apertura/Cierre de turno
+- Registro de ventas
+- Sincronización en tiempo real
+- Cuadre de caja
+- Reporte de vencidas/devoluciones
+
+### 5. 📈 Módulo de Reportes
+Informes y estadísticas.
+
+**Funcionalidades:**
+- Informe de ventas por vendedor
+- Reporte de vencidas
+- Análisis de rentabilidad
+- Exportación a Excel/PDF
+
+### 6. 🧠 Módulo de IA (En Desarrollo)
+Inteligencia artificial para predicción de demanda.
+
+**Funcionalidades Planeadas:**
+- Dashboard de modelos entrenados
+- Predicción de ventas por producto/vendedor
+- Sugerido inteligente de pedidos
+- Análisis de patrones de vencidas
+- Chat con IA para consultas
 
 ---
 
-## 🔌 Endpoints API Principales
+## 🧠 Sistema de Inteligencia Artificial
+
+### Objetivo
+Crear un **sugeridor inteligente** que prediga cuánto debería pedir cada vendedor, aprendiendo del historial real de:
+- Ventas (POS + App)
+- Pedidos anteriores
+- Devoluciones
+- Vencidas
+- Día de la semana
+- Tendencias estacionales
+
+### Arquitectura de la Red Neuronal
+```
+ENTRADA (Features):
+├── Día de la semana (0-6)
+├── Día del mes (1-31)
+├── Mes (1-12)
+├── Semana del año (1-52)
+├── Venta del día anterior
+├── Promedio últimas 4 semanas
+├── Devoluciones promedio
+└── Vencidas promedio
+
+RED NEURONAL:
+├── Capa 1: 64 neuronas (ReLU) + Dropout 20%
+├── Capa 2: 32 neuronas (ReLU) + Dropout 20%
+├── Capa 3: 16 neuronas (ReLU)
+└── Salida: 1 neurona (Linear) → Predicción
+
+SALIDA:
+└── Cantidad sugerida para el producto
+```
+
+### Modelos
+- **72 modelos** entrenados (6 vendedores × 12 productos)
+- Precisión objetivo: **85%+**
+- Actualización: Semanal automática
+
+---
+
+## 🔌 API Endpoints Principales
 
 ### Productos
-```
-GET    /api/productos/
-POST   /api/productos/
-GET    /api/productos/{id}/
-PUT    /api/productos/{id}/
-DELETE /api/productos/{id}/
-```
-
-### Ventas
-```
-GET    /api/ventas/
-POST   /api/ventas/
-GET    /api/ventas/{id}/
-```
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/productos/` | Listar productos |
+| POST | `/api/productos/` | Crear producto |
 
 ### Cargue
-```
-GET    /api/cargue-id1/
-POST   /api/cargue-id1/
-GET    /api/cargue-id1/{id}/
-```
-
-### Pedidos
-```
-GET    /api/pedidos/
-POST   /api/pedidos/
-GET    /api/pedidos/{id}/
-```
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/cargue-id1/` | Cargue vendedor 1 |
+| POST | `/api/cargue-id1/` | Registrar cargue |
+| GET | `/api/cargue-id2/` | Cargue vendedor 2 |
+| ... | ... | ... |
 
 ### Inventario
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/inventario/` | Stock actual |
+| POST | `/api/inventario/ajustar/` | Ajuste de inventario |
+| GET | `/api/kardex/` | Movimientos |
+
+### Ventas (App Móvil)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/turno/abrir/` | Abrir turno |
+| POST | `/api/turno/cerrar/` | Cerrar turno |
+| POST | `/api/ventas/registrar/` | Registrar venta |
+
+### IA (Próximamente)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/ia/dashboard/` | Dashboard IA |
+| GET | `/api/ia/modelos/` | Lista de modelos |
+| POST | `/api/ia/predecir/` | Obtener predicción |
+| POST | `/api/ia/entrenar/` | Reentrenar modelos |
+
+---
+
+## 👥 Vendedores del Sistema
+
+| ID | Nombre | Ruta |
+|----|--------|------|
+| ID1 | WILSON | Principal |
+| ID2 | VENDEDOR 2 | Secundaria |
+| ID3 | VENDEDOR 3 | Terciaria |
+| ID4 | VENDEDOR 4 | Cuarta |
+| ID5 | VENDEDOR 5 | Quinta |
+| ID6 | VENDEDOR 6 | Sexta |
+
+---
+
+## 📊 Flujo de Operación Diario
+
 ```
-GET    /api/movimientos-inventario/
-POST   /api/movimientos-inventario/
-GET    /api/lotes/
+🌅 INICIO DEL DÍA
+│
+├── 1️⃣ PLANEACIÓN (Día anterior)
+│   ├── Vendedores hacen pedidos
+│   ├── Clientes hacen pedidos
+│   └── 🤖 IA sugiere cantidades (próximamente)
+│
+├── 2️⃣ PRODUCCIÓN
+│   ├── Se programa según pedidos
+│   └── Se registra en sistema
+│
+├── 3️⃣ DESPACHO (Mañana)
+│   ├── Se carga a cada vendedor
+│   ├── Se registra en CARGUE
+│   └── Se descuenta de inventario
+│
+├── 4️⃣ VENTAS EN RUTA (Durante el día)
+│   ├── Vendedor abre turno (App)
+│   ├── Registra ventas
+│   └── Sincroniza en tiempo real
+│
+├── 5️⃣ CIERRE DE TURNO (Fin del día)
+│   ├── Reporta devoluciones
+│   ├── Reporta vencidas + lotes
+│   ├── Cuadre de caja
+│   └── Cierra turno
+│
+└── 6️⃣ CONSOLIDACIÓN (Web)
+    ├── Cierre global de todos los vendedores
+    ├── Actualización de inventario
+    └── Generación de reportes
 ```
 
 ---
 
-## 🛠️ Tecnologías
+## 🔧 Configuración
 
-### Backend
-- **Django 5.1.7** - Framework web
-- **Django REST Framework** - API REST
-- **PostgreSQL** - Base de datos
-- **Python 3.x** - Lenguaje
+### Variables de Entorno
 
-### Frontend
-- **React 19.1.0** - Framework UI
-- **React Router 7.5.0** - Enrutamiento
-- **Bootstrap 5.3.6** - Framework CSS
-- **Node.js** - Runtime
+**Frontend (.env)**
+```
+REACT_APP_API_URL=http://localhost:8000/api
+```
 
----
-
-## 📖 Guía de Lectura
-
-### Para Desarrolladores
-1. Leer [INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)
-2. Leer [README_GENERAL.md](DOCUMENTACION/README_GENERAL.md)
-3. Seleccionar módulo y leer su README
-4. Revisar código en repositorio
-5. Implementar cambios
-
-### Para Product Managers
-1. Leer [INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)
-2. Leer [README_GENERAL.md](DOCUMENTACION/README_GENERAL.md)
-3. Revisar funcionalidades en cada módulo
-
-### Para QA/Testers
-1. Leer [INICIO_RAPIDO.md](DOCUMENTACION/INICIO_RAPIDO.md)
-2. Leer funcionalidades de cada módulo
-3. Revisar validaciones
-4. Probar flujos de negocio
+**Backend (settings.py)**
+```python
+ALLOWED_HOSTS = ['*']
+CORS_ALLOW_ALL_ORIGINS = True
+```
 
 ---
 
-## 🔐 Seguridad
+## 🐛 Solución de Problemas Comunes
 
-- Validación en cliente y servidor
-- CORS configurado
-- Autenticación token-based (en producción)
-- Encriptación de contraseñas
-- Auditoría de cambios
+### Error: "No hay datos de cargue"
+El sistema ahora detecta automáticamente turnos abiertos de días anteriores.
 
----
+### Error: Turno no se cierra
+Verificar que no haya turnos "zombie" en la BD con el script:
+```bash
+python check_open_shifts.py
+```
 
-## 📞 Soporte
-
-Para reportar bugs, sugerencias o preguntas:
-- Contactar al equipo de desarrollo
-- Crear issue en el repositorio
-- Revisar la documentación en `DOCUMENTACION/`
+### Error: Vencidas sin lote
+El sistema ahora valida y solicita confirmación antes de cerrar.
 
 ---
 
 ## 📝 Licencia
 
-[Especificar licencia]
+Este proyecto es propietario de **Arepas Guerrero**.
 
 ---
 
-## 👥 Contribuidores
+## 👨‍💻 Desarrollo
 
-[Listar contribuidores]
+**Stack:** Django + React + Expo + TensorFlow
 
----
-
-## 📅 Última Actualización
-
-17 de Noviembre de 2025
+**Última actualización:** Diciembre 2025
 
 ---
 
-## ✅ Estado del Proyecto
-
-- ✅ Documentación completa
-- ✅ Módulos implementados
-- ✅ API funcional
-- ✅ Frontend operativo
-- ⏳ Tests en progreso
-- ⏳ Deployment en progreso
-
----
-
-**¡Gracias por usar nuestro sistema! 🎉**
-
-Para más información, consulta la [documentación completa](DOCUMENTACION/INDICE.md).
+<p align="center">
+  <strong>🏭 CRM Fábrica</strong><br>
+  Sistema de Gestión Integral para Distribución de Alimentos
+</p>

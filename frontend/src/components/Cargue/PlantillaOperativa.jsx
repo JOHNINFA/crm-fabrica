@@ -1452,10 +1452,6 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                             }, 100);
                         }}
                     />
-
-                    <div style={{ marginTop: '30px' }}>
-                        <BotonSincronizarProductos />
-                    </div>
                 </div>
             </div>
 

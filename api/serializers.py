@@ -6,7 +6,7 @@ from .models import (
     CargueProductos, CargueResumen, CarguePagos, CargueCumplimiento,  # Nuevos modelos normalizados
     Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, 
     ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, 
-    ConfiguracionImpresion, RegistrosPlaneacionDia
+    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden
 )
 
 
@@ -897,3 +897,10 @@ class ConfiguracionProduccionSerializer(serializers.ModelSerializer):
         model = ConfiguracionProduccion
         fields = ['clave', 'valor', 'descripcion', 'fecha_actualizacion']
         read_only_fields = ('fecha_actualizacion',)
+
+
+class RutaOrdenSerializer(serializers.ModelSerializer):
+    """Serializer para el orden de rutas"""
+    class Meta:
+        model = RutaOrden
+        fields = '__all__'

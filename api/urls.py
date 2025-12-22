@@ -13,12 +13,14 @@ from .views import (
     calcular_devoluciones_automaticas, ventas_tiempo_real, cerrar_turno_vendedor,
     RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
     RegistrosPlaneacionDiaViewSet,
-    CarguePagosViewSet,
+    CarguePagosViewSet, RutaOrdenViewSet,
     obtener_estado_cargue, actualizar_estado_cargue,  # 🆕 Estado de cargue
     # 🆕 Endpoints de turno
     verificar_turno_activo, abrir_turno, cerrar_turno_estado,
     # 🆕 Configuración de producción
-    obtener_configuracion_produccion, guardar_configuracion_produccion
+    obtener_configuracion_produccion, guardar_configuracion_produccion,
+    # 🆕 Trazabilidad de lotes
+    buscar_lote, lotes_por_fecha, lotes_por_mes
 )
 
 router = DefaultRouter()
@@ -65,6 +67,7 @@ router.register(r'ventas-cajero', VentaCajeroViewSet, basename='ventas-cajero')
 
 # Snapshot Planeación
 router.register(r'registros-planeacion-dia', RegistrosPlaneacionDiaViewSet, basename='registros-planeacion-dia')
+router.register(r'ruta-orden', RutaOrdenViewSet, basename='ruta-orden')
 
 
 urlpatterns = router.urls + [
@@ -97,5 +100,10 @@ urlpatterns = router.urls + [
     # 🆕 Configuración de producción
     path('configuracion-produccion/', obtener_configuracion_produccion, name='obtener-configuracion-produccion'),
     path('configuracion-produccion/guardar/', guardar_configuracion_produccion, name='guardar-configuracion-produccion'),
+    
+    # 🆕 Trazabilidad de lotes
+    path('trazabilidad/buscar/', buscar_lote, name='buscar-lote'),
+    path('trazabilidad/fecha/', lotes_por_fecha, name='lotes-por-fecha'),
+    path('trazabilidad/mes/', lotes_por_mes, name='lotes-por-mes'),
 ]
 

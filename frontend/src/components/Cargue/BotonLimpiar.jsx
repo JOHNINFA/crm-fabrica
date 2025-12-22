@@ -36,6 +36,18 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     detalles: ''
   });
 
+  // 🆕 Estado para Modal de CONFIRMACIÓN DE DESCUENTO (antes de afectar inventario)
+  const [showDescuentoConfirm, setShowDescuentoConfirm] = useState(false);
+  const [descuentoPreview, setDescuentoPreview] = useState({
+    totalCargue: 0,
+    totalPedidos: 0,
+    totalVencidas: 0,
+    productosACargue: [],
+    productosPedidos: [],
+    productosVencidas: [],
+    ejecutarDescuento: null // función que se ejecutará si confirma
+  });
+
   // Obtener datos frescos del contexto de vendedores
   const { datosVendedores } = useVendedores();
 
@@ -484,20 +496,30 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const todosPedidos = await response.json();
       console.log(`📦 Total de pedidos en BD: ${todosPedidos.length}`);
 
-      // 🔥 FILTRAR SOLO PEDIDOS PENDIENTES DE LA FECHA ESPECÍFICA
+      // 🔥 FILTRAR SOLO PEDIDOS PENDIENTES DE LA FECHA ESPECÍFICA Y QUE NO HAYAN AFECTADO INVENTARIO
       const pedidosFiltrados = todosPedidos.filter(p => {
         const fechaEntrega = p.fecha_entrega ? p.fecha_entrega.split('T')[0] : null;
-        const esPendiente = p.estado === 'PENDIENTE';
+        // Filtro más permisivo: Todo lo que NO esté finalizado
+        const estadosFinalizados = ['ENTREGADA', 'CANCELADO', 'ANULADA', 'COMPLETADO'];
+        const esPendiente = !estadosFinalizados.includes(p.estado); // Acepta PENDIENTE, SOLICITADA, CONFIRMADO, etc.
         const esFechaCorrecta = fechaEntrega === fechaFormateada;
 
+        // 🔒 NUEVO: Si ya afectó inventario (ej. pedido urgente), NO volver a descontar
+        const yaAfectoInventario = p.inventario_afectado === true;
+
         if (esFechaCorrecta && esPendiente) {
-          console.log(`✅ Pedido incluido: ${p.numero || p.id} - Fecha: ${fechaEntrega} - Estado: ${p.estado}`);
+          if (yaAfectoInventario) {
+            console.log(`⚠️ Pedido SALTADO (ya afectó inventario): ${p.numero_pedido || p.id}`);
+          } else {
+            console.log(`✅ Pedido incluido para descuento: ${p.numero_pedido || p.id} - Fecha: ${fechaEntrega}`);
+          }
         }
 
-        return esPendiente && esFechaCorrecta;
+        return esPendiente && esFechaCorrecta && !yaAfectoInventario;
+        // return esPendiente && esFechaCorrecta; // DEBUG: Permitir incluso si ya afectó inventario
       });
 
-      console.log(`✅ Pedidos PENDIENTES para ${fechaFormateada}: ${pedidosFiltrados.length}`);
+      console.log(`✅ Pedidos PENDIENTES para procesar (sin inventario afectado): ${pedidosFiltrados.length}`);
 
       // Agrupar productos por nombre y sumar cantidades
       const pedidosAgrupados = {};
@@ -1624,161 +1646,377 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   };
 
   // Validar lotes vencidos antes de finalizar (FUNCIÓN ORIGINAL - mantener para compatibilidad)
+  // 🚀 VALIDACIÓN ROBUSTA: Consultar BD + LocalStorage para asegurar que no se escapen vencidas
   const validarLotesVencidos = async (fechaAUsar, idsVendedores) => {
     try {
-
-      console.log(`📅 Fecha para validación: ${fechaAUsar}`);
-
+      console.log(`🔍 VALIDACIÓN ESTRICTA DE LOTES (BD + LOCAL) - ${fechaAUsar}`);
       const { simpleStorage } = await import('../../services/simpleStorage');
       const productosConVencidasSinLotes = [];
+      const endpointMap = {
+        'ID1': 'cargue-id1', 'ID2': 'cargue-id2', 'ID3': 'cargue-id3',
+        'ID4': 'cargue-id4', 'ID5': 'cargue-id5', 'ID6': 'cargue-id6'
+      };
 
-      // Verificar todos los IDs
       for (const id of idsVendedores) {
-        const key = `cargue_${dia}_${id}_${fechaAUsar}`;
-        const datos = await simpleStorage.getItem(key);
+        let productosAValidar = [];
+        let origenDatos = 'LocalStorage';
 
-        if (datos && datos.productos) {
-          for (const producto of datos.productos) {
-            // Si tiene vencidas pero no tiene lotes vencidos completos
-            if (producto.vencidas > 0) {
-              const lotesVencidos = producto.lotesVencidos || [];
+        // 1. Intentar cargar verdad absoluta desde BD primero
+        try {
+          const endpoint = endpointMap[id];
+          const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/${endpoint}/?fecha=${fechaAUsar}&dia=${dia}`);
+          if (res.ok) {
+            const dataDB = await res.json();
+            if (dataDB && dataDB.length > 0) {
+              productosAValidar = dataDB;
+              origenDatos = 'Base de Datos';
+            }
+          }
+        } catch (e) {
+          console.warn(`⚠️ No se pudo validar BD para ${id}, usando LocalStorage`, e);
+        }
 
-              // Verificar que tenga al menos un lote con información completa
-              const lotesCompletos = lotesVencidos.filter(lote =>
-                lote.lote && lote.lote.trim() !== '' &&
-                lote.motivo && lote.motivo.trim() !== ''
-              );
+        // 2. Si BD falló o está vacía, usar LocalStorage
+        if (productosAValidar.length === 0) {
+          const key = `cargue_${dia}_${id}_${fechaAUsar}`;
+          const datosLS = await simpleStorage.getItem(key);
+          if (datosLS && datosLS.productos) {
+            productosAValidar = datosLS.productos;
+          }
+        }
 
-              if (lotesCompletos.length === 0) {
-                productosConVencidasSinLotes.push({
-                  id: id,
-                  producto: producto.producto,
-                  vencidas: producto.vencidas
-                });
-              }
+        console.log(`   Verificando ${id} usando ${origenDatos} (${productosAValidar.length} productos)`);
+
+        // 3. Validar cada producto
+        for (const p of productosAValidar) {
+          const vencidas = parseFloat(p.vencidas || 0);
+          if (vencidas > 0) {
+            // Verificar si tiene lotes en campo de BD (string)
+            const tieneLotesBD = p.lotes_vencidos && p.lotes_vencidos.trim().length > 0 && p.lotes_vencidos !== 'undefined';
+
+            // Verificar array local (si viene de LS o UI enriquecida)
+            const lotesArray = p.lotesVencidos || [];
+            const tieneLotesArray = lotesArray.some(l => l.lote && l.lote.trim());
+
+            if (!tieneLotesBD && !tieneLotesArray) {
+              console.log(`   ❌ DETECTADO: ${p.producto} tiene ${vencidas} vencidas SIN LOTE`);
+              productosConVencidasSinLotes.push({
+                id: id,
+                producto: p.producto,
+                vencidas: vencidas
+              });
             }
           }
         }
       }
 
       if (productosConVencidasSinLotes.length > 0) {
-        console.log('❌ PRODUCTOS CON VENCIDAS SIN LOTES:', productosConVencidasSinLotes);
-
-        const mensaje = `❌ No se puede finalizar\n\nLos siguientes productos tienen vencidas pero no tienen información de lotes:\n\n${productosConVencidasSinLotes.map(p =>
-          `• ${p.id}: ${p.producto} (${p.vencidas} vencidas)`
+        console.log('❌ BLOQUEANDO CIERRE POR FALTA DE LOTES:', productosConVencidasSinLotes);
+        const mensaje = `❌ No se puede finalizar la jornada\n\nEl sistema ha detectado vencidas sin registrar lote (en Base de Datos o local):\n\n${productosConVencidasSinLotes.map(p =>
+          `• ${p.id}: ${p.producto} (${p.vencidas} und)`
         ).join('\n')
-          }\n\nPor favor complete la información de lotes vencidos antes de finalizar.`;
+          }\n\nPor favor vaya a la pestaña de "Vendidas", verifique los datos y asigne el lote correspondiente.`;
 
         alert(mensaje);
         return false;
       }
 
-
+      console.log("✅ Validación de lotes exitosa: Todo correcto.");
       return true;
     } catch (error) {
-      console.error('❌ Error validando lotes vencidos:', error);
-      alert('❌ Error validando lotes vencidos. No se puede finalizar.');
+      console.error("Error crítico en validación de lotes:", error);
+      alert("Error validando lotes. Revise consola.");
       return false;
     }
   };
 
   // 🚀 NUEVA FUNCIÓN: Manejar finalizar para un ID específico
-  const manejarFinalizarDelID = async () => {
-    console.log(`🚀🚀🚀 ${idSheet} - BOTÓN FINALIZAR PRESIONADO 🚀🚀🚀`);
 
-    console.log(`📊 ${idSheet} - Productos validados disponibles:`, productosValidados.length);
+
+  // 📥 HELPER: Cargar datos de cargue unificados (LocalStorage o BD) para un ID específico
+  const cargarDatosCargue = async (fechaAUsar, vendedorId) => {
+    const { simpleStorage } = await import('../../services/simpleStorage');
+
+    // Formatear fecha
+    let fechaFormateada;
+    if (fechaAUsar instanceof Date) {
+      fechaFormateada = fechaAUsar.toISOString().split('T')[0];
+    } else {
+      fechaFormateada = String(fechaAUsar).split('T')[0];
+    }
+
+    const key = `cargue_${dia}_${vendedorId}_${fechaFormateada}`;
+    let datosCargue = await simpleStorage.getItem(key);
+
+    console.log(`🔍 ${vendedorId} - Helper Cargue: Buscando en ${key}... Found: ${datosCargue ? 'YES' : 'NO'}`);
+
+    // Si no está en LocalStorage, intentar BD
+    if (!datosCargue || !datosCargue.productos || datosCargue.productos.length === 0) {
+      try {
+        const endpoint = vendedorId === 'ID1' ? 'cargue-id1' :
+          vendedorId === 'ID2' ? 'cargue-id2' :
+            vendedorId === 'ID3' ? 'cargue-id3' :
+              vendedorId === 'ID4' ? 'cargue-id4' :
+                vendedorId === 'ID5' ? 'cargue-id5' : 'cargue-id6';
+
+        const url = `http://localhost:8000/api/${endpoint}/?fecha=${fechaFormateada}&dia=${dia.toUpperCase()}`;
+        const response = await fetch(url);
+        const datosDB = await response.json();
+
+        if (Array.isArray(datosDB) && datosDB.length > 0) {
+          datosCargue = {
+            productos: datosDB.map(p => ({
+              id: p.producto_id || p.id,
+              producto: p.producto,
+              cantidad: p.cantidad || 0,
+              adicional: p.adicional || 0,
+              total: p.total || 0,
+              vencidas: p.vencidas || 0,
+              devoluciones: p.devoluciones || 0,
+              vendedor: p.v || p.vendedor || false,
+              despachador: p.d || p.despachador || false
+            }))
+          };
+        }
+      } catch (e) {
+        console.error(`❌ ${vendedorId} - Error Helper DB:`, e);
+      }
+    }
+
+    // Si aun no hay datos
+    if (!datosCargue || !datosCargue.productos) return null;
+
+    // Calcular productosACargue (mapeo IDs reales)
+    const productosACargue = [];
+
+    // Necesitamos mapa de productos para IDs reales
+    try {
+      const prodRes = await fetch('http://localhost:8000/api/productos/');
+      const todosProds = await prodRes.json();
+
+      for (const p of datosCargue.productos) {
+        if (p.vendedor && p.despachador && p.total > 0) {
+          const pReal = todosProds.find(tp => tp.nombre.toUpperCase() === p.producto.toUpperCase());
+          if (pReal) {
+            productosACargue.push({
+              id: pReal.id,
+              nombre: p.producto,
+              cantidad: p.total
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error mapeando productos en helper:", e);
+    }
+
+    datosCargue.productosACargue = productosACargue;
+    return datosCargue;
+  };
+
+  // 🚀 LÓGICA DE CIERRE GLOBAL MULTIVENDEDOR
+  const manejarFinalizarDelID = async () => {
+    // alert("🛠️ DEBUG: Iniciando función manejarFinalizarDelID (GLOBAL V3)"); 
+    if (!window.navigator.onLine) {
+      alert("⚠️ No tienes conexión a internet. No se puede realizar el cierre de inventario.");
+      return;
+    }
 
     setLoading(true);
-
     try {
-      // 🚀 NUEVO: Forzar guardado de datos actuales de la pantalla antes de procesar
-      // Esto asegura que si el autoguardado está desactivado, los datos se guarden antes de leerlos
-      console.log(`💾 ${idSheet} - Forzando guardado de datos en pantalla...`);
-      window.dispatchEvent(new CustomEvent('solicitarGuardado'));
-      // Esperar para asegurar que el evento se procese y localStorage se actualice
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log(`🏁 ${idSheet} - INICIANDO FINALIZACIÓN ESPECÍFICA`);
-
-      const { simpleStorage } = await import('../../services/simpleStorage');
-
-      if (!fechaSeleccionada) {
-        console.error(`❌ ${idSheet} - ERROR: fechaSeleccionada no está definida`);
-        alert(`❌ ${idSheet} - Error: No se ha seleccionado una fecha válida`);
-        setLoading(false);
-        return;
+      // Usamos la fecha seleccionada globalmente
+      let fechaAUsar = fechaSeleccionada;
+      if (fechaSeleccionada instanceof Date) {
+        fechaAUsar = fechaSeleccionada.toISOString().split('T')[0];
       }
 
-      const fechaAUsar = fechaSeleccionada;
-      console.log(`📅 ${idSheet} - Fecha a usar para guardado: ${fechaAUsar}`);
+      console.log(`🚀 INICIANDO CIERRE GLOBAL para fecha: ${fechaAUsar}`);
 
-      // VALIDACIÓN PREVIA: Verificar lotes vencidos del ID específico
-      console.log(`🔍 ${idSheet} - VALIDACIÓN PREVIA: Verificando lotes vencidos...`);
-      const lotesValidos = await validarLotesVencidosDelID(fechaAUsar, idSheet);
+      const IDS_VENDEDORES = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
-      if (!lotesValidos) {
-        setLoading(false);
-        return;
-      }
+      // Variables acumuladoras GLOBALES
+      let granTotalCargue = 0;
+      let granTotalVencidas = 0;
+      let granTotalDevoluciones = 0;
 
-      console.log(`✅ ${idSheet} - VALIDACIÓN COMPLETADA - Continuando con finalización...`);
+      let todosProductosACargue = [];
+      let todosProductosVencidas = [];
 
-      let totalDevoluciones = 0;
-      let totalVencidas = 0;
+      // ========== PASO 1: RECOPILAR DATOS DE TODOS LOS VENDEDORES ==========
+      console.log(`📋 ECOPILANDO DATOS DE ${IDS_VENDEDORES.length} VENDEDORES...`);
 
-      // PASO 1: Procesar devoluciones y vencidas del ID específico
-      console.log(`📦 ${idSheet} - PASO 1: Procesando devoluciones y vencidas...`);
-      const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
-      const datos = await simpleStorage.getItem(key);
+      for (const vendedorId of IDS_VENDEDORES) {
+        console.log(`🔍 Consultando datos de ${vendedorId}...`);
+        const datosVendedor = await cargarDatosCargue(fechaAUsar, vendedorId);
 
-      if (datos && datos.productos) {
-        for (const producto of datos.productos) {
-          if (producto.id) {
-            // 🔧 CORREGIDO: Las devoluciones NO afectan el inventario
-            // El producto nunca salió realmente del almacén (ya está restado en el TOTAL)
-            if (producto.devoluciones > 0) {
-              totalDevoluciones += producto.devoluciones;
-              console.log(`📋 ${idSheet} - DEVOLUCIONES REGISTRADAS: ${producto.producto} ${producto.devoluciones} (NO afecta inventario)`);
+        if (datosVendedor && datosVendedor.productos) {
+          // Obtener lista maestra de productos para mapear IDs
+          // (Optimizacion: Podriamos cargarla una sola vez fuera del loop, pero por seguridad la pedimos o usamos caché)
+          // Nota: cargarDatosCargue ya hace el mapeo interno de productos! 
+          // Revisemos cargarDatosCargue... devuelve { productos: [...], productosACargue: [...] }
+
+          // Acumular CARGUE (Ventas)
+          if (datosVendedor.productosACargue) {
+            todosProductosACargue = [...todosProductosACargue, ...datosVendedor.productosACargue];
+
+            // Sumar al total
+            const sumaVendedor = datosVendedor.productosACargue.reduce((acc, p) => acc + (p.cantidad || 0), 0);
+            granTotalCargue += sumaVendedor;
+            console.log(`   🔸 ${vendedorId}: ${sumaVendedor} ventas`);
+          }
+
+          // Acumular VENCIDAS y DEVOLUCIONES
+          for (const prod of datosVendedor.productos) {
+            if (prod.vencidas > 0 && prod.id) { // prod.id es el ID del PRODUCTO (ya mapeado en cargarDatosCargue)
+              todosProductosVencidas.push({
+                id: prod.id,
+                nombre: prod.producto,
+                cantidad: prod.vencidas,
+                origen: vendedorId
+              });
+              granTotalVencidas += prod.vencidas;
             }
-
-            // 🔧 CORREGIDO: Las vencidas SÍ se descuentan del inventario (se pierden)
-            if (producto.vencidas > 0) {
-              await actualizarInventario(producto.id, producto.vencidas, 'RESTAR');
-              totalVencidas += producto.vencidas;
-              console.log(`⬇️ ${idSheet} - VENCIDAS: ${producto.producto} -${producto.vencidas}`);
+            if (prod.devoluciones > 0) {
+              granTotalDevoluciones += prod.devoluciones;
             }
           }
         }
       }
 
-      // PASO 2: Guardar datos del ID específico en la base de datos
-      console.log(`💾 ${idSheet} - PASO 2: Guardando datos en base de datos...`);
-      await guardarDatosDelID(fechaAUsar, idSheet);
+      console.log(`📊 TOTAL GLOBAL CARGUE: ${granTotalCargue}`);
+      console.log(`📊 TOTAL GLOBAL VENCIDAS: ${granTotalVencidas}`);
 
-      // PASO 3: Limpiar localStorage del ID específico
-      console.log(`🧹 ${idSheet} - PASO 3: Limpiando localStorage...`);
-      limpiarLocalStorageDelID(fechaAUsar, idSheet);
 
-      // PASO 4: Cambiar estado a COMPLETADO para el ID específico
-      setEstado('COMPLETADO');
-      localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`, 'COMPLETADO');
+      // ========== PASO 2: CALCULAR PEDIDOS (YA ES GLOBAL) ==========
+      console.log(`📋 PASO 2: Verificando PEDIDOS pendientes (Global)...`);
+      let totalPedidos = 0;
+      let productosPedidosCalculados = [];
 
-      console.log(`🎉 ${idSheet} - FINALIZACIÓN COMPLETADA EXITOSAMENTE`);
+      // Filtro de pedidos (usa la lógica corregida anteriormente)
+      const { pedidosAgrupados, pedidosIds } = await cargarPedidosPendientes(fechaAUsar);
+      const productosPedidos = Object.values(pedidosAgrupados);
 
-      // ✅ MOSTRAR MODAL DE ÉXITO EN LUGAR DE ALERT
-      setSuccessModalData({
-        titulo: '¡Jornada Finalizada!',
-        mensaje: 'Los datos se han guardado correctamente en la base de datos.',
-        detalles: `📋 Devoluciones registradas: ${totalDevoluciones} (no afectan inventario)\n⬇️ Vencidas descontadas: ${totalVencidas}\n🧹 LocalStorage limpiado`
+      if (productosPedidos.length > 0) {
+        const productosResponse = await fetch('http://localhost:8000/api/productos/');
+        const todosLosProductosAPI = await productosResponse.json();
+
+        for (const pedido of productosPedidos) {
+          const productoEnAPI = todosLosProductosAPI.find(p =>
+            p.nombre.trim().toUpperCase() === pedido.nombre.trim().toUpperCase()
+          );
+
+          if (productoEnAPI) {
+            productosPedidosCalculados.push({
+              id: productoEnAPI.id,
+              nombre: pedido.nombre,
+              cantidad: pedido.cantidad
+            });
+            totalPedidos += pedido.cantidad;
+            console.log(`📦 PEDIDO: ${pedido.nombre} - ${pedido.cantidad}`);
+          }
+        }
+      }
+      console.log(`📊 TOTAL PEDIDOS: ${totalPedidos}`);
+
+
+      // ========== 🆕 PREPARAR FUNCIÓN DE EJECUCIÓN (CLOSURE) ==========
+      const ejecutarDescuentoReal = async () => {
+        try {
+          console.log(`🚀 EJECUTANDO CIERRE GLOBAL MULTIVENDEDOR...`);
+
+          // 1. Descontar CARGUE GLOBAL
+          for (const item of todosProductosACargue) {
+            await actualizarInventario(item.id, item.cantidad, 'RESTAR');
+          }
+
+          // 2. Descontar PEDIDOS
+          for (const item of productosPedidosCalculados) {
+            await actualizarInventario(item.id, item.cantidad, 'RESTAR');
+          }
+
+          // 3. Descontar VENCIDAS
+          for (const item of todosProductosVencidas) {
+            await actualizarInventario(item.id, item.cantidad, 'RESTAR');
+          }
+
+          // 4. Marcar Pedidos como Entregados
+          if (pedidosIds && pedidosIds.length > 0) {
+            await marcarPedidosComoEntregados(pedidosIds);
+          }
+
+          // 5. CERRAR ESTADO PARA TODOS LOS VENDEDORES (Iterar)
+          const fechaKeyForBD = fechaSeleccionada instanceof Date
+            ? fechaSeleccionada.toISOString().split('T')[0]
+            : fechaSeleccionada;
+
+          for (const vendedorId of IDS_VENDEDORES) {
+            try {
+              await fetch('http://localhost:8000/api/estado-cargue/actualizar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  dia: dia,
+                  fecha: fechaKeyForBD,
+                  vendedor_id: vendedorId,
+                  estado: 'COMPLETADO'
+                })
+              });
+              // Guardar localstorage también por si acaso
+              localStorage.setItem(`estado_boton_${dia}_${vendedorId}_${fechaFormateadaLS}`, 'COMPLETADO');
+            } catch (err) {
+              console.error(`❌ Error cerrando ${vendedorId}:`, err);
+            }
+          }
+
+          // Guardar global
+          localStorage.setItem(`estado_boton_${dia}_${fechaKeyForBD}`, 'COMPLETADO');
+
+          setEstado('COMPLETADO'); // Actualizar visualmente el botón actual
+
+          // Modal de Éxito
+          setSuccessModalData({
+            titulo: '¡Cierre Global Exitoso!',
+            mensaje: 'Se ha descontado el inventario de TODOS los vendedores y pedidos.',
+            detalles: `✅ Ventas (Cargue): ${granTotalCargue} und\n✅ Pedidos: ${totalPedidos} und\n✅ Vencidas: ${granTotalVencidas} und\n\nEl turno ha sido cerrado para ID1 - ID6.`
+          });
+          setShowSuccessModal(true);
+
+        } catch (error) {
+          console.error(`❌ Error crítico en cierre global:`, error);
+          alert(`Hubo un error en el proceso: ${error.message}`);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // Guardar datos en el estado del modal y mostrarlo
+      setDescuentoPreview({
+        totalCargue: granTotalCargue,
+        totalPedidos: totalPedidos,
+        totalVencidas: granTotalVencidas,
+        totalDevoluciones: granTotalDevoluciones,
+        ejecutarDescuento: ejecutarDescuentoReal
       });
-      setShowSuccessModal(true);
+
+      // ⚠️ VALIDACIÓN: Si hay vencidas, preguntar por lotes ANTES de mostrar modal
+      if (granTotalVencidas > 0) {
+        const confirmarLotes = window.confirm(
+          `⚠️ ATENCIÓN: Se detectaron ${granTotalVencidas} productos VENCIDOS.\n\n¿Ya ingresaste la información de los LOTES correspondientes en la columna "Lotes Vencidos"?\n\n• ACEPTAR: Sí, ya los ingresé. Continuar.\n• CANCELAR: No, quiero revisar primero.`
+        );
+
+        if (!confirmarLotes) {
+          setLoading(false);
+          return; // Salir sin mostrar modal
+        }
+      }
+
+      setShowDescuentoConfirm(true);
 
     } catch (error) {
-      console.error(`❌ ${idSheet} - Error en finalización:`, error);
-      alert(`❌ ${idSheet} - Error en finalización: ${error.message}`);
+      console.error(`❌ Error general:`, error);
+      alert(`Error iniciando proceso: ${error.message}`);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   // Manejar finalizar (devoluciones, vencidas y guardado completo) - FUNCIÓN ORIGINAL - mantener para compatibilidad
@@ -1814,25 +2052,71 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       let resumenVencidas = [];
 
       // Recopilar datos de todos los IDs para mostrar en la confirmación
+      const endpointMapRecoleccion = {
+        'ID1': 'cargue-id1', 'ID2': 'cargue-id2', 'ID3': 'cargue-id3',
+        'ID4': 'cargue-id4', 'ID5': 'cargue-id5', 'ID6': 'cargue-id6'
+      };
+
       for (const id of idsVendedores) {
+        let productos = [];
+
+        // 1. Cargar LocalStorage
         const key = `cargue_${dia}_${id}_${fechaAUsar}`;
         const datos = await simpleStorage.getItem(key);
-
         if (datos && datos.productos) {
-          for (const producto of datos.productos) {
-            if (producto.devoluciones > 0) {
-              totalDevoluciones += producto.devoluciones;
-              resumenDevoluciones.push(`${producto.producto}: ${producto.devoluciones} und (${id})`);
+          productos = datos.productos;
+        }
+
+        // 2. Verificar BD para asegurar que no se nos escapen vencidas de la App Móvil
+        // Si en local no vemos vencidas, preguntamos al servidor
+        const vencidasLocal = productos.reduce((acc, p) => acc + (p.vencidas || 0), 0);
+
+        if (vencidasLocal === 0) {
+          try {
+            const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/${endpointMapRecoleccion[id]}/?fecha=${fechaAUsar}&dia=${dia}`);
+            if (res.ok) {
+              const dbData = await res.json();
+              if (dbData && dbData.length > 0) {
+                const vencidasDB = dbData.reduce((acc, p) => acc + (p.vencidas || 0), 0);
+                if (vencidasDB > 0) {
+                  console.log(`📱 Detectadas vencidas en BD para ${id} (no visibles en local): ${vencidasDB}`);
+                  productos = dbData; // Usar datos de BD que están más actualizados
+                }
+              }
             }
-            if (producto.vencidas > 0) {
-              totalVencidas += producto.vencidas;
-              resumenVencidas.push(`${producto.producto}: ${producto.vencidas} und (${id})`);
-            }
+          } catch (e) {
+            console.warn(`⚠️ No se pudo verificar BD para recolección ${id}`, e);
+          }
+        }
+
+        // Procesar productos (ya sea de Local o BD)
+        for (const producto of productos) {
+          if (producto.devoluciones > 0) {
+            totalDevoluciones += producto.devoluciones;
+            resumenDevoluciones.push(`${producto.producto}: ${producto.devoluciones} und (${id})`);
+          }
+          if (producto.vencidas > 0) {
+            totalVencidas += producto.vencidas;
+            resumenVencidas.push(`${producto.producto}: ${producto.vencidas} und (${id})`);
           }
         }
       }
 
       // 🚨 CONFIRMACIÓN: Abrir Modal en lugar de window.confirm
+
+      // ⚠️ ADVERTENCIA DE USUARIO: Si hay vencidas, preguntar por Lotes antes de continuar
+      if (totalVencidas > 0) {
+        const confirmarLotes = window.confirm(
+          `⚠️ ATENCIÓN: Se han detectado ${totalVencidas} productos vencidos.\n\n¿Confirmas que ya ingresaste la información de los LOTES correspondientes?\n\n- ACEPTAR: Sí, ya los ingresé. Continuar.\n- CANCELAR: No, quiero revisar primero.`
+        );
+
+        if (!confirmarLotes) {
+          setLoading(false);
+          return;
+        }
+      }
+
+
       setConfirmModalData({
         totalDevoluciones,
         totalVencidas,
@@ -1864,14 +2148,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
 
-      // VALIDACIÓN PREVIA: Verificar lotes vencidos
-
+      /*
+      // VALIDACIÓN PREVIA ESTRICTA DESHABILITADA (Reemplazada por confirmación de usuario)
       const lotesValidos = await validarLotesVencidos(fechaAUsar, idsVendedores);
-
       if (!lotesValidos) {
         setLoading(false);
-        return; // No continuar si faltan lotes vencidos
+        return; 
       }
+      */
 
 
 
@@ -1893,19 +2177,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         if (datos && datos.productos) {
           for (const producto of datos.productos) {
             if (producto.id) {
-              // 🆕 Descontar VENDIDAS del inventario
-              if (producto.vendidas > 0) {
-                await actualizarInventario(producto.id, producto.vendidas, 'RESTAR');
-                totalVendidas += producto.vendidas;
-                console.log(`⬇️ VENDIDAS: ${producto.producto} -${producto.vendidas}`);
-              }
-
-              // 🆕 Descontar VENCIDAS del inventario
-              if (producto.vencidas > 0) {
-                await actualizarInventario(producto.id, producto.vencidas, 'RESTAR');
-                totalVencidas += producto.vencidas;
-                console.log(`⬇️ VENCIDAS: ${producto.producto} -${producto.vencidas}`);
-              }
+              /* 
+                 🚨 CORRECCIÓN IMPORTANTE:
+                 No descontar nada aquí. El inventario ya se descontó (o se debe descontar) 
+                 al momento del DESPACHO (Cargue completo).
+                 
+                 - Si descontamos VENDIDAS aquí -> Doble descuento (Cargue + Vendidas).
+                 - Si descontamos VENCIDAS aquí -> Doble descuento (Cargue + Vencidas).
+              */
 
               // 🔧 CORREGIDO: Las devoluciones NO afectan el inventario
               // El producto nunca salió realmente del almacén (ya está restado en el TOTAL)
@@ -1918,8 +2197,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log(`✅ VENDIDAS descontadas: ${totalVendidas} und`);
-      console.log(`✅ VENCIDAS descontadas: ${totalVencidas} und`);
+      console.log(`✅ VENDIDAS: No se descuentan en cierre (ya descontadas en Despacho)`);
+      console.log(`✅ VENCIDAS: No se descuentan en cierre (ya descontadas en Despacho)`);
       console.log(`📋 DEVOLUCIONES registradas: ${totalDevoluciones} und (no afectan inventario)`);
 
       // ========== PASO 2: DESCONTAR PEDIDOS DEL INVENTARIO ==========
@@ -1976,10 +2255,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       alert(
         `✅ Jornada Finalizada y Guardada\n\n` +
         `📊 INVENTARIO ACTUALIZADO:\n` +
-        `⬇️ Vendidas descontadas: ${totalVendidas} und\n` +
-        `⬇️ Vencidas descontadas: ${totalVencidas} und\n` +
+        `✅ Cargue: Ya descontado previamente\n` +
         `⬇️ Pedidos descontados: ${totalPedidos} und\n` +
-        `📋 Devoluciones registradas: ${totalDevoluciones} und (no afectan inventario)\n\n` +
+        `📋 Devoluciones registradas: ${totalDevoluciones} und\n\n` +
         `💾 Datos guardados en base de datos\n` +
         `🧹 LocalStorage limpiado`
       );
@@ -2098,17 +2376,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       let totalVendidas = 0;
 
       // ========== PASO 1: DESCONTAR CARGUE DEL INVENTARIO ==========
-      console.log('📦 PASO 1: Descontando CARGUE del inventario...');
+      // 🚨 CORRECCIÓN: NO descontar cargue aquí si venimos de un estado donde ya se descontó
+      // Por ahora asumo que si llegamos aquí, ya se hizo el despacho.
+      console.log('📦 PASO 1: Procesando cierre... (Cargue ya descontado en Despacho)');
 
-      for (const producto of productosValidados) {
-        if (producto.id) {
-          await actualizarInventario(producto.id, producto.totalCantidad, 'RESTAR');
-          totalCargueDescontado += producto.totalCantidad;
-          console.log(`⬇️ CARGUE: ${producto.nombre} -${producto.totalCantidad}`);
-        }
-      }
-
-      console.log(`✅ TOTAL CARGUE DESCONTADO: ${totalCargueDescontado} unidades`);
+      /* 
+         BLOQUE ELIMINADO: Descuento de Cargue
+         No se debe descontar el cargue aquí porque ya se hizo en el paso de Despacho.
+         Si se descuenta aquí, se duplica.
+      */
 
       // ========== PASO 2: DESCONTAR PEDIDOS DEL INVENTARIO ==========
       console.log('📋 PASO 2: Descontando PEDIDOS del inventario...');
@@ -2140,7 +2416,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log(`✅ TOTAL PEDIDOS DESCONTADO: ${totalPedidosDescontado} unidades`);
 
       //  ========== PASO 3: PROCESAR DEVOLUCIONES Y VENCIDAS ==========
-      console.log('🔄 PASO 3: Procesando VENDIDAS, VENCIDAS y DEVOLUCIONES...');
+      console.log('🔄 PASO 3: Procesando devoluciones...');
 
       // 🆕 MEJORADO: Leer desde BD si localStorage está vacío
       const endpointMap = {
@@ -2204,19 +2480,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           }
 
           if (productoId) {
-            // 🆕 Descontar VENDIDAS del inventario
-            if (producto.vendidas > 0) {
-              await actualizarInventario(productoId, producto.vendidas, 'RESTAR');
-              totalVendidas += producto.vendidas;
-              console.log(`⬇️ VENDIDAS: ${producto.producto} -${producto.vendidas}`);
-            }
-
-            // 🆕 Descontar VENCIDAS del inventario (se desechan)
-            if (producto.vencidas > 0) {
-              await actualizarInventario(productoId, producto.vencidas, 'RESTAR');
-              totalVencidas += producto.vencidas;
-              console.log(`⬇️ VENCIDAS: ${producto.producto} -${producto.vencidas}`);
-            }
+            /* 
+               🚨 CORRECCIÓN FINAL:
+               NO descontar ni vendidas ni vencidas aquí, porque ya se descontó el Cargue Total en Despacho.
+            */
 
             // 🔧 CORREGIDO: Las devoluciones NO afectan el inventario
             // El producto nunca salió realmente del almacén (ya está restado en el TOTAL)
@@ -2309,35 +2576,27 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     try {
       console.log(`📋 ${idSheet} - Productos validados para despacho:`, productosValidados.length);
 
-      // DESCONTAR del inventario
-      for (const producto of productosValidados) {
-        console.log(`🔥 ${idSheet} - PROCESANDO: ${producto.nombre}`);
+      /* 
+        🚨 CORRECCIÓN CRÍTICA:
+        NO descontar inventario aquí. El estado DESPACHO es solo transitorio.
+        El inventario se descuenta UNA SOLA VEZ cuando se presiona el botón:
+        DESPACHO → COMPLETADO
+        
+        Si descontamos aquí Y en Completado = DOBLE DESCUENTO ❌
+      */
 
-        const productoId = producto.id || null;
-
-        if (productoId) {
-          console.log(`   - Producto ID: ${productoId}`);
-          console.log(`   - Cantidad a descontar: ${producto.totalCantidad}`);
-
-          const resultado = await actualizarInventario(productoId, producto.totalCantidad, 'RESTAR');
-          console.log(`✅ ${idSheet} - DESCONTADO: ${producto.nombre} - Stock actualizado: ${resultado.stock_actual}`);
-        } else {
-          console.error(`❌ ${idSheet} - Producto ID NO encontrado para: ${producto.nombre}`);
-        }
-      }
-
-      // Cambiar estado a FINALIZAR para el ID específico
+      // Cambiar estado a FINALIZAR para el ID específico (sin afectar inventario)
       setEstado('FINALIZAR');
       localStorage.setItem(`estado_despacho_${dia}_${idSheet}_${fechaFormateadaLS}`, 'DESPACHO');
       localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`, 'FINALIZAR');
 
-      console.log(`✅ ${idSheet} - DESPACHO COMPLETADO - Inventario afectado`);
+      console.log(`✅ ${idSheet} - Estado cambiado a DESPACHO (inventario NO afectado aún)`);
 
-      // Mostrar resumen
+      // Mostrar resumen SIN decir que se descontó
       const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
       const totalGeneral = productosValidados.reduce((sum, p) => sum + p.totalCantidad, 0);
 
-      let mensaje = `✅ ${idSheet} - Despacho Realizado\n\n${resumen}\n\n🎯 TOTAL DESCONTADO DEL INVENTARIO: ${totalGeneral} unidades`;
+      let mensaje = `✅ ${idSheet} - Cambio a DESPACHO\n\n${resumen}\n\n📦 TOTAL PREPARADO: ${totalGeneral} unidades\n\n⚠️ El inventario se descontará al presionar FINALIZAR`;
 
       if (productosPendientes.length > 0) {
         const totalPendientes = productosPendientes.reduce((sum, p) => sum + p.totalCantidad, 0);
@@ -2444,7 +2703,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           texto: '🚚 DESPACHO',
           variant: 'primary',
           disabled: loading,
-          onClick: manejarCompletar,
+          onClick: manejarFinalizarDelID, // ✅ Mantenemos la lógica conecta CORRECTAMENTE
           customStyle: {
             backgroundColor: '#0d2d4e',
             borderColor: '#0d2d4e',
@@ -2572,22 +2831,106 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de Éxito - ESTILO PREMIUM */}
-      <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered backdrop="static">
-        <Modal.Body className="text-center p-5">
-          <div className="mb-4 text-success">
-            <i className="bi bi-check-circle-fill" style={{ fontSize: '4rem' }}></i>
+      {/* 🆕 Modal de CONFIRMACIÓN - DISEÑO MINIMALISTA PREMIUM CORREGIDO */}
+      <Modal show={showDescuentoConfirm} onHide={() => setShowDescuentoConfirm(false)} centered backdrop="static" size="lg" contentClassName="border-0 shadow-lg rounded-4 overflow-hidden">
+        <Modal.Header className="border-0 pb-0 pt-4 px-5 bg-white">
+          <div className="w-100 text-center">
+            <div className="mb-2 mx-auto bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
+              <i className="bi bi-exclamation-lg fs-3"></i>
+            </div>
+            <Modal.Title className="fw-bold fs-4 text-dark">
+              Confirmar Descuento
+            </Modal.Title>
+            <p className="text-secondary mt-1 mb-0 fw-light small">
+              Verifique los movimientos antes de afectar el inventario
+            </p>
           </div>
-          <h2 className="fw-bold mb-3 text-dark">{successModalData.titulo}</h2>
-          <p className="text-muted fs-5 mb-4">{successModalData.mensaje}</p>
+        </Modal.Header>
 
-          <div className="bg-light p-3 rounded border mb-4 text-start">
-            <pre className="mb-0 text-secondary" style={{ fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
+        <Modal.Body className="px-5 py-3 bg-white">
+          <div className="bg-light rounded-4 p-3 mb-3 border border-light-subtle">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <span className="text-secondary small text-uppercase fw-bold"><i className="bi bi-box-seam me-2"></i>Cargue (Ventas)</span>
+              <span className="fw-bold text-dark fs-5">{descuentoPreview.totalCargue}</span>
+            </div>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <span className="text-secondary small text-uppercase fw-bold"><i className="bi bi-clipboard-check me-2"></i>Pedidos</span>
+              <span className="fw-bold text-dark fs-5">{descuentoPreview.totalPedidos}</span>
+            </div>
+            <div className="d-flex justify-content-between align-items-center">
+              <span className="text-secondary small text-uppercase fw-bold"><i className="bi bi-trash3 me-2"></i>Vencidas</span>
+              <span className={`fw-bold fs-5 ${descuentoPreview.totalVencidas > 0 ? 'text-danger' : 'text-dark'}`}>{descuentoPreview.totalVencidas}</span>
+            </div>
+
+            {descuentoPreview.totalDevoluciones > 0 && (
+              <div className="d-flex justify-content-between align-items-center pt-2 mt-2 border-top">
+                <span className="text-muted small fst-italic"><i className="bi bi-arrow-return-left me-1"></i>Devoluciones (no descuenta)</span>
+                <span className="text-muted small">{descuentoPreview.totalDevoluciones}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="text-center py-2">
+            <p className="text-uppercase text-muted fw-bold x-small mb-0" style={{ fontSize: '0.75rem', letterSpacing: '1px' }}>Total a Descontar</p>
+            <h1 className="display-4 fw-bold text-dark mb-0 lh-1">
+              {(descuentoPreview.totalCargue || 0) + (descuentoPreview.totalPedidos || 0) + (descuentoPreview.totalVencidas || 0)}
+              <span className="fs-6 text-muted fw-normal ms-2 d-block d-sm-inline">unidades</span>
+            </h1>
+          </div>
+        </Modal.Body>
+
+        <Modal.Footer className="border-0 px-5 pb-5 pt-2 d-flex justify-content-center gap-3 bg-white">
+          <Button
+            variant="light"
+            size="lg"
+            className="px-4 rounded-pill fw-bold text-secondary border hover-shadow"
+            onClick={() => {
+              console.log('❌ Modal cancelado');
+              setShowDescuentoConfirm(false);
+              setLoading(false);
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="dark"
+            size="lg"
+            className="px-5 rounded-pill fw-bold shadow hover-lift"
+            onClick={async () => {
+              setShowDescuentoConfirm(false);
+              if (descuentoPreview.ejecutarDescuento) {
+                await descuentoPreview.ejecutarDescuento();
+              }
+            }}
+            style={{ backgroundColor: '#0d2d4e', borderColor: '#0d2d4e', minWidth: '200px' }}
+          >
+            Confirmar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal de Éxito - DISEÑO MINIMALISTA PREMIUM */}
+      <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered backdrop="static" size="md" contentClassName="border-0 shadow-lg rounded-4">
+        <Modal.Body className="text-center p-5">
+          <div className="mb-4 mx-auto bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
+            <i className="bi bi-check-lg" style={{ fontSize: '3rem' }}></i>
+          </div>
+
+          <h2 className="fw-bold mb-2 text-dark">{successModalData.titulo}</h2>
+          <p className="text-secondary mb-4">{successModalData.mensaje}</p>
+
+          <div className="bg-light p-4 rounded-4 text-start mb-4 border border-light">
+            <pre className="mb-0 text-secondary small" style={{ fontFamily: 'Inter, sans-serif', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
               {successModalData.detalles}
             </pre>
           </div>
 
-          <Button variant="success" size="lg" className="w-100 rounded-pill" onClick={() => setShowSuccessModal(false)}>
+          <Button
+            variant="success"
+            size="lg"
+            className="w-100 rounded-pill fw-bold shadow-sm"
+            onClick={() => setShowSuccessModal(false)}
+          >
             Entendido
           </Button>
         </Modal.Body>

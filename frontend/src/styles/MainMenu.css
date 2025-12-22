@@ -1,7 +1,8 @@
 .menu-card {
   background-color: #06386d;
   color: white;
-  padding: 18px;
+  padding: 20px 22px;
+  /* Más padding para consistencia entre navegadores */
   border-radius: 10px;
   cursor: pointer;
   min-height: 140px;
@@ -29,6 +30,8 @@
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 6px 0;
+  white-space: nowrap;
+  /* Evita que el texto se corte en Firefox */
 }
 
 .menu-card p {
@@ -37,4 +40,3 @@
   margin: 0;
   line-height: 1.3;
 }
-  

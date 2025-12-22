@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Badge, Alert, Nav, Table } from 'react-bootstrap';
-import { FaSearch, FaBoxOpen, FaTruck, FaExclamationTriangle, FaCheckCircle, FaCalendar, FaFileExcel } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { Container, Row, Col, Card, Form, Button, Badge, Alert, Nav, Table, Spinner } from 'react-bootstrap';
+import { FaSearch, FaBoxOpen, FaTruck, FaExclamationTriangle, FaCheckCircle, FaCalendar, FaFileExcel, FaArrowLeft } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import usePageTitle from '../hooks/usePageTitle';
 import '../styles/TrazabilidadScreen.css';
 
+const API_URL = 'http://localhost:8000/api';
+
 const TrazabilidadScreen = () => {
+    const navigate = useNavigate();
     usePageTitle('Trazabilidad');
-    const [activeTab, setActiveTab] = useState('lote'); // 'lote' | 'fecha'
+    const [activeTab, setActiveTab] = useState('lote'); // 'lote' | 'fecha' | 'mes'
 
     // Estados para búsqueda por lote
     const [loteConsulta, setLoteConsulta] = useState('');
@@ -24,6 +28,7 @@ const TrazabilidadScreen = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // 🆕 Buscar lote en la API
     const buscarLote = async () => {
         if (!loteConsulta.trim()) {
             setError('Debe ingresar un número de lote');
@@ -34,120 +39,31 @@ const TrazabilidadScreen = () => {
         setError(null);
 
         try {
-            // Buscar en localStorage por ahora (luego conectar a API)
-            const datos = buscarLoteEnLocalStorage(loteConsulta);
+            const response = await fetch(`${API_URL}/trazabilidad/buscar/?lote=${encodeURIComponent(loteConsulta)}`);
+            const data = await response.json();
 
-            if (datos) {
-                setTrazabilidad(datos);
+            if (response.ok) {
+                // Verificar si hay datos
+                if (data.produccion || data.despachos?.length > 0 || data.vencidas?.length > 0) {
+                    setTrazabilidad(data);
+                } else {
+                    setError(`No se encontró información para el lote: ${loteConsulta}`);
+                    setTrazabilidad(null);
+                }
             } else {
-                setError(`No se encontró información para el lote: ${loteConsulta}`);
+                setError(data.error || 'Error al buscar el lote');
                 setTrazabilidad(null);
             }
         } catch (err) {
-            setError('Error al buscar el lote');
+            setError('Error de conexión con el servidor');
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    const buscarLoteEnLocalStorage = (lote) => {
-        // 1. Buscar en lotes de producción
-        const lotesProduccion = obtenerLotesProduccion();
-        const produccion = lotesProduccion.find(l => l.numero === lote);
-
-        // 2. Buscar en cargues (lotes despachados)
-        const cargues = obtenerCargues();
-        const despachos = cargues.filter(c => {
-            return c.productos?.some(p =>
-                p.lotesVencidos?.some(lv => lv.lote === lote)
-            );
-        });
-
-        // 3. Buscar en vencidas
-        const vencidas = obtenerVencidas(lote);
-
-        if (!produccion && despachos.length === 0 && vencidas.length === 0) {
-            return null;
-        }
-
-        return {
-            lote,
-            produccion,
-            despachos,
-            vencidas
-        };
-    };
-
-    const obtenerLotesProduccion = () => {
-        // Buscar en todos los registros de confirmación de producción
-        const lotes = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key?.startsWith('confirmacion_produccion_')) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    if (data.lote) {
-                        lotes.push({
-                            numero: data.lote,
-                            fecha: data.fechaSeleccionada,
-                            usuario: data.usuario,
-                            productos: data.productos,
-                            fechaVencimiento: data.fechaVencimiento
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error parseando:', key);
-                }
-            }
-        }
-        return lotes;
-    };
-
-    const obtenerCargues = () => {
-        const cargues = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key?.startsWith('cargue_')) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    cargues.push({
-                        ...data,
-                        fecha: key.replace('cargue_', '')
-                    });
-                } catch (e) {
-                    console.error('Error parseando:', key);
-                }
-            }
-        }
-        return cargues;
-    };
-
-    const obtenerVencidas = (lote) => {
-        const vencidas = [];
-        const cargues = obtenerCargues();
-
-        cargues.forEach(cargue => {
-            cargue.productos?.forEach(producto => {
-                producto.lotesVencidos?.forEach(loteVencido => {
-                    if (loteVencido.lote === lote) {
-                        vencidas.push({
-                            fecha: cargue.fecha,
-                            vendedor: cargue.vendedor || 'N/A',
-                            producto: producto.nombre,
-                            cantidad: producto.cantidad || 'N/A', // Cantidad del producto en ese cargue
-                            lote: loteVencido.lote,
-                            motivo: loteVencido.motivo
-                        });
-                    }
-                });
-            });
-        });
-
-        return vencidas;
-    };
-
-    const buscarLotesPorFecha = () => {
+    // 🆕 Buscar lotes por fecha en la API
+    const buscarLotesPorFecha = async () => {
         if (!fechaConsulta) {
             setError('Debe seleccionar una fecha');
             return;
@@ -157,52 +73,30 @@ const TrazabilidadScreen = () => {
         setError(null);
 
         try {
-            // Convertir fecha seleccionada a formato comparable
-            const fechaBuscar = new Date(fechaConsulta);
-            const lotes = [];
+            const response = await fetch(`${API_URL}/trazabilidad/fecha/?fecha=${fechaConsulta}`);
+            const data = await response.json();
 
-            // Buscar en confirmaciones de producción
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key?.startsWith('confirmacion_produccion_')) {
-                    try {
-                        const data = JSON.parse(localStorage.getItem(key));
-                        const fechaProduccion = new Date(data.fechaSeleccionada);
-
-                        if (fechaProduccion.toDateString() === fechaBuscar.toDateString()) {
-                            lotes.push({
-                                lote: data.lote,
-                                fecha: data.fechaSeleccionada,
-                                usuario: data.usuario,
-                                productos: data.productos,
-                                fechaVencimiento: data.fechaVencimiento,
-                                totalProducido: data.productos?.reduce((sum, p) => sum + (p.cantidad || 0), 0) || 0
-                            });
-                        }
-                    } catch (e) {
-                        console.error('Error parseando:', key);
-                    }
+            if (response.ok) {
+                if (data.lotes && data.lotes.length > 0) {
+                    setLotesDelDia(data);
+                } else {
+                    setError(`No se encontraron lotes para la fecha: ${new Date(fechaConsulta).toLocaleDateString('es-ES')}`);
+                    setLotesDelDia(null);
                 }
-            }
-
-            if (lotes.length > 0) {
-                setLotesDelDia({
-                    fecha: fechaConsulta,
-                    lotes: lotes
-                });
             } else {
-                setError(`No se encontraron lotes para la fecha: ${new Date(fechaConsulta).toLocaleDateString('es-ES')}`);
+                setError(data.error || 'Error al buscar lotes');
                 setLotesDelDia(null);
             }
         } catch (err) {
-            setError('Error al buscar lotes por fecha');
+            setError('Error de conexión con el servidor');
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    const buscarLotesPorMes = () => {
+    // 🆕 Buscar lotes por mes en la API
+    const buscarLotesPorMes = async () => {
         if (!mesConsulta) {
             setError('Debe seleccionar un mes');
             return;
@@ -212,51 +106,23 @@ const TrazabilidadScreen = () => {
         setError(null);
 
         try {
-            // Extraer año y mes de la fecha seleccionada
-            const [year, month] = mesConsulta.split('-');
-            const lotes = [];
+            const response = await fetch(`${API_URL}/trazabilidad/mes/?mes=${mesConsulta}`);
+            const data = await response.json();
 
-            // Buscar en confirmaciones de producción
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key?.startsWith('confirmacion_produccion_')) {
-                    try {
-                        const data = JSON.parse(localStorage.getItem(key));
-                        const fechaProduccion = new Date(data.fechaSeleccionada);
-
-                        // Comparar año y mes
-                        if (fechaProduccion.getFullYear() === parseInt(year) &&
-                            fechaProduccion.getMonth() === parseInt(month) - 1) {
-                            lotes.push({
-                                lote: data.lote,
-                                fecha: data.fechaSeleccionada,
-                                usuario: data.usuario,
-                                productos: data.productos,
-                                fechaVencimiento: data.fechaVencimiento,
-                                totalProducido: data.productos?.reduce((sum, p) => sum + (p.cantidad || 0), 0) || 0
-                            });
-                        }
-                    } catch (e) {
-                        console.error('Error parseando:', key);
-                    }
+            if (response.ok) {
+                if (data.datos && data.datos.length > 0) {
+                    setLotesDelMes(data);
+                } else {
+                    const fecha = new Date(mesConsulta + '-01');
+                    setError(`No se encontraron lotes para ${fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`);
+                    setLotesDelMes(null);
                 }
-            }
-
-            // Ordenar por fecha
-            lotes.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-
-            if (lotes.length > 0) {
-                setLotesDelMes({
-                    mes: mesConsulta,
-                    lotes: lotes
-                });
             } else {
-                const fecha = new Date(mesConsulta + '-01');
-                setError(`No se encontraron lotes para ${fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`);
+                setError(data.error || 'Error al buscar lotes');
                 setLotesDelMes(null);
             }
         } catch (err) {
-            setError('Error al buscar lotes por mes');
+            setError('Error de conexión con el servidor');
             console.error(err);
         } finally {
             setLoading(false);
@@ -264,7 +130,7 @@ const TrazabilidadScreen = () => {
     };
 
     const exportarTrazabilidadMesExcel = () => {
-        if (!lotesDelMes || !lotesDelMes.lotes || lotesDelMes.lotes.length === 0) {
+        if (!lotesDelMes || !lotesDelMes.datos || lotesDelMes.datos.length === 0) {
             alert('No hay datos para exportar');
             return;
         }
@@ -272,49 +138,18 @@ const TrazabilidadScreen = () => {
         // Preparar datos para Excel
         const datosExcel = [];
 
-        lotesDelMes.lotes.forEach(lote => {
-            // Buscar despachos de este lote
-            const cargues = obtenerCargues();
-            const despachosLote = cargues.filter(c =>
-                c.productos?.some(p => p.lotesVencidos?.some(lv => lv.lote === lote.lote))
-            );
-
-            // Buscar vencidas de este lote
-            const vencidasLote = obtenerVencidas(lote.lote);
-
-            // Por cada producto del lote
-            lote.productos?.forEach(producto => {
-                const totalVencido = vencidasLote
-                    .filter(v => v.producto === producto.nombre)
-                    .reduce((sum, v) => sum + (typeof v.cantidad === 'number' ? v.cantidad : 0), 0);
-
-                const cantProducida = producto.cantidad || 0;
-                let estado = 'EN BODEGA';
-
-                if (despachosLote.length > 0) {
-                    if (totalVencido === 0) {
-                        estado = 'EN CIRCULACIÓN';
-                    } else if (totalVencido < cantProducida) {
-                        estado = 'VENCIDA PARCIAL';
-                    } else {
-                        estado = 'VENCIDA TOTAL';
-                    }
-                }
-
+        lotesDelMes.datos.forEach(dia => {
+            dia.lotes.forEach(lote => {
                 datosExcel.push({
                     'Lote': lote.lote,
-                    'Fecha Producción': new Date(lote.fecha).toLocaleDateString('es-ES'),
-                    'Usuario': lote.usuario,
-                    'Producto': producto.nombre,
-                    'Cant. Producida': cantProducida,
-                    'Vence': lote.fechaVencimiento || 'N/A',
-                    'Despachado': despachosLote.length > 0 ? 'SÍ' : 'NO',
-                    'Fecha Despacho': despachosLote[0]?.fecha || '-',
-                    'Vendedor': despachosLote[0]?.vendedor || '-',
-                    'Retornó Vencida': totalVencido > 0 ? 'SÍ' : 'NO',
-                    'Cant. Vencida': totalVencido,
-                    'Motivo': vencidasLote.find(v => v.producto === producto.nombre)?.motivo || '-',
-                    'Estado': estado
+                    'Fecha': dia.fecha,
+                    'Vendedor ID': lote.vendedor_id || 'N/A',
+                    'Responsable': lote.responsable || 'N/A',
+                    'Producto': lote.producto || 'N/A',
+                    'Cantidad': lote.cantidad || 0,
+                    'Usuario': lote.usuario || 'N/A',
+                    'Fecha Vencimiento': lote.fecha_vencimiento || 'N/A',
+                    'Origen': lote.origen || 'N/A'
                 });
             });
         });
@@ -325,19 +160,15 @@ const TrazabilidadScreen = () => {
 
         // Ajustar anchos de columna
         const colWidths = [
-            { wch: 12 }, // Lote
-            { wch: 15 }, // Fecha Producción
-            { wch: 20 }, // Usuario
-            { wch: 25 }, // Producto
-            { wch: 12 }, // Cant. Producida
-            { wch: 12 }, // Vence
-            { wch: 12 }, // Despachado
-            { wch: 15 }, // Fecha Despacho
-            { wch: 12 }, // Vendedor
-            { wch: 15 }, // Retornó Vencida
-            { wch: 12 }, // Cant. Vencida
-            { wch: 12 }, // Motivo
-            { wch: 18 }, // Estado
+            { wch: 15 }, // Lote
+            { wch: 12 }, // Fecha
+            { wch: 12 }, // Vendedor ID
+            { wch: 20 }, // Responsable
+            { wch: 30 }, // Producto
+            { wch: 10 }, // Cantidad
+            { wch: 15 }, // Usuario
+            { wch: 15 }, // Fecha Vencimiento
+            { wch: 12 }, // Origen
         ];
         ws['!cols'] = colWidths;
 
@@ -353,6 +184,20 @@ const TrazabilidadScreen = () => {
 
     return (
         <Container fluid className="trazabilidad-screen">
+            {/* Botón Regresar */}
+            <Row className="mb-3">
+                <Col>
+                    <Button
+                        variant="outline-secondary"
+                        onClick={() => navigate('/otros')}
+                        className="d-flex align-items-center"
+                    >
+                        <FaArrowLeft className="me-2" />
+                        Regresar a Otros
+                    </Button>
+                </Col>
+            </Row>
+
             <Row className="mb-4">
                 <Col>
                     <h2 className="text-center mb-4">
@@ -421,7 +266,7 @@ const TrazabilidadScreen = () => {
                                                 disabled={loading}
                                                 className="w-100"
                                             >
-                                                <FaSearch className="me-2" />
+                                                {loading ? <Spinner size="sm" animation="border" /> : <FaSearch className="me-2" />}
                                                 {loading ? 'Buscando...' : 'Buscar'}
                                             </Button>
                                         </Col>
@@ -459,7 +304,7 @@ const TrazabilidadScreen = () => {
                                                 disabled={loading}
                                                 className="w-100"
                                             >
-                                                <FaSearch className="me-2" />
+                                                {loading ? <Spinner size="sm" animation="border" /> : <FaSearch className="me-2" />}
                                                 {loading ? 'Buscando...' : 'Buscar'}
                                             </Button>
                                         </Col>
@@ -497,7 +342,7 @@ const TrazabilidadScreen = () => {
                                                 disabled={loading}
                                                 className="w-100"
                                             >
-                                                <FaSearch className="me-2" />
+                                                {loading ? <Spinner size="sm" animation="border" /> : <FaSearch className="me-2" />}
                                                 {loading ? 'Buscando...' : 'Buscar'}
                                             </Button>
                                         </Col>
@@ -520,7 +365,7 @@ const TrazabilidadScreen = () => {
                 </Row>
             )}
 
-            {/* Resultados */}
+            {/* Resultados por Lote */}
             {trazabilidad && (
                 <Row>
                     <Col md={{ span: 10, offset: 1 }}>
@@ -543,17 +388,9 @@ const TrazabilidadScreen = () => {
                                                 <Badge bg="success" className="mb-2">CREACIÓN</Badge>
                                                 <h5>{trazabilidad.produccion.fecha}</h5>
                                                 <p className="mb-1"><strong>Usuario:</strong> {trazabilidad.produccion.usuario}</p>
-                                                {trazabilidad.produccion.fechaVencimiento && (
-                                                    <p className="mb-1"><strong>Vence:</strong> {trazabilidad.produccion.fechaVencimiento}</p>
+                                                {trazabilidad.produccion.fecha_vencimiento && (
+                                                    <p className="mb-1"><strong>Vence:</strong> {trazabilidad.produccion.fecha_vencimiento}</p>
                                                 )}
-                                                <div className="mt-2">
-                                                    <strong>Productos:</strong>
-                                                    <ul>
-                                                        {trazabilidad.produccion.productos?.map((p, idx) => (
-                                                            <li key={idx}>{p.nombre}: {p.cantidad} unidades</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -566,16 +403,10 @@ const TrazabilidadScreen = () => {
                                             </div>
                                             <div className="timeline-content">
                                                 <Badge bg="info" className="mb-2">DESPACHO</Badge>
-                                                <h5>{despacho.fecha}</h5>
-                                                <p className="mb-1"><strong>Vendedor:</strong> {despacho.vendedor}</p>
-                                                <div className="mt-2">
-                                                    <strong>Productos despachados:</strong>
-                                                    <ul>
-                                                        {despacho.productos?.map((p, pidx) => (
-                                                            <li key={pidx}>{p.nombre}: {p.cantidad} unidades</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
+                                                <h5>{despacho.fecha} - {despacho.dia}</h5>
+                                                <p className="mb-1"><strong>Vendedor:</strong> {despacho.vendedor_id} - {despacho.responsable}</p>
+                                                <p className="mb-1"><strong>Producto:</strong> {despacho.producto}</p>
+                                                <p className="mb-1"><strong>Cantidad:</strong> {despacho.cantidad} unidades</p>
                                             </div>
                                         </div>
                                     ))}
@@ -588,8 +419,8 @@ const TrazabilidadScreen = () => {
                                             </div>
                                             <div className="timeline-content">
                                                 <Badge bg="danger" className="mb-2">RETORNO (VENCIDA)</Badge>
-                                                <h5>{vencida.fecha}</h5>
-                                                <p className="mb-1"><strong>Vendedor:</strong> {vencida.vendedor}</p>
+                                                <h5>{vencida.fecha} - {vencida.dia}</h5>
+                                                <p className="mb-1"><strong>Vendedor:</strong> {vencida.vendedor_id} - {vencida.responsable}</p>
                                                 <p className="mb-1"><strong>Producto:</strong> {vencida.producto}</p>
                                                 <p className="mb-1"><strong>Cantidad:</strong> <Badge bg="secondary">{vencida.cantidad} unidades</Badge></p>
                                                 <p className="mb-1"><strong>Motivo:</strong> <Badge bg="warning" text="dark">{vencida.motivo}</Badge></p>
@@ -605,14 +436,6 @@ const TrazabilidadScreen = () => {
                                         <Row className="mt-3">
                                             <Col md={4}>
                                                 <div className="stat-box">
-                                                    <div className="stat-value text-success">
-                                                        {trazabilidad.produccion?.productos?.reduce((sum, p) => sum + (p.cantidad || 0), 0) || 0}
-                                                    </div>
-                                                    <div className="stat-label">Producido</div>
-                                                </div>
-                                            </Col>
-                                            <Col md={4}>
-                                                <div className="stat-box">
                                                     <div className="stat-value text-info">
                                                         {trazabilidad.despachos?.length || 0}
                                                     </div>
@@ -622,10 +445,15 @@ const TrazabilidadScreen = () => {
                                             <Col md={4}>
                                                 <div className="stat-box">
                                                     <div className="stat-value text-danger">
-                                                        {trazabilidad.vencidas?.reduce((sum, v) => {
-                                                            const cantidad = typeof v.cantidad === 'number' ? v.cantidad : 0;
-                                                            return sum + cantidad;
-                                                        }, 0) || 0}
+                                                        {trazabilidad.vencidas?.length || 0}
+                                                    </div>
+                                                    <div className="stat-label">Retornos</div>
+                                                </div>
+                                            </Col>
+                                            <Col md={4}>
+                                                <div className="stat-box">
+                                                    <div className="stat-value text-warning">
+                                                        {trazabilidad.vencidas?.reduce((sum, v) => sum + (v.cantidad || 0), 0) || 0}
                                                     </div>
                                                     <div className="stat-label">Unidades Vencidas</div>
                                                 </div>
@@ -660,11 +488,12 @@ const TrazabilidadScreen = () => {
                                         <tr>
                                             <th>#</th>
                                             <th>Lote</th>
-                                            <th>Usuario</th>
-                                            <th>Productos</th>
-                                            <th>Total Producido</th>
-                                            <th>Fecha Vencimiento</th>
-                                            <th>Acción</th>
+                                            <th>Vendedor</th>
+                                            <th>Responsable</th>
+                                            <th>Producto</th>
+                                            <th>Cantidad</th>
+                                            <th>Origen</th>
+                                            <th>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -676,20 +505,15 @@ const TrazabilidadScreen = () => {
                                                         {lote.lote}
                                                     </Badge>
                                                 </td>
-                                                <td>{lote.usuario}</td>
-                                                <td>
-                                                    <ul className="mb-0" style={{ fontSize: '0.9rem' }}>
-                                                        {lote.productos?.map((p, pidx) => (
-                                                            <li key={pidx}>{p.nombre} ({p.cantidad})</li>
-                                                        ))}
-                                                    </ul>
-                                                </td>
+                                                <td>{lote.vendedor_id || 'N/A'}</td>
+                                                <td>{lote.responsable || lote.usuario || 'N/A'}</td>
+                                                <td>{lote.producto || 'N/A'}</td>
                                                 <td className="text-center">
-                                                    <Badge bg="success" className="fs-6">
-                                                        {lote.totalProducido}
+                                                    <Badge bg="success">
+                                                        {lote.cantidad || 0}
                                                     </Badge>
                                                 </td>
-                                                <td>{lote.fechaVencimiento || 'N/A'}</td>
+                                                <td>{lote.origen}</td>
                                                 <td className="text-center">
                                                     <Button
                                                         variant="outline-info"
@@ -697,8 +521,8 @@ const TrazabilidadScreen = () => {
                                                         onClick={() => {
                                                             setActiveTab('lote');
                                                             setLoteConsulta(lote.lote);
-                                                            buscarLoteEnLocalStorage(lote.lote);
-                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            setLotesDelDia(null);
+                                                            setTimeout(() => buscarLote(), 100);
                                                         }}
                                                     >
                                                         Ver Trazabilidad
@@ -717,15 +541,15 @@ const TrazabilidadScreen = () => {
                                             <Col md={6}>
                                                 <div className="stat-box">
                                                     <div className="stat-value text-primary">
-                                                        {lotesDelDia.lotes.length}
+                                                        {lotesDelDia.total_lotes || lotesDelDia.lotes.length}
                                                     </div>
-                                                    <div className="stat-label">Lotes Producidos</div>
+                                                    <div className="stat-label">Total Lotes</div>
                                                 </div>
                                             </Col>
                                             <Col md={6}>
                                                 <div className="stat-box">
                                                     <div className="stat-value text-success">
-                                                        {lotesDelDia.lotes.reduce((sum, l) => sum + l.totalProducido, 0)}
+                                                        {lotesDelDia.lotes.reduce((sum, l) => sum + (l.cantidad || 0), 0)}
                                                     </div>
                                                     <div className="stat-label">Total Unidades</div>
                                                 </div>
@@ -763,132 +587,41 @@ const TrazabilidadScreen = () => {
                                 </div>
                             </Card.Header>
                             <Card.Body>
-                                <Table striped bordered hover responsive className="table-sm">
-                                    <thead className="table-dark">
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Lote</th>
-                                            <th>Fecha Prod.</th>
-                                            <th>Usuario</th>
-                                            <th>Producto</th>
-                                            <th>Producida</th>
-                                            <th>Vence</th>
-                                            <th>Despachado</th>
-                                            <th>Vendedor</th>
-                                            <th>Vencidas</th>
-                                            <th>Motivo</th>
-                                            <th>Estado</th>
-                                            <th>Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {lotesDelMes.lotes.map((lote, idx) => {
-                                            // Obtener información de despachos y vencidas
-                                            const cargues = obtenerCargues();
-                                            const despachosLote = cargues.filter(c =>
-                                                c.productos?.some(p => p.lotesVencidos?.some(lv => lv.lote === lote.lote))
-                                            );
-                                            const vencidasLote = obtenerVencidas(lote.lote);
-
-                                            return lote.productos?.map((producto, pidx) => {
-                                                const totalVencido = vencidasLote
-                                                    .filter(v => v.producto === producto.nombre)
-                                                    .reduce((sum, v) => sum + (typeof v.cantidad === 'number' ? v.cantidad : 0), 0);
-
-                                                const cantProducida = producto.cantidad || 0;
-                                                let estado = 'EN BODEGA';
-                                                let estadoBadge = 'secondary';
-
-                                                if (despachosLote.length > 0) {
-                                                    if (totalVencido === 0) {
-                                                        estado = 'EN CIRCULACIÓN';
-                                                        estadoBadge = 'info';
-                                                    } else if (totalVencido < cantProducida) {
-                                                        estado = 'VENCIDA PARCIAL';
-                                                        estadoBadge = 'warning';
-                                                    } else {
-                                                        estado = 'VENCIDA TOTAL';
-                                                        estadoBadge = 'danger';
-                                                    }
-                                                } else {
-                                                    estadoBadge = 'secondary';
-                                                }
-
-                                                const motivoVencida = vencidasLote.find(v => v.producto === producto.nombre)?.motivo || '-';
-
-                                                return (
-                                                    <tr key={`${idx}-${pidx}`}>
-                                                        <td>{idx + 1}.{pidx + 1}</td>
+                                {lotesDelMes.datos.map((dia, diaIdx) => (
+                                    <div key={diaIdx} className="mb-4">
+                                        <h5 className="border-bottom pb-2">
+                                            📆 {new Date(dia.fecha).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
+                                        </h5>
+                                        <Table striped bordered hover responsive size="sm">
+                                            <thead className="table-secondary">
+                                                <tr>
+                                                    <th>Lote</th>
+                                                    <th>Vendedor</th>
+                                                    <th>Responsable</th>
+                                                    <th>Producto</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Origen</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {dia.lotes.map((lote, loteIdx) => (
+                                                    <tr key={loteIdx}>
                                                         <td>
-                                                            <Badge bg="primary" style={{ fontSize: '0.75rem' }}>
-                                                                {lote.lote}
-                                                            </Badge>
+                                                            <Badge bg="primary">{lote.lote}</Badge>
                                                         </td>
-                                                        <td style={{ fontSize: '0.8rem' }}>
-                                                            {new Date(lote.fecha).toLocaleDateString('es-ES', {
-                                                                day: '2-digit',
-                                                                month: 'short'
-                                                            })}
-                                                        </td>
-                                                        <td style={{ fontSize: '0.8rem' }}>{lote.usuario}</td>
-                                                        <td style={{ fontSize: '0.8rem' }}>
-                                                            <strong>{producto.nombre}</strong>
-                                                        </td>
+                                                        <td>{lote.vendedor_id || 'N/A'}</td>
+                                                        <td>{lote.responsable || lote.usuario || 'N/A'}</td>
+                                                        <td>{lote.producto || 'N/A'}</td>
                                                         <td className="text-center">
-                                                            <Badge bg="success" style={{ fontSize: '0.75rem' }}>
-                                                                {cantProducida}
-                                                            </Badge>
+                                                            <Badge bg="success">{lote.cantidad || 0}</Badge>
                                                         </td>
-                                                        <td style={{ fontSize: '0.75rem' }}>
-                                                            {lote.fechaVencimiento || 'N/A'}
-                                                        </td>
-                                                        <td className="text-center">
-                                                            {despachosLote.length > 0 ?
-                                                                <Badge bg="info" style={{ fontSize: '0.7rem' }}>SÍ</Badge> :
-                                                                <Badge bg="secondary" style={{ fontSize: '0.7rem' }}>NO</Badge>
-                                                            }
-                                                        </td>
-                                                        <td style={{ fontSize: '0.75rem' }}>
-                                                            {despachosLote[0]?.vendedor || '-'}
-                                                        </td>
-                                                        <td className="text-center">
-                                                            {totalVencido > 0 ?
-                                                                <Badge bg="danger" style={{ fontSize: '0.75rem' }}>{totalVencido}</Badge> :
-                                                                <span style={{ fontSize: '0.75rem' }}>-</span>
-                                                            }
-                                                        </td>
-                                                        <td className="text-center">
-                                                            {motivoVencida !== '-' ?
-                                                                <Badge bg="warning" text="dark" style={{ fontSize: '0.7rem' }}>{motivoVencida}</Badge> :
-                                                                <span style={{ fontSize: '0.75rem' }}>-</span>
-                                                            }
-                                                        </td>
-                                                        <td>
-                                                            <Badge bg={estadoBadge} style={{ fontSize: '0.7rem' }}>
-                                                                {estado}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="text-center">
-                                                            <Button
-                                                                variant="outline-info"
-                                                                size="sm"
-                                                                style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                                                                onClick={() => {
-                                                                    setActiveTab('lote');
-                                                                    setLoteConsulta(lote.lote);
-                                                                    buscarLoteEnLocalStorage(lote.lote);
-                                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                                }}
-                                                            >
-                                                                Ver
-                                                            </Button>
-                                                        </td>
+                                                        <td><small>{lote.origen}</small></td>
                                                     </tr>
-                                                );
-                                            });
-                                        })}
-                                    </tbody>
-                                </Table>
+                                                ))}
+                                            </tbody>
+                                        </Table>
+                                    </div>
+                                ))}
 
                                 {/* Resumen del Mes */}
                                 <Card className="mt-4 bg-light">
@@ -898,25 +631,27 @@ const TrazabilidadScreen = () => {
                                             <Col md={4}>
                                                 <div className="stat-box">
                                                     <div className="stat-value text-primary">
-                                                        {lotesDelMes.lotes.length}
+                                                        {lotesDelMes.total_fechas}
                                                     </div>
-                                                    <div className="stat-label">Lotes Producidos</div>
-                                                </div>
-                                            </Col>
-                                            <Col md={4}>
-                                                <div className="stat-box">
-                                                    <div className="stat-value text-success">
-                                                        {lotesDelMes.lotes.reduce((sum, l) => sum + l.totalProducido, 0)}
-                                                    </div>
-                                                    <div className="stat-label">Total Unidades</div>
+                                                    <div className="stat-label">Días con Lotes</div>
                                                 </div>
                                             </Col>
                                             <Col md={4}>
                                                 <div className="stat-box">
                                                     <div className="stat-value text-info">
-                                                        {new Set(lotesDelMes.lotes.map(l => new Date(l.fecha).toDateString())).size}
+                                                        {lotesDelMes.datos.reduce((sum, d) => sum + d.lotes.length, 0)}
                                                     </div>
-                                                    <div className="stat-label">Días Productivos</div>
+                                                    <div className="stat-label">Total Registros</div>
+                                                </div>
+                                            </Col>
+                                            <Col md={4}>
+                                                <div className="stat-box">
+                                                    <div className="stat-value text-success">
+                                                        {lotesDelMes.datos.reduce((sum, d) =>
+                                                            sum + d.lotes.reduce((s, l) => s + (l.cantidad || 0), 0), 0
+                                                        )}
+                                                    </div>
+                                                    <div className="stat-label">Total Unidades</div>
                                                 </div>
                                             </Col>
                                         </Row>
