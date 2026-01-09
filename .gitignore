@@ -21,4 +21,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Archivos de entorno
-.envvenv/
+.env
+.env.ai
+.env.local
+.env.*.local
