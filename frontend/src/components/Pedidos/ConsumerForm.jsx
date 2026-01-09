@@ -38,6 +38,34 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
             console.error('Error cargando listas:', error);
         }
     };
+
+    // 🆕 Cargar TODOS los vendedores del sistema (incluyendo domiciliarios)
+    useEffect(() => {
+        const cargarVendedoresDelSistema = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/vendedores/');
+                if (response.ok) {
+                    const vendedores = await response.json();
+                    // Extraer nombres de vendedores
+                    const nombresVendedores = vendedores.map(v => v.nombre);
+                    console.log('✅ Vendedores cargados del sistema:', nombresVendedores);
+
+                    // Actualizar lista de vendedores (agregar los nuevos sin duplicar)
+                    if (setSellers) {
+                        setSellers(prev => {
+                            const merged = [...new Set([...prev, ...nombresVendedores])];
+                            return merged;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error cargando vendedores:', error);
+            }
+        };
+
+        cargarVendedoresDelSistema();
+    }, []); // Solo al montar
+
     const [clienteSuggestions, setClienteSuggestions] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");

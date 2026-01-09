@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { pedidoService } from '../../services/api';
 import TicketPreviewModal from '../Print/TicketPreviewModal';
+import { useCajeroPedidos } from '../../context/CajeroPedidosContext'; // 🆕 Para obtener nombre del usuario logueado
 import './PaymentModal.css';
 
 const PaymentModal = ({
@@ -9,6 +10,11 @@ const PaymentModal = ({
     volverGestion = false, date = null, navigate = null
 }) => {
     const safeTotal = typeof total === 'number' ? total : 0;
+
+    // 🆕 Obtener nombre del usuario logueado (cajero)
+    const { cajeroLogueado } = useCajeroPedidos();
+    const generadoPor = cajeroLogueado?.nombre || 'SISTEMA';
+
     const [destinatario, setDestinatario] = useState(client);
     const [direccionEntrega, setDireccionEntrega] = useState("");
     const [telefonoContacto, setTelefonoContacto] = useState("");
@@ -91,13 +97,26 @@ const PaymentModal = ({
         onClose();
 
         // Si el toggle está activado, navegar a gestión del día
-        if (volverGestion && date && navigate) {
-            const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-            const fechaObj = new Date(date + 'T00:00:00');
-            const dia = diasSemana[fechaObj.getDay()];
-            navigate(`/pedidos/${dia}?fecha=${date}`);
+        if (volverGestion && navigate) {
+            // Priorizar contexto guardado (cuando vienes desde "Ir a Pedidos")
+            const diaGuardado = localStorage.getItem('pedidos_retorno_dia');
+            const fechaGuardada = localStorage.getItem('pedidos_retorno_fecha');
+
+            if (diaGuardado && fechaGuardada) {
+                // Limpiar después de usar
+                localStorage.removeItem('pedidos_retorno_dia');
+                localStorage.removeItem('pedidos_retorno_fecha');
+                navigate(`/pedidos/${diaGuardado}?fecha=${fechaGuardada}`);
+            } else if (date) {
+                // Fallback: usar fecha del pedido
+                const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+                const fechaObj = new Date(date + 'T00:00:00');
+                const dia = diasSemana[fechaObj.getDay()];
+                navigate(`/pedidos/${dia}?fecha=${date}`);
+            }
         }
     };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -469,6 +488,7 @@ const PaymentModal = ({
                         fechaEntrega: fechaEntrega,
                         tipoPedido: tipoPedido,
                         transportadora: transportadora,
+                        generadoPor: generadoPor, // 🆕 Usuario que generó el pedido
                         nota: nota
                     }}
                 />

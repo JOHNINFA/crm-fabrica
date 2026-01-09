@@ -279,13 +279,48 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         }
     });
 
-    const [datosResumen, setDatosResumen] = useState({
-        totalDespacho: 0,
-        totalPedidos: 0,
-        totalDctos: 0,
-        venta: 0,
-        totalEfectivo: 0,
+    const [datosResumen, setDatosResumen] = useState(() => {
+        // 🚀 CACHÉ INMEDIATO: Intentar leer del caché para evitar parpadeo en 0
+        try {
+            let fechaStr = '';
+            if (fechaSeleccionada instanceof Date) {
+                fechaStr = fechaSeleccionada.toISOString().split('T')[0];
+            } else {
+                fechaStr = fechaSeleccionada || '';
+            }
+
+            const cacheKey = `resumen_cache_${dia}_${idSheet}_${fechaStr}`;
+            const cached = localStorage.getItem(cacheKey);
+
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                console.log(`⚡ INIT ${idSheet} - Resumen cargado desde caché:`, parsed);
+                return parsed;
+            }
+        } catch (e) {
+            console.error('Error leyendo caché resumen:', e);
+        }
+
+        return {
+            totalDespacho: 0,
+            totalPedidos: 0,
+            totalDctos: 0,
+            venta: 0,
+            totalEfectivo: 0,
+        };
     });
+
+    // 🚀 PERSISTENCIA DE RESUMEN: Guardar cada cambio para el próximo montaje
+    useEffect(() => {
+        try {
+            if (datosResumen.totalPedidos > 0 || datosResumen.venta > 0 || datosResumen.totalDespacho > 0) {
+                const cacheKey = `resumen_cache_${dia}_${idSheet}_${fechaFormateadaLS}`;
+                localStorage.setItem(cacheKey, JSON.stringify(datosResumen));
+            }
+        } catch (e) {
+            console.error('Error guardando caché resumen:', e);
+        }
+    }, [datosResumen, dia, idSheet, fechaFormateadaLS]);
 
     // 🚀 NUEVA FUNCIÓN: Cargar pedidos del vendedor
     const cargarPedidosVendedor = async (fecha, idVendedor) => {
@@ -360,6 +395,36 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             return 0;
         }
     };
+
+    // 🚀 NUEVO: Actualización automática de pedidos en tiempo real (Polling cada 15s)
+    useEffect(() => {
+        let isMounted = true;
+        const intervalId = setInterval(async () => {
+            if (!idSheet || !fechaFormateadaLS) return;
+
+            console.log(`🔄 Polling: Verificando nuevos pedidos para ${idSheet}...`);
+            const totalPedidosNuevo = await cargarPedidosVendedor(fechaFormateadaLS, idSheet);
+
+            if (isMounted) {
+                setDatosResumen(prev => {
+                    // Solo actualizar si el valor cambió
+                    if (prev.totalPedidos !== totalPedidosNuevo) {
+                        console.log(`💰 Cambio detectado en pedidos: $${prev.totalPedidos} -> $${totalPedidosNuevo}`);
+                        return {
+                            ...prev,
+                            totalPedidos: totalPedidosNuevo
+                        };
+                    }
+                    return prev;
+                });
+            }
+        }, 15000); // 15 segundos
+
+        return () => {
+            isMounted = false;
+            clearInterval(intervalId);
+        };
+    }, [idSheet, fechaFormateadaLS]);
 
     // 🚀 MEJORADA: Cargar datos desde la BD cuando está COMPLETADO
     const cargarDatosDesdeDB = async () => {
@@ -917,6 +982,52 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             cargarDatosGuardados();
         }
     }, [products]);
+
+    // 🆕 POLLING INTELIGENTE: Auto-actualización cada 15 segundos (solo cuando la pestaña está visible)
+    useEffect(() => {
+        console.log(`🔄 ${idSheet} - Activando polling inteligente (cada 15 seg)`);
+
+        // Variable para controlar si la pestaña está visible
+        let isVisible = !document.hidden;
+
+        const handleVisibilityChange = () => {
+            isVisible = !document.hidden;
+            if (isVisible) {
+                console.log(`👁️ ${idSheet} - Pestaña visible, recargando datos...`);
+                const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+                if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
+                    cargarDatosDesdeDB();
+                } else {
+                    cargarDatosGuardados();
+                }
+            } else {
+                console.log(`🙈 ${idSheet} - Pestaña oculta, pausando polling`);
+            }
+        };
+
+        // Intervalo de polling
+        const pollingInterval = setInterval(() => {
+            if (isVisible) {
+                console.log(`🔄 ${idSheet} - Polling automático (pestaña visible)`);
+                const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+                if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
+                    cargarDatosDesdeDB();
+                } else {
+                    cargarDatosGuardados();
+                }
+            }
+        }, 15000); // 15 segundos
+
+        // Listener para cambios de visibilidad
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(pollingInterval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            console.log(`🛑 ${idSheet} - Polling desactivado`);
+        };
+    }, [idSheet, dia, fechaSeleccionada]); // Recrear cuando cambien estos valores
+
 
     // Función deshabilitada - solo el botón DESPACHO afecta inventario
     const actualizarProducto = async (id, campo, valor) => {

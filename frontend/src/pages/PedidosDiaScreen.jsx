@@ -224,6 +224,10 @@ export default function PedidosDiaScreen() {
     if (tienePedido) {
       verDetallePedido(cliente);
     } else {
+      // 🆕 Guardar contexto para volver aquí después de crear el pedido
+      localStorage.setItem('pedidos_retorno_dia', dia);
+      localStorage.setItem('pedidos_retorno_fecha', fechaSeleccionada);
+
       // Navegar a crear pedido
       const clienteData = encodeURIComponent(JSON.stringify({
         nombre: cliente.alias || cliente.nombre_completo,
@@ -370,12 +374,28 @@ export default function PedidosDiaScreen() {
           />
         </div>
 
-        <button
-          className="btn btn-outline-secondary btn-sm"
-          onClick={() => navigate('/pedidos')}
-        >
-          Regresar
-        </button>
+        <div className="d-flex gap-2">
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => navigate('/pedidos')}
+          >
+            Regresar
+          </button>
+          <button
+            className="btn btn-outline-success btn-sm"
+            onClick={() => {
+              // Guardar contexto para regresar después
+              localStorage.setItem('pedidos_retorno_dia', dia);
+              localStorage.setItem('pedidos_retorno_fecha', fechaSeleccionada);
+              // 🆕 Navegar pasando la fecha actual para que no cargue "HOY" por defecto
+              navigate(`/remisiones?fecha=${fechaSeleccionada}&dia=${dia}`);
+            }}
+            title="Crear pedido rápido para cliente ocasional"
+          >
+            <i className="bi bi-plus-circle me-1"></i>
+            Ir a Pedidos
+          </button>
+        </div>
       </div>
 
       {/* Lista de clientes en tabla */}

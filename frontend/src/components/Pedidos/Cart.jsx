@@ -196,10 +196,24 @@ export default function Cart({
                             transition: 'color 0.2s',
                             fontWeight: '500'
                         }}
-                        onClick={() => navigate(-1)}
+                        onClick={() => {
+                            // Si el toggle está activado, intentar volver al día específico
+                            if (volverGestion) {
+                                const dia = localStorage.getItem('pedidos_retorno_dia');
+                                const fecha = localStorage.getItem('pedidos_retorno_fecha');
+                                if (dia && fecha) {
+                                    navigate(`/pedidos/${dia}?fecha=${fecha}`);
+                                } else {
+                                    navigate('/pedidos'); // Fallback
+                                }
+                            } else {
+                                // Si el toggle NO está activado, ir a la interfaz general de días
+                                navigate('/pedidos');
+                            }
+                        }}
                         onMouseEnter={(e) => e.target.style.color = '#1D4ED8'}
                         onMouseLeave={(e) => e.target.style.color = '#333'}
-                        title="Regresar a la lista de clientes"
+                        title="Regresar a la gestión del día donde estabas trabajando"
                     >
                         Volver a gestión del día
                     </span>

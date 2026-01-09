@@ -1,0 +1,15 @@
+/home/john/Escritorio/crm-fabrica/
+
+1. INDICE_DOCUMENTACION.md ⭐ (empezar aquí)
+2. RESUMEN_ANALISIS.md ⭐⭐ (el más importante)
+3. ARQUITECTURA_SISTEMA_CRM.md
+4. DOCUMENTACION_APP_MOVIL.md
+5. PLAN_INTEGRACION_IA.md
+6. REFERENCIA_MODELOS_API.md 📖 (técnico)
+7. REFERENCIA_FRONTEND.md 📖 (técnico)
+
+
+
+inciar ia en usb
+
+./conectar_ia_usb.sh

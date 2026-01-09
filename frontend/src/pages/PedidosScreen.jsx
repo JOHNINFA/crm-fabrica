@@ -97,9 +97,35 @@ function PedidosMainContent() {
             } catch (error) {
                 console.error('Error parseando datos del cliente:', error);
             }
+        } else {
+            // 🆕 Si no hay cliente, revisar si vienen fecha/dia sueltos (desde "Ir a Pedidos")
+            const fechaParam = searchParams.get('fecha');
+            if (fechaParam) {
+                setDate(fechaParam);
+            }
         }
     }, [searchParams, isAuthenticated, cajeroLogueado]);
+
+    // 🆕 Actualizar contexto cuando cambia la fecha (para que siempre regreses al día correcto)
+    useEffect(() => {
+        if (date) {
+            // Solo actualizar si ya hay contexto guardado (viniste desde gestión)
+            const diaGuardado = localStorage.getItem('pedidos_retorno_dia');
+            if (diaGuardado) {
+                // Calcular día de la semana de la nueva fecha
+                const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+                const fechaObj = new Date(date + 'T00:00:00');
+                const nuevoDia = diasSemana[fechaObj.getDay()];
+
+                // Actualizar contexto con la nueva fecha
+                localStorage.setItem('pedidos_retorno_dia', nuevoDia);
+                localStorage.setItem('pedidos_retorno_fecha', date);
+            }
+        }
+    }, [date]);
+
     const [imp, setImp] = useState(0);
+
     const [desc, setDesc] = useState(0);
     const [sidebarWidth, setSidebarWidth] = useState(210);
 

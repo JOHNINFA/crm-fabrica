@@ -20,7 +20,9 @@ from .views import (
     # 🆕 Configuración de producción
     obtener_configuracion_produccion, guardar_configuracion_produccion,
     # 🆕 Trazabilidad de lotes
-    buscar_lote, lotes_por_fecha, lotes_por_mes
+    buscar_lote, lotes_por_fecha, lotes_por_mes,
+    # 🤖 Endpoints de IA
+    ai_chat, ai_analyze_data, ai_health, ai_agent_command
 )
 
 router = DefaultRouter()
@@ -105,5 +107,11 @@ urlpatterns = router.urls + [
     path('trazabilidad/buscar/', buscar_lote, name='buscar-lote'),
     path('trazabilidad/fecha/', lotes_por_fecha, name='lotes-por-fecha'),
     path('trazabilidad/mes/', lotes_por_mes, name='lotes-por-mes'),
+    
+    # 🤖 Endpoints de IA Local
+    path('ai/chat/', ai_chat, name='ai-chat'),
+    path('ai/analyze/', ai_analyze_data, name='ai-analyze'),
+    path('ai/health/', ai_health, name='ai-health'),
+    path('ai/agent/', ai_agent_command, name='ai-agent'),  # Agente con herramientas
 ]
 

@@ -8,6 +8,7 @@ import os
 import base64
 import re
 import uuid
+from api.services.ai_assistant_service import AIAssistant
 from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden
 from .serializers import (
     PlaneacionSerializer,
@@ -508,6 +509,156 @@ class ClienteViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(nombre_completo__icontains=nombre)
             
         return queryset
+    
+    def _sincronizar_con_cliente_ruta(self, cliente, origen='PEDIDOS', vendedor_anterior=None, zona_anterior=None):
+        """
+        Sincroniza un cliente de la tabla Cliente con ClienteRuta
+        Se ejecuta cuando el cliente tiene vendedor_asignado (es decir, está asignado a una ruta)
+        
+        Args:
+            cliente: Instancia del cliente
+            origen: Origen del cliente (PEDIDOS, APP, etc.)
+            vendedor_anterior: Nombre del vendedor anterior (para detectar cambios de ruta)
+            zona_anterior: Zona/Ruta anterior (para detectar cambios de ruta)
+        """
+        from api.models import ClienteRuta, Ruta, Vendedor
+        
+        # 🔄 SI CAMBIÓ LA ZONA/RUTA, eliminar el registro de la zona/ruta anterior
+        if zona_anterior and zona_anterior != cliente.zona_barrio:
+            try:
+                ruta_vieja = Ruta.objects.filter(nombre__iexact=zona_anterior).first()
+                if ruta_vieja:
+                    # Eliminar cliente de la ruta anterior
+                    ClienteRuta.objects.filter(
+                        ruta=ruta_vieja,
+                        nombre_negocio=cliente.alias or cliente.nombre_completo
+                    ).delete()
+                    print(f"🔄 Cliente eliminado de ruta anterior: {ruta_vieja.nombre}")
+            except Exception as e:
+                print(f"⚠️ Error eliminando de ruta anterior: {e}")
+        
+        # Determinar la ruta a usar (prioridad: zona_barrio > vendedor)
+        ruta = None
+        
+        # 1. Intentar buscar por zona_barrio (campo que contiene el nombre de la ruta)
+        if cliente.zona_barrio:
+            ruta = Ruta.objects.filter(nombre__iexact=cliente.zona_barrio).first()
+            if ruta:
+                print(f"✅ Ruta encontrada por zona_barrio: {ruta.nombre}")
+        
+        # 2. Si no hay zona_barrio, buscar por vendedor_asignado
+        if not ruta and cliente.vendedor_asignado:
+            vendedor = Vendedor.objects.filter(nombre=cliente.vendedor_asignado).first()
+            if vendedor:
+                ruta = Ruta.objects.filter(vendedor=vendedor).first()
+                if ruta:
+                    print(f"✅ Ruta encontrada por vendedor: {ruta.nombre}")
+        
+        # Si no se encontró ruta, no sincronizar
+        if not ruta:
+            print(f"⚠️ No se encontró ruta para el cliente {cliente.nombre_completo}")
+            # Si no tiene ruta, eliminar de cualquier ClienteRuta
+            ClienteRuta.objects.filter(
+                nombre_negocio=cliente.alias or cliente.nombre_completo
+            ).delete()
+            print(f"🗑️ Cliente eliminado de todas las rutas (sin ruta asignada)")
+            return
+        
+        try:
+            # Preparar datos para ClienteRuta
+            # Formato del tipo_negocio: "TipoNegocio | ORIGEN"
+            tipo_negocio_base = cliente.alias or "Sin especificar"
+            tipo_negocio = f"{tipo_negocio_base} | {origen}"  # Ej: "LA FONDA | PEDIDOS"
+            
+            # Buscar si ya existe un ClienteRuta con este nombre de negocio en esta ruta
+            cliente_ruta_existente = ClienteRuta.objects.filter(
+                ruta=ruta,
+                nombre_negocio=cliente.alias or cliente.nombre_completo
+            ).first()
+            
+            if cliente_ruta_existente:
+                # Actualizar existente
+                cliente_ruta_existente.nombre_contacto = cliente.nombre_completo
+                cliente_ruta_existente.direccion = cliente.direccion or ''
+                cliente_ruta_existente.telefono = cliente.telefono_1 or cliente.movil or ''
+                cliente_ruta_existente.tipo_negocio = tipo_negocio
+                cliente_ruta_existente.dia_visita = cliente.dia_entrega or 'SABADO'
+                cliente_ruta_existente.activo = cliente.activo
+                cliente_ruta_existente.save()
+                print(f"✅ ClienteRuta actualizado: {cliente_ruta_existente.nombre_negocio} en {ruta.nombre}")
+            else:
+                # Crear nuevo ClienteRuta
+                # Obtener el último orden para esta ruta
+                ultimo_orden = ClienteRuta.objects.filter(ruta=ruta).aggregate(
+                    models.Max('orden')
+                )['orden__max'] or 0
+                
+                ClienteRuta.objects.create(
+                    ruta=ruta,
+                    nombre_negocio=cliente.alias or cliente.nombre_completo,
+                    nombre_contacto=cliente.nombre_completo,
+                    direccion=cliente.direccion or '',
+                    telefono=cliente.telefono_1 or cliente.movil or '',
+                    tipo_negocio=tipo_negocio,
+                    dia_visita=cliente.dia_entrega or 'SABADO',
+                    orden=ultimo_orden + 1,
+                    activo=cliente.activo
+                )
+                print(f"✅ ClienteRuta creado: {cliente.alias or cliente.nombre_completo} en ruta {ruta.nombre}")
+                
+        except Exception as e:
+            print(f"❌ Error sincronizando con ClienteRuta: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def perform_create(self, serializer):
+        """Se ejecuta al crear un nuevo cliente"""
+        cliente = serializer.save()
+        # Sincronizar con ClienteRuta si tiene ruta asignada
+        self._sincronizar_con_cliente_ruta(cliente, origen='PEDIDOS')
+    
+    def perform_update(self, serializer):
+        """Se ejecuta al actualizar un cliente existente"""
+        # Obtener los valores anteriores antes de guardar
+        try:
+            cliente_anterior = Cliente.objects.get(pk=serializer.instance.pk)
+            vendedor_anterior = cliente_anterior.vendedor_asignado
+            zona_anterior = cliente_anterior.zona_barrio
+        except Cliente.DoesNotExist:
+            vendedor_anterior = None
+            zona_anterior = None
+        
+        # Guardar los cambios
+        cliente = serializer.save()
+        
+        # 🔄 Solo sincronizar si NO viene de una sincronización desde ClienteRuta
+        if not getattr(cliente, '_sincronizando', False):
+            # Sincronizar con ClienteRuta (pasando valores anteriores para detectar cambios)
+            self._sincronizar_con_cliente_ruta(
+                cliente, 
+                origen='PEDIDOS', 
+                vendedor_anterior=vendedor_anterior,
+                zona_anterior=zona_anterior
+            )
+        else:
+            print(f"⏭️ Sincronización Cliente → ClienteRuta omitida (ya sincronizado desde ClienteRuta)")
+    
+    def perform_destroy(self, instance):
+        """Se ejecuta al eliminar un cliente"""
+        from api.models import ClienteRuta
+        
+        # Eliminar el cliente de ClienteRuta antes de eliminarlo
+        nombre_negocio = instance.alias or instance.nombre_completo
+        clientes_ruta_eliminados = ClienteRuta.objects.filter(
+            nombre_negocio=nombre_negocio
+        ).delete()
+        
+        if clientes_ruta_eliminados[0] > 0:
+            print(f"🗑️ Cliente eliminado de ClienteRuta: {nombre_negocio} ({clientes_ruta_eliminados[0]} registros)")
+        
+        # Eliminar el cliente
+        instance.delete()
+        print(f"✅ Cliente eliminado completamente: {nombre_negocio}")
 class ListaPrecioViewSet(viewsets.ModelViewSet):
     """API para gestionar listas de precios"""
     queryset = ListaPrecio.objects.all()
@@ -1851,6 +2002,73 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=False, methods=['get'])
+    def pendientes_vendedor(self, request):
+        """
+        Obtener pedidos pendientes asignados a un vendedor para la app móvil
+        Busca por asignado_a_id o asignado por nombre (campo vendedor)
+        """
+        v_id_param = request.query_params.get('vendedor_id')
+        fecha = request.query_params.get('fecha')
+        
+        if not v_id_param or not fecha:
+            return Response({'error': 'Faltan parámetros: vendedor_id y fecha'}, status=400)
+
+        # Normalizar ID (si es número "1" -> "ID1")
+        vendedor_id = f"ID{v_id_param}" if v_id_param.isdigit() else v_id_param
+            
+        print(f"📦 Backend: Buscando pedidos para {vendedor_id} en {fecha}")
+        
+        # Buscar nombre del vendedor para coincidencia por texto
+        from .models import Vendedor
+        from django.db.models import Q
+        
+        nombre_vendedor = ""
+        try:
+            v_obj = Vendedor.objects.filter(id_vendedor=vendedor_id).first()
+            if v_obj:
+                nombre_vendedor = v_obj.nombre
+        except Exception:
+            pass
+
+        # Filtro final (Fecha Y No Terminado)
+        # Nota: El modelo usa 'ENTREGADA' (femenino), aseguramos filtrar correctamente
+        filtro_base = Q(fecha_entrega=fecha) & ~Q(estado__in=['ENTREGADA', 'ENTREGADO', 'CANCELADO', 'ANULADA'])
+        
+        condicion_asignacion = Q(asignado_a_id=vendedor_id)
+        if nombre_vendedor:
+             print(f"   Incluyendo búsqueda por nombre: {nombre_vendedor}")
+             condicion_asignacion |= Q(vendedor__iexact=nombre_vendedor)
+        
+        pedidos = Pedido.objects.filter(filtro_base & condicion_asignacion)
+        
+        serializer = self.get_serializer(pedidos, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def marcar_entregado(self, request, pk=None):
+        """Marcar pedido como entregado desde la App"""
+        pedido = self.get_object()
+        from django.utils import timezone
+        pedido.estado = 'ENTREGADA' # Corregido a femenino según modelo
+        pedido.nota = f"{pedido.nota or ''} | Entregado vía App Móvil".strip()
+        pedido.fecha_entrega = timezone.now().date()
+        pedido.save()
+        return Response({'status': 'pedido entregado'})
+
+    @action(detail=True, methods=['post'])
+    def marcar_no_entregado(self, request, pk=None):
+        """Reportar que un pedido no pudo ser entregado"""
+        pedido = self.get_object()
+        motivo = request.data.get('motivo', 'Sin motivo especificado')
+        
+        # Marcar como ANULADA (o un estado que indique no gestión exitosa)
+        pedido.estado = 'ANULADA'
+        pedido.nota = f"{pedido.nota or ''} | NO ENTREGADO: {motivo}".strip()
+        pedido.save()
+        
+        return Response({'status': 'novedad reportada'})
+
 class DetallePedidoViewSet(viewsets.ModelViewSet):
     """API para detalles de pedidos"""
     queryset = DetallePedido.objects.all()
@@ -2996,6 +3214,73 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(dia_visita__icontains=dia.upper())
             
         return queryset.filter(activo=True).order_by('orden')
+    
+    def _ordenar_dias_semana(self, dias_string):
+        """
+        Ordena los días de la semana en orden cronológico
+        Entrada: "SABADO,MARTES,JUEVES" o "Sabado, Martes, Jueves"
+        Salida: "MARTES,JUEVES,SABADO"
+        """
+        if not dias_string:
+            return dias_string
+        
+        # Orden de días de la semana
+        orden_dias = {
+            'LUNES': 1,
+            'MARTES': 2,
+            'MIERCOLES': 3,
+            'JUEVES': 4,
+            'VIERNES': 5,
+            'SABADO': 6,
+            'DOMINGO': 7
+        }
+        
+        # Separar días, limpiar y convertir a mayúsculas
+        dias = [dia.strip().upper() for dia in dias_string.split(',')]
+        
+        # Ordenar según el diccionario
+        dias_ordenados = sorted(dias, key=lambda d: orden_dias.get(d, 99))
+        
+        # Retornar en el mismo formato (mayúsculas, separados por coma)
+        return ','.join(dias_ordenados)
+    
+    def perform_update(self, serializer):
+        """Se ejecuta al actualizar un ClienteRuta - Sincroniza hacia Cliente"""
+        # Ordenar días antes de guardar
+        if 'dia_visita' in serializer.validated_data:
+            serializer.validated_data['dia_visita'] = self._ordenar_dias_semana(
+                serializer.validated_data['dia_visita']
+            )
+        
+        cliente_ruta = serializer.save()
+        
+        # 🔄 SINCRONIZAR HACIA CLIENTE (si existe un cliente con el mismo nombre)
+        try:
+            # Buscar cliente por alias o nombre completo que coincida con nombre_negocio
+            cliente = Cliente.objects.filter(
+                models.Q(alias__iexact=cliente_ruta.nombre_negocio) |
+                models.Q(nombre_completo__iexact=cliente_ruta.nombre_contacto)
+            ).first()
+            
+            if cliente:
+                # Marcar flag para evitar loop infinito
+                cliente._sincronizando = True
+                
+                # Actualizar campos del cliente con los datos de ClienteRuta (ya ordenados)
+                cliente.dia_entrega = cliente_ruta.dia_visita
+                cliente.direccion = cliente_ruta.direccion or cliente.direccion
+                cliente.telefono_1 = cliente_ruta.telefono or cliente.telefono_1
+                cliente.zona_barrio = cliente_ruta.ruta.nombre  # Sincronizar la ruta
+                cliente.save()
+                print(f"✅ Cliente sincronizado desde ClienteRuta: {cliente.alias} - Días: {cliente.dia_entrega}")
+            else:
+                print(f"⚠️ No se encontró Cliente correspondiente para: {cliente_ruta.nombre_negocio}")
+                
+        except Exception as e:
+            print(f"❌ Error sincronizando ClienteRuta → Cliente: {e}")
+            import traceback
+            traceback.print_exc()
+
 
 class VentaRutaViewSet(viewsets.ModelViewSet):
     queryset = VentaRuta.objects.all()
@@ -3127,6 +3412,23 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         from rest_framework import status
         from django.http import QueryDict
         
+        # 🆕 Verificar duplicados por id_local
+        id_local = request.data.get('id_local')
+        if id_local:
+            from .models import VentaRuta
+            venta_existente = VentaRuta.objects.filter(id_local=id_local).first()
+            if venta_existente:
+                print(f"⚠️ Venta duplicada detectada: id_local={id_local}, ID={venta_existente.id}")
+                serializer = self.get_serializer(venta_existente)
+                return Response(
+                    {
+                        'id': venta_existente.id,
+                        'message': 'Venta ya registrada previamente',
+                        'duplicada': True
+                    },
+                    status=status.HTTP_200_OK
+                )
+        
         # Crear un QueryDict mutable o dict regular
         if isinstance(request.data, QueryDict):
             data = request.data.copy()
@@ -3176,41 +3478,6 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             
         serializer.is_valid(raise_exception=True)
         venta = serializer.save()
-        
-        # ========== AUTO-CREAR CLIENTE SI NO EXISTE ==========
-        from .models import ClienteRuta, Ruta
-        nombre_negocio = data.get('nombre_negocio', '')
-        cliente_nombre = data.get('cliente_nombre', '')
-        
-        if nombre_negocio and nombre_negocio.strip():
-            # Buscar si ya existe el cliente por nombre de negocio
-            cliente_existente = ClienteRuta.objects.filter(nombre_negocio__iexact=nombre_negocio.strip()).first()
-            
-            if not cliente_existente:
-                # Buscar la ruta del vendedor
-                try:
-                    vendedor_obj = venta.vendedor
-                    ruta_vendedor = Ruta.objects.filter(vendedor=vendedor_obj).first()
-                    
-                    if ruta_vendedor:
-                        # Crear el cliente automáticamente
-                        nuevo_cliente = ClienteRuta.objects.create(
-                            ruta=ruta_vendedor,
-                            nombre_negocio=nombre_negocio.strip(),
-                            nombre_contacto=cliente_nombre.strip() if cliente_nombre else '',
-                            orden=ClienteRuta.objects.filter(ruta=ruta_vendedor).count() + 1
-                        )
-                        # Asociar el cliente a la venta
-                        venta.cliente = nuevo_cliente
-                        venta.save(update_fields=['cliente'])
-                        print(f"✅ Cliente creado automáticamente: {nombre_negocio}")
-                except Exception as e:
-                    print(f"⚠️ No se pudo crear cliente automático: {e}")
-            else:
-                # Asociar cliente existente a la venta
-                venta.cliente = cliente_existente
-                venta.save(update_fields=['cliente'])
-                print(f"✅ Cliente existente asociado: {nombre_negocio}")
         
         # Guardar las evidencias asociadas
         for evidencia_info in evidencias_data:
@@ -3956,21 +4223,39 @@ def verificar_turno_activo(request):
         else:
             fecha = date.today()
         
+        # 🆕 CORRECCIÓN (DESACTIVADO TEMPORALMENTE PARA PRUEBAS): 
+        # Cerrar automáticamente turnos viejos antes de buscar
+        # Buscar turnos abiertos que NO sean de hoy y cerrarlos
+        # turnos_viejos = TurnoVendedor.objects.filter(
+        #     vendedor_id=vendedor_id_numerico,
+        #     estado='ABIERTO'
+        # ).exclude(fecha=fecha)
+        
+        # if turnos_viejos.exists():
+        #     count = turnos_viejos.count()
+        #     for turno_viejo in turnos_viejos:
+        #         turno_viejo.estado = 'CERRADO'
+        #         turno_viejo.save()
+        #     print(f"⚠️ Se cerraron automáticamente {count} turnos viejos del vendedor {vendedor_id_numerico}")
+        
         # Buscar turno activo
-        # Si se especifica fecha, buscar para esa fecha
-        if fecha_param:
+        if not fecha_param:
+            # Si no se especifica fecha, buscar CUALQUIER turno abierto (el más reciente)
+            # Esto permite recuperar la sesión si se cerró la app sin cerrar el turno, incluso de días pasados
+            turno = TurnoVendedor.objects.filter(
+                vendedor_id=vendedor_id_numerico,
+                estado='ABIERTO'
+            ).order_by('-fecha').first()
+            
+            if turno:
+                print(f"✅ Turno activo recuperado: {turno.fecha} (Hoy es {date.today()})")
+        else:
+            # Si se especifica fecha, buscar estrictamente esa fecha
             turno = TurnoVendedor.objects.filter(
                 vendedor_id=vendedor_id_numerico,
                 fecha=fecha,
                 estado='ABIERTO'
             ).first()
-        else:
-            # Si NO se especifica fecha, buscar CUALQUIER turno abierto (el más reciente)
-            # Esto ayuda con problemas de zona horaria y recupera sesiones pendientes
-            turno = TurnoVendedor.objects.filter(
-                vendedor_id=vendedor_id_numerico,
-                estado='ABIERTO'
-            ).order_by('-fecha', '-hora_apertura').first()
         
         if turno:
             return Response({
@@ -3979,6 +4264,7 @@ def verificar_turno_activo(request):
                 'dia': turno.dia,
                 'fecha': turno.fecha.isoformat(),
                 'hora_apertura': turno.hora_apertura.isoformat() if turno.hora_apertura else None,
+                # ... resto de campos
                 'vendedor_nombre': turno.vendedor_nombre,
                 'total_ventas': turno.total_ventas,
                 'total_dinero': float(turno.total_dinero)
@@ -4052,11 +4338,42 @@ def abrir_turno(request):
                     'estado': turno_existente.estado
                 })
             else:
-                # El turno ya fue cerrado
-                return Response({
-                    'error': 'TURNO_YA_CERRADO',
-                    'mensaje': 'El turno para este día ya fue cerrado'
-                }, status=400)
+                # 🆕 LÓGICA REAPERTURA: Verificar si hubo ventas reales antes de bloquear
+                from .models import VentaRuta
+                
+                # Construir ID string (ej: ID1)
+                vendedor_str = f"ID{vendedor_id_numerico}"
+                
+                tiene_ventas = VentaRuta.objects.filter(
+                    vendedor__id_vendedor=vendedor_str,
+                    fecha__date=fecha
+                ).exists()
+                
+                if tiene_ventas:
+                    # El turno ya fue cerrado Y tiene ventas
+                    return Response({
+                        'error': 'TURNO_YA_CERRADO',
+                        'mensaje': 'El turno para este día ya fue cerrado y tiene ventas registradas.'
+                    }, status=400)
+                else:
+                    # No hubo ventas, permitir reabrir
+                    turno_existente.estado = 'ABIERTO'
+                    turno_existente.hora_cierre = None
+                    turno_existente.save()
+                    
+                    print(f"✅ Turno reabierto (sin ventas previas): {vendedor_nombre} - {fecha}")
+                    
+                    return Response({
+                        'success': True,
+                        'nuevo': False,
+                        'reabierto': True,
+                        'mensaje': 'Turno reabierto (no tenía ventas)',
+                        'turno_id': turno_existente.id,
+                        'dia': turno_existente.dia,
+                        'fecha': turno_existente.fecha.isoformat(),
+                        'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
+                        'estado': 'ABIERTO'
+                    })
         
         # Crear nuevo turno
         turno = TurnoVendedor.objects.create(
@@ -4543,3 +4860,129 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(obj)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+# ============================================================================
+# 🤖 ENDPOINTS DE IA LOCAL (Ollama)
+# ============================================================================
+
+@api_view(['POST'])
+def ai_chat(request):
+    """
+    Chat con el asistente IA
+    
+    POST /api/ai/chat/
+    Body: {
+        "question": "¿Cómo cierro el turno?",
+        "include_docs": true  // opcional, default true
+    }
+    """
+    
+    question = request.data.get('question')
+    if not question:
+        return Response({
+            'error': 'Se requiere campo "question"'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    include_docs = request.data.get('include_docs', False)  # OPTIMIZADO: False por defecto para velocidad
+    
+    try:
+        ai = AIAssistant()
+        answer = ai.ask(question, include_docs=include_docs)
+        
+        return Response({
+            'question': question,
+            'answer': answer,
+            'model': 'qwen2.5:7b'
+        })
+    except Exception as e:
+        return Response({
+            'error': f'Error consultando IA: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def ai_analyze_data(request):
+    """
+    Analiza datos con IA
+    
+    POST /api/ai/analyze/
+    Body: {
+        "data": {...},  // datos a analizar
+        "question": "¿Qué tendencia ves?"
+    }
+    """
+    from api.services.ai_assistant_service import AIAssistant
+    
+    data = request.data.get('data')
+    question = request.data.get('question')
+    
+    if not data or not question:
+        return Response({
+            'error': 'Se requieren campos "data" y "question"'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        ai = AIAssistant()
+        analysis = ai.analyze_data(data, question)
+        
+        return Response({
+            'analysis': analysis,
+            'model': 'qwen2.5:7b'
+        })
+    except Exception as e:
+        return Response({
+            'error': f'Error analizando: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def ai_health(request):
+    """
+    Verifica estado de IA
+    
+    GET /api/ai/health/
+    """
+    try:
+        return Response({
+            'status': 'ok',
+            'provider': 'Qwen 2.5 (3B)',
+            'model': 'qwen2.5:3b',
+            'message': '✅ Conectado a Qwen 2.5 (3B) - USB'
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def ai_agent_command(request):
+    """
+    Endpoint para ejecutar comandos con el agente IA
+    
+    POST /api/ai/agent/
+    Body: {
+        "command": "Crea un cliente llamado Juan con teléfono 123456"
+    }
+    """
+    from api.services.ai_agent_service import AIAgentService
+    
+    command = request.data.get('command')
+    session_id = request.data.get('session_id')  # Capturar session_id
+    
+    if not command:
+        return Response({
+            'error': 'Se requiere campo "command"'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        from api.services.ai_agent_service import AIAgentService
+        agent = AIAgentService(model="qwen2.5:3b")
+        result = agent.process_command(command)
+        
+        return Response(result)
+    except Exception as e:
+        return Response({
+            'error': f'Error procesando comando: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

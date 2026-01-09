@@ -397,7 +397,7 @@ class Cliente(models.Model):
     tipo_lista_precio = models.CharField(max_length=100, blank=True, null=True)
     vendedor_asignado = models.CharField(max_length=100, blank=True, null=True)
     centro_costo = models.CharField(max_length=100, blank=True, null=True)
-    dia_entrega = models.CharField(max_length=20, blank=True, null=True)
+    dia_entrega = models.CharField(max_length=100, blank=True, null=True)
     notificar_cartera = models.BooleanField(default=False)
     notificar_rotacion = models.BooleanField(default=False)
     cliente_predeterminado = models.BooleanField(default=False)
@@ -1834,6 +1834,7 @@ class ClienteRuta(models.Model):
 
 class VentaRuta(models.Model):
     """Modelo para registrar ventas realizadas en ruta (App Móvil)"""
+    id_local = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="ID único de la venta generado en el dispositivo")  # 🆕 Para evitar duplicados
     vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='ventas_ruta')
     ruta = models.ForeignKey(Ruta, on_delete=models.SET_NULL, null=True, blank=True)
     cliente_nombre = models.CharField(max_length=200) # Guardamos nombre por si borran el cliente
@@ -1977,3 +1978,45 @@ class RutaOrden(models.Model):
     class Meta:
         verbose_name = "Orden de Ruta"
         verbose_name_plural = "Ordenes de Rutas"
+
+
+class AgentSession(models.Model):
+    """
+    Modelo para guardar sesiones conversacionales del agente IA.
+    Permite flujos multi-turno donde el agente pregunta y recuerda respuestas.
+    """
+    import uuid as uuid_module
+    
+    session_id = models.UUIDField(primary_key=True, default=uuid_module.uuid4, editable=False)
+    tool_name = models.CharField(max_length=100, null=True, blank=True)
+    collected_params = models.JSONField(default=dict)
+    required_params = models.JSONField(default=list)
+    current_param_index = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['created_at']),
+        ]
+    
+    def get_next_param(self):
+        """Retorna el próximo parámetro a pedir"""
+        if self.current_param_index < len(self.required_params):
+            return self.required_params[self.current_param_index]
+        return None
+    
+    def is_complete(self):
+        """Verifica si tiene todos los parámetros requeridos"""
+        return self.current_param_index >= len(self.required_params)
+    
+    def reset(self):
+        """Reinicia la sesión"""
+        self.tool_name = None
+        self.collected_params = {}
+        self.required_params = []
+        self.current_param_index = 0
+        self.save()
+    
+    def __str__(self):
+        return f"Session {self.session_id} - {self.tool_name or 'idle'}"

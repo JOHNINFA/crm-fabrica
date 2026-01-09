@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Table, Form, InputGroup } from 'reac
 import { useNavigate } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
 import usePageTitle from '../hooks/usePageTitle';
+import ChatIA from '../components/ChatIA/ChatIA';
 
 const ListaClientesScreen = () => {
   usePageTitle('Clientes');
@@ -10,6 +11,14 @@ const ListaClientesScreen = () => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
+  const [showChat, setShowChat] = useState(() => {
+    return localStorage.getItem('chat_visible_clientes') === 'true';
+  });
+
+  // Persistir estado del chat
+  useEffect(() => {
+    localStorage.setItem('chat_visible_clientes', showChat);
+  }, [showChat]);
 
   useEffect(() => {
     cargarClientes();
@@ -68,7 +77,7 @@ const ListaClientesScreen = () => {
                 <Button
                   variant="outline-primary"
                   className="me-2"
-                  onClick={() => navigate('/clientes/ia')}
+                  onClick={() => setShowChat(true)} // Abrir ChatIA
                   style={{
                     color: '#06386d',
                     borderColor: '#06386d',
@@ -251,6 +260,11 @@ const ListaClientesScreen = () => {
           </Col>
         </Row>
       </Container>
+
+      {/* Overlay de Chat IA */}
+      {showChat && (
+        <ChatIA onBack={() => setShowChat(false)} />
+      )}
     </div>
   );
 };

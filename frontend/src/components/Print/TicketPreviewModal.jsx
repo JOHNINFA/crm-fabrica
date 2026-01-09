@@ -119,6 +119,7 @@ export default function TicketPreviewModal({
             fechaEntrega,
             tipoPedido,
             transportadora,
+            generadoPor, // 🆕 Usuario que generó el pedido
             nota
         } = ticketData;
 
@@ -291,7 +292,7 @@ export default function TicketPreviewModal({
                         ${tipo === 'pedido' && direccionEntrega ? `<p><strong>Dirección:</strong> ${direccionEntrega}</p>` : ''}
                         ${tipo === 'pedido' && fechaEntrega ? `<p><strong>Fecha Entrega:</strong> ${fechaEntrega}</p>` : ''}
                         ${tipo === 'pedido' && tipoPedido ? `<p><strong>Tipo:</strong> ${tipoPedido}</p>` : ''}
-                        ${tipo === 'pedido' && transportadora ? `<p><strong>Transportadora:</strong> ${transportadora}</p>` : ''}
+                        ${tipo === 'pedido' && generadoPor ? `<p><strong>Generado por:</strong> ${generadoPor}</p>` : ''}
                     </div>
                     
                     <div class="ticket-divider">================================</div>
