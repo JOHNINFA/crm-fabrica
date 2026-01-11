@@ -448,26 +448,29 @@ export default function PedidosDiaScreen() {
               <tbody>
                 {clientesOrdenados.map((cliente, index) => {
                   const tienePedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
+                  const estaEntregado = tienePedido && tienePedido.estado === 'ENTREGADO';
+
                   return (
                     <tr
                       key={cliente.id}
                       draggable
                       style={{
                         cursor: draggedIndex === index ? 'grabbing' : 'grab',
-                        backgroundColor: draggedIndex === index ? '#EBF8FF' : '#FFFFFF',
+                        backgroundColor: estaEntregado ? 'rgba(34, 197, 94, 0.1)' : // Verde transparente si entregado
+                          draggedIndex === index ? '#EBF8FF' : '#FFFFFF',
                         borderBottom: '1px solid #E5E7EB',
                         transition: 'background-color 0.2s ease-in-out',
                         opacity: draggedIndex === index ? 0.5 : 1,
                         height: '45px'
                       }}
                       onMouseEnter={(e) => {
-                        if (draggedIndex !== index) {
+                        if (draggedIndex !== index && !estaEntregado) {
                           e.target.closest('tr').style.backgroundColor = '#F9FAFB';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (draggedIndex !== index) {
-                          e.target.closest('tr').style.backgroundColor = '#FFFFFF';
+                          e.target.closest('tr').style.backgroundColor = estaEntregado ? 'rgba(34, 197, 94, 0.1)' : '#FFFFFF';
                         }
                       }}
                       onDragStart={(e) => handleDragStart(e, index)}

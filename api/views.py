@@ -2031,9 +2031,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        # Filtro final (Fecha Y No Terminado)
-        # Nota: El modelo usa 'ENTREGADA' (femenino), aseguramos filtrar correctamente
-        filtro_base = Q(fecha_entrega=fecha) & ~Q(estado__in=['ENTREGADA', 'ENTREGADO', 'CANCELADO', 'ANULADA'])
+        # Filtro final (Fecha Y No Cancelado/Anulado)
+        # 🔧 Incluir ENTREGADO para que la app móvil pueda mostrar check verde
+        filtro_base = Q(fecha_entrega=fecha) & ~Q(estado__in=['CANCELADO', 'ANULADA'])
         
         condicion_asignacion = Q(asignado_a_id=vendedor_id)
         if nombre_vendedor:
@@ -2050,11 +2050,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
         """Marcar pedido como entregado desde la App"""
         pedido = self.get_object()
         from django.utils import timezone
-        pedido.estado = 'ENTREGADA' # Corregido a femenino según modelo
-        pedido.nota = f"{pedido.nota or ''} | Entregado vía App Móvil".strip()
-        pedido.fecha_entrega = timezone.now().date()
+        pedido.estado = 'ENTREGADO'  # Cambiado de ENTREGADA a ENTREGADO
+        pedido.nota = f"{pedido.nota or ''} | Entregado vía App Móvil el {timezone.now().strftime('%Y-%m-%d %H:%M')}".strip()
+        # 🔧 NO cambiar fecha_entrega para que siga apareciendo en su día original
         pedido.save()
-        return Response({'status': 'pedido entregado'})
+        return Response({'success': True, 'message': 'Pedido marcado como entregado'})
 
     @action(detail=True, methods=['post'])
     def marcar_no_entregado(self, request, pk=None):

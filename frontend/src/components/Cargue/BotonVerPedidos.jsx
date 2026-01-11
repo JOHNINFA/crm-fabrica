@@ -348,8 +348,23 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <span style={{ fontSize: '20px' }}>👤</span>
                                                         <div>
-                                                            <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '15px' }}>
-                                                                {pedido.cliente}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '15px' }}>
+                                                                    {pedido.cliente}
+                                                                </div>
+                                                                {/* 🆕 Badge "Entregado" si el pedido está entregado */}
+                                                                {pedido.estado === 'ENTREGADO' && (
+                                                                    <span style={{
+                                                                        backgroundColor: '#22c55e',
+                                                                        color: 'white',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '12px',
+                                                                        fontSize: '10px',
+                                                                        fontWeight: 'bold'
+                                                                    }}>
+                                                                        Entregado
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
                                                                 {pedido.numeroPedido} • {pedido.detalles.length} productos
