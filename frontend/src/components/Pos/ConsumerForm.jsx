@@ -4,11 +4,14 @@ import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
 import { useCajero } from "../../context/CajeroContext";
 import { useScrollVisibility } from "../../hooks/useScrollVisibility";
+import AddClientePOSModal from "./AddClientePOSModal";
+import { cajonService } from "../../services/cajonService"; // 🆕
 
-export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, sellers, priceList, setPriceList }) {
+export default function ConsumerForm({ date, seller, client, setDate, setClient, priceList, setPriceList }) {
   const { cajeroLogueado, sucursalActiva, isAuthenticated } = useCajero();
   const [priceLists, setPriceLists] = useState([]);
   const isVisible = useScrollVisibility(false);
+  const [showAddClienteModal, setShowAddClienteModal] = useState(false);
 
   useEffect(() => {
     cargarListasPrecios();
@@ -88,6 +91,12 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
     setIsSearching(false);
   };
 
+  // Manejar cuando se crea un cliente desde el modal
+  const handleClienteCreado = (cliente) => {
+    // Seleccionar automáticamente el cliente recién creado
+    setClient(cliente.alias || cliente.nombre_completo);
+  };
+
 
 
   return (
@@ -153,12 +162,22 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
           </button>
           <button
             className="btn-primary"
-            title="Agregar cliente"
-            onClick={() => window.location.href = '/clientes/nuevo'}
-            disabled
-            style={{ opacity: 0.5, cursor: 'not-allowed' }}
+            title="Agregar cliente POS"
+            onClick={() => setShowAddClienteModal(true)}
           >
             <span className="material-icons" style={{ fontSize: '16px' }}>person_add</span>
+          </button>
+          <button
+            title="Abrir cajón monedero"
+            onClick={async () => {
+              const resultado = await cajonService.abrirCajon();
+              if (!resultado.success) {
+                alert(`⚠️ ${resultado.message}`);
+              }
+            }}
+            style={{ backgroundColor: '#28a745', color: 'white' }}
+          >
+            <span className="material-icons" style={{ fontSize: '16px' }}>point_of_sale</span>
           </button>
           <button
             title="Limpiar"
@@ -216,56 +235,22 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
           </div>
         </div>
         <div className="consumer-form-group">
-          <label className="consumer-form-label">Vendedor</label>
-          <div className="position-relative">
-            <select
-              className="form-control consumer-form-title-input"
-              value={seller}
-              onChange={e => setSeller(e.target.value)}
-              style={{
-                fontSize: '12px',
-                height: '28px',
-                padding: '2px 8px',
-                paddingRight: '20px',
-                appearance: 'none'
-              }}
-            >
-              {/* Cajero logueado */}
-              {isAuthenticated && cajeroLogueado && (
-                <optgroup label="CAJERO ACTIVO">
-                  <option value={cajeroLogueado.nombre}>
-                    {cajeroLogueado.nombre} (Cajero)
-                  </option>
-                </optgroup>
-              )}
-
-              {/* Vendedores de la sucursal */}
-              <optgroup label="VENDEDORES">
-                {sellers.map(vendedor => (
-                  <option key={vendedor} value={vendedor}>
-                    {vendedor}
-                  </option>
-                ))}
-              </optgroup>
-
-              {/* Fallback si no hay cajero logueado */}
-              {!isAuthenticated && (
-                <optgroup label="SISTEMA">
-                  <option value="Sistema">Sistema</option>
-                </optgroup>
-              )}
-            </select>
-            <span className="material-icons position-absolute" style={{
-              right: '5px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: '14px',
-              pointerEvents: 'none',
-              color: '#6c757d'
-            }}>
-              arrow_drop_down
-            </span>
-          </div>
+          <label className="consumer-form-label">Atendido por</label>
+          <input
+            type="text"
+            className="form-control consumer-form-title-input"
+            value={seller}
+            readOnly
+            style={{
+              fontSize: '12px',
+              height: '28px',
+              padding: '2px 8px',
+              backgroundColor: '#f8f9fa',
+              cursor: 'not-allowed',
+              fontWeight: 'bold',
+              color: '#495057'
+            }}
+          />
 
           {/* Información adicional del cajero */}
           {isAuthenticated && cajeroLogueado && sucursalActiva?.nombre && (
@@ -277,7 +262,15 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </div >
+
+      {/* Modal para agregar cliente POS */}
+      < AddClientePOSModal
+        show={showAddClienteModal}
+        onHide={() => setShowAddClienteModal(false)
+        }
+        onClienteCreado={handleClienteCreado}
+      />
+    </div >
   );
 }

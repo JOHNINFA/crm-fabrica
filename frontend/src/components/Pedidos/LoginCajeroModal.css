@@ -16,8 +16,46 @@
     align-items: center;
 }
 
-.login-cajero-modal .btn-close {
-    filter: invert(1);
+/* Botón cerrar en header azul - selector directo */
+.login-cajero-modal button.btn-close {
+    background: none !important;
+    background-image: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    width: 2em !important;
+    height: 2em !important;
+    padding: 0 !important;
+    position: relative !important;
+    box-shadow: none !important;
+}
+
+/* Crear X blanca con pseudo-elementos */
+.login-cajero-modal button.btn-close::before,
+.login-cajero-modal button.btn-close::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 0.9em !important;
+    height: 2px !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border-radius: 1px !important;
+}
+
+.login-cajero-modal button.btn-close::before {
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+}
+
+.login-cajero-modal button.btn-close::after {
+    transform: translate(-50%, -50%) rotate(-45deg) !important;
+}
+
+.login-cajero-modal button.btn-close:hover::before,
+.login-cajero-modal button.btn-close:hover::after {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    background: rgba(255, 255, 255, 0.75) !important;
 }
 
 .cajero-logueado-info {

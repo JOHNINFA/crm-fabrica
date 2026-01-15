@@ -1,9 +1,37 @@
 // Servicio para manejar las llamadas a la API
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const searchParams = new URLSearchParams(window.location.search);
+const configServerUrl = searchParams.get('serverUrl');
+
+let FINAL_BASE_URL = 'http://localhost:8000';
+
+if (configServerUrl) {
+  try {
+    const urlObj = new URL(configServerUrl);
+    if (urlObj.port === '3000') urlObj.port = '8000';
+    FINAL_BASE_URL = urlObj.origin;
+  } catch (e) {
+    console.error('Error parseando serverUrl:', e);
+  }
+}
+
+const API_URL = process.env.REACT_APP_API_URL || `${FINAL_BASE_URL}/api`;
+
+/**
+ * Fetch con timeout de 5 segundos
+ * Evita esperas largas cuando el servidor está caído
+ */
+const fetchWithTimeout = (url, options = {}, timeout = 5000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout: Servidor no responde')), timeout)
+    )
+  ]);
+};
 
 // Función para manejar errores de la API
 const handleApiError = (error) => {
-  console.warn('API no disponible, usando almacenamiento local:', error);
+  console.warn('API no dis ponible, usando almacenamiento local:', error);
   return { error: 'API_UNAVAILABLE', message: 'API no disponible, usando almacenamiento local' };
 };
 
@@ -564,74 +592,96 @@ export const ventaService = {
   // Crear una nueva venta
   create: async (ventaData) => {
     try {
-
-      const response = await fetch(`${API_URL}/ventas/`, {
+      // Intentar crear la venta en el servidor con timeout de 5 segundos
+      const response = await fetchWithTimeout(`${API_URL}/ventas/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(ventaData),
-      });
+      }, 5000); // Timeout de 5 segundos
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
         throw new Error(`Error al crear venta: ${response.status}`);
       }
-      const data = await response.json();
 
-      // Intentar sincronizar pendientes si hay conexión exitosa
-      /* 
-      // Comentado para no afectar rendimiento ahora, se puede activar después
-      setTimeout(() => {
-         const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
-         if (pendientes.length > 0) {
-             console.log('Intentando sincronizar ventas pendientes...');
-             // Lógica de sincronización background
-         }
-      }, 5000);
-      */
+      const data = await response.json();
+      console.log('✅ Venta creada exitosamente en servidor:', data.numero_factura);
 
       return data;
+
     } catch (error) {
-      console.error('⚠️ Error de conexión al crear venta. Guardando en modo OFFLINE:', error);
+      console.error('⚠️ Error de conexión al crear venta:', error.message);
 
+      // Importar offlineService dinámicamente
       try {
-        // 1. Obtener cola de pendientes
-        const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
+        const { offlineService } = await import('./offlineService');
 
-        // 2. Crear objeto de venta temporal
+        // Guardar venta offline usando IndexedDB
+        const result = await offlineService.guardarVentaOffline(ventaData);
+
+        console.log('✅ Venta guardada offline con UUID:', result.uuid);
+
+        // Actualizar localStorage para historial inmediato
+        const ventasLocales = JSON.parse(localStorage.getItem('ventas_pos') || '[]');
         const ventaOffline = {
           ...ventaData,
-          id: `TEMP_${Date.now()}_${Math.floor(Math.random() * 1000)}`, // ID temporal único
-          fecha: new Date().toISOString(), // Fecha actual
-          estado: 'PAGADO', // Asumir pagado
+          id: result.uuid,
+          numero_factura: result.numero_factura,
+          fecha: new Date().toISOString(),
+          estado: 'PAGADO',
           sincronizado: false,
-          created_at_local: Date.now()
+          offline: true
         };
 
-        // 3. Guardar en localStorage
-        pendientes.push(ventaOffline);
-        localStorage.setItem('ventas_pendientes', JSON.stringify(pendientes));
-
-        // 4. Actualizar también el listado local de ventas para que aparezca en el historial inmediato
-        const ventasLocales = JSON.parse(localStorage.getItem('ventas_pos') || '[]');
-        ventasLocales.unshift(ventaOffline); // Agregar al principio
+        ventasLocales.unshift(ventaOffline);
         localStorage.setItem('ventas_pos', JSON.stringify(ventasLocales));
 
-        console.log('✅ Venta guardada localmente (OFFLINE). ID:', ventaOffline.id);
-
-        // 5. Retornar éxito simulado para que la UI continúe (impresión, limpiar carrito, etc.)
+        // Retornar éxito para que la UI continúe normalmente
         return {
           ...ventaOffline,
           success: true,
           offline: true,
-          message: 'Venta guardada localmente (Sin conexión)'
+          message: '⚠️ Venta guardada localmente (Sin conexión al servidor)'
         };
 
-      } catch (localError) {
-        console.error('❌ Error crítico: Falló incluso el guardado local:', localError);
-        return handleApiError(error);
+      } catch (offlineError) {
+        console.error('❌ Error crítico al guardar offline:', offlineError);
+
+        // Último intento: localStorage legacy
+        try {
+          const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
+          const ventaOffline = {
+            ...ventaData,
+            id: `TEMP_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            fecha: new Date().toISOString(),
+            estado: 'PAGADO',
+            sincronizado: false,
+            created_at_local: Date.now()
+          };
+
+          pendientes.push(ventaOffline);
+          localStorage.setItem('ventas_pendientes', JSON.stringify(pendientes));
+
+          const ventasLocales = JSON.parse(localStorage.getItem('ventas_pos') || '[]');
+          ventasLocales.unshift(ventaOffline);
+          localStorage.setItem('ventas_pos', JSON.stringify(ventasLocales));
+
+          console.log('✅ Venta guardada localmente (fallback localStorage)');
+
+          return {
+            ...ventaOffline,
+            success: true,
+            offline: true,
+            message: 'Venta guardada localmente (Sin conexión)'
+          };
+
+        } catch (localError) {
+          console.error('❌ Error crítico: Falló incluso el guardado local:', localError);
+          return handleApiError(error);
+        }
       }
     }
   },

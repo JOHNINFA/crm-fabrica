@@ -8,7 +8,7 @@ export default function ProductCard({ product, onClick }) {
 
   // Usar imagen del caché primero, luego del producto
   const cachedImage = productImages?.[product.id];
-  const [imageSource, setImageSource] = useState(cachedImage || product.image || null);
+  const [imageSource, setImageSource] = useState(cachedImage || null);
   const [isClicked, setIsClicked] = useState(false);
 
   // Siempre mostrar el precio base del producto en la tarjeta
@@ -16,24 +16,28 @@ export default function ProductCard({ product, onClick }) {
 
   // Sincronizar imagen cuando cambie el producto o el caché
   useEffect(() => {
-    // Prioridad: 1) caché en memoria, 2) imagen del producto, 3) IndexedDB
+    // Prioridad: 1) caché en memoria, 2) IndexedDB, 3) imagen del producto
     if (cachedImage) {
       setImageSource(cachedImage);
       return;
     }
 
-    if (product.image) {
-      setImageSource(product.image);
-      return;
-    }
-
-    // Solo ir a IndexedDB si no hay imagen disponible
+    // Intentar cargar desde IndexedDB
     const loadLocalImage = async () => {
       try {
         const localImage = await localImageService.getImage(product.id);
-        if (localImage) setImageSource(localImage);
+        if (localImage) {
+          setImageSource(localImage);
+        } else if (product.image) {
+          // Solo usar product.image si no está en IndexedDB
+          setImageSource(product.image);
+        }
       } catch (error) {
         console.error('Error loading local image:', error);
+        // Fallback a imagen del producto si falla IndexedDB
+        if (product.image) {
+          setImageSource(product.image);
+        }
       }
     };
 
@@ -83,7 +87,7 @@ export default function ProductCard({ product, onClick }) {
       onKeyDown={handleKeyDown}
     >
       <div className="card-body d-flex flex-column align-items-center text-center" style={{ padding: '4px' }}>
-        {/* Imagen o icono por defecto - Sin animaciones para carga instantánea */}
+        {/* Imagen o icono por defecto - Carga urgente sin delays */}
         <div style={{
           height: '50px',
           width: '100%',

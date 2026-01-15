@@ -34,7 +34,7 @@ export default function Topbar({ onOpenCategoryManager }) {
                         className="btn btn-light border"
                         style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
                         type="button"
-                        onClick={() => window.open('/informes/pedidos', '_blank')}
+                        onClick={() => navigate('/informes/pedidos')}
                     >
                         <i className="bi bi-file-earmark-text me-2" style={{ fontSize: '16px' }}></i>
                         Informes de Pedidos

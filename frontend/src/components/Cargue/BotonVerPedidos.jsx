@@ -17,6 +17,9 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     const [pedidoAAnular, setPedidoAAnular] = useState(null);
     const [anulando, setAnulando] = useState(false);
 
+    // 🆕 Estado para modal de novedades (ya no se usa como modal, pero mantenemos por compatibilidad si es necesario)
+    const [showNovedadesModal, setShowNovedadesModal] = useState(false);
+
     // Cargar nombre del vendedor desde responsableStorage
     useEffect(() => {
         const nombre = responsableStorage.get(idSheet);
@@ -37,7 +40,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
             // Filtrar pedidos por fecha, vendedor y estado
             const pedidosFiltrados = todosPedidos.filter(pedido => {
                 const coincideFecha = pedido.fecha_entrega === fechaSeleccionada;
-                const noAnulado = pedido.estado !== 'ANULADA';
+                // const noAnulado = pedido.estado !== 'ANULADA'; // 🆕 Permitir ver anulados/novedades
 
                 // Verificar si el vendedor coincide (por nombre o por ID) - CASE INSENSITIVE
                 let coincideVendedor = false;
@@ -56,25 +59,41 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                     }
                 }
 
-                if (coincideFecha && coincideVendedor && noAnulado) {
+                if (coincideFecha && coincideVendedor) {
                     console.log(`✅ Pedido encontrado: ${pedido.numero_pedido} - ${pedido.vendedor}`);
                 }
 
-                return coincideFecha && coincideVendedor && noAnulado;
+                return coincideFecha && coincideVendedor;
             });
 
-            console.log(`✅ Pedidos filtrados: ${pedidosFiltrados.length}`);
+            console.log(`✅ Pedidos filtrados base: ${pedidosFiltrados.length}`);
 
-            // 🆕 Guardar pedidos individuales con info de cliente
-            setPedidosClientes(pedidosFiltrados.map(p => ({
+            // 🆕 REFINAMIENTO: Si un cliente tiene pedidos ENTREGADOS, ocultar sus ANULADOS para no ensuciar la vista
+            const pedidosParaMostrar = pedidosFiltrados.filter(p => {
+                if (p.estado !== 'ANULADA') return true; // Mostrar siempre los vigentes
+
+                // Si es ANULADA, verificar si este cliente ya tiene uno ENTREGADO hoy
+                const tieneEntregado = pedidosFiltrados.some(otro =>
+                    otro.estado === 'ENTREGADO' &&
+                    otro.destinatario && p.destinatario &&
+                    otro.destinatario.trim().toUpperCase() === p.destinatario.trim().toUpperCase()
+                );
+                return !tieneEntregado; // Solo mostrar si NO tiene entregado
+            });
+
+            console.log(`✅ Pedidos visuales finales: ${pedidosParaMostrar.length}`);
+
+            // 🆕 Guardar pedidos individuales con info de cliente (Usando filtro refinado)
+            setPedidosClientes(pedidosParaMostrar.map(p => ({
                 id: p.id,
                 numeroPedido: p.numero_pedido,
                 cliente: p.destinatario || p.direccion_entrega || 'Cliente',
                 telefono: p.telefono_contacto || '',
                 total: parseFloat(p.total || 0),
                 estado: p.estado,
-                metodo_pago: p.metodo_pago || 'EFECTIVO', // 🆕 Método de pago (default: EFECTIVO)
+                metodo_pago: p.metodo_pago || 'EFECTIVO',
                 detalles: p.detalles || [],
+                novedades: p.novedades || [], // 🆕 Cargar novedades
                 fechaCreacion: p.fecha_creacion
             })));
 
@@ -82,6 +101,8 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
             const productosAgrupados = {};
 
             pedidosFiltrados.forEach(pedido => {
+                if (pedido.estado === 'ANULADA') return; // 🆕 Ignorar pedidos anulados en el resumen de productos
+
                 if (pedido.detalles && pedido.detalles.length > 0) {
                     pedido.detalles.forEach(detalle => {
                         const nombre = detalle.producto_nombre;
@@ -128,7 +149,34 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         setShowModal(true);
         setActiveTab('resumen');
         setPedidoExpandido(null);
+        // Eliminado: setCheckedItems({}); // Permitir persistencia
         cargarPedidos();
+    };
+
+    // 🆕 Estado para controlar checks de verificación en novedades (Persistente)
+    const [checkedItems, setCheckedItems] = useState(() => {
+        try {
+            const saved = localStorage.getItem('novedadesConsolidadasChecks');
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+            console.error('Error parsing localStorage:', e);
+            return {};
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('novedadesConsolidadasChecks', JSON.stringify(checkedItems));
+        } catch (e) {
+            console.error('Error saving to localStorage:', e);
+        }
+    }, [checkedItems]);
+
+    const toggleCheck = (id) => {
+        setCheckedItems(prev => ({
+            ...prev,
+            [id]: !prev[id]
+        }));
     };
 
     const formatCurrency = (value) => {
@@ -202,6 +250,30 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     const totalUnidades = pedidos.reduce((sum, p) => sum + p.cantidad, 0);
     const totalValor = pedidos.reduce((sum, p) => sum + p.total, 0);
 
+    // 🆕 Calcular novedades consolidadas
+    const novedadesConsolidadas = pedidosClientes.flatMap(p => {
+        // 1. Novedades explicitas (devoluciones parciales)
+        const novedadesNormales = (p.novedades || []).map(n => ({
+            ...n,
+            cliente: p.cliente,
+            numeroPedido: p.numeroPedido
+        }));
+
+        // 2. Novedades por Pedido NO ENTREGADO (Anulados) -> Todo regresa
+        let novedadesAnuladas = [];
+        if (p.estado === 'ANULADA' && p.detalles && p.detalles.length > 0) {
+            novedadesAnuladas = p.detalles.map(detalle => ({
+                producto: detalle.producto_nombre,
+                cantidad: detalle.cantidad,
+                motivo: 'NO ENTREGADO (DEVOLUCIÓN TOTAL)',
+                cliente: p.cliente,
+                numeroPedido: p.numeroPedido
+            }));
+        }
+
+        return [...novedadesNormales, ...novedadesAnuladas];
+    });
+
     return (
         <>
             <button
@@ -245,6 +317,11 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                         <Nav.Item>
                             <Nav.Link eventKey="clientes" style={{ fontWeight: activeTab === 'clientes' ? '600' : '400' }}>
                                 👥 Pedidos Clientes ({pedidosClientes.length})
+                            </Nav.Link>
+                        </Nav.Item>
+                        <Nav.Item>
+                            <Nav.Link eventKey="novedades" style={{ fontWeight: activeTab === 'novedades' ? '600' : '400', color: '#d35400' }}>
+                                ⚠️ Novedades Pedidos ({novedadesConsolidadas.length})
                             </Nav.Link>
                         </Nav.Item>
                     </Nav>
@@ -331,171 +408,193 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                     </div>
                                 ) : (
                                     <div style={{ padding: '16px 24px' }}>
-                                        {pedidosClientes.map((pedido, index) => (
-                                            <div key={pedido.id} style={{ marginBottom: '12px', border: '1px solid #e0e0e0', borderRadius: '8px', overflow: 'hidden' }}>
-                                                {/* Header del pedido cliente */}
-                                                <div
-                                                    style={{
-                                                        padding: '12px 16px',
-                                                        backgroundColor: '#f8f9fa',
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    onClick={() => setPedidoExpandido(pedidoExpandido === pedido.id ? null : pedido.id)}
-                                                >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <span style={{ fontSize: '20px' }}>👤</span>
-                                                        <div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '15px' }}>
-                                                                    {pedido.cliente}
+                                        {pedidosClientes.map((pedido, index) => {
+                                            const tieneNovedades = pedido.novedades && pedido.novedades.length > 0;
+                                            return (
+                                                <div key={pedido.id} style={{
+                                                    marginBottom: '12px',
+                                                    border: tieneNovedades ? '1px solid #ef4444' : '1px solid #e0e0e0',
+                                                    backgroundColor: tieneNovedades ? 'rgba(254, 202, 202, 0.5)' : 'white',
+                                                    borderRadius: '8px',
+                                                    overflow: 'hidden'
+                                                }}>
+                                                    {/* Header del pedido cliente */}
+                                                    <div
+                                                        style={{
+                                                            padding: '12px 16px',
+                                                            backgroundColor: tieneNovedades ? 'transparent' : '#f8f9fa',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                        onClick={() => setPedidoExpandido(pedidoExpandido === pedido.id ? null : pedido.id)}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <span style={{ fontSize: '20px' }}>👤</span>
+                                                            <div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '15px' }}>
+                                                                        {pedido.cliente}
+                                                                    </div>
+                                                                    {/* 🆕 Badge "Entregado" si el pedido está entregado */}
+                                                                    {pedido.estado === 'ENTREGADO' && (
+                                                                        <span style={{
+                                                                            backgroundColor: '#22c55e',
+                                                                            color: 'white',
+                                                                            padding: '2px 8px',
+                                                                            borderRadius: '12px',
+                                                                            fontSize: '10px',
+                                                                            fontWeight: 'bold'
+                                                                        }}>
+                                                                            Entregado
+                                                                        </span>
+                                                                    )}
+                                                                    {/* 🆕 Badge "No Entregado" */}
+                                                                    {pedido.estado === 'ANULADA' && (
+                                                                        <span style={{
+                                                                            backgroundColor: '#dc3545',
+                                                                            color: 'white',
+                                                                            padding: '2px 8px',
+                                                                            borderRadius: '12px',
+                                                                            fontSize: '10px',
+                                                                            fontWeight: 'bold'
+                                                                        }}>
+                                                                            No Entregado
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                                {/* 🆕 Badge "Entregado" si el pedido está entregado */}
-                                                                {pedido.estado === 'ENTREGADO' && (
-                                                                    <span style={{
-                                                                        backgroundColor: '#22c55e',
-                                                                        color: 'white',
-                                                                        padding: '2px 8px',
-                                                                        borderRadius: '12px',
-                                                                        fontSize: '10px',
-                                                                        fontWeight: 'bold'
-                                                                    }}>
-                                                                        Entregado
-                                                                    </span>
-                                                                )}
+                                                                <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                                                                    {pedido.numeroPedido} • {pedido.detalles.length} productos
+                                                                </div>
                                                             </div>
-                                                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
-                                                                {pedido.numeroPedido} • {pedido.detalles.length} productos
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                            <span style={{ fontWeight: '700', color: '#16a34a', fontSize: '17px' }}>
+                                                                ${formatCurrency(pedido.total)}
+                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                {/* Botón Ver Detalle - Azul */}
+                                                                <button
+                                                                    style={{
+                                                                        background: 'transparent',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        padding: '8px',
+                                                                        color: '#3b82f6',
+                                                                        fontSize: '18px',
+                                                                        borderRadius: '50%',
+                                                                        transition: 'background-color 0.2s'
+                                                                    }}
+                                                                    title="Ver detalle"
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                >
+                                                                    <i className={`bi ${pedidoExpandido === pedido.id ? 'bi-chevron-up' : 'bi-eye'}`}></i>
+                                                                </button>
+                                                                {/* Botón Editar - Amarillo */}
+                                                                <button
+                                                                    onClick={(e) => handleGestionarPedido(e, pedido)}
+                                                                    style={{
+                                                                        background: 'transparent',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        padding: '8px',
+                                                                        color: '#eab308',
+                                                                        fontSize: '18px',
+                                                                        borderRadius: '50%',
+                                                                        transition: 'background-color 0.2s'
+                                                                    }}
+                                                                    title="Editar pedido"
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fefce8'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                >
+                                                                    <i className="bi bi-pencil"></i>
+                                                                </button>
+                                                                {/* Botón Anular - Rojo */}
+                                                                <button
+                                                                    onClick={(e) => handleAnularClick(e, pedido)}
+                                                                    style={{
+                                                                        background: 'transparent',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        padding: '8px',
+                                                                        color: '#ef4444',
+                                                                        fontSize: '18px',
+                                                                        borderRadius: '50%',
+                                                                        transition: 'background-color 0.2s'
+                                                                    }}
+                                                                    title="Anular pedido"
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                >
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                                {/* 🆕 Selector de Método de Pago */}
+                                                                <select
+                                                                    value={pedido.metodo_pago || 'EFECTIVO'}
+                                                                    onChange={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCambiarMetodoPago(pedido.id, e.target.value);
+                                                                    }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    style={{
+                                                                        marginLeft: '8px',
+                                                                        padding: '4px 8px',
+                                                                        fontSize: '12px',
+                                                                        fontWeight: '600',
+                                                                        borderRadius: '6px',
+                                                                        border: '1px solid #e0e0e0',
+                                                                        backgroundColor:
+                                                                            pedido.metodo_pago === 'EFECTIVO' ? '#dcfce7' :
+                                                                                pedido.metodo_pago === 'NEQUI' ? '#fce7f3' :
+                                                                                    pedido.metodo_pago === 'DAVIPLATA' ? '#fee2e2' :
+                                                                                        '#f3f4f6',
+                                                                        color:
+                                                                            pedido.metodo_pago === 'EFECTIVO' ? '#166534' :
+                                                                                pedido.metodo_pago === 'NEQUI' ? '#9d174d' :
+                                                                                    pedido.metodo_pago === 'DAVIPLATA' ? '#dc2626' :
+                                                                                        '#6b7280',
+                                                                        cursor: 'pointer',
+                                                                        minWidth: '100px'
+                                                                    }}
+                                                                >
+                                                                    <option value="EFECTIVO">Efectivo</option>
+                                                                    <option value="NEQUI">Nequi</option>
+                                                                    <option value="DAVIPLATA">Daviplata</option>
+                                                                </select>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                                        <span style={{ fontWeight: '700', color: '#16a34a', fontSize: '17px' }}>
-                                                            ${formatCurrency(pedido.total)}
-                                                        </span>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            {/* Botón Ver Detalle - Azul */}
-                                                            <button
-                                                                style={{
-                                                                    background: 'transparent',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    padding: '8px',
-                                                                    color: '#3b82f6',
-                                                                    fontSize: '18px',
-                                                                    borderRadius: '50%',
-                                                                    transition: 'background-color 0.2s'
-                                                                }}
-                                                                title="Ver detalle"
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                            >
-                                                                <i className={`bi ${pedidoExpandido === pedido.id ? 'bi-chevron-up' : 'bi-eye'}`}></i>
-                                                            </button>
-                                                            {/* Botón Editar - Amarillo */}
-                                                            <button
-                                                                onClick={(e) => handleGestionarPedido(e, pedido)}
-                                                                style={{
-                                                                    background: 'transparent',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    padding: '8px',
-                                                                    color: '#eab308',
-                                                                    fontSize: '18px',
-                                                                    borderRadius: '50%',
-                                                                    transition: 'background-color 0.2s'
-                                                                }}
-                                                                title="Editar pedido"
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fefce8'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                            >
-                                                                <i className="bi bi-pencil"></i>
-                                                            </button>
-                                                            {/* Botón Anular - Rojo */}
-                                                            <button
-                                                                onClick={(e) => handleAnularClick(e, pedido)}
-                                                                style={{
-                                                                    background: 'transparent',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    padding: '8px',
-                                                                    color: '#ef4444',
-                                                                    fontSize: '18px',
-                                                                    borderRadius: '50%',
-                                                                    transition: 'background-color 0.2s'
-                                                                }}
-                                                                title="Anular pedido"
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                            >
-                                                                <i className="bi bi-trash"></i>
-                                                            </button>
-                                                            {/* 🆕 Selector de Método de Pago */}
-                                                            <select
-                                                                value={pedido.metodo_pago || 'EFECTIVO'}
-                                                                onChange={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleCambiarMetodoPago(pedido.id, e.target.value);
-                                                                }}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                style={{
-                                                                    marginLeft: '8px',
-                                                                    padding: '4px 8px',
-                                                                    fontSize: '12px',
-                                                                    fontWeight: '600',
-                                                                    borderRadius: '6px',
-                                                                    border: '1px solid #e0e0e0',
-                                                                    backgroundColor:
-                                                                        pedido.metodo_pago === 'EFECTIVO' ? '#dcfce7' :
-                                                                            pedido.metodo_pago === 'NEQUI' ? '#fce7f3' :
-                                                                                pedido.metodo_pago === 'DAVIPLATA' ? '#fee2e2' :
-                                                                                    '#f3f4f6',
-                                                                    color:
-                                                                        pedido.metodo_pago === 'EFECTIVO' ? '#166534' :
-                                                                            pedido.metodo_pago === 'NEQUI' ? '#9d174d' :
-                                                                                pedido.metodo_pago === 'DAVIPLATA' ? '#dc2626' :
-                                                                                    '#6b7280',
-                                                                    cursor: 'pointer',
-                                                                    minWidth: '100px'
-                                                                }}
-                                                            >
-                                                                <option value="EFECTIVO">Efectivo</option>
-                                                                <option value="NEQUI">Nequi</option>
-                                                                <option value="DAVIPLATA">Daviplata</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
 
-                                                {/* Detalle expandido del pedido */}
-                                                {pedidoExpandido === pedido.id && (
-                                                    <div style={{ padding: '12px 16px', backgroundColor: '#fff', borderTop: '1px solid #e0e0e0' }}>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                                            <thead>
-                                                                <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-                                                                    <th style={{ padding: '6px', textAlign: 'left', fontSize: '11px', color: '#7f8c8d' }}>Producto</th>
-                                                                    <th style={{ padding: '6px', textAlign: 'center', fontSize: '11px', color: '#7f8c8d', width: '80px' }}>Cant.</th>
-                                                                    <th style={{ padding: '6px', textAlign: 'right', fontSize: '11px', color: '#7f8c8d', width: '80px' }}>Precio</th>
-                                                                    <th style={{ padding: '6px', textAlign: 'right', fontSize: '11px', color: '#7f8c8d', width: '90px' }}>Subtotal</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {pedido.detalles.map((detalle, idx) => (
-                                                                    <tr key={idx} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                                        <td style={{ padding: '8px 6px', fontSize: '13px', color: '#2c3e50' }}>{detalle.producto_nombre}</td>
-                                                                        <td style={{ padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>{detalle.cantidad}</td>
-                                                                        <td style={{ padding: '8px 6px', textAlign: 'right', fontSize: '13px', color: '#7f8c8d' }}>${formatCurrency(detalle.precio_unitario)}</td>
-                                                                        <td style={{ padding: '8px 6px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>${formatCurrency(detalle.cantidad * detalle.precio_unitario)}</td>
+                                                    {/* Detalle expandido del pedido */}
+                                                    {pedidoExpandido === pedido.id && (
+                                                        <div style={{ padding: '12px 16px', backgroundColor: '#fff', borderTop: '1px solid #e0e0e0' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                                                <thead>
+                                                                    <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
+                                                                        <th style={{ padding: '6px', textAlign: 'left', fontSize: '11px', color: '#7f8c8d' }}>Producto</th>
+                                                                        <th style={{ padding: '6px', textAlign: 'center', fontSize: '11px', color: '#7f8c8d', width: '80px' }}>Cant.</th>
+                                                                        <th style={{ padding: '6px', textAlign: 'right', fontSize: '11px', color: '#7f8c8d', width: '80px' }}>Precio</th>
+                                                                        <th style={{ padding: '6px', textAlign: 'right', fontSize: '11px', color: '#7f8c8d', width: '90px' }}>Subtotal</th>
                                                                     </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                                                </thead>
+                                                                <tbody>
+                                                                    {pedido.detalles.map((detalle, idx) => (
+                                                                        <tr key={idx} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                                            <td style={{ padding: '8px 6px', fontSize: '13px', color: '#2c3e50' }}>{detalle.producto_nombre}</td>
+                                                                            <td style={{ padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>{detalle.cantidad}</td>
+                                                                            <td style={{ padding: '8px 6px', textAlign: 'right', fontSize: '13px', color: '#7f8c8d' }}>${formatCurrency(detalle.precio_unitario)}</td>
+                                                                            <td style={{ padding: '8px 6px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>${formatCurrency(detalle.cantidad * detalle.precio_unitario)}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
 
                                         {/* Total Clientes - Franja verde estilo Tailwind */}
                                         <div style={{
@@ -527,8 +626,153 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                 </span>
                                             </div>
                                             <span style={{ color: '#166534', fontWeight: '700', fontSize: '22px', letterSpacing: '-0.5px' }}>
-                                                ${formatCurrency(pedidosClientes.reduce((sum, p) => sum + p.total, 0))}
+                                                ${formatCurrency(pedidosClientes.reduce((sum, p) => (p.estado === 'ANULADA' ? sum : sum + p.total), 0))}
                                             </span>
+                                        </div>
+                                    </div>
+                                )
+                            )}
+
+                            {/* ========== PESTAÑA NOVEDADES (NUEVA) ========== */}
+                            {activeTab === 'novedades' && (
+                                novedadesConsolidadas.length === 0 ? (
+                                    <div style={{
+                                        margin: '20px',
+                                        padding: '16px',
+                                        backgroundColor: '#fff3cd',
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        color: '#856404'
+                                    }}>
+                                        <span style={{ fontSize: '20px' }}>⚠️</span>
+                                        <span style={{ fontSize: '14px' }}>
+                                            No hay novedades o devoluciones reportadas en los pedidos de esta ruta.
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100%' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            {Object.values(novedadesConsolidadas.reduce((acc, nov) => {
+                                                if (!acc[nov.numeroPedido]) acc[nov.numeroPedido] = { ...nov, items: [] };
+                                                acc[nov.numeroPedido].items.push(nov);
+                                                return acc;
+                                            }, {})).map((grupo, gIdx) => {
+                                                // Calcular motivo(s) único(s) para mostrar en cabecera
+                                                const motivosUnicos = [...new Set(grupo.items.map(i => i.motivo))];
+                                                const motivoTexto = motivosUnicos.join(', ');
+
+                                                return (
+                                                    <div key={gIdx} style={{
+                                                        backgroundColor: 'white',
+                                                        borderRadius: '8px',
+                                                        border: '1px solid #e5e7eb',
+                                                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                                                        overflow: 'hidden'
+                                                    }}>
+                                                        {/* Header Minimalista */}
+                                                        <div style={{
+                                                            padding: '12px 20px',
+                                                            borderBottom: '1px solid #f3f4f6',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center'
+                                                        }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <div style={{
+                                                                    color: '#3b82f6',
+                                                                    width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#3b82f6',
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0
+                                                                }}>
+                                                                    <i className="bi bi-person-fill"></i>
+                                                                </div>
+                                                                <div>
+                                                                    <div style={{
+                                                                        fontWeight: '600',
+                                                                        color: '#111827',
+                                                                        fontSize: '14px',
+                                                                        textTransform: 'uppercase'
+                                                                    }}>
+                                                                        {grupo.cliente}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                                                                        {grupo.numeroPedido} • {grupo.items.length} items
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div style={{
+                                                                fontSize: '12px',
+                                                                color: '#c02626',
+                                                                backgroundColor: '#fef2f2',
+                                                                padding: '4px 10px',
+                                                                borderRadius: '6px',
+                                                                border: '1px solid #fee2e2',
+                                                                fontWeight: '600',
+                                                                whiteSpace: 'nowrap',
+                                                                marginLeft: '12px',
+                                                                textAlign: 'right'
+                                                            }}>
+                                                                {motivoTexto}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Tabla Minimalista (Sin columna Motivo) */}
+                                                        <div style={{ padding: '0' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                                                <thead>
+                                                                    <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                                                        <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Producto</th>
+                                                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px', width: '90px' }}>Cant.</th>
+                                                                        <th style={{ padding: '12px 20px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px', width: '90px' }}>Verif.</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {grupo.items.map((item, iIdx) => {
+                                                                        const uniqueId = `${grupo.numeroPedido}_${iIdx}`;
+                                                                        const isChecked = !!checkedItems[uniqueId];
+
+                                                                        return (
+                                                                            <tr key={iIdx} style={{
+                                                                                borderBottom: iIdx === grupo.items.length - 1 ? 'none' : '1px solid #f9fafb',
+                                                                                backgroundColor: isChecked ? '#f0fdf4' : 'transparent',
+                                                                                transition: 'background-color 0.2s'
+                                                                            }}>
+                                                                                <td style={{ padding: '12px 20px', fontSize: '13px', color: '#374151', fontWeight: '500' }}>
+                                                                                    {item.producto || item.producto_nombre}
+                                                                                </td>
+                                                                                <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                                                    <span style={{
+                                                                                        color: '#ef4444',
+                                                                                        fontWeight: '700',
+                                                                                        fontSize: '17px'
+                                                                                    }}>
+                                                                                        {item.cantidad}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td style={{ padding: '12px 20px', textAlign: 'center' }}>
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={isChecked}
+                                                                                        onChange={() => toggleCheck(uniqueId)}
+                                                                                        style={{
+                                                                                            width: '18px',
+                                                                                            height: '18px',
+                                                                                            accentColor: '#16a34a',
+                                                                                            cursor: 'pointer'
+                                                                                        }}
+                                                                                    />
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )

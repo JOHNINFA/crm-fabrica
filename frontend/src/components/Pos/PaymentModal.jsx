@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { ventaService, configuracionImpresionService } from '../../services/api';
+import { cajonService } from '../../services/cajonService'; // 🆕
 import './PaymentModal.css';
 
 const PaymentModal = ({
@@ -172,14 +173,32 @@ const PaymentModal = ({
               formatoImpresion: impresion // 'Tirilla' o 'Carta'
             };
 
-            // Imprimir automáticamente
-            imprimirTicket(ticketData);
+            // Imprimir ticket
+            await imprimirTicket(ticketData);
+
+            // 🆕 SIEMPRE abrir cajón después de imprimir
+            try {
+              await cajonService.abrirCajon();
+              console.log('✅ Cajón abierto (después de impresión)');
+            } catch (cajonError) {
+              console.error('Error al abrir cajón:', cajonError);
+              // No detenemos el flujo
+            }
           } catch (printError) {
             console.error('Error al intentar imprimir:', printError);
             // No detenemos el flujo, mostramos el mensaje de éxito igual
           }
-        } 
-        
+        } else {
+          // 🆕 Si NO imprime, abrir cajón manualmente
+          try {
+            await cajonService.abrirCajon();
+            console.log('✅ Cajón abierto (sin impresión)');
+          } catch (cajonError) {
+            console.error('Error al abrir cajón:', cajonError);
+            // No detenemos el flujo
+          }
+        }
+
         // Limpiar y cerrar
         clearCart();
         onClose();
@@ -261,13 +280,19 @@ const PaymentModal = ({
   };
 
   // Función para imprimir el ticket
-  const imprimirTicket = (ticketData) => {
+  const imprimirTicket = async (ticketData) => {
     const { formatoImpresion } = ticketData;
     const anchoPapel = formatoImpresion === 'Tirilla' ? '80mm' : '210mm'; // Tirilla = 80mm, Carta = A4
 
     // Crear el HTML del ticket
     const ticketHTML = generarHTMLTicket(ticketData, anchoPapel);
 
+    // Usar método tradicional (con diálogo)
+    imprimirTicketTradicional(ticketHTML);
+  };
+
+  // Función auxiliar para impresión tradicional (con diálogo)
+  const imprimirTicketTradicional = (ticketHTML) => {
     // Crear un iframe oculto para imprimir
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
@@ -303,15 +328,27 @@ const PaymentModal = ({
     const nombreNegocio = configImpresion?.nombre_negocio || 'MI NEGOCIO';
     const nitNegocio = configImpresion?.nit_negocio || '';
     const direccionNegocio = configImpresion?.direccion_negocio || '';
+    const ciudadNegocio = configImpresion?.ciudad_negocio || '';
+    const paisNegocio = configImpresion?.pais_negocio || '';
     const telefonoNegocio = configImpresion?.telefono_negocio || '';
-    const encabezado = configImpresion?.encabezado_ticket || '';
+    const encabezado = configImpresion?.encabezado_ticket || ''; // Keep this as it's used in the HTML
     const piePagina = configImpresion?.pie_pagina_ticket || '';
     const mensajeGracias = configImpresion?.mensaje_agradecimiento || '¡Gracias por su compra!';
     const mostrarLogo = configImpresion?.mostrar_logo !== false;
-    // Usar logo_base64 si está disponible (viene del backend ya codificado)
     const logoSrc = configImpresion?.logo_base64 || null;
     // Fuente del ticket (configurable desde Configuración de Impresión)
-    const fuenteTicket = configImpresion?.fuente_ticket || 'Courier New';
+    // Usamos Lucida Console por defecto para texto más compacto y oscuro (como el ejemplo)
+    const fuenteTicket = configImpresion?.fuente_ticket || 'Lucida Console, Monaco, Consolas';
+
+    // 🆕 Tamaños y espaciados configurables
+    const tamanioGeneral = configImpresion?.tamanio_fuente_general || 9;
+    const tamanioNombreNegocio = configImpresion?.tamanio_fuente_nombre_negocio || 11;
+    const tamanioInfo = configImpresion?.tamanio_fuente_info || 8;
+    const tamanioTabla = configImpresion?.tamanio_fuente_tabla || 8;
+    const tamanioTotales = configImpresion?.tamanio_fuente_totales || 9;
+    const letraSpaciado = configImpresion?.letter_spacing || -0.2;
+    const letraSpaciadoDivider = configImpresion?.letter_spacing_divider || -0.8;
+    const fontWeightTabla = configImpresion?.font_weight_tabla || 'normal';
 
     return `
       <!DOCTYPE html>
@@ -333,11 +370,15 @@ const PaymentModal = ({
           
           body {
             margin: 0;
-            padding: 10px;
-            font-family: '${fuenteTicket}', monospace, sans-serif;
-            font-size: 12px;
+            padding: 15px;
+            font-family: ${fuenteTicket}, 'Lucida Console', 'Monaco', 'Consolas', monospace;
+            font-size: ${tamanioGeneral}px;
+            font-weight: bold;
             background: white;
-            color: black;
+            color: #000;
+            letter-spacing: ${letraSpaciado}px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           
           .ticket-container {
@@ -351,56 +392,69 @@ const PaymentModal = ({
           
           .ticket-header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
           }
           
           .ticket-logo {
-            max-width: 100px;
-            max-height: 80px;
-            margin-bottom: 5px;
+            max-width: 135px;
+            max-height: 115px;
+            margin-bottom: 8px;
+            filter: grayscale(100%);
+            -webkit-filter: grayscale(100%);
           }
 
           .ticket-business-name {
-            font-size: 16px;
+            font-size: ${tamanioNombreNegocio}px;
             font-weight: bold;
-            margin: 5px 0;
+            margin: 8px 0;
             text-transform: uppercase;
           }
           
           .ticket-business-info {
-            font-size: 11px;
+            font-size: 12px;
             margin-bottom: 5px;
+            font-weight: 900;
+            color: #000;
           }
 
           .ticket-divider {
             text-align: center;
             margin: 8px 0;
             font-size: 10px;
+            font-weight: normal;
+            letter-spacing: ${letraSpaciadoDivider}px;
+            line-height: 1;
           }
           
           .ticket-info p {
-            margin: 3px 0;
-            font-size: 11px;
-            line-height: 1.4;
+            margin: 4px 0;
+            font-size: ${tamanioInfo}px;
+            line-height: 1.5;
+            font-weight: bold;
           }
           
           .ticket-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
-            margin: 10px 0;
+            font-size: ${tamanioTabla}px;
+            margin: 12px 0;
+            font-weight: ${fontWeightTabla};
           }
           
           .ticket-table th {
             text-align: left;
-            border-bottom: 1px dashed #000;
-            padding: 3px 2px;
-            font-weight: bold;
+            border-bottom: 1px dotted #000;
+            padding: 3px 1px;
+            font-weight: 900;
+            font-size: ${tamanioTabla}px;
+            color: #000;
           }
           
           .ticket-table td {
-            padding: 3px 2px;
+            padding: 3px 1px;
             vertical-align: top;
+            font-weight: normal;
+            font-size: ${tamanioTabla - 1}px;
           }
           
           .ticket-table th:first-child,
@@ -416,18 +470,19 @@ const PaymentModal = ({
           }
           
           .ticket-totals {
-            margin: 10px 0;
-            font-size: 11px;
+            margin: 12px 0;
+            font-size: ${tamanioTotales}px;
+            font-weight: bold;
           }
           
           .total-row {
             display: flex;
             justify-content: space-between;
-            margin: 3px 0;
+            margin: 5px 0;
           }
           
           .total-final {
-            font-size: 13px;
+            font-size: ${tamanioTotales + 1}px;
             margin-top: 5px;
             padding-top: 5px;
             border-top: 1px dashed #000;
@@ -435,14 +490,16 @@ const PaymentModal = ({
           }
           
           .ticket-payment {
-            margin: 10px 0;
-            font-size: 11px;
+            margin: 12px 0;
+            font-size: ${tamanioTotales}px;
+            font-weight: bold;
           }
           
           .ticket-footer {
             text-align: center;
-            margin-top: 10px;
-            font-size: 11px;
+            margin-top: 12px;
+            font-size: ${tamanioTotales}px;
+            font-weight: bold;
           }
           
           @media print {
@@ -458,21 +515,22 @@ const PaymentModal = ({
             ${mostrarLogo && logoSrc ? `<img src="${logoSrc}" class="ticket-logo" />` : ''}
             <div class="ticket-business-name">${nombreNegocio}</div>
             ${nitNegocio ? `<div class="ticket-business-info">NIT: ${nitNegocio}</div>` : ''}
-            ${direccionNegocio ? `<div class="ticket-business-info">${direccionNegocio}</div>` : ''}
             ${telefonoNegocio ? `<div class="ticket-business-info">Tel: ${telefonoNegocio}</div>` : ''}
+            ${paisNegocio || ciudadNegocio ? `<div class="ticket-business-info">${paisNegocio}${paisNegocio && ciudadNegocio ? '- ' : ''}${ciudadNegocio}</div>` : ''}
+            ${direccionNegocio ? `<div class="ticket-business-info">${direccionNegocio}</div>` : ''}
             ${encabezado ? `<div class="ticket-business-info" style="margin-top:5px; font-style:italic;">${encabezado}</div>` : ''}
           </div>
           
-          <div class="ticket-divider">================================</div>
+          <div class="ticket-divider">................................................</div>
           
           <div class="ticket-info">
             <p><strong>FACTURA:</strong> ${data.numero}</p>
             <p><strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-CO')}</p>
             <p><strong>Cliente:</strong> ${data.cliente}</p>
-            <p><strong>Vendedor:</strong> ${data.vendedor}</p>
+            <p><strong>Atendido por:</strong> ${data.vendedor}</p>
           </div>
           
-          <div class="ticket-divider">================================</div>
+          <div class="ticket-divider">................................................</div>
           
           <table class="ticket-table">
             <thead>
@@ -495,9 +553,17 @@ const PaymentModal = ({
             </tbody>
           </table>
           
-          <div class="ticket-divider">================================</div>
+          <div class="ticket-divider">................................................</div>
           
           <div class="ticket-totals">
+            <div class="total-row">
+              <span>Art</span>
+              <span>${data.items.length}</span>
+            </div>
+            <div class="total-row">
+              <span>Cant.Art</span>
+              <span>${data.items.reduce((sum, item) => sum + item.qty, 0)}</span>
+            </div>
             <div class="total-row">
               <span>Subtotal:</span>
               <span>${formatCurrency(data.subtotal)}</span>
@@ -520,7 +586,7 @@ const PaymentModal = ({
             </div>
           </div>
           
-          <div class="ticket-divider">================================</div>
+          <div class="ticket-divider">........................................</div>
           
           <div class="ticket-payment">
             <p><strong>Método de Pago:</strong> ${data.metodoPago}</p>
@@ -530,7 +596,7 @@ const PaymentModal = ({
             ` : ''}
           </div>
           
-          <div class="ticket-divider">================================</div>
+          <div class="ticket-divider">........................................</div>
           
           <div class="ticket-footer">
             <p><strong>${mensajeGracias}</strong></p>
@@ -554,7 +620,7 @@ const PaymentModal = ({
               const month = String(hoy.getMonth() + 1).padStart(2, '0');
               const day = String(hoy.getDate()).padStart(2, '0');
               return `${year}-${month}-${day}`;
-            })()}</strong> | Vendedor: <strong>{seller}</strong>
+            })()}</strong> | Atendido por: <strong>{seller}</strong>
           </h4>
           <button className="close-button" onClick={onClose} title="Eliminar">
             <i className="bi bi-trash"></i>

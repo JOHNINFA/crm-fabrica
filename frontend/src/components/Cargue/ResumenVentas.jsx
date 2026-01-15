@@ -567,6 +567,9 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   // Ref para evitar sincronización en carga inicial
   const cargaInicialTotales = useRef(true);
 
+  // 🚫 DESACTIVADO: La sincronización de total_pedidos la maneja PlantillaOperativa
+  // Este useEffect causaba conflictos con el polling que actualiza totalPedidos
+  /*
   useEffect(() => {
     // Solo sincronizar si hay productos y no es carga inicial
     if (productos.length === 0 || cargaInicialTotales.current) {
@@ -597,7 +600,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
     // Sincronizar cada campo de totales
     const totalesASincronizar = {
       total_despacho: totalDespacho,
-      total_pedidos: totalPedidosVal,
+      total_pedidos: totalPedidosVal, // 🚫 ESTO CAUSA EL PROBLEMA
       total_dctos: totalDctosVal,
       venta: ventaVal,
       total_efectivo: totalEfectivoVal
@@ -618,6 +621,59 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       }).catch(err => console.error(`❌ Error sincronizando ${campo}:`, err));
     });
   }, [productos, baseCaja, filas, datos.totalPedidos]);
+  */
+
+  // 🚀 NUEVO: Sincronizar Pagos App Móvil con la tabla automáticamente
+  useEffect(() => {
+    // Solo actuar si hay valores de pagos digitales reportados por la App
+    if ((datos.nequi && datos.nequi > 0) || (datos.daviplata && datos.daviplata > 0)) {
+      setFilas(prevFilas => {
+        const nequiApp = datos.nequi || 0;
+        const daviApp = datos.daviplata || 0;
+
+        // Verificar si ya tenemos estos valores exactos para evitar re-render loop
+        const filaApp = prevFilas.find(f => f.concepto === 'Pagos App Móvil');
+        if (filaApp && filaApp.nequi === nequiApp && filaApp.daviplata === daviApp) {
+          return prevFilas; // Sin cambios necesarios
+        }
+
+        const newFilas = [...prevFilas];
+        const indexApp = newFilas.findIndex(f => f.concepto === 'Pagos App Móvil');
+
+        if (indexApp >= 0) {
+          // Actualizar fila existente
+          console.log(`📲 Actualizando Pagos App Móvil en tabla: Nequi=${nequiApp}, Davi=${daviApp}`);
+          newFilas[indexApp] = {
+            ...newFilas[indexApp],
+            nequi: nequiApp,
+            daviplata: daviApp
+          };
+        } else {
+          // Insertar en la primera fila vacía disponible
+          const indexVacia = newFilas.findIndex(f => !f.concepto && f.nequi === 0 && f.daviplata === 0 && f.descuentos === 0);
+          if (indexVacia >= 0) {
+            console.log(`📲 Insertando Pagos App Móvil en fila ${indexVacia}`);
+            newFilas[indexVacia] = {
+              ...newFilas[indexVacia],
+              concepto: 'Pagos App Móvil',
+              nequi: nequiApp,
+              daviplata: daviApp
+            };
+          } else {
+            // Si no hay filas vacías, usar la primera (sobreescritura de emergencia)
+            console.log(`📲 Tabla llena, usando fila 0 para Pagos App Móvil`);
+            newFilas[0] = {
+              ...newFilas[0],
+              concepto: 'Pagos App Móvil',
+              nequi: nequiApp,
+              daviplata: daviApp
+            };
+          }
+        }
+        return newFilas;
+      });
+    }
+  }, [datos.nequi, datos.daviplata]);
 
   return (
     <div className="resumen-container" style={{ marginLeft: '15px' }}>

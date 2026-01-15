@@ -15,6 +15,8 @@ export default function ConfiguracionImpresionScreen() {
     const [nombreNegocio, setNombreNegocio] = useState('MI NEGOCIO');
     const [nitNegocio, setNitNegocio] = useState('');
     const [direccionNegocio, setDireccionNegocio] = useState('');
+    const [ciudadNegocio, setCiudadNegocio] = useState('');
+    const [paisNegocio, setPaisNegocio] = useState('Colombia');
     const [telefonoNegocio, setTelefonoNegocio] = useState('');
     const [emailNegocio, setEmailNegocio] = useState('');
     const [encabezadoTicket, setEncabezadoTicket] = useState('');
@@ -30,6 +32,16 @@ export default function ConfiguracionImpresionScreen() {
     const [resolucionFacturacion, setResolucionFacturacion] = useState('');
     const [regimenTributario, setRegimenTributario] = useState('');
 
+    // 🆕 Estados para estilos visuales
+    const [tamanioFuenteGeneral, setTamanioFuenteGeneral] = useState(14);
+    const [tamanioFuenteNombreNegocio, setTamanioFuenteNombreNegocio] = useState(16);
+    const [tamanioFuenteInfo, setTamanioFuenteInfo] = useState(13);
+    const [tamanioFuenteTabla, setTamanioFuenteTabla] = useState(13);
+    const [tamanioFuenteTotales, setTamanioFuenteTotales] = useState(13);
+    const [letterSpacing, setLetterSpacing] = useState(-0.2);
+    const [letterSpacingDivider, setLetterSpacingDivider] = useState(-0.8);
+    const [fontWeightTabla, setFontWeightTabla] = useState('normal');
+
     useEffect(() => {
         cargarConfiguracion();
     }, []);
@@ -44,6 +56,8 @@ export default function ConfiguracionImpresionScreen() {
                 setNombreNegocio(data.nombre_negocio || 'MI NEGOCIO');
                 setNitNegocio(data.nit_negocio || '');
                 setDireccionNegocio(data.direccion_negocio || '');
+                setCiudadNegocio(data.ciudad_negocio || '');
+                setPaisNegocio(data.pais_negocio || 'Colombia');
                 setTelefonoNegocio(data.telefono_negocio || '');
                 setEmailNegocio(data.email_negocio || '');
                 setEncabezadoTicket(data.encabezado_ticket || '');
@@ -56,6 +70,16 @@ export default function ConfiguracionImpresionScreen() {
                 setImpresoraPredeterminada(data.impresora_predeterminada || '');
                 setResolucionFacturacion(data.resolucion_facturacion || '');
                 setRegimenTributario(data.regimen_tributario || '');
+
+                // 🆕 Cargar estilos visuales
+                setTamanioFuenteGeneral(data.tamanio_fuente_general || 14);
+                setTamanioFuenteNombreNegocio(data.tamanio_fuente_nombre_negocio || 16);
+                setTamanioFuenteInfo(data.tamanio_fuente_info || 13);
+                setTamanioFuenteTabla(data.tamanio_fuente_tabla || 13);
+                setTamanioFuenteTotales(data.tamanio_fuente_totales || 13);
+                setLetterSpacing(data.letter_spacing || -0.2);
+                setLetterSpacingDivider(data.letter_spacing_divider || -0.8);
+                setFontWeightTabla(data.font_weight_tabla || 'normal');
 
                 if (data.logo_base64) {
                     // Usar Base64 si está disponible (más confiable)
@@ -97,6 +121,8 @@ export default function ConfiguracionImpresionScreen() {
                 nombre_negocio: nombreNegocio,
                 nit_negocio: nitNegocio,
                 direccion_negocio: direccionNegocio,
+                ciudad_negocio: ciudadNegocio,
+                pais_negocio: paisNegocio,
                 telefono_negocio: telefonoNegocio,
                 email_negocio: emailNegocio,
                 encabezado_ticket: encabezadoTicket,
@@ -109,6 +135,15 @@ export default function ConfiguracionImpresionScreen() {
                 impresora_predeterminada: impresoraPredeterminada,
                 resolucion_facturacion: resolucionFacturacion,
                 regimen_tributario: regimenTributario,
+                // 🆕 Estilos visuales
+                tamanio_fuente_general: parseInt(tamanioFuenteGeneral),
+                tamanio_fuente_nombre_negocio: parseInt(tamanioFuenteNombreNegocio),
+                tamanio_fuente_info: parseInt(tamanioFuenteInfo),
+                tamanio_fuente_tabla: parseInt(tamanioFuenteTabla),
+                tamanio_fuente_totales: parseInt(tamanioFuenteTotales),
+                letter_spacing: parseFloat(letterSpacing),
+                letter_spacing_divider: parseFloat(letterSpacingDivider),
+                font_weight_tabla: fontWeightTabla,
                 activo: true
             };
 
@@ -204,6 +239,30 @@ export default function ConfiguracionImpresionScreen() {
                                 value={direccionNegocio}
                                 onChange={(e) => setDireccionNegocio(e.target.value)}
                             />
+                        </div>
+
+                        <div className="row">
+                            <div className="col-md-6 mb-3">
+                                <label className="form-label">Ciudad</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={ciudadNegocio}
+                                    onChange={(e) => setCiudadNegocio(e.target.value)}
+                                    placeholder="Ej: BOGOTA"
+                                />
+                            </div>
+
+                            <div className="col-md-6 mb-3">
+                                <label className="form-label">País</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={paisNegocio}
+                                    onChange={(e) => setPaisNegocio(e.target.value)}
+                                    placeholder="Ej: Colombia"
+                                />
+                            </div>
                         </div>
 
                         <div className="row">
@@ -379,6 +438,153 @@ export default function ConfiguracionImpresionScreen() {
                             <label className="form-check-label" htmlFor="mostrarCodigoBarras">
                                 Mostrar código de barras
                             </label>
+                        </div>
+                    </div>
+
+                    {/* 🆕 Estilos Visuales del Ticket */}
+                    <div className="config-section">
+                        <h3>
+                            <i className="bi bi-palette me-2"></i>
+                            Estilos Visuales del Ticket
+                        </h3>
+                        <p className="text-muted mb-3">
+                            <small>Ajusta los tamaños de fuente y espaciado para personalizar la apariencia del ticket impreso</small>
+                        </p>
+
+                        <div className="row">
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Tamaño General (px)
+                                    <i className="bi bi-info-circle ms-1" title="Tamaño base de fuente del ticket"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={tamanioFuenteGeneral}
+                                    onChange={(e) => setTamanioFuenteGeneral(e.target.value)}
+                                    min="10"
+                                    max="20"
+                                />
+                                <small className="text-muted">Recomendado: 12-14px</small>
+                            </div>
+
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Nombre del Negocio (px)
+                                    <i className="bi bi-info-circle ms-1" title="Tamaño del nombre del negocio en el encabezado"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={tamanioFuenteNombreNegocio}
+                                    onChange={(e) => setTamanioFuenteNombreNegocio(e.target.value)}
+                                    min="12"
+                                    max="24"
+                                />
+                                <small className="text-muted">Recomendado: 14-18px</small>
+                            </div>
+
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Información de Venta (px)
+                                    <i className="bi bi-info-circle ms-1" title="Tamaño para datos como factura, fecha, cliente"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={tamanioFuenteInfo}
+                                    onChange={(e) => setTamanioFuenteInfo(e.target.value)}
+                                    min="9"
+                                    max="16"
+                                />
+                                <small className="text-muted">Recomendado: 11-13px</small>
+                            </div>
+                        </div>
+
+                        <div className="row">
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Tabla de Productos (px)
+                                    <i className="bi bi-info-circle ms-1" title="Tamaño de la tabla con productos y precios"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={tamanioFuenteTabla}
+                                    onChange={(e) => setTamanioFuenteTabla(e.target.value)}
+                                    min="9"
+                                    max="16"
+                                />
+                                <small className="text-muted">Recomendado: 11-13px</small>
+                            </div>
+
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Totales (px)
+                                    <i className="bi bi-info-circle ms-1" title="Tamaño para subtotal, impuestos y total"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={tamanioFuenteTotales}
+                                    onChange={(e) => setTamanioFuenteTotales(e.target.value)}
+                                    min="10"
+                                    max="18"
+                                />
+                                <small className="text-muted">Recomendado: 11-14px</small>
+                            </div>
+
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Espaciado de Letras (px)
+                                    <i className="bi bi-info-circle ms-1" title="Espaciado entre letras (negativo = más compacto)"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className="form-control"
+                                    value={letterSpacing}
+                                    onChange={(e) => setLetterSpacing(e.target.value)}
+                                    min="-1"
+                                    max="1"
+                                />
+                                <small className="text-muted">Recomendado: -0.2 a 0</small>
+                            </div>
+                        </div>
+
+                        <div className="row">
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Espaciado de Divisores (px)
+                                    <i className="bi bi-info-circle ms-1" title="Espaciado de los puntos en las líneas divisoras"></i>
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className="form-control"
+                                    value={letterSpacingDivider}
+                                    onChange={(e) => setLetterSpacingDivider(e.target.value)}
+                                    min="-2"
+                                    max="1"
+                                />
+                                <small className="text-muted">Recomendado: -0.8 a -0.5</small>
+                            </div>
+
+                            <div className="col-md-4 mb-3">
+                                <label className="form-label">
+                                    Peso de Fuente de Tabla
+                                    <i className="bi bi-info-circle ms-1" title="Controla si la tabla de productos es normal o negrita"></i>
+                                </label>
+                                <select
+                                    className="form-select"
+                                    value={fontWeightTabla}
+                                    onChange={(e) => setFontWeightTabla(e.target.value)}
+                                >
+                                    <option value="normal">Normal (Menos oscuro)</option>
+                                    <option value="bold">Negrita (Más oscuro)</option>
+                                </select>
+                                <small className="text-muted">Default: Normal</small>
+                            </div>
                         </div>
                     </div>
 

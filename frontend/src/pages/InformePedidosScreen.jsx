@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Badge, Modal, Button } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { pedidoService } from '../services/api';
 import { ModalProvider } from '../context/ModalContext';
 import { CajeroPedidosProvider } from '../context/CajeroPedidosContext';
@@ -10,6 +11,7 @@ import usePageTitle from '../hooks/usePageTitle';
 
 function InformePedidosContent() {
     usePageTitle('Informe de Pedidos');
+    const navigate = useNavigate();
     const [pedidos, setPedidos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(210);
@@ -75,9 +77,12 @@ function InformePedidosContent() {
             total: pedido.total,
             direccionEntrega: pedido.direccion_entrega,
             telefonoContacto: pedido.telefono_contacto,
+            clienteTelefono: pedido.telefono_contacto, // 🆕 Teléfono del cliente
+            clienteZona: pedido.zona_barrio, // 🆕 Zona/Barrio del cliente
             fechaEntrega: pedido.fecha_entrega,
             tipoPedido: pedido.tipo_remision || pedido.tipo_pedido,
             transportadora: pedido.transportadora,
+            generadoPor: pedido.generado_por || pedido.creado_por || 'REMISIONES', // 🆕 Usuario que generó el pedido
             nota: pedido.nota
         };
 
@@ -161,7 +166,7 @@ function InformePedidosContent() {
                             </h6>
                             <button
                                 className="btn btn-outline-secondary btn-sm"
-                                onClick={() => window.location.href = '/remisiones'}
+                                onClick={() => navigate('/remisiones')}
                             >
                                 <i className="bi bi-arrow-left me-2"></i>
                                 Regresar a Pedidos
@@ -217,15 +222,30 @@ function InformePedidosContent() {
                                                                     <td>{pedido.telefono_contacto || '-'}</td>
                                                                     <td className="text-center">{formatFecha(pedido.fecha_entrega)}</td>
                                                                     <td>
-                                                                        <Badge bg={
-                                                                            pedido.estado === 'PENDIENTE' ? 'warning' :
+                                                                        {(() => {
+                                                                            // 🆕 Si es ANULADA pero tiene novedad de entrega, mostrar como PENDIENTE
+                                                                            let estadoMostrar = pedido.estado;
+                                                                            let colorBadge = pedido.estado === 'PENDIENTE' ? 'warning' :
                                                                                 pedido.estado === 'ENTREGADA' ? 'success' :
-                                                                                    pedido.estado === 'EN_TRANSITO' ? 'info' :
-                                                                                        pedido.estado === 'ANULADA' ? 'danger' :
-                                                                                            'secondary'
-                                                                        }>
-                                                                            {pedido.estado}
-                                                                        </Badge>
+                                                                                    pedido.estado === 'ENTREGADO' ? 'success' :
+                                                                                        pedido.estado === 'EN_TRANSITO' ? 'info' :
+                                                                                            pedido.estado === 'ANULADA' ? 'danger' :
+                                                                                                'secondary';
+
+                                                                            // Si está ANULADA por novedad de entrega, mostrarlo como PENDIENTE
+                                                                            // Si está ANULADA por novedad de entrega, mantener como ANULADA (o mostrar NO ENTREGADO si se prefiere, pero el usuario pidió que no diga PENDIENTE)
+                                                                            if (pedido.estado === 'ANULADA' && pedido.nota && pedido.nota.includes('NO ENTREGADO')) {
+                                                                                // Dejamos que muestre ANULADA o ponemos una etiqueta distintiva
+                                                                                // estadoMostrar = 'NO ENTREGADO'; // Opcional: mostrar texto específico
+                                                                                // colorBadge = 'danger';
+                                                                            }
+
+                                                                            return (
+                                                                                <Badge bg={colorBadge}>
+                                                                                    {estadoMostrar}
+                                                                                </Badge>
+                                                                            );
+                                                                        })()}
                                                                     </td>
                                                                     <td><strong>{formatCurrency(pedido.total)}</strong></td>
                                                                 </tr>

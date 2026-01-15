@@ -11,6 +11,7 @@
  * - Formulario de cliente y vendedor
  * - Procesamiento de pagos y generación de facturas
  * - Persistencia de datos en localStorage
+ * - Sincronización automática de ventas offline
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -24,7 +25,11 @@ import Cart from "../components/Pos/Cart";
 import ConsumerForm from "../components/Pos/ConsumerForm";
 import { usePriceList } from "../hooks/usePriceList";
 import usePageTitle from '../hooks/usePageTitle';
+import usePreloadImages from '../hooks/usePreloadImages';
 import "./PosScreen.css";
+
+// 🆕 Importar servicio de sincron ización offline
+import { offlineSyncService } from "../services/offlineSyncService";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
 function PosMainContent() {
@@ -34,6 +39,9 @@ function PosMainContent() {
   const products = useMemo(() => {
     return getProductsByModule ? getProductsByModule('pos') : allProducts;
   }, [allProducts, getProductsByModule]);
+
+  // 🆕 Precargar imágenes de productos
+  usePreloadImages(products);
 
 
 
@@ -56,26 +64,9 @@ function PosMainContent() {
   };
 
   const [date, setDate] = useState(getFechaLocal);
-  const [sellers, setSellers] = useState(["jose", "maria", "luis"]);
-  const [seller, setSeller] = useState("jose");
 
-  // Configurar vendedores simples
-  useEffect(() => {
-    const allSellers = ["jose", "Wilson"];
-    setSellers(allSellers);
-    setSeller("jose");
-  }, []);
-
-  // Actualizar vendedor cuando se loguea un cajero
-  useEffect(() => {
-    if (isAuthenticated && cajeroLogueado) {
-
-      setSeller(cajeroLogueado.nombre);
-    } else {
-      // Si no hay cajero logueado, usar vendedor por defecto
-      setSeller("jose");
-    }
-  }, [isAuthenticated, cajeroLogueado]);
+  // 🆕 El vendedor es SIEMPRE el cajero logueado
+  const seller = cajeroLogueado?.nombre || 'POS';
 
   const [client, setClient] = useState("CONSUMIDOR FINAL");
 
@@ -105,6 +96,17 @@ function PosMainContent() {
 
   // Hook para obtener precios de la lista actual
   const { precios } = usePriceList(priceList, products);
+
+  // 🆕 Activar sincronización automática de ventas offline
+  useEffect(() => {
+    // Iniciar sincronización automática
+    offlineSyncService.startAutoSync();
+
+    // Limpiar al desmontar
+    return () => {
+      offlineSyncService.stopAutoSync();
+    };
+  }, []);
 
   // Actualizar precios del carrito cuando cambia la lista de precios
   useEffect(() => {
@@ -186,10 +188,8 @@ function PosMainContent() {
                     client={client}
                     priceList={priceList}
                     setDate={setDate}
-                    setSeller={setSeller}
                     setClient={setClient}
                     setPriceList={setPriceList}
-                    sellers={sellers}
                   />
                   <Cart
                     cart={cart}

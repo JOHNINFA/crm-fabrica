@@ -16,7 +16,8 @@ def actualizar_existencias_planeacion(sender, instance, created, **kwargs):
     
     try:
         # Obtener el stock actual del producto
-        stock_actual = Stock.objects.filter(producto_nombre=instance.producto_nombre).first()
+        producto_nombre = instance.producto.nombre  # MovimientoInventario usa FK producto
+        stock_actual = Stock.objects.filter(producto_nombre=producto_nombre).first()
         if not stock_actual:
             return
         
@@ -26,7 +27,7 @@ def actualizar_existencias_planeacion(sender, instance, created, **kwargs):
         fecha_hoy = date.today()
         
         planeaciones = Planeacion.objects.filter(
-            producto_nombre=instance.producto_nombre,
+            producto_nombre=producto_nombre,
             fecha__gte=fecha_hoy
         ).order_by('fecha')
         
@@ -69,7 +70,7 @@ def actualizar_existencias_desde_stock(sender, instance, **kwargs):
 def actualizar_nombre_en_cargue(sender, instance, **kwargs):
     """
     Cuando se cambia el nombre de un producto, actualiza automáticamente
-    ese nombre en todas las tablas de Cargue (CargueID1-6).
+    ese nombre en TODAS las tablas que usan producto_nombre.
     """
     # Solo procesar si el producto ya existe (no es nuevo)
     if not instance.pk:
@@ -85,22 +86,62 @@ def actualizar_nombre_en_cargue(sender, instance, **kwargs):
         if nombre_anterior == nombre_nuevo:
             return
         
-        print(f"🔄 Actualizando nombre de producto en Cargue:")
+        print(f"🔄 Actualizando nombre de producto en TODO el sistema:")
         print(f"   Anterior: {nombre_anterior}")
         print(f"   Nuevo: {nombre_nuevo}")
         
-        # Actualizar en todas las tablas de Cargue
-        modelos_cargue = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
-        total_actualizados = 0
+        total_general = 0
         
+        # ========== 1. CARGUE (ID1-ID6) ==========
+        modelos_cargue = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
         for Modelo in modelos_cargue:
             count = Modelo.objects.filter(producto=nombre_anterior).update(producto=nombre_nuevo)
             if count > 0:
-                print(f"   ✅ {Modelo.__name__}: {count} registros actualizados")
-                total_actualizados += count
+                print(f"   ✅ {Modelo.__name__}: {count} registros")
+                total_general += count
         
-        if total_actualizados > 0:
-            print(f"   📊 Total: {total_actualizados} registros actualizados en Cargue")
+        # ========== 2. STOCK ==========
+        count = Stock.objects.filter(producto_nombre=nombre_anterior).update(producto_nombre=nombre_nuevo)
+        if count > 0:
+            print(f"   ✅ Stock: {count} registros")
+            total_general += count
+        
+        # ========== 3. PLANEACIÓN ==========
+        count = Planeacion.objects.filter(producto_nombre=nombre_anterior).update(producto_nombre=nombre_nuevo)
+        if count > 0:
+            print(f"   ✅ Planeacion: {count} registros")
+            total_general += count
+        
+        # ========== 4. REGISTRO INVENTARIO ==========
+        from .models import RegistroInventario
+        count = RegistroInventario.objects.filter(producto_nombre=nombre_anterior).update(producto_nombre=nombre_nuevo)
+        if count > 0:
+            print(f"   ✅ RegistroInventario: {count} registros")
+            total_general += count
+        
+        # ========== 5. REGISTROS PLANEACION DIA ==========
+        try:
+            from .models import RegistrosPlaneacionDia
+            count = RegistrosPlaneacionDia.objects.filter(producto_nombre=nombre_anterior).update(producto_nombre=nombre_nuevo)
+            if count > 0:
+                print(f"   ✅ RegistrosPlaneacionDia: {count} registros")
+                total_general += count
+        except:
+            pass  # Modelo puede no existir
+        
+        # ========== 6. PRODUCCION SOLICITADA ==========
+        try:
+            from .models import ProduccionSolicitada
+            count = ProduccionSolicitada.objects.filter(producto_nombre=nombre_anterior).update(producto_nombre=nombre_nuevo)
+            if count > 0:
+                print(f"   ✅ ProduccionSolicitada: {count} registros")
+                total_general += count
+        except:
+            pass  # Modelo puede no existir
+        
+        # ========== RESUMEN ==========
+        if total_general > 0:
+            print(f"   📊 TOTAL: {total_general} registros actualizados en todo el sistema")
         else:
             print(f"   ℹ️ No se encontraron registros con el nombre anterior")
             
@@ -108,4 +149,4 @@ def actualizar_nombre_en_cargue(sender, instance, **kwargs):
         # El producto es nuevo, no hacer nada
         pass
     except Exception as e:
-        print(f"❌ Error actualizando nombre en Cargue: {e}")
+        print(f"❌ Error actualizando nombre: {e}")

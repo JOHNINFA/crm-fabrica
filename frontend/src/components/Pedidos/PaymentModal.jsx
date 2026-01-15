@@ -18,6 +18,7 @@ const PaymentModal = ({
     const [destinatario, setDestinatario] = useState(client);
     const [direccionEntrega, setDireccionEntrega] = useState("");
     const [telefonoContacto, setTelefonoContacto] = useState("");
+    const [zonaBarrio, setZonaBarrio] = useState(""); // 🆕 Zona/Barrio del cliente
     const [fechaEntrega, setFechaEntrega] = useState("");
     const [nota, setNota] = useState("");
     const [tipoPedido, setTipoRemision] = useState("ENTREGA");
@@ -71,7 +72,10 @@ const PaymentModal = ({
 
 
             if (clientData.direccion) setDireccionEntrega(clientData.direccion);
-            if (clientData.telefono) setTelefonoContacto(clientData.telefono);
+            // 🆕 Priorizar movil, luego telefono_1, luego telefono_contacto
+            const telefono = clientData.movil || clientData.telefono_1 || clientData.telefono_contacto || '';
+            if (telefono) setTelefonoContacto(telefono);
+            if (clientData.zona_barrio) setZonaBarrio(clientData.zona_barrio); // 🆕
             if (clientData.fecha) setFechaEntrega(clientData.fecha);
             // No asignamos vendedor automáticamente, el usuario debe hacerlo manualmente
         }
@@ -155,6 +159,7 @@ const PaymentModal = ({
                 destinatario: destinatario,
                 direccion_entrega: direccionEntrega,
                 telefono_contacto: telefonoContacto,
+                zona_barrio: zonaBarrio, // 🆕 Enviar zona al backend
                 fecha_entrega: fechaEntrega,
                 tipo_remision: tipoPedido,
                 transportadora: transportadora,
@@ -484,7 +489,8 @@ const PaymentModal = ({
                         descuentos: descuentos,
                         total: safeTotal,
                         direccionEntrega: direccionEntrega,
-                        telefonoContacto: telefonoContacto,
+                        clienteTelefono: telefonoContacto, // 🆕 Para el ticket
+                        clienteZona: zonaBarrio, // 🆕 Para el ticket
                         fechaEntrega: fechaEntrega,
                         tipoPedido: tipoPedido,
                         transportadora: transportadora,

@@ -1,6 +1,8 @@
 import React, { useState, useRef } from "react";
+import Swal from 'sweetalert2';
 import "./Cart.css";
 import PaymentModal from "./PaymentModal";
+import { useCajero } from "../../context/CajeroContext";
 
 export default function Cart({
   cart = [],
@@ -16,6 +18,7 @@ export default function Cart({
   client = 'CONSUMIDOR FINAL',
   clearCart = () => { }
 }) {
+  const { cajeroLogueado, isAuthenticated, openLoginModal } = useCajero();
   const [nota, setNota] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
@@ -53,6 +56,35 @@ export default function Cart({
     const y = e.pageY - cartBodyRef.current.offsetTop;
     const walk = (y - startY) * 2;
     cartBodyRef.current.scrollTop = scrollTop - walk;
+  };
+
+  // 🆕 Manejar click en checkout - validar cajero logueado
+  const handleCheckout = () => {
+    if (!isAuthenticated || !cajeroLogueado) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Login Requerido',
+        html: `
+          <p>Para realizar una venta debes iniciar sesión como <strong>Cajero</strong>.</p>
+          <p style="font-size: 14px; color: #6c757d; margin-top: 10px;">
+            <i class="bi bi-info-circle"></i> 
+            Haz clic en el botón <strong>"Login Cajero"</strong> en la barra superior.
+          </p>
+        `,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#3085d6',
+        footer: '<small>Ingresa con tu usuario y contraseña de cajero</small>'
+      }).then(() => {
+        // Abrir modal de login si existe la función
+        if (openLoginModal) {
+          openLoginModal();
+        }
+      });
+      return;
+    }
+
+    // Si está logueado, abrir modal de pago
+    setShowPaymentModal(true);
   };
 
   // Renderizar item del carrito
@@ -174,7 +206,7 @@ export default function Cart({
 
         <button
           className="checkout-button pos-checkout-btn"
-          onClick={() => setShowPaymentModal(true)}
+          onClick={handleCheckout}
         >
           Realizar Factura {formatCurrency(total)}
         </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Table, Form, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Table, Form, InputGroup, Nav } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
 import usePageTitle from '../hooks/usePageTitle';
@@ -11,6 +11,7 @@ const ListaClientesScreen = () => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('TODOS'); // Nuevo estado para filtro
   const [showChat, setShowChat] = useState(() => {
     return localStorage.getItem('chat_visible_clientes') === 'true';
   });
@@ -59,11 +60,28 @@ const ListaClientesScreen = () => {
     }
   };
 
-  const clientesFiltrados = clientes.filter(cliente =>
-    (cliente.nombre_completo || '').toLowerCase().includes(busqueda.toLowerCase()) ||
-    (cliente.alias || '').toLowerCase().includes(busqueda.toLowerCase()) ||
-    (cliente.identificacion || '').includes(busqueda)
-  );
+  // Filtrar clientes por búsqueda y tipo
+  const clientesFiltrados = clientes.filter(cliente => {
+    // Filtro por búsqueda
+    const coincideBusqueda =
+      (cliente.nombre_completo || '').toLowerCase().includes(busqueda.toLowerCase()) ||
+      (cliente.alias || '').toLowerCase().includes(busqueda.toLowerCase()) ||
+      (cliente.identificacion || '').includes(busqueda);
+
+    // Filtro por tipo
+    let coincideTipo = true;
+    if (filtroTipo === 'CLIENTE_POS') {
+      // Clientes POS: tipo_contacto = 'CLIENTE' o 'CLIENTE_POS', sin día de entrega
+      coincideTipo = (!cliente.dia_entrega || cliente.dia_entrega.trim() === '') &&
+        (cliente.tipo_contacto === 'CLIENTE' || cliente.tipo_contacto === 'CLIENTE_POS' || !cliente.tipo_contacto);
+    } else if (filtroTipo === 'CLIENTE_PEDIDOS') {
+      // Clientes Pedidos: tienen día de entrega definido
+      coincideTipo = cliente.dia_entrega && cliente.dia_entrega.trim() !== '';
+    }
+    // Si filtroTipo === 'TODOS', coincideTipo ya es true
+
+    return coincideBusqueda && coincideTipo;
+  });
 
   return (
     <div style={{ backgroundColor: '#f4f6f9', minHeight: '100vh', padding: '2rem' }}>
@@ -111,6 +129,39 @@ const ListaClientesScreen = () => {
                 </Button>
               </div>
             </div>
+          </Col>
+        </Row>
+
+        {/* Tabs para filtrar tipos de clientes */}
+        <Row className="mb-3">
+          <Col>
+            <Nav variant="tabs" activeKey={filtroTipo} onSelect={(k) => setFiltroTipo(k)}>
+              <Nav.Item>
+                <Nav.Link eventKey="TODOS">
+                  <i className="bi bi-people me-2"></i>
+                  Todos los Clientes
+                  <span className="badge bg-secondary ms-2">{clientes.length}</span>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="CLIENTE_POS">
+                  <i className="bi bi-shop me-2"></i>
+                  Clientes POS
+                  <span className="badge bg-primary ms-2">
+                    {clientes.filter(c => (!c.dia_entrega || c.dia_entrega.trim() === '')).length}
+                  </span>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="CLIENTE_PEDIDOS">
+                  <i className="bi bi-truck me-2"></i>
+                  Clientes Pedidos
+                  <span className="badge bg-success ms-2">
+                    {clientes.filter(c => c.dia_entrega && c.dia_entrega.trim() !== '').length}
+                  </span>
+                </Nav.Link>
+              </Nav.Item>
+            </Nav>
           </Col>
         </Row>
 
@@ -233,6 +284,18 @@ const ListaClientesScreen = () => {
                                 >
                                   <i className="bi bi-eye"></i>
                                 </Button>
+                                {/* Botón para convertir Cliente POS → Cliente Pedidos */}
+                                {(!cliente.dia_entrega || cliente.dia_entrega.trim() === '') && (
+                                  <Button
+                                    variant="outline-warning"
+                                    size="sm"
+                                    className="me-1"
+                                    onClick={() => navigate(`/clientes/editar/${cliente.id}`)}
+                                    title="Convertir a Cliente de Pedidos"
+                                  >
+                                    <i className="bi bi-arrow-right-circle"></i>
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outline-danger"
                                   size="sm"

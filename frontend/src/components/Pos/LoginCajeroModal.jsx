@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Alert, Spinner, Dropdown } from 'react-bootstrap';
+import Swal from 'sweetalert2';
 import { useCajero } from '../../context/CajeroContext';
 import './LoginCajeroModal.css';
 
@@ -152,6 +153,36 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
     // Manejar logout
     const handleLogout = async () => {
+        // 🆕 Confirmar que se realizó el corte de caja
+        const confirmarCierre = await Swal.fire({
+            title: '⚠️ Cerrar Sesión',
+            html: `
+                <p style="font-size: 16px; margin-bottom: 15px;">
+                    ¿Realizaste el <strong>corte de caja</strong> antes de cerrar sesión?
+                </p>
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 15px;">
+                    <p style="margin: 0; color: #856404; font-size: 14px;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> 
+                        <strong>Importante:</strong> Debes hacer el corte de caja antes de cerrar sesión.
+                    </p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: '✅ Sí, hice el corte',
+            cancelButtonText: '❌ Cancelar',
+            reverseButtons: true,
+            focusCancel: true
+        });
+
+        // Si no confirma, cancelar el logout
+        if (!confirmarCierre.isConfirmed) {
+            return;
+        }
+
+        // Proceder con el logout
         try {
             const resultado = await logout();
             if (resultado.success) {

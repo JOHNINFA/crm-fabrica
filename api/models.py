@@ -737,6 +737,8 @@ class ConfiguracionImpresion(models.Model):
     nombre_negocio = models.CharField(max_length=255, default='MI NEGOCIO')
     nit_negocio = models.CharField(max_length=50, blank=True, null=True)
     direccion_negocio = models.TextField(blank=True, null=True)
+    ciudad_negocio = models.CharField(max_length=100, blank=True, null=True, help_text='Ciudad del negocio (ej: BOGOTA)')
+    pais_negocio = models.CharField(max_length=100, blank=True, null=True, default='Colombia', help_text='País del negocio')
     telefono_negocio = models.CharField(max_length=100, blank=True, null=True)
     email_negocio = models.EmailField(blank=True, null=True)
     
@@ -749,6 +751,17 @@ class ConfiguracionImpresion(models.Model):
     logo = models.ImageField(upload_to='configuracion/', null=True, blank=True)
     ancho_papel = models.CharField(max_length=10, choices=ANCHO_PAPEL_CHOICES, default='80mm')
     fuente_ticket = models.CharField(max_length=50, choices=FUENTE_TICKET_CHOICES, default='Courier New', verbose_name='Fuente del Ticket')
+    
+    # 🆕 Configuración de estilos visuales (tamaños, espaciados, etc.)
+    tamanio_fuente_general = models.IntegerField(default=14, help_text='Tamaño de fuente general del ticket (px)')
+    tamanio_fuente_nombre_negocio = models.IntegerField(default=16, help_text='Tamaño del nombre del negocio (px)')
+    tamanio_fuente_info = models.IntegerField(default=13, help_text='Tamaño de la información de venta (px)')
+    tamanio_fuente_tabla = models.IntegerField(default=13, help_text='Tamaño de la tabla de productos (px)')
+    tamanio_fuente_totales = models.IntegerField(default=13, help_text='Tamaño de los totales (px)')
+    letter_spacing = models.DecimalField(max_digits=3, decimal_places=1, default=-0.2, help_text='Espaciado entre letras (px, negativo para compactar)')
+    letter_spacing_divider = models.DecimalField(max_digits=3, decimal_places=1, default=-0.8, help_text='Espaciado de divisores (px)')
+    font_weight_tabla = models.CharField(max_length=10, default='normal', choices=[('normal', 'Normal'), ('bold', 'Negrita')], help_text='Peso de fuente de la tabla de productos')
+    
     mostrar_logo = models.BooleanField(default=True)
     mostrar_codigo_barras = models.BooleanField(default=False)
     impresora_predeterminada = models.CharField(max_length=255, blank=True, null=True)
@@ -1588,6 +1601,7 @@ class Pedido(models.Model):
     # Información de entrega
     direccion_entrega = models.TextField()
     telefono_contacto = models.CharField(max_length=20, blank=True, null=True)
+    zona_barrio = models.CharField(max_length=255, blank=True, null=True, verbose_name='Zona/Barrio')  # 🆕
     fecha_entrega = models.DateField(null=True, blank=True)
     
     # Clasificación
@@ -1627,6 +1641,7 @@ class Pedido(models.Model):
     # Estado y control
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     nota = models.TextField(blank=True, null=True)
+    novedades = models.JSONField(default=list, blank=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     

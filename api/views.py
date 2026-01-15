@@ -2033,7 +2033,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         # Filtro final (Fecha Y No Cancelado/Anulado)
         # 🔧 Incluir ENTREGADO para que la app móvil pueda mostrar check verde
-        filtro_base = Q(fecha_entrega=fecha) & ~Q(estado__in=['CANCELADO', 'ANULADA'])
+        # 🔧 Incluir ANULADA para mostrar badge de No Entregado (pero excluir CANCELADO)
+        filtro_base = Q(fecha_entrega=fecha) & ~Q(estado__in=['CANCELADO'])
         
         condicion_asignacion = Q(asignado_a_id=vendedor_id)
         if nombre_vendedor:

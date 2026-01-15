@@ -614,7 +614,7 @@ class PedidoSerializer(serializers.ModelSerializer):
             'id', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
             'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
-            'descuentos', 'total', 'estado', 'nota', 'metodo_pago',  # 🆕 Agregado
+            'descuentos', 'total', 'estado', 'nota', 'metodo_pago', 'novedades',
             'fecha_creacion', 'fecha_actualizacion', 'detalles',
             # Nuevos campos
             'afectar_inventario_inmediato', 'asignado_a_tipo', 
@@ -771,6 +771,30 @@ class PedidoSerializer(serializers.ModelSerializer):
             print(f"{'='*60}\n")
         
         return pedido
+
+    def update(self, instance, validated_data):
+        from django.db import transaction
+        from .models import DetallePedido
+        
+        detalles_data = self.context['request'].data.get('detalles')
+        
+        with transaction.atomic():
+            # Actualizar campos del pedido
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            
+            # Si vienen detalles, reemplazar todos
+            if detalles_data is not None:
+                instance.detalles.all().delete()
+                for detalle_data in detalles_data:
+                    DetallePedido.objects.create(
+                        pedido=instance, 
+                        producto_id=detalle_data['producto'],
+                        cantidad=detalle_data['cantidad'],
+                        precio_unitario=detalle_data['precio_unitario']
+                    )
+        return instance
 class PlaneacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Planeacion
@@ -806,9 +830,14 @@ class ConfiguracionImpresionSerializer(serializers.ModelSerializer):
         model = ConfiguracionImpresion
         fields = [
             'id', 'nombre_negocio', 'nit_negocio', 'direccion_negocio',
+            'ciudad_negocio', 'pais_negocio',
             'telefono_negocio', 'email_negocio', 'encabezado_ticket',
             'pie_pagina_ticket', 'mensaje_agradecimiento', 'logo', 'logo_base64',
-            'ancho_papel', 'fuente_ticket', 'mostrar_logo', 'mostrar_codigo_barras',
+            'ancho_papel', 'fuente_ticket', 
+            'tamanio_fuente_general', 'tamanio_fuente_nombre_negocio', 
+            'tamanio_fuente_info', 'tamanio_fuente_tabla', 'tamanio_fuente_totales',
+            'letter_spacing', 'letter_spacing_divider', 'font_weight_tabla',
+            'mostrar_logo', 'mostrar_codigo_barras',
             'impresora_predeterminada', 'resolucion_facturacion',
             'regimen_tributario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
         ]

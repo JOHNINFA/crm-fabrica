@@ -24,11 +24,14 @@ const verifyPassword = async (password, hashedPassword) => {
 };
 
 // Datos de ejemplo para desarrollo (fallback)
+// Hash pre-calculado de '123456' para evitar problemas con crypto.subtle
+const HASH_123456 = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
+
 const cajerosEjemplo = [
     {
         id: 1,
         nombre: 'jose',
-        password: hashPassword('123456'),
+        password: HASH_123456,
         sucursal_id: 1,
         modulo_asignado: 'POS',
         rol: 'CAJERO',
@@ -41,7 +44,7 @@ const cajerosEjemplo = [
     {
         id: 2,
         nombre: 'prueba1',
-        password: hashPassword('123456'),
+        password: HASH_123456,
         sucursal_id: 1,
         modulo_asignado: 'POS',
         rol: 'CAJERO',
@@ -54,7 +57,7 @@ const cajerosEjemplo = [
     {
         id: 3,
         nombre: 'maria',
-        password: hashPassword('123456'),
+        password: HASH_123456,
         sucursal_id: 1,
         modulo_asignado: 'REMISIONES',
         rol: 'CAJERO',
@@ -67,7 +70,7 @@ const cajerosEjemplo = [
     {
         id: 4,
         nombre: 'carlos',
-        password: hashPassword('123456'),
+        password: HASH_123456,
         sucursal_id: 2,
         modulo_asignado: 'AMBOS',
         rol: 'SUPERVISOR',

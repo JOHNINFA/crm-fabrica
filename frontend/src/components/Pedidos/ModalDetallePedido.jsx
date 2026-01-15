@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './ModalDetallePedido.css';
 
 export default function ModalDetallePedido({ show, onClose, pedido }) {
+  const [mostrarNovedades, setMostrarNovedades] = useState(false);
+
   if (!show || !pedido) return null;
 
 
@@ -71,6 +73,31 @@ export default function ModalDetallePedido({ show, onClose, pedido }) {
             </table>
           </div>
 
+          {/* Sección de Novedades (Condicional) */}
+          {mostrarNovedades && pedido.novedades && (
+            <div className="novedades-section mt-3 p-3" style={{ backgroundColor: '#fff3cd', borderRadius: '8px', border: '1px solid #ffeeba' }}>
+              <h5 className="mb-3" style={{ color: '#856404' }}>
+                <i className="bi bi-arrow-return-left me-2"></i>
+                Devolución de Producto
+              </h5>
+              <div className="novedades-list">
+                {pedido.novedades.map((nov, i) => (
+                  <div key={i} className="card mb-2" style={{ border: '1px solid #f5c6cb', backgroundColor: '#f8d7da' }}>
+                    <div className="card-body p-2">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <strong style={{ color: '#721c24' }}>{nov.producto_nombre || 'Producto Desconocido'}</strong>
+                        <span className="badge bg-danger rounded-pill">Devuelto: {nov.cantidad}</span>
+                      </div>
+                      <small className="text-secondary d-block mt-1">
+                        {nov.descripcion || nov.motivo || 'Diferencia en entrega'}
+                      </small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="totales-section">
             <div className="total-row">
               <span>Total:</span>
@@ -80,9 +107,20 @@ export default function ModalDetallePedido({ show, onClose, pedido }) {
         </div>
 
         <div className="modal-footer-pedido">
+          {pedido.novedades && pedido.novedades.length > 0 && (
+            <button
+              className="btn btn-warning me-2"
+              onClick={() => setMostrarNovedades(!mostrarNovedades)}
+              style={{ color: '#856404', fontWeight: 'bold' }}
+            >
+              <i className="bi bi-exclamation-triangle-fill me-2"></i>
+              {mostrarNovedades ? 'Ocultar Novedades' : 'Novedades Pedido'}
+            </button>
+          )}
           <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
         </div>
       </div>
     </div>
   );
 }
+

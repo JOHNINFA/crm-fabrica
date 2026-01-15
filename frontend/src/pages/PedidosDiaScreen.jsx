@@ -188,9 +188,9 @@ export default function PedidosDiaScreen() {
 
 
         // Filtrar por fecha de entrega que coincida con la fecha seleccionada
-        // Y excluir pedidos anulados
+        // 🆕 Permitir pedidos ANULADA para mostrar "No Entregado" en la tabla
         const pedidosFiltradas = pedidos.filter(r =>
-          r.fecha_entrega === fechaSeleccionada && r.estado !== 'ANULADA'
+          r.fecha_entrega === fechaSeleccionada
         );
 
 
@@ -449,6 +449,8 @@ export default function PedidosDiaScreen() {
                 {clientesOrdenados.map((cliente, index) => {
                   const tienePedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
                   const estaEntregado = tienePedido && tienePedido.estado === 'ENTREGADO';
+                  const tieneNovedad = tienePedido && (tienePedido.novedades && tienePedido.novedades.length > 0);
+                  // 🆕 En Gestión Pedidos, NO mostramos "No Entregado". Si hay pedido, es "Realizado".
 
                   return (
                     <tr
@@ -456,21 +458,21 @@ export default function PedidosDiaScreen() {
                       draggable
                       style={{
                         cursor: draggedIndex === index ? 'grabbing' : 'grab',
-                        backgroundColor: estaEntregado ? 'rgba(34, 197, 94, 0.1)' : // Verde transparente si entregado
-                          draggedIndex === index ? '#EBF8FF' : '#FFFFFF',
+                        backgroundColor: tieneNovedad ? 'rgba(239, 68, 68, 0.1)' : (estaEntregado ? 'rgba(34, 197, 94, 0.1)' : // Verde transparente si entregado
+                          draggedIndex === index ? '#EBF8FF' : '#FFFFFF'),
                         borderBottom: '1px solid #E5E7EB',
                         transition: 'background-color 0.2s ease-in-out',
                         opacity: draggedIndex === index ? 0.5 : 1,
                         height: '45px'
                       }}
                       onMouseEnter={(e) => {
-                        if (draggedIndex !== index && !estaEntregado) {
+                        if (draggedIndex !== index && !estaEntregado && !tieneNovedad) {
                           e.target.closest('tr').style.backgroundColor = '#F9FAFB';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (draggedIndex !== index) {
-                          e.target.closest('tr').style.backgroundColor = estaEntregado ? 'rgba(34, 197, 94, 0.1)' : '#FFFFFF';
+                          e.target.closest('tr').style.backgroundColor = tieneNovedad ? 'rgba(239, 68, 68, 0.1)' : (estaEntregado ? 'rgba(34, 197, 94, 0.1)' : '#FFFFFF');
                         }
                       }}
                       onDragStart={(e) => handleDragStart(e, index)}

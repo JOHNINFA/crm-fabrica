@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from 'sweetalert2';
 import "./Cart.css";
 import PaymentModal from "./PaymentModal";
+import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
 
 export default function Cart({
     cart = [],
@@ -21,6 +23,7 @@ export default function Cart({
     date = null
 }) {
     const navigate = useNavigate();
+    const { cajeroLogueado, isAuthenticated, openLoginModal } = useCajeroPedidos();
     const [nota, setNota] = useState("");
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     // Estado persistente para el toggle
@@ -136,6 +139,35 @@ export default function Cart({
         </div>
     );
 
+    // 🆕 Manejar click en generar pedido - validar cajero logueado
+    const handleCheckout = () => {
+        if (!isAuthenticated || !cajeroLogueado) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Login Requerido',
+                html: `
+                    <p>Para generar un pedido debes iniciar sesión como <strong>Usuario</strong>.</p>
+                    <p style="font-size: 14px; color: #6c757d; margin-top: 10px;">
+                        <i class="bi bi-info-circle"></i> 
+                        Haz clic en el botón <strong>"Login Cajero"</strong> en la barra superior.
+                    </p>
+                `,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#3085d6',
+                footer: '<small>Ingresa con tu usuario y contraseña</small>'
+            }).then(() => {
+                // Abrir modal de login si existe la función
+                if (openLoginModal) {
+                    openLoginModal();
+                }
+            });
+            return;
+        }
+
+        // Si está logueado, abrir modal de pago
+        setShowPaymentModal(true);
+    };
+
     return (
         <div className="cart-container">
             {/* Body */}
@@ -231,7 +263,7 @@ export default function Cart({
 
                 <button
                     className="checkout-button pedidos-checkout-btn"
-                    onClick={() => setShowPaymentModal(true)}
+                    onClick={handleCheckout}
                     style={{ marginTop: '0' }}
                 >
                     Generar Pedido ${formatCurrency(total)}

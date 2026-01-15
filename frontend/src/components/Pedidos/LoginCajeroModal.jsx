@@ -188,8 +188,8 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
     return (
         <Modal show={show} onHide={onHide} centered size="md" backdrop="static" className="login-cajero-modal">
-            <Modal.Header closeButton style={{ padding: '0.75rem 1rem' }}>
-                <Modal.Title style={{ fontSize: '1.1rem' }}>
+            <Modal.Header closeButton style={{ padding: '0.75rem 1rem', backgroundColor: '#0d6efd', color: 'white', borderBottom: 'none' }}>
+                <Modal.Title style={{ fontSize: '1.1rem', color: 'white' }}>
                     <span className="material-icons me-2" style={{ verticalAlign: 'middle', fontSize: '1.2rem' }}>
                         login
                     </span>

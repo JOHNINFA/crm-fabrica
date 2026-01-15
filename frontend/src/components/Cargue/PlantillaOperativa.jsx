@@ -307,6 +307,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             totalDctos: 0,
             venta: 0,
             totalEfectivo: 0,
+            nequi: 0,
+            daviplata: 0
         };
     });
 
@@ -382,13 +384,22 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 return coincideFecha && coincideVendedor && noAnulado;
             });
 
-            // Sumar el total de los pedidos
-            const totalPedidos = pedidosFiltrados.reduce((sum, pedido) => {
-                return sum + parseFloat(pedido.total || 0);
-            }, 0);
+            // Sumar el total de los pedidos y desglose de pagos
+            const totales = pedidosFiltrados.reduce((acc, pedido) => {
+                const monto = parseFloat(pedido.total || 0);
+                acc.total += monto;
 
-            console.log(`💰 Total pedidos para ${idVendedor}: $${totalPedidos}`);
-            return totalPedidos;
+                // Sumar pagos digitales
+                if (pedido.metodo_pago === 'NEQUI') {
+                    acc.nequi += monto;
+                } else if (pedido.metodo_pago === 'DAVIPLATA') {
+                    acc.daviplata += monto;
+                }
+                return acc;
+            }, { total: 0, nequi: 0, daviplata: 0 });
+
+            console.log(`💰 Total pedidos para ${idVendedor}: $${totales.total} (Nequi: ${totales.nequi}, Daviplata: ${totales.daviplata})`);
+            return totales;
 
         } catch (error) {
             console.error('❌ Error cargando pedidos:', error);
@@ -403,16 +414,27 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             if (!idSheet || !fechaFormateadaLS) return;
 
             console.log(`🔄 Polling: Verificando nuevos pedidos para ${idSheet}...`);
-            const totalPedidosNuevo = await cargarPedidosVendedor(fechaFormateadaLS, idSheet);
+            const resultadosPedidos = await cargarPedidosVendedor(fechaFormateadaLS, idSheet);
+
+            // Extraer valores (manejo seguro por si devuelve solo número en versiones antiguas)
+            const totalNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.total : resultadosPedidos;
+            const nequiNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.nequi : 0;
+            const daviNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.daviplata : 0;
 
             if (isMounted) {
                 setDatosResumen(prev => {
-                    // Solo actualizar si el valor cambió
-                    if (prev.totalPedidos !== totalPedidosNuevo) {
-                        console.log(`💰 Cambio detectado en pedidos: $${prev.totalPedidos} -> $${totalPedidosNuevo}`);
+                    // Solo actualizar si algún valor cambió
+                    const cambioTotal = prev.totalPedidos !== totalNuevo;
+                    const cambioNequi = (prev.nequi || 0) !== nequiNuevo;
+                    const cambioDavi = (prev.daviplata || 0) !== daviNuevo;
+
+                    if (cambioTotal || cambioNequi || cambioDavi) {
+                        console.log(`💰 Cambio detallado en pedidos: Total $${prev.totalPedidos}->${totalNuevo}, Nequi $${prev.nequi}->${nequiNuevo}`);
                         return {
                             ...prev,
-                            totalPedidos: totalPedidosNuevo
+                            totalPedidos: totalNuevo,
+                            nequi: nequiNuevo,
+                            daviplata: daviNuevo
                         };
                     }
                     return prev;
@@ -610,11 +632,18 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                 // 🚀 CORREGIDO: Calcular totalPedidos real desde la BD
                 const totalNeto = productosDesdeDB.reduce((sum, p) => sum + (p.neto || 0), 0);
-                const totalPedidosReal = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
+                const resultadoPedidos = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
+
+                // 🔧 EXTRAER valores del objeto retornado (no asignar el objeto completo)
+                const totalPedidosReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.total : resultadoPedidos;
+                const nequiReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.nequi : 0;
+                const daviplataReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.daviplata : 0;
 
                 const valoresForzados = {
                     totalDespacho: totalNeto,
-                    totalPedidos: totalPedidosReal,
+                    totalPedidos: totalPedidosReal || 0,
+                    nequi: nequiReal || 0,
+                    daviplata: daviplataReal || 0,
                     totalDctos: 4000,
                     venta: 117000,
                     totalEfectivo: 96000,
@@ -897,12 +926,18 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     // 🚀 NUEVO: Cargar pedidos del vendedor cuando cambia la fecha
     useEffect(() => {
         const cargarYActualizarPedidos = async () => {
-            const totalPedidos = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
+            const resultados = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
 
-            // Actualizar solo el campo totalPedidos sin afectar otros valores
+            const total = typeof resultados === 'object' ? resultados.total : resultados;
+            const nequi = typeof resultados === 'object' ? resultados.nequi : 0;
+            const daviplata = typeof resultados === 'object' ? resultados.daviplata : 0;
+
+            // Actualizar totalPedidos y pagos digitales
             setDatosResumen(prev => ({
                 ...prev,
-                totalPedidos: totalPedidos
+                totalPedidos: total,
+                nequi: nequi,
+                daviplata: daviplata
             }));
         };
 
@@ -939,19 +974,33 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
         if (productosOperativos.length > 0) {
             const totalNeto = productosOperativos.reduce((sum, p) => sum + (p.neto || 0), 0);
-            console.log(`🧮 ${idSheet} - Recalculando resumen. Total neto: ${totalNeto}`);
-            console.log(`🧮 ${idSheet} - Productos con neto:`, productosOperativos.filter(p => p.neto > 0).map(p => `${p.producto}: ${p.neto}`));
 
-            const nuevosResumen = {
-                totalDespacho: totalNeto,
-                totalPedidos: datosResumen.totalPedidos, // Mantener el valor de pedidos cargado
-                totalDctos: 0,
-                venta: totalNeto,
-                totalEfectivo: totalNeto,
-            };
+            // 🚀 OPTIMIZACIÓN: Solo actualizar si el totalDespacho cambió
+            setDatosResumen(prev => {
+                // Si el totalDespacho no cambió, no hacer nada
+                if (prev.totalDespacho === totalNeto) {
+                    return prev;
+                }
 
-            console.log(`🧮 ${idSheet} - Nuevo resumen:`, nuevosResumen);
-            setDatosResumen(nuevosResumen);
+                console.log(`🧮 ${idSheet} - Total despacho cambió: ${prev.totalDespacho} -> ${totalNeto}`);
+                console.log(`🧮 ${idSheet} - Productos con neto:`, productosOperativos.filter(p => p.neto > 0).map(p => `${p.producto}: ${p.neto}`));
+
+                // 🔥 CRÍTICO: Preservar SIEMPRE totalPedidos, nequi y daviplata del estado anterior
+                const nuevoEstado = {
+                    ...prev,
+                    totalDespacho: totalNeto,
+                    totalPedidos: prev.totalPedidos, // 🚀 PRESERVAR
+                    nequi: prev.nequi, // 🚀 PRESERVAR
+                    daviplata: prev.daviplata, // 🚀 PRESERVAR
+                    // Solo actualizar venta si no hay pedidos todavía
+                    venta: prev.totalPedidos > 0 ? prev.venta : totalNeto,
+                    totalEfectivo: prev.totalPedidos > 0 ? prev.totalEfectivo : totalNeto,
+                };
+
+                console.log(`💰 ${idSheet} - Valores preservados: totalPedidos=${nuevoEstado.totalPedidos}, nequi=${nuevoEstado.nequi}, daviplata=${nuevoEstado.daviplata}`);
+
+                return nuevoEstado;
+            });
         } else {
             console.log(`🧮 ${idSheet} - No hay productos operativos para calcular resumen`);
         }
