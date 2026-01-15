@@ -623,80 +623,184 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   }, [productos, baseCaja, filas, datos.totalPedidos]);
   */
 
-  // 🚀 NUEVO: Sincronizar Pagos App Móvil con la tabla automáticamente
+  // 🚀 ACTUALIZADO: Sincronizar Pagos Detallados de App Móvil
   useEffect(() => {
-    // Solo actuar si hay valores de pagos digitales reportados por la App
-    if ((datos.nequi && datos.nequi > 0) || (datos.daviplata && datos.daviplata > 0)) {
-      setFilas(prevFilas => {
-        const nequiApp = datos.nequi || 0;
-        const daviApp = datos.daviplata || 0;
+    // Verificar si hay datos detallados (prioridad)
+    if (datos.pagosDetallados && Array.isArray(datos.pagosDetallados) && datos.pagosDetallados.length > 0) {
+      console.log('📲 Sincronizando pagos detallados en tabla:', datos.pagosDetallados.length);
 
-        // Verificar si ya tenemos estos valores exactos para evitar re-render loop
-        const filaApp = prevFilas.find(f => f.concepto === 'Pagos App Móvil');
-        if (filaApp && filaApp.nequi === nequiApp && filaApp.daviplata === daviApp) {
-          return prevFilas; // Sin cambios necesarios
+      setFilas(prevFilas => {
+        // Copia profunda para evitar mutaciones accidentales
+        const newFilas = prevFilas.map(f => ({ ...f }));
+
+        // 1. Limpiar fila antigua agrupada si existe (migración)
+        const indexAntiguo = newFilas.findIndex(f => f.concepto === 'Pagos App Móvil');
+        if (indexAntiguo >= 0) {
+          console.log('🧹 Limpiando fila antigua agrupada');
+          newFilas[indexAntiguo] = { concepto: '', descuentos: 0, nequi: 0, daviplata: 0 };
         }
 
-        const newFilas = [...prevFilas];
-        const indexApp = newFilas.findIndex(f => f.concepto === 'Pagos App Móvil');
+        // 2. Procesar cada pago detallado
+        datos.pagosDetallados.forEach(pago => {
+          const conceptoPago = pago.concepto || 'Cliente App';
 
-        if (indexApp >= 0) {
-          // Actualizar fila existente
-          console.log(`📲 Actualizando Pagos App Móvil en tabla: Nequi=${nequiApp}, Davi=${daviApp}`);
-          newFilas[indexApp] = {
-            ...newFilas[indexApp],
-            nequi: nequiApp,
-            daviplata: daviApp
-          };
-        } else {
-          // Insertar en la primera fila vacía disponible
-          const indexVacia = newFilas.findIndex(f => !f.concepto && f.nequi === 0 && f.daviplata === 0 && f.descuentos === 0);
-          if (indexVacia >= 0) {
-            console.log(`📲 Insertando Pagos App Móvil en fila ${indexVacia}`);
-            newFilas[indexVacia] = {
-              ...newFilas[indexVacia],
-              concepto: 'Pagos App Móvil',
-              nequi: nequiApp,
-              daviplata: daviApp
+          // Buscar si ya existe fila con este concepto exacto
+          const indexExistente = newFilas.findIndex(f =>
+            f.concepto && f.concepto.trim().toUpperCase() === conceptoPago.trim().toUpperCase()
+          );
+
+          if (indexExistente >= 0) {
+            // Actualizar fila existente (solo valores digitales)
+            // Se preserva 'descuentos' si ya existía
+            newFilas[indexExistente] = {
+              ...newFilas[indexExistente],
+              nequi: pago.nequi || 0,
+              daviplata: pago.daviplata || 0,
+              origen: pago.origen // 🆕 Copiar origen para el badge
             };
           } else {
-            // Si no hay filas vacías, usar la primera (sobreescritura de emergencia)
-            console.log(`📲 Tabla llena, usando fila 0 para Pagos App Móvil`);
-            newFilas[0] = {
-              ...newFilas[0],
-              concepto: 'Pagos App Móvil',
-              nequi: nequiApp,
-              daviplata: daviApp
-            };
+            // Buscar primer slot vacio
+            const indexVacio = newFilas.findIndex(f => !f.concepto && f.nequi === 0 && f.daviplata === 0 && f.descuentos === 0);
+
+            if (indexVacio >= 0) {
+              // Insertar nueva fila
+              newFilas[indexVacio] = {
+                concepto: conceptoPago,
+                descuentos: 0,
+                nequi: pago.nequi || 0,
+                daviplata: pago.daviplata || 0,
+                origen: pago.origen // 🆕 Copiar origen
+              };
+            } else {
+              // 🚀 NUEVO: Si la tabla está llena, AGREGAR nueva fila al final (Push)
+              console.log('📲 Tabla llena, expandiendo...', conceptoPago);
+              newFilas.push({
+                concepto: conceptoPago,
+                descuentos: 0,
+                nequi: pago.nequi || 0,
+                daviplata: pago.daviplata || 0,
+                origen: pago.origen // 🆕 Copiar origen
+              });
+            }
+          }
+        });
+
+        // Asegurar que siempre haya al menos unas filas vacías al final para editar
+        // Si la tabla creció mucho, aseguramos un mínimo de visually pleasing empty space
+        const filasVaciasAlFinal = 3;
+        let vaciasContadas = 0;
+        for (let i = newFilas.length - 1; i >= 0; i--) {
+          if (!newFilas[i].concepto && !newFilas[i].nequi && !newFilas[i].daviplata) {
+            vaciasContadas++;
+          } else {
+            break;
           }
         }
+
+        // Agregar filas extra si faltan
+        if (vaciasContadas < filasVaciasAlFinal) {
+          const faltantes = filasVaciasAlFinal - vaciasContadas;
+          for (let k = 0; k < faltantes; k++) {
+            newFilas.push({ concepto: '', descuentos: 0, nequi: 0, daviplata: 0 });
+          }
+        }
+
         return newFilas;
       });
     }
-  }, [datos.nequi, datos.daviplata]);
+  }, [datos.pagosDetallados]);
 
   return (
     <div className="resumen-container" style={{ marginLeft: '15px' }}>
-      {/* Tabla de Pagos */}
-      <div>
-        <Table bordered className="resumen-pagos mb-3" style={{ border: '2px solid #dee2e6', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <thead className="table-header">
+
+      {/* Leyenda de Origen */}
+      <div className="d-flex gap-3 mb-2 ps-1" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+        <div className="d-flex align-items-center">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d6efd', marginRight: '6px' }}></span>
+          <span>Pedido</span>
+        </div>
+        <div className="d-flex align-items-center">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', marginRight: '6px' }}></span>
+          <span>Venta Ruta</span>
+        </div>
+        <div className="d-flex align-items-center">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#dc3545', marginRight: '6px' }}></span>
+          <span>Descuento</span>
+        </div>
+      </div>
+
+      {/* Tabla de Pagos con SCROLL */}
+      <div style={{ maxHeight: '500px', overflowY: 'auto', border: '1px solid #dee2e6', borderRadius: '4px', marginBottom: '1rem' }}>
+        <Table bordered hover className="resumen-pagos mb-0" style={{ border: 'none', boxShadow: 'none' }}>
+          <thead className="table-header" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8f9fa' }}>
             <tr>
-              <th style={{ width: '150px' }}>CONCEPTO</th>
-              <th style={{ width: '120px', textAlign: 'center' }}>DESCUENTOS</th>
-              <th style={{ width: '120px', textAlign: 'center' }}>NEQUI</th>
-              <th style={{ width: '120px', textAlign: 'center' }}>DAVIPLATA</th>
+              <th style={{ width: '150px', backgroundColor: '#f8f9fa' }}>CONCEPTO</th>
+              <th style={{ width: '120px', textAlign: 'center', backgroundColor: '#f8f9fa' }}>DESCUENTOS</th>
+              <th style={{ width: '120px', textAlign: 'center', backgroundColor: '#f8f9fa' }}>NEQUI</th>
+              <th style={{ width: '120px', textAlign: 'center', backgroundColor: '#f8f9fa' }}>DAVIPLATA</th>
             </tr>
           </thead>
           <tbody>
             {filas.map((fila, i) => (
               <tr key={i}>
                 <td>
-                  <Form.Control
-                    type="text"
-                    value={fila.concepto}
-                    onChange={(e) => handleInputChange(i, 'concepto', e.target.value)}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Indicador Visual (Punto) */}
+                    {fila.origen === 'PEDIDO' && (
+                      <span
+                        title="Pedido App"
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#0d6efd', // Azul
+                          marginRight: '6px',
+                          flexShrink: 0
+                        }}
+                      />
+                    )}
+                    {fila.origen === 'VENTA' && (
+                      <span
+                        title="Venta Ruta"
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#198754', // Verde
+                          marginRight: '6px',
+                          flexShrink: 0
+                        }}
+                      />
+                    )}
+
+                    {/* Indicador de Descuento (Rojo) */}
+                    {fila.descuentos > 0 && (
+                      <span
+                        title="Tiene Descuento"
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#dc3545', // Rojo
+                          marginRight: '6px',
+                          flexShrink: 0
+                        }}
+                      />
+                    )}
+
+                    <OverlayTrigger
+                      placement="top"
+                      delay={{ show: 100, hide: 100 }}
+                      overlay={<Tooltip id={`tooltip-${i}`}>{fila.concepto || 'Sin concepto'}</Tooltip>}
+                    >
+                      <Form.Control
+                        type="text"
+                        value={fila.concepto}
+                        onChange={(e) => handleInputChange(i, 'concepto', e.target.value)}
+                        style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', padding: '4px', textOverflow: 'ellipsis', width: '100%' }}
+                      />
+                    </OverlayTrigger>
+                  </div>
                 </td>
                 <td>
                   <Form.Control
@@ -704,6 +808,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                     className="text-center"
                     value={fila.descuentos ? formatCurrency(fila.descuentos) : ''}
                     onChange={(e) => handleInputChange(i, 'descuentos', e.target.value)}
+                    style={{ border: 'none', background: 'transparent' }}
                   />
                 </td>
                 <td>
@@ -712,6 +817,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                     className="text-center"
                     value={fila.nequi ? formatCurrency(fila.nequi) : ''}
                     onChange={(e) => handleInputChange(i, 'nequi', e.target.value)}
+                    style={{ border: 'none', background: 'transparent' }}
                   />
                 </td>
                 <td>
@@ -720,17 +826,18 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                     className="text-center"
                     value={fila.daviplata ? formatCurrency(fila.daviplata) : ''}
                     onChange={(e) => handleInputChange(i, 'daviplata', e.target.value)}
+                    style={{ border: 'none', background: 'transparent' }}
                   />
                 </td>
               </tr>
             ))}
           </tbody>
-          <tfoot>
+          <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 10, backgroundColor: '#e9ecef' }}>
             <tr>
-              <td className="fw-bold">TOTAL</td>
-              <td className="text-center fw-bold">{formatCurrency(calcularTotal('descuentos'))}</td>
-              <td className="text-center fw-bold">{formatCurrency(calcularTotal('nequi'))}</td>
-              <td className="text-center fw-bold">{formatCurrency(calcularTotal('daviplata'))}</td>
+              <td className="fw-bold bg-light">TOTAL</td>
+              <td className="text-center fw-bold bg-light">{formatCurrency(calcularTotal('descuentos'))}</td>
+              <td className="text-center fw-bold bg-light">{formatCurrency(calcularTotal('nequi'))}</td>
+              <td className="text-center fw-bold bg-light">{formatCurrency(calcularTotal('daviplata'))}</td>
             </tr>
           </tfoot>
         </Table>

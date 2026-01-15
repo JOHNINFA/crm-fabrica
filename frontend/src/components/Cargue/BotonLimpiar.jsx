@@ -499,23 +499,24 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // 🔥 FILTRAR SOLO PEDIDOS PENDIENTES DE LA FECHA ESPECÍFICA Y QUE NO HAYAN AFECTADO INVENTARIO
       const pedidosFiltrados = todosPedidos.filter(p => {
         const fechaEntrega = p.fecha_entrega ? p.fecha_entrega.split('T')[0] : null;
-        // Filtro más permisivo: Todo lo que NO esté finalizado
-        const estadosFinalizados = ['ENTREGADA', 'CANCELADO', 'ANULADA', 'COMPLETADO'];
-        const esPendiente = !estadosFinalizados.includes(p.estado); // Acepta PENDIENTE, SOLICITADA, CONFIRMADO, etc.
+        // Filtro corregido: Incluir ENTREGADA si no han afectado inventario
+        // Solo excluir lo que definitivamente no debe suma: ANULADA y CANCELADO
+        const estadosIgnorados = ['CANCELADO', 'ANULADA'];
+        const esValido = !estadosIgnorados.includes(p.estado);
         const esFechaCorrecta = fechaEntrega === fechaFormateada;
 
         // 🔒 NUEVO: Si ya afectó inventario (ej. pedido urgente), NO volver a descontar
         const yaAfectoInventario = p.inventario_afectado === true;
 
-        if (esFechaCorrecta && esPendiente) {
+        if (esFechaCorrecta && esValido) {
           if (yaAfectoInventario) {
-            console.log(`⚠️ Pedido SALTADO (ya afectó inventario): ${p.numero_pedido || p.id}`);
+            console.log(`⚠️ Pedido SALTADO (ya afectó inventario): ${p.numero_pedido || p.id} (${p.estado})`);
           } else {
-            console.log(`✅ Pedido incluido para descuento: ${p.numero_pedido || p.id} - Fecha: ${fechaEntrega}`);
+            console.log(`✅ Pedido incluido para descuento: ${p.numero_pedido || p.id} (${p.estado}) - Fecha: ${fechaEntrega}`);
           }
         }
 
-        return esPendiente && esFechaCorrecta && !yaAfectoInventario;
+        return esValido && esFechaCorrecta && !yaAfectoInventario;
         // return esPendiente && esFechaCorrecta; // DEBUG: Permitir incluso si ya afectó inventario
       });
 
@@ -1989,13 +1990,24 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       };
 
+      // 🆕 Preparar detalle completo para mostrar en el modal
+      const detalleCompleto = [
+        ...todosProductosACargue.map(p => ({ ...p, tipo: 'CARGUE' })),
+        ...productosPedidosCalculados.map(p => ({ ...p, tipo: 'PEDIDO' })),
+        ...todosProductosVencidas.map(p => ({ ...p, tipo: 'VENCIDA' }))
+      ];
+
+      // Ordenar por nombre
+      detalleCompleto.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
       // Guardar datos en el estado del modal y mostrarlo
       setDescuentoPreview({
         totalCargue: granTotalCargue,
         totalPedidos: totalPedidos,
         totalVencidas: granTotalVencidas,
         totalDevoluciones: granTotalDevoluciones,
-        ejecutarDescuento: ejecutarDescuentoReal
+        ejecutarDescuento: ejecutarDescuentoReal,
+        detalle: detalleCompleto // 🆕 Pasamos el detalle
       });
 
       // ⚠️ VALIDACIÓN: Si hay vencidas, preguntar por lotes ANTES de mostrar modal
@@ -2832,8 +2844,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       </Modal>
 
       {/* 🆕 Modal de CONFIRMACIÓN - DISEÑO MINIMALISTA PREMIUM CORREGIDO */}
-      <Modal show={showDescuentoConfirm} onHide={() => setShowDescuentoConfirm(false)} centered backdrop="static" size="lg" contentClassName="border-0 shadow-lg rounded-4 overflow-hidden">
-        <Modal.Header className="border-0 pb-0 pt-4 px-5 bg-white">
+      <Modal show={showDescuentoConfirm} onHide={() => setShowDescuentoConfirm(false)} centered backdrop="static" size="lg" scrollable={true} contentClassName="border-0 shadow-lg rounded-4 overflow-hidden">
+        <Modal.Header className="border-0 pb-0 pt-4 px-5 bg-white flex-shrink-0">
           <div className="w-100 text-center">
             <div className="mb-2 mx-auto bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
               <i className="bi bi-exclamation-lg fs-3"></i>
@@ -2847,7 +2859,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           </div>
         </Modal.Header>
 
-        <Modal.Body className="px-5 py-3 bg-white">
+        <Modal.Body className="px-5 py-3 bg-white d-flex flex-column">
           <div className="bg-light rounded-4 p-3 mb-3 border border-light-subtle">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <span className="text-secondary small text-uppercase fw-bold"><i className="bi bi-box-seam me-2"></i>Cargue (Ventas)</span>
@@ -2870,6 +2882,38 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             )}
           </div>
 
+          {/* 🆕 DETALLE DESGLOSADO POR PRODUCTO (FACTURA PROFORMA) */}
+          <div className="bg-white rounded-3 border mb-3">
+            <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.85rem' }}>
+              <thead className="table-light sticky-top">
+                <tr>
+                  <th className="ps-3">Producto</th>
+                  <th className="text-center">Origen</th>
+                  <th className="text-end pe-3">Cant.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {descuentoPreview.detalle && descuentoPreview.detalle.length > 0 ? (
+                  descuentoPreview.detalle.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="ps-3 text-truncate" style={{ maxWidth: '180px' }} title={item.nombre}>{item.nombre}</td>
+                      <td className="text-center">
+                        <span className={`badge rounded-pill ${item.tipo === 'CARGUE' ? 'text-bg-secondary' : item.tipo === 'PEDIDO' ? 'text-bg-primary' : 'text-bg-danger'}`} style={{ fontSize: '0.65em', width: '60px' }}>
+                          {item.tipo}
+                        </span>
+                      </td>
+                      <td className="text-end pe-3 fw-bold">{item.cantidad}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" className="text-center text-muted py-3">No hay productos para descontar</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
           <div className="text-center py-2">
             <p className="text-uppercase text-muted fw-bold x-small mb-0" style={{ fontSize: '0.75rem', letterSpacing: '1px' }}>Total a Descontar</p>
             <h1 className="display-4 fw-bold text-dark mb-0 lh-1">
@@ -2879,7 +2923,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           </div>
         </Modal.Body>
 
-        <Modal.Footer className="border-0 px-5 pb-5 pt-2 d-flex justify-content-center gap-3 bg-white">
+        <Modal.Footer className="border-0 px-5 pb-5 pt-2 d-flex justify-content-center gap-3 bg-white flex-shrink-0">
           <Button
             variant="light"
             size="lg"

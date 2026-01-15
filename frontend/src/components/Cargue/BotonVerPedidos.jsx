@@ -31,42 +31,48 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         setLoading(true);
         try {
             // Obtener todos los pedidos
-            const response = await fetch(`http://localhost:8000/api/pedidos/`);
-            const todosPedidos = await response.json();
+            // 1. Obtener PEDIDOS
+            const responsePedidos = await fetch('http://localhost:8000/api/pedidos/');
+            let pedidosData = [];
+            if (responsePedidos.ok) {
+                pedidosData = await responsePedidos.json();
+            }
 
-            console.log(`🔍 Total pedidos en BD: ${todosPedidos.length}`);
-            console.log(`🔍 Filtrando por: fecha=${fechaSeleccionada}, vendedor=${nombreVendedor}, idSheet=${idSheet}`);
+            // Filtrar y procesar solo PEDIDOS (Ventas Ruta removidas a petición del usuario)
+            const todosLosItems = pedidosData;
 
-            // Filtrar pedidos por fecha, vendedor y estado
-            const pedidosFiltrados = todosPedidos.filter(pedido => {
-                const coincideFecha = pedido.fecha_entrega === fechaSeleccionada;
-                // const noAnulado = pedido.estado !== 'ANULADA'; // 🆕 Permitir ver anulados/novedades
+            // 3. Filtrar por Fecha y Vendedor
+            const pedidosFiltrados = todosLosItems.filter(pedido => {
+                // Verificar fecha (Formato YYYY-MM-DD)
+                const fechaPedido = (pedido.fecha_entrega || pedido.fecha || '').split('T')[0];
+                const coincideFecha = fechaPedido === fechaSeleccionada;
 
-                // Verificar si el vendedor coincide (por nombre o por ID) - CASE INSENSITIVE
+                // Verificar vendedor
                 let coincideVendedor = false;
-                if (pedido.vendedor) {
-                    const vendedorPedido = pedido.vendedor.toLowerCase().trim();
-                    const vendedorBuscado = (nombreVendedor || '').toLowerCase().trim();
-                    const idSheetLower = idSheet.toLowerCase();
+                const idSheetLower = idSheet.toLowerCase();
 
-                    // Opción 1: El pedido tiene formato "Nombre (ID1)"
-                    if (pedido.vendedor.toLowerCase().includes(`(${idSheetLower})`)) {
-                        coincideVendedor = true;
-                    }
-                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable (case insensitive)
-                    else if (vendedorBuscado && vendedorPedido === vendedorBuscado) {
-                        coincideVendedor = true;
-                    }
+                // Obtener identificadores del item
+                const itemVendedorNombre = (pedido.vendedor || '').toLowerCase().trim();
+                const nombreBuscado = (nombreVendedor || '').toLowerCase().trim();
+
+                // Lógica de coincidencia
+                // 1. El string del vendedor contiene el ID entre paréntesis: "JUAN (ID1)"
+                if (itemVendedorNombre.includes(`(${idSheetLower})`)) {
+                    coincideVendedor = true;
                 }
-
-                if (coincideFecha && coincideVendedor) {
-                    console.log(`✅ Pedido encontrado: ${pedido.numero_pedido} - ${pedido.vendedor}`);
+                // 2. Coincidencia por nombre (Fallback)
+                else if (nombreBuscado && itemVendedorNombre.includes(nombreBuscado)) {
+                    coincideVendedor = true;
+                }
+                // 3. Caso especial: Si nombreVendedor es 'RESPONSABLE' (por defecto), intentar solo por ID
+                else if (nombreVendedor === 'RESPONSABLE' && itemVendedorNombre.includes(idSheetLower)) {
+                    coincideVendedor = true;
                 }
 
                 return coincideFecha && coincideVendedor;
             });
 
-            console.log(`✅ Pedidos filtrados base: ${pedidosFiltrados.length}`);
+            console.log(`✅ Filtrados para ${idSheet} (${fechaSeleccionada}): ${pedidosFiltrados.length}`);
 
             // 🆕 REFINAMIENTO: Si un cliente tiene pedidos ENTREGADOS, ocultar sus ANULADOS para no ensuciar la vista
             const pedidosParaMostrar = pedidosFiltrados.filter(p => {
@@ -438,7 +444,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                                         {pedido.cliente}
                                                                     </div>
                                                                     {/* 🆕 Badge "Entregado" si el pedido está entregado */}
-                                                                    {pedido.estado === 'ENTREGADO' && (
+                                                                    {(pedido.estado === 'ENTREGADO' || pedido.estado === 'ENTREGADA') && (
                                                                         <span style={{
                                                                             backgroundColor: '#22c55e',
                                                                             color: 'white',

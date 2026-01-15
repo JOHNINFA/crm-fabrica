@@ -24,6 +24,16 @@ export const usePreloadImages = (products) => {
         if (!products || products.length === 0) return;
 
         const preloadAndCache = async () => {
+            // 🆕 Limpiar imágenes antiguas antes de cachear nuevas
+            await localImageService.cleanOldImages();
+
+            // 🆕 Verificar espacio (si es mayor a 50MB, intentar limpiar)
+            const size = await localImageService.getStorageSize();
+            if (size > 50) {
+                console.warn('⚠️ Storage > 50MB. Ejecutando limpieza profunda...');
+                await localImageService.cleanOldImages(); // Reintentar
+            }
+
             let cached = 0;
 
             for (const product of products) {
@@ -36,8 +46,18 @@ export const usePreloadImages = (products) => {
                             // Convertir a base64 y guardar
                             const base64 = await imageUrlToBase64(product.image);
                             if (base64) {
-                                await localImageService.saveImage(product.id, base64);
-                                cached++;
+                                try {
+                                    await localImageService.saveImage(product.id, base64);
+                                    cached++;
+                                } catch (e) {
+                                    console.error('Error guardando imagen (posible cuota excedida):', e);
+                                    // Si falla guardar, probablemente está lleno
+                                    // Intentar limpiar todo como último recurso
+                                    if (size > 80) { // Si > 80MB
+                                        await localImageService.clearAllImages();
+                                    }
+                                    break; // Detener cacheo para no saturar errores inútilmente
+                                }
                             }
                         }
                     } catch (error) {

@@ -2050,12 +2050,26 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def marcar_entregado(self, request, pk=None):
         """Marcar pedido como entregado desde la App"""
         pedido = self.get_object()
+        
+        # 🆕 Obtener y guardar el método de pago
+        metodo_pago = request.data.get('metodo_pago', 'EFECTIVO')
+        if metodo_pago:
+            pedido.metodo_pago = metodo_pago.upper()
+        
         from django.utils import timezone
         pedido.estado = 'ENTREGADO'  # Cambiado de ENTREGADA a ENTREGADO
-        pedido.nota = f"{pedido.nota or ''} | Entregado vía App Móvil el {timezone.now().strftime('%Y-%m-%d %H:%M')}".strip()
+        
+        # Agregar nota con la hora y método
+        nota_entrega = f"Entregado vía App Móvil ({pedido.metodo_pago}) el {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+        pedido.nota = f"{pedido.nota or ''} | {nota_entrega}".strip()
+        
         # 🔧 NO cambiar fecha_entrega para que siga apareciendo en su día original
         pedido.save()
-        return Response({'success': True, 'message': 'Pedido marcado como entregado'})
+        
+        return Response({
+            'success': True, 
+            'message': f'Pedido marcado como entregado ({pedido.metodo_pago})'
+        })
 
     @action(detail=True, methods=['post'])
     def marcar_no_entregado(self, request, pk=None):
@@ -3543,7 +3557,36 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                 cargue.save(update_fields=['vencidas'])
                                 print(f"   ✅ {nombre_producto}: {vencidas_actuales} + {cantidad_vencida} = {cargue.vencidas}")
                             else:
-                                print(f"   ⚠️ No se encontró cargue para: {nombre_producto}")
+                                print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
+                                # Intentar buscar un registro de referencia del mismo día para copiar metadatos
+                                ref_cargue = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True).first()
+                                
+                                if ref_cargue:
+                                    # Buscar precio del producto original
+                                    from .models import Producto
+                                    prod_obj = Producto.objects.filter(nombre__iexact=nombre_producto).first()
+                                    precio_prod = prod_obj.precio_base if prod_obj else 0
+                                    nombre_real = prod_obj.nombre if prod_obj else nombre_producto
+
+                                    try:
+                                        cargue = ModeloCargue.objects.create(
+                                            fecha=fecha_venta,
+                                            dia=ref_cargue.dia,
+                                            responsable=ref_cargue.responsable,
+                                            usuario='Sistema', # Oref_cargue.usuario
+                                            ruta=ref_cargue.ruta if hasattr(ref_cargue, 'ruta') else '',
+                                            producto=nombre_real,
+                                            precio=precio_prod,
+                                            cantidad=0, # No se cargó inicialmente
+                                            vendidas=0,
+                                            vencidas=cantidad_vencida, # Asignar la vencida directamente
+                                            activo=True
+                                        )
+                                        print(f"   ✨ Registro creado exitosamente para vencida: {nombre_real}")
+                                    except Exception as create_error:
+                                        print(f"   ❌ Error creando registro on-the-fly: {create_error}")
+                                else:
+                                    print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
                 else:
                     print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
                     
@@ -3601,11 +3644,39 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                             if cargue:
                                 # Sumar a las vendidas existentes
                                 vendidas_actuales = cargue.vendidas or 0
+                                cargue.vencidas = cargue.vencidas or 0 # Asegurar que no sea None
                                 cargue.vendidas = vendidas_actuales + cantidad_vendida
-                                cargue.save(update_fields=['vendidas'])
+                                cargue.save(update_fields=['vendidas', 'vencidas'])
                                 print(f"   ✅ {nombre_producto}: {vendidas_actuales} + {cantidad_vendida} = {cargue.vendidas}")
                             else:
-                                print(f"   ⚠️ No se encontró cargue para: {nombre_producto}")
+                                print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
+                                ref_cargue = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True).first()
+                                
+                                if ref_cargue:
+                                    from .models import Producto
+                                    prod_obj = Producto.objects.filter(nombre__iexact=nombre_producto).first()
+                                    precio_prod = prod_obj.precio_base if prod_obj else 0
+                                    nombre_real = prod_obj.nombre if prod_obj else nombre_producto
+
+                                    try:
+                                        cargue = ModeloCargue.objects.create(
+                                            fecha=fecha_venta,
+                                            dia=ref_cargue.dia,
+                                            responsable=ref_cargue.responsable,
+                                            usuario='Sistema',
+                                            ruta=ref_cargue.ruta if hasattr(ref_cargue, 'ruta') else '',
+                                            producto=nombre_real,
+                                            precio=precio_prod,
+                                            cantidad=0,
+                                            vendidas=cantidad_vendida, # Registrar venta
+                                            vencidas=0,
+                                            activo=True
+                                        )
+                                        print(f"   ✨ Registro creado exitosamente para venta: {nombre_real}")
+                                    except Exception as create_error:
+                                        print(f"   ❌ Error creando registro on-the-fly: {create_error}")
+                                else:
+                                    print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
                 else:
                     print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
         except Exception as e:
@@ -4858,6 +4929,18 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
             defaults={'clientes_ids': clientes_ids}
         )
         
+        # 🆕 SINCRONIZACIÓN CON WEB: Actualizar también el campo 'orden' en la tabla ClienteRuta
+        # Esto permite que en la gestión de rutas web se vea el nuevo orden
+        try:
+            from .models import ClienteRuta
+            # Actualización masiva eficiente? No tanto, pero son pocos clientes por ruta
+            for i, cliente_id in enumerate(clientes_ids):
+                # Usamos update para ser rápido y no disparar signals innecesarios
+                ClienteRuta.objects.filter(id=cliente_id).update(orden=i + 1)
+            print(f"✅ Orden actualizado en BD para {len(clientes_ids)} clientes del día {dia}")
+        except Exception as e:
+            print(f"⚠️ Error sincronizando orden en ClienteRuta: {e}")
+            
         serializer = self.get_serializer(obj)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

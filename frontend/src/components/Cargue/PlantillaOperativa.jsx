@@ -327,7 +327,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     // 🚀 NUEVA FUNCIÓN: Cargar pedidos del vendedor
     const cargarPedidosVendedor = async (fecha, idVendedor) => {
         try {
-            console.log(`📦 Cargando pedidos para ${idVendedor} en fecha ${fecha}`);
+            console.log(`📦 Cargando pedidos y ventas para ${idVendedor} en fecha ${fecha}`);
 
             // Formatear fecha a YYYY-MM-DD
             let fechaFormateada;
@@ -340,76 +340,216 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 fechaFormateada = fecha;
             }
 
-            // Cargar todos los pedidos
-            const response = await fetch('http://localhost:8000/api/pedidos/');
-            if (!response.ok) {
-                console.warn('⚠️ No se pudieron cargar pedidos');
-                return 0;
+            // 1. Cargar PEDIDOS
+            const responsePedidos = await fetch('http://localhost:8000/api/pedidos/');
+            let pedidos = [];
+            if (responsePedidos.ok) {
+                pedidos = await responsePedidos.json();
             }
 
-            const pedidos = await response.json();
-            console.log(`✅ Pedidos cargados:`, pedidos.length);
+            // 2. Cargar VENTAS NORMALES (Ruta)
+            const responseVentas = await fetch('http://localhost:8000/api/ventas-ruta/');
+            let ventas = [];
+            if (responseVentas.ok) {
+                ventas = await responseVentas.json();
+            }
+
+            console.log(`✅ Datos cargados: ${pedidos.length} pedidos, ${ventas.length} ventas ruta`);
 
             // 🚀 NUEVO: Obtener el nombre del vendedor desde responsableStorage
             const { responsableStorage } = await import('../../utils/responsableStorage');
             const nombreVendedor = responsableStorage.get(idVendedor);
-            console.log(`📋 Nombre del vendedor ${idVendedor}: "${nombreVendedor}"`);
 
-            // Filtrar pedidos por fecha de entrega, vendedor Y excluir anulados
-            const pedidosFiltrados = pedidos.filter(pedido => {
-                const coincideFecha = pedido.fecha_entrega === fechaFormateada;
-                const noAnulado = pedido.estado !== 'ANULADA';
+            // Función helper para filtrar
+            const filtrarVendedorFecha = (item, esPedido) => {
+                // Verificar fecha
+                const fechaItem = (item.fecha_entrega || item.fecha || '').split('T')[0];
+                const coincideFecha = fechaItem === fechaFormateada;
 
-                // 🚀 CORREGIDO: Buscar por nombre del vendedor desde responsableStorage (CASE INSENSITIVE)
+                // Excluir anulados
+                const noAnulado = item.estado !== 'ANULADA';
+
+                // Verificar vendedor
                 let coincideVendedor = false;
-                if (pedido.vendedor) {
-                    const vendedorPedido = pedido.vendedor.toLowerCase().trim();
-                    const vendedorBuscado = (nombreVendedor || '').toLowerCase().trim();
-                    const idVendedorLower = idVendedor.toLowerCase();
+                const vendedorItem = (item.vendedor || item.vendedor_id || '').toLowerCase().trim();
+                const vendedorBuscado = (nombreVendedor || '').toLowerCase().trim();
+                const idVendedorLower = idVendedor.toLowerCase();
 
-                    // Opción 1: El pedido tiene formato "Nombre (ID1)"
-                    if (pedido.vendedor.toLowerCase().includes(`(${idVendedorLower})`)) {
-                        coincideVendedor = true;
-                    }
-                    // Opción 2: El pedido tiene solo el nombre y coincide con el responsable (case insensitive)
-                    else if (vendedorBuscado && vendedorPedido === vendedorBuscado) {
-                        coincideVendedor = true;
-                    }
+                // Caso 1: ID directo "ID1"
+                if (vendedorItem === idVendedorLower) {
+                    coincideVendedor = true;
                 }
-
-                if (coincideFecha && coincideVendedor && noAnulado) {
-                    console.log(`✅ Pedido encontrado:`, pedido.numero_pedido, pedido.vendedor, pedido.total, pedido.estado);
+                // Caso 2: Nombre (ID1)
+                else if (vendedorItem.includes(`(${idVendedorLower})`)) {
+                    coincideVendedor = true;
+                }
+                // Caso 3: Nombre coincide con responsable
+                else if (vendedorBuscado && vendedorItem === vendedorBuscado) {
+                    coincideVendedor = true;
                 }
 
                 return coincideFecha && coincideVendedor && noAnulado;
-            });
+            };
 
-            // Sumar el total de los pedidos y desglose de pagos
-            const totales = pedidosFiltrados.reduce((acc, pedido) => {
-                const monto = parseFloat(pedido.total || 0);
-                acc.total += monto;
+            // Filtrar ambas listas
+            const pedidosFiltrados = pedidos.filter(p => filtrarVendedorFecha(p, true));
+            const ventasFiltradas = ventas.filter(v => filtrarVendedorFecha(v, false));
 
-                // Sumar pagos digitales
-                if (pedido.metodo_pago === 'NEQUI') {
-                    acc.nequi += monto;
-                } else if (pedido.metodo_pago === 'DAVIPLATA') {
-                    acc.daviplata += monto;
+            console.log(`📊 Filtrados: ${pedidosFiltrados.length} pedidos, ${ventasFiltradas.length} ventas ruta`);
+
+            // Combinar para pagos (Nequi/Daviplata/Efectivo sí deben sumar todo para el cuadre de caja)
+            // 🆕 Diferenciar origen para la tabla detallada
+            const todosLosItems = [
+                ...pedidosFiltrados.map(p => ({ ...p, origen: 'PEDIDO' })),
+                ...ventasFiltradas.map(v => ({ ...v, origen: 'VENTA' }))
+            ];
+
+            const pagosDetallados = [];
+
+            // Calcular Total Pedidos EXCLUSIVAMENTE de los pedidos (para coincidir con el Modal)
+            const sumaSoloPedidos = pedidosFiltrados.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+
+            const totales = todosLosItems.reduce((acc, item) => {
+                const monto = parseFloat(item.total || 0);
+
+                // NOTA IMPORTANTE: 
+                // acc.total se usaba para "Total Pedidos". 
+                // El usuario pide que este valor coincida con el Modal (Solo Pedidos).
+                // Por tanto, NO sumamos las ventas ruta aquí, pero sí procesamos sus pagos.
+
+                // Detectar método de pago
+                const metodo = (item.metodo_pago || 'EFECTIVO').toUpperCase();
+
+                if (metodo === 'NEQUI' || metodo === 'DAVIPLATA') {
+                    if (metodo === 'NEQUI') acc.nequi += monto;
+                    if (metodo === 'DAVIPLATA') acc.daviplata += monto;
+
+                    // Priorizar Nombre del Negocio
+                    const posibleNombre = item.nombre_negocio || item.negocio || item.razon_social || item.alias;
+
+                    // 🔍 DEBUG
+                    if (!posibleNombre && item.destinatario) {
+                        // console.log(`🔍 Item Pago (Solo Destinatario): "${item.destinatario}"`, item);
+                    }
+
+                    let nombreFinal = posibleNombre ||
+                        item.destinatario ||
+                        item.cliente_nombre ||
+                        'Cliente App';
+
+                    // 🆕 MEJORA: Buscar si el nombre corresponde a un cliente con Alias (Nombre de Negocio)
+                    if (clientesMapRef.current) {
+                        try {
+                            // Helper local para normalizar (por si acaso)
+                            const norm = (t) => t ? t.toString().trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
+
+                            const nombreKey = norm(nombreFinal);
+                            const clienteEncontrado = clientesMapRef.current[nombreKey];
+
+                            if (clienteEncontrado && clienteEncontrado.alias) {
+                                // console.log(`✨ Reemplazando "${nombreFinal}" por Alias/Negocio "${clienteEncontrado.alias}"`);
+                                nombreFinal = clienteEncontrado.alias;
+                            }
+                        } catch (e) {
+                            console.warn("Error mapeando cliente:", e);
+                        }
+                    }
+
+                    // Agregar al detalle
+                    pagosDetallados.push({
+                        concepto: nombreFinal.toUpperCase(),
+                        nequi: metodo === 'NEQUI' ? monto : 0,
+                        daviplata: metodo === 'DAVIPLATA' ? monto : 0,
+                        origen: item.origen // 🆕 Flag para UI
+                    });
                 }
+
                 return acc;
             }, { total: 0, nequi: 0, daviplata: 0 });
 
-            console.log(`💰 Total pedidos para ${idVendedor}: $${totales.total} (Nequi: ${totales.nequi}, Daviplata: ${totales.daviplata})`);
-            return totales;
+            // Asignar el total calculado solo de pedidos
+            totales.total = sumaSoloPedidos;
+
+            // Retornar estructura completa
+            return {
+                ...totales,
+                pagosDetallados // 🆕 Retornar lista detallada de pagos
+            };
 
         } catch (error) {
-            console.error('❌ Error cargando pedidos:', error);
-            return 0;
+            console.error('❌ Error cargando datos vendedor:', error);
+            return { total: 0, nequi: 0, daviplata: 0, pagosDetallados: [] };
         }
     };
+
+    // 🆕 Cargar lista de clientes para mapeo de nombres -> negocios
+    const clientesMapRef = useRef({});
+
+    // Función auxiliar para normalizar strings (quitar tildes y espacios)
+    const normalizarTexto = (texto) => {
+        if (!texto) return '';
+        return texto.toString().trim().toUpperCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Quitar tildes
+    };
+
+    useEffect(() => {
+        const cargarClientes = async () => {
+            try {
+                // Solo cargar si no tenemos datos
+                if (Object.keys(clientesMapRef.current).length > 0) return;
+
+                const response = await fetch('http://localhost:8000/api/clientes/');
+                if (response.ok) {
+                    const clientes = await response.json();
+                    const mapa = {};
+
+                    clientes.forEach(c => {
+                        // El "Negocio" suele ser el nombre completo o el alias
+                        // El "Contacto" es la persona (Maria Lopez)
+                        const nombreNegocio = c.nombre_completo || c.alias;
+                        const nombreContacto = c.contacto;
+
+                        // Indexar por Nombre de Negocio (por si acaso el pedido ya trae el negocio pero con variaciones)
+                        if (nombreNegocio) {
+                            mapa[normalizarTexto(nombreNegocio)] = { alias: nombreNegocio };
+                        }
+
+                        // Indexar por Alias explícito
+                        if (c.alias) {
+                            mapa[normalizarTexto(c.alias)] = { alias: c.alias };
+                        }
+
+                        // 🚀 CLAVE: Indexar por nombre de CONTACTO apuntando al Negocio
+                        if (nombreContacto) {
+                            mapa[normalizarTexto(nombreContacto)] = { alias: nombreNegocio };
+                        }
+
+                        // También intentar combinaciones de nombres si existen campos separados
+                        if (c.primer_nombre && c.primer_apellido) {
+                            const nombreArmado = `${c.primer_nombre} ${c.primer_apellido}`;
+                            mapa[normalizarTexto(nombreArmado)] = { alias: nombreNegocio };
+                        }
+                    });
+
+                    clientesMapRef.current = mapa;
+                    console.log(`👥 Clientes cargados e indexados: ${Object.keys(mapa).length}`);
+                }
+            } catch (error) {
+                console.error("Error cargando clientes:", error);
+            }
+        };
+
+        cargarClientes();
+    }, []); // Una sola vez al montar
 
     // 🚀 NUEVO: Actualización automática de pedidos en tiempo real (Polling cada 15s)
     useEffect(() => {
         let isMounted = true;
+
+        // ... (Resto del useEffect)
+
+        // Usar la función de normalización dentro del ciclo de items también
+        // ... (Ver siguiente bloque de cambios para integrar `normalizarTexto` en el loop)
         const intervalId = setInterval(async () => {
             if (!idSheet || !fechaFormateadaLS) return;
 
@@ -420,6 +560,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             const totalNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.total : resultadosPedidos;
             const nequiNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.nequi : 0;
             const daviNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.daviplata : 0;
+            const pagosDetalladosNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.pagosDetallados : [];
 
             if (isMounted) {
                 setDatosResumen(prev => {
@@ -427,14 +568,17 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     const cambioTotal = prev.totalPedidos !== totalNuevo;
                     const cambioNequi = (prev.nequi || 0) !== nequiNuevo;
                     const cambioDavi = (prev.daviplata || 0) !== daviNuevo;
+                    // Comparación simple de longitud para arrays (profunda sería costosa)
+                    const cambioDetalle = (prev.pagosDetallados?.length || 0) !== pagosDetalladosNuevo.length;
 
-                    if (cambioTotal || cambioNequi || cambioDavi) {
+                    if (cambioTotal || cambioNequi || cambioDavi || cambioDetalle) {
                         console.log(`💰 Cambio detallado en pedidos: Total $${prev.totalPedidos}->${totalNuevo}, Nequi $${prev.nequi}->${nequiNuevo}`);
                         return {
                             ...prev,
                             totalPedidos: totalNuevo,
                             nequi: nequiNuevo,
-                            daviplata: daviNuevo
+                            daviplata: daviNuevo,
+                            pagosDetallados: pagosDetalladosNuevo // 🆕 Guardar detalle
                         };
                     }
                     return prev;
@@ -931,13 +1075,15 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             const total = typeof resultados === 'object' ? resultados.total : resultados;
             const nequi = typeof resultados === 'object' ? resultados.nequi : 0;
             const daviplata = typeof resultados === 'object' ? resultados.daviplata : 0;
+            const pagosDetallados = typeof resultados === 'object' ? resultados.pagosDetallados : [];
 
             // Actualizar totalPedidos y pagos digitales
             setDatosResumen(prev => ({
                 ...prev,
                 totalPedidos: total,
                 nequi: nequi,
-                daviplata: daviplata
+                daviplata: daviplata,
+                pagosDetallados: pagosDetallados // 🆕 Guardar detalle
             }));
         };
 
