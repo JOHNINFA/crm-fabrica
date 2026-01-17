@@ -1,7 +1,7 @@
 import { Row, Col, Card } from "react-bootstrap";
 import "../../styles/TablaConfirmacionProduccion.css";
 
-const TablaConfirmacionProduccion = ({ datosGuardados }) => {
+const TablaConfirmacionProduccion = ({ datosGuardados, tipo = "Producción" }) => {
   if (
     !datosGuardados ||
     !datosGuardados.productos ||
@@ -31,7 +31,7 @@ const TablaConfirmacionProduccion = ({ datosGuardados }) => {
       <Card.Header className="bg-white border-bottom d-flex justify-content-center align-items-center py-3">
         <div className="d-flex align-items-center">
           <i className="bi bi-check-circle-fill text-success me-3 fs-4"></i>
-          <h5 className="mb-0 fw-semibold text-dark">Producción Registrada</h5>
+          <h5 className="mb-0 fw-semibold text-dark">{tipo} Registrada</h5>
         </div>
       </Card.Header>
 

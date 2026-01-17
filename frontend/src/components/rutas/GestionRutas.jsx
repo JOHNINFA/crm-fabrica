@@ -24,7 +24,8 @@ const GestionRutas = () => {
         telefono: '',
         tipo_negocio: '',
         dia_visita: [],  // Ahora es un array para múltiples días
-        orden: 0
+        orden: 0,
+        nota: '' // 🆕 Campo Nota
     });
     const [editingCliente, setEditingCliente] = useState(null);
 
@@ -96,7 +97,9 @@ const GestionRutas = () => {
                 telefono: clienteForm.telefono || '',
                 tipo_negocio: clienteForm.tipo_negocio || '',
                 dia_visita: diasString,
+                dia_visita: diasString,
                 orden: clienteForm.orden || 0,
+                nota: clienteForm.nota || '', // 🆕 Enviar nota
                 ruta: selectedRuta.id,
                 activo: true
             };
@@ -408,6 +411,16 @@ const GestionRutas = () => {
                                                 border: 'none'
                                             }}>Origen</th>
                                             <th style={{
+                                                minWidth: '200px',
+                                                padding: '16px',
+                                                fontWeight: '600',
+                                                fontSize: '0.75rem',
+                                                color: '#6b7280',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em',
+                                                border: 'none'
+                                            }}>Nota</th>
+                                            <th style={{
                                                 minWidth: '220px',
                                                 padding: '16px',
                                                 fontWeight: '600',
@@ -515,6 +528,24 @@ const GestionRutas = () => {
                                                     }}>
                                                         {cliente.tipo_negocio?.includes('PEDIDOS') ? 'PEDIDOS' : 'RUTA'}
                                                     </span>
+                                                </td>
+                                                <td style={{ padding: '16px', border: 'none' }}>
+                                                    {cliente.nota ? (
+                                                        <div style={{
+                                                            backgroundColor: '#fffbe6',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            border: '1px solid #ffe58f',
+                                                            fontSize: '0.75rem',
+                                                            color: '#d48806',
+                                                            maxWidth: '200px',
+                                                            whiteSpace: 'normal'
+                                                        }}>
+                                                            {cliente.nota}
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</span>
+                                                    )}
                                                 </td>
                                                 <td style={{ padding: '16px', border: 'none' }}>
                                                     {cliente.dia_visita ? (
@@ -685,6 +716,18 @@ const GestionRutas = () => {
                         <Form.Group className="mb-3">
                             <Form.Label>Dirección</Form.Label>
                             <Form.Control type="text" value={clienteForm.direccion} onChange={e => setClienteForm({ ...clienteForm, direccion: e.target.value })} />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label>Nota / Preferencias</Form.Label>
+                            <Form.Control
+                                as="textarea"
+                                rows={2}
+                                placeholder="Ej: Dejar donde el vecino..."
+                                value={clienteForm.nota}
+                                onChange={e => setClienteForm({ ...clienteForm, nota: e.target.value })}
+                                style={{ backgroundColor: '#fffbe6', borderColor: '#ffe58f' }}
+                            />
                         </Form.Group>
 
                         <Form.Group className="mb-4">

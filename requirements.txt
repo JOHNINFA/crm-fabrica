@@ -35,3 +35,4 @@ scikit-learn==1.7.2
 # channels_redis==4.3.0
 # daphne==4.2.1
 # redis==6.4.0
+requests

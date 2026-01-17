@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Modal, Form, Alert } from 'react-bootstrap';
 import usePageTitle from '../hooks/usePageTitle';
+import { API_URL } from '../services/api';
 
 const DomiciliariosScreen = () => {
     usePageTitle('Domiciliarios');
@@ -28,7 +29,7 @@ const DomiciliariosScreen = () => {
 
     const cargarDomiciliarios = async () => {
         try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/domiciliarios/`);
+            const response = await fetch(`${API_URL}/domiciliarios/`);
 
             if (response.ok) {
                 const domiciliariosDB = await response.json();
@@ -130,8 +131,8 @@ const DomiciliariosScreen = () => {
 
         try {
             const url = editingDomiciliario
-                ? `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/domiciliarios/${editingDomiciliario.codigo}/`
-                : `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/domiciliarios/`;
+                ? `${API_URL}/domiciliarios/${editingDomiciliario.codigo}/`
+                : `${API_URL}/domiciliarios/`;
 
             const method = editingDomiciliario ? 'PUT' : 'POST';
 
@@ -166,7 +167,7 @@ const DomiciliariosScreen = () => {
         if (window.confirm('¿Está seguro de eliminar este domiciliario?')) {
             try {
                 const response = await fetch(
-                    `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/domiciliarios/${codigo}/`,
+                    `${API_URL}/domiciliarios/${codigo}/`,
                     { method: 'DELETE' }
                 );
 

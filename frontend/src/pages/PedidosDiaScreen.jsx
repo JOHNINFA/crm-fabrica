@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
-import { pedidoService } from '../services/api';
+import { pedidoService, API_URL } from '../services/api';
 import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
 import usePageTitle from '../hooks/usePageTitle';
 
@@ -98,7 +98,7 @@ export default function PedidosDiaScreen() {
 
         // 1. Intentar cargar desde API (Fuente de la verdad)
         try {
-          const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/ruta-orden/?dia=${dia}`);
+          const res = await fetch(`${API_URL}/ruta-orden/?dia=${dia}`);
           if (res.ok) {
             const data = await res.json();
             // Data es un array (filtrado por dia)
@@ -159,7 +159,7 @@ export default function PedidosDiaScreen() {
   const cargarClientes = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/clientes/`);
+      const response = await fetch(`${API_URL}/clientes/`);
       if (response.ok) {
         const data = await response.json();
         // Filtrar clientes por día de entrega (soporta múltiples días: "MARTES,JUEVES,SABADO")
@@ -181,17 +181,34 @@ export default function PedidosDiaScreen() {
   const cargarPedidos = async () => {
     try {
       // Cargar TODAS las pedidos y filtrar por fecha de entrega
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/pedidos/`);
+      const response = await fetch(`${API_URL}/pedidos/`);
       if (response.ok) {
         const pedidos = await response.json();
 
 
 
         // Filtrar por fecha de entrega que coincida con la fecha seleccionada
-        // 🆕 Permitir pedidos ANULADA para mostrar "No Entregado" en la tabla
-        const pedidosFiltradas = pedidos.filter(r =>
-          r.fecha_entrega === fechaSeleccionada
-        );
+        // 🆕 Excluir pedidos ANULADOS sin novedades (anulados manualmente desde Gestión)
+        // 🆕 Mantener pedidos ANULADOS con novedades (marcados como "No Entregado" por vendedor)
+        const pedidosFiltradas = pedidos.filter(r => {
+          const coincideFecha = r.fecha_entrega === fechaSeleccionada;
+
+          if (!coincideFecha) return false;
+
+          // Si está anulado, verificar si tiene novedades O nota de "No entregado"
+          if (r.estado === 'ANULADA') {
+            const tieneNovedades = r.novedades && r.novedades.length > 0;
+            const tieneNotaNoEntregado = r.nota && r.nota.toLowerCase().includes('no entregado');
+
+            // Si NO tiene ni novedades ni nota de "no entregado" = anulado manualmente → OCULTAR
+            if (!tieneNovedades && !tieneNotaNoEntregado) {
+              return false;
+            }
+          }
+
+          // Todos los demás (incluidos anulados CON novedades)
+          return true;
+        });
 
 
         // Crear un mapa de clientes que ya tienen pedido con los datos completos
@@ -326,7 +343,7 @@ export default function PedidosDiaScreen() {
     localStorage.setItem(ordenKey, JSON.stringify(idsOrdenados));
 
     // 2. Guardar en API (Persistente)
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/ruta-orden/`, {
+    fetch(`${API_URL}/ruta-orden/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -570,30 +587,52 @@ export default function PedidosDiaScreen() {
                         )}
                       </td>
                       <td style={{ padding: '4px 16px', textAlign: 'center', verticalAlign: 'middle', height: '45px' }}>
-                        {tienePedido ? (
-                          <button
-                            style={{
-                              padding: '2px',
-                              borderRadius: '9999px',
-                              color: '#EF4444',
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '20px',
-                              height: '20px'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              abrirModalAnular(cliente);
-                            }}
-                            title="Anular pedido"
-                          >
-                            <span className="material-icons" style={{ fontSize: '16px' }}>close</span>
-                          </button>
-                        ) : (
+                        {tienePedido ? (() => {
+                          // 🆕 Validar si el vendedor ya procesó el pedido en la app
+                          const fueEntregado = tienePedido.estado === 'ENTREGADO';
+                          const fueNoEntregado = tienePedido.estado === 'ANULADA' && tienePedido.novedades && tienePedido.novedades.length > 0;
+                          // 🆕 Verificar si tiene nota de "No entregado" desde la app móvil
+                          const tieneNotaNoEntregado = tienePedido.nota && tienePedido.nota.toLowerCase().includes('no entregado');
+                          const vendedorYaLoProceso = fueEntregado || fueNoEntregado || tieneNotaNoEntregado;
+
+                          // Si el vendedor ya lo procesó, NO permitir anulación
+                          if (vendedorYaLoProceso) {
+                            return (
+                              <span
+                                style={{ color: '#9CA3AF', fontSize: '12px', cursor: 'not-allowed' }}
+                                title="No se puede anular: El vendedor ya procesó este pedido en la app"
+                              >
+                                🔒
+                              </span>
+                            );
+                          }
+
+                          // Si no ha sido procesado, mostrar botón de anular
+                          return (
+                            <button
+                              style={{
+                                padding: '2px',
+                                borderRadius: '9999px',
+                                color: '#EF4444',
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '20px',
+                                height: '20px'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirModalAnular(cliente);
+                              }}
+                              title="Anular pedido (solo si el vendedor no lo ha procesado)"
+                            >
+                              <span className="material-icons" style={{ fontSize: '16px' }}>close</span>
+                            </button>
+                          );
+                        })() : (
                           <span style={{ color: '#9CA3AF' }}>-</span>
                         )}
                       </td>

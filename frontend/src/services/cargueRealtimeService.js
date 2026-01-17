@@ -8,7 +8,8 @@
  * Fecha: 2 de Diciembre 2025
  */
 
-const API_URL = 'http://localhost:8000/api';
+import { API_URL } from './api';
+// const API_URL = 'http://localhost:8000/api'; // REPLACED
 
 // Mapeo de IDs a endpoints
 const ENDPOINT_MAP = {

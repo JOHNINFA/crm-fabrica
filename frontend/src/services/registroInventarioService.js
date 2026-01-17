@@ -2,7 +2,8 @@
  * Servicio para gestión de registros de inventario (cantidades por fecha)
  */
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import { API_URL } from './api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 const handleApiError = (error) => {
   console.warn('API no disponible:', error);
@@ -25,9 +26,9 @@ export const registroInventarioService = {
         usuario: registroData.usuario,
         activo: true
       };
-      
 
-      
+
+
       const response = await fetch(`${API_URL}/registro-inventario/`, {
         method: 'POST',
         headers: {
@@ -35,15 +36,15 @@ export const registroInventarioService = {
         },
         body: JSON.stringify(payload)
       });
-      
 
-      
+
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Error del servidor:', errorText);
         throw new Error(`Error al crear registro: ${response.status} - ${errorText}`);
       }
-      
+
       const result = await response.json();
 
       return result;
@@ -75,7 +76,7 @@ export const registroInventarioService = {
         },
         body: JSON.stringify(registroData)
       });
-      
+
       if (!response.ok) throw new Error(`Error al actualizar registro: ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -94,7 +95,7 @@ export const registroInventarioService = {
         },
         body: JSON.stringify({ activo: false })
       });
-      
+
       if (!response.ok) throw new Error(`Error al eliminar registro: ${response.status}`);
       return await response.json();
     } catch (error) {

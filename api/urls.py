@@ -13,7 +13,7 @@ from .views import (
     calcular_devoluciones_automaticas, ventas_tiempo_real, cerrar_turno_vendedor,
     RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
     RegistrosPlaneacionDiaViewSet,
-    CarguePagosViewSet, RutaOrdenViewSet,
+    CarguePagosViewSet, RutaOrdenViewSet, ReportePlaneacionViewSet,
     obtener_estado_cargue, actualizar_estado_cargue,  # 🆕 Estado de cargue
     # 🆕 Endpoints de turno
     verificar_turno_activo, abrir_turno, cerrar_turno_estado,
@@ -70,6 +70,7 @@ router.register(r'ventas-cajero', VentaCajeroViewSet, basename='ventas-cajero')
 # Snapshot Planeación
 router.register(r'registros-planeacion-dia', RegistrosPlaneacionDiaViewSet, basename='registros-planeacion-dia')
 router.register(r'ruta-orden', RutaOrdenViewSet, basename='ruta-orden')
+router.register(r'reportes-planeacion', ReportePlaneacionViewSet, basename='reportes-planeacion')
 
 
 urlpatterns = router.urls + [

@@ -3,8 +3,9 @@ import "./ConsumerForm.css";
 import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
 import { useCajeroPedidos } from "../../context/CajeroPedidosContext";
+import { API_URL } from "../../services/api";
 
-export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, setClientData, sellers, priceList, setPriceList, setSellers }) {
+export default function ConsumerForm({ date, seller, client, setDate, setSeller, setClient, setClientData, sellers, priceList, setPriceList, setSellers, clientData }) {
     // Manejo seguro del contexto
     let cajeroLogueado, sucursalActiva, isAuthenticated;
 
@@ -43,7 +44,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
     useEffect(() => {
         const cargarVendedoresDelSistema = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/vendedores/');
+                const response = await fetch(`${API_URL}/vendedores/`);
                 if (response.ok) {
                     const vendedores = await response.json();
                     // Extraer nombres de vendedores
@@ -144,6 +145,45 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
 
         setClienteSuggestions([]);
         setIsSearching(false);
+    };
+
+    // 🆕 Gestión de Nota de Cliente
+    const [notaCliente, setNotaCliente] = useState("");
+    const [guardandoNota, setGuardandoNota] = useState(false);
+
+    useEffect(() => {
+        if (clientData) {
+            setNotaCliente(clientData.nota || "");
+        } else {
+            setNotaCliente("");
+        }
+    }, [clientData]);
+
+    const actualizarNotaCliente = async () => {
+        if (!clientData || !clientData.id) return;
+
+        try {
+            setGuardandoNota(true);
+            const response = await clienteService.update(clientData.id, { nota: notaCliente });
+            if (response && !response.error) {
+                // Actualizar localmente clientData para reflejar cambio sin recargar
+                if (setClientData) {
+                    setClientData({ ...clientData, nota: notaCliente });
+                }
+                // Feedback visual sutil (borde verde por un momento)
+                const input = document.getElementById('input-nota-cliente');
+                if (input) {
+                    input.style.borderColor = '#28a745';
+                    setTimeout(() => input.style.borderColor = '#ced4da', 2000);
+                }
+            } else {
+                alert('Error al guardar la nota');
+            }
+        } catch (error) {
+            console.error('Error guardando nota:', error);
+        } finally {
+            setGuardandoNota(false);
+        }
     };
 
     return (
@@ -309,6 +349,39 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                     )}
                 </div>
             </div>
+
+            {/* 🆕 Sección de Nota del Cliente (Solo si hay cliente seleccionado con ID) */}
+            {clientData && clientData.id && (
+                <div className="consumer-form-row" style={{ marginTop: '8px', borderTop: '1px dashed #eee', paddingTop: '8px' }}>
+                    <div style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                            <label className="consumer-form-label" style={{ color: '#003d88', fontWeight: 'bold' }}>
+                                <span className="material-icons" style={{ fontSize: '10px', verticalAlign: 'middle', marginRight: '4px' }}>sticky_note_2</span>
+                                Preferencias / Notas del Cliente
+                            </label>
+                            {guardandoNota && <span style={{ fontSize: '10px', color: '#28a745' }}>Guardando...</span>}
+                        </div>
+                        <div style={{ position: 'relative' }}>
+                            <textarea
+                                id="input-nota-cliente"
+                                className="form-control"
+                                value={notaCliente}
+                                onChange={(e) => setNotaCliente(e.target.value)}
+                                onBlur={actualizarNotaCliente} // Guardar al perder foco
+                                placeholder="Escribe aquí las preferencias del cliente (ej: Pide los lunes)..."
+                                style={{
+                                    fontSize: '11px',
+                                    minHeight: '34px',
+                                    resize: 'vertical',
+                                    padding: '4px 8px',
+                                    backgroundColor: '#fffbe6', // Color amarillo suave tipo post-it
+                                    borderColor: '#ffe58f'
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

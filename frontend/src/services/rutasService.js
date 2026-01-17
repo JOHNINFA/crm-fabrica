@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000/api';
+import { API_URL } from './api';
+// const API_URL = 'http://localhost:8000/api'; // REPLACED
+
 
 const rutasService = {
     // Rutas
@@ -58,7 +60,7 @@ const rutasService = {
         if (vendedorId) url += `&vendedor_id=${vendedorId}`;
         if (fechaInicio) url += `&fecha_inicio=${fechaInicio}`;
         if (fechaFin) url += `&fecha_fin=${fechaFin}`;
-        
+
         const response = await axios.get(url);
         return response.data;
     },

@@ -5,6 +5,8 @@ import AddProductModal from '../components/Pos/AddProductModal';
 import usePageTitle from '../hooks/usePageTitle';
 import './ProductFormScreen.css';
 
+import { API_URL } from '../services/api';
+
 const ProductFormScreenContent = () => {
     usePageTitle('Productos');
     const navigate = useNavigate();
@@ -100,7 +102,7 @@ const ProductFormScreenContent = () => {
                 const product = reorderedProducts[i];
                 const newOrder = i + 1;
 
-                await fetch(`http://localhost:8000/api/productos/${product.id}/`, {
+                await fetch(`${API_URL}/productos/${product.id}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ orden: newOrder })

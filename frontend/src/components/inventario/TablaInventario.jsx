@@ -3,11 +3,22 @@ import { Table, Button } from 'react-bootstrap';
 import '../../styles/TablaKardex.css';
 import '../../styles/EditButtons.css';
 
-const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, productosGrabados = {}, yaSeGrabo = false }) => {
+const TablaInventario = ({
+  productos,
+  onEditarClick,
+  handleCantidadChange,
+  productosGrabados = {},
+  yaSeGrabo = false,
+  lotesIngresados = false
+}) => {
   const handleChange = (id, value) => handleCantidadChange(id, value);
 
   return (
     <div className="table-container">
+
+
+
+
       <Table className="align-middle mb-0 table-kardex">
         <thead>
           <tr>
@@ -30,10 +41,17 @@ const TablaInventario = ({ productos, onEditarClick, handleCantidadChange, produ
                       min="0"
                       value={producto.cantidad || 0}
                       onChange={(e) => handleChange(producto.id, e.target.value)}
-                      onFocus={(e) => e.target.select()}
+                      onClick={(e) => {
+                        e.target.select();
+                      }}
+                      onFocus={(e) => {
+                        e.target.select();
+                      }}
                       className={`quantity-input ${productosGrabados[producto.id] ? 'grabado' : ''} ${yaSeGrabo ? 'input-grabado' : ''}`}
-                      disabled={productosGrabados[producto.id] || yaSeGrabo}
-                      placeholder={yaSeGrabo ? "Grabado" : "0"}
+                      disabled={productosGrabados[producto.id] || yaSeGrabo || !lotesIngresados}
+                      placeholder={yaSeGrabo ? "Grabado" : (!lotesIngresados ? "-" : "0")}
+                      inputMode="numeric" // Teclado numérico en móvil
+                      title={!lotesIngresados ? "Debe ingresar un lote antes de escribir cantidades" : ""}
                       aria-label={`Cantidad de ${producto.nombre}`}
                     />
                   </div>

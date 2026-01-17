@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Alert } from 'react-bootstrap';
 import usePageTitle from '../hooks/usePageTitle';
+import { API_URL } from '../services/api';
 
 const VendedoresScreen = () => {
   usePageTitle('Vendedores');
@@ -35,7 +36,7 @@ const VendedoresScreen = () => {
   const cargarVendedores = async () => {
     try {
       // 🚀 CORREGIDO: Cargar vendedores desde la API correcta
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/vendedores/`);
+      const response = await fetch(`${API_URL}/vendedores/`);
 
       if (response.ok) {
         const vendedoresDB = await response.json();
@@ -152,7 +153,7 @@ const VendedoresScreen = () => {
       });
 
       // Guardar en la API de Cargue
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/vendedores/actualizar_responsable/`, {
+      const response = await fetch(`${API_URL}/vendedores/actualizar_responsable/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ const VendedoresScreen = () => {
   const eliminarVendedor = async (idVendedor) => {
     if (window.confirm('¿Está seguro de eliminar este vendedor? Esto lo restablecerá a "RESPONSABLE"')) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/vendedores/actualizar_responsable/`, {
+        const response = await fetch(`${API_URL}/vendedores/actualizar_responsable/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

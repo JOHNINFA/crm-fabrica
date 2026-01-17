@@ -74,17 +74,27 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
 
             console.log(`✅ Filtrados para ${idSheet} (${fechaSeleccionada}): ${pedidosFiltrados.length}`);
 
-            // 🆕 REFINAMIENTO: Si un cliente tiene pedidos ENTREGADOS, ocultar sus ANULADOS para no ensuciar la vista
+            // 🆕 REFINAMIENTO INTELIGENTE: 
+            // - Si un pedido está ANULADO pero tiene NOVEDADES = el vendedor lo marcó como "No Entregado" → MOSTRAR
+            // - Si un pedido está ANULADO pero tiene NOTA con "No entregado" = reportado desde App móvil → MOSTRAR
+            // - Si un pedido está ANULADO sin NOVEDADES ni NOTA relevante = fue anulado manualmente desde Gestión de Pedidos → OCULTAR
             const pedidosParaMostrar = pedidosFiltrados.filter(p => {
-                if (p.estado !== 'ANULADA') return true; // Mostrar siempre los vigentes
+                // Mostrar siempre los pedidos vigentes (no anulados)
+                if (p.estado !== 'ANULADA') return true;
 
-                // Si es ANULADA, verificar si este cliente ya tiene uno ENTREGADO hoy
-                const tieneEntregado = pedidosFiltrados.some(otro =>
-                    otro.estado === 'ENTREGADO' &&
-                    otro.destinatario && p.destinatario &&
-                    otro.destinatario.trim().toUpperCase() === p.destinatario.trim().toUpperCase()
-                );
-                return !tieneEntregado; // Solo mostrar si NO tiene entregado
+                // Si está anulado, verificar si tiene novedades (fue tocado por vendedor)
+                const tieneNovedades = p.novedades && p.novedades.length > 0;
+
+                // 🆕 Verificar si tiene nota de "No entregado" desde la app móvil
+                const tieneNotaNoEntregado = p.nota && p.nota.toLowerCase().includes('no entregado');
+
+                if (tieneNovedades || tieneNotaNoEntregado) {
+                    // El vendedor lo marcó como "No Entregado" → MOSTRAR
+                    return true;
+                }
+
+                // Anulado sin novedades ni nota relevante = anulación manual desde Gestión → OCULTAR
+                return false;
             });
 
             console.log(`✅ Pedidos visuales finales: ${pedidosParaMostrar.length}`);

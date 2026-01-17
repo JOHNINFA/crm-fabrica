@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
+import { API_URL } from '../services/api';
 import usePageTitle from '../hooks/usePageTitle';
 import './ClientesScreen.css';
 
@@ -51,19 +52,19 @@ const ClientesScreen = () => {
   const cargarDatosIniciales = async () => {
     try {
       // Cargar vendedores
-      const resVendedores = await fetch('http://localhost:8000/api/vendedores/');
+      const resVendedores = await fetch(`${API_URL}/vendedores/`);
       if (resVendedores.ok) {
         setVendedores(await resVendedores.json());
       }
 
       // Cargar lista de precios
-      const resPrecios = await fetch('http://localhost:8000/api/lista-precios/?activo=true');
+      const resPrecios = await fetch(`${API_URL}/lista-precios/?activo=true`);
       if (resPrecios.ok) {
         setListaPrecios(await resPrecios.json());
       }
 
       // Cargar rutas
-      const resRutas = await fetch('http://localhost:8000/api/rutas/');
+      const resRutas = await fetch(`${API_URL}/rutas/`);
       if (resRutas.ok) {
         setRutas(await resRutas.json());
       }

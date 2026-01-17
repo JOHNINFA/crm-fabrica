@@ -19,6 +19,7 @@ const InventarioPlaneacion = () => {
   const [solicitadasCargadas, setSolicitadasCargadas] = useState(false);
   const [snapshotGuardado, setSnapshotGuardado] = useState(false);
   const [diaCongelado, setDiaCongelado] = useState(false); // 🔒 Estado de congelación
+  const [reporteGuardado, setReporteGuardado] = useState(false); // ✅ Estado para botón guardar reporte
 
   // 🚀 Cache para optimización
   const [cache, setCache] = useState({
@@ -483,46 +484,48 @@ const InventarioPlaneacion = () => {
       });
 
       // 🎯 Actualizar productos preservando ORDEN e IA editados por el usuario
+      // 🎯 Actualizar productos preservando ORDEN e IA editados por el usuario
       setProductos(prevProductos => {
-        // Si no hay productos previos, usar los nuevos directamente
-        if (prevProductos.length === 0) {
-          // 🚀 Guardar automáticamente en BD cuando llegan datos nuevos
-          if (!diaCompletado) {
-            productosConPlaneacion.forEach(producto => {
-              guardarEnBD(producto);
-            });
-          }
-          return productosConPlaneacion;
-        }
+        // 🔥 MEJORA CRÍTICA: Priorizar datos locales si el servidor trae 0 o null
+        // Si prevProductos tiene datos (cargados de localStorage), usarlos como base para ORDEN e IA
 
-        // Preservar ORDEN e IA de productos existentes
-        const productosActualizados = productosConPlaneacion.map(nuevoProducto => {
-          const productoExistente = prevProductos.find(p => p.id === nuevoProducto.id);
-          if (productoExistente) {
+        const productosFusionados = productosConPlaneacion.map(nuevoProducto => {
+          const productoLocal = prevProductos.find(p => p.id === nuevoProducto.id);
+
+          if (productoLocal) {
+            // Si el servidor trae 0, pero localmente tenemos un valor, PRESERVAR EL LOCAL
+            // Esto evita que una recarga borre datos que aún no han llegado a la BD
+            const ordenServidor = nuevoProducto.orden || 0;
+            const ordenLocal = productoLocal.orden || 0;
+
+            const iaServidor = nuevoProducto.ia || 0;
+            const iaLocal = productoLocal.ia || 0;
+
+            // Lógica de prioridad: Servidor > Local (si servidor != 0), sino Local
+            // PERO si acabamos de recargar, el "servidor" puede venir vacío injustamente.
+            // Para ser seguros: Si el servidor es 0, nos quedamos con el local.
+
             return {
               ...nuevoProducto,
-              orden: productoExistente.orden || 0, // Preservar ORDEN editado
-              ia: productoExistente.ia || 0 // Preservar IA editado
+              orden: ordenServidor > 0 ? ordenServidor : ordenLocal, // Si servidor tiene dato, usarlo. Si no, mantener local.
+              ia: iaServidor > 0 ? iaServidor : iaLocal
             };
           }
           return nuevoProducto;
         });
 
-        // 🚀 Guardar automáticamente en BD cuando cambian SOLICITADAS o PEDIDOS
+        // 🚀 Guardar automáticamente en BD si hay datos locales que no están en el servidor
         if (!diaCompletado) {
-          productosActualizados.forEach(producto => {
-            const productoAnterior = prevProductos.find(p => p.id === producto.id);
-            // Solo guardar si cambió algo relevante
-            if (!productoAnterior ||
-              productoAnterior.solicitado !== producto.solicitado ||
-              productoAnterior.pedidos !== producto.pedidos ||
-              productoAnterior.existencias !== producto.existencias) {
+          productosFusionados.forEach(producto => {
+            const productoLocal = prevProductos.find(p => p.id === producto.id);
+            if (productoLocal && (productoLocal.orden !== producto.orden || productoLocal.ia !== producto.ia)) {
+              // Si estamos rescatando un dato local, forzar guardado en BD para sincronizar
               guardarEnBD(producto);
             }
           });
         }
 
-        return productosActualizados;
+        return productosFusionados;
       });
       setCargando(false);
 
@@ -655,7 +658,7 @@ const InventarioPlaneacion = () => {
           clearTimeout(saveTimers[id]);
         }
 
-        // Crear nuevo timer
+        // Crear nuevo timer - ⚡ Reducido a 500ms para guardado más rápido
         const timer = setTimeout(async () => {
           const productoActualizado = nuevosProductos.find(p => p.id === id);
           if (productoActualizado) {
@@ -663,10 +666,29 @@ const InventarioPlaneacion = () => {
             // Ocultar indicador después de guardar
             setGuardandoIndicadores(prev => ({ ...prev, [id]: false }));
           }
-        }, 1000); // Esperar 1 segundo después de que el usuario deje de escribir
+        }, 500);
 
         setSaveTimers({ ...saveTimers, [id]: timer });
       }
+    }
+
+    // 🚀 GUARDAR INMEDIATAMENTE EN LOCALSTORAGE PARA PERSISTENCIA INSTANTÁNEA
+    // (Sobrevive a recargas F5 antes de que termine el debounce de BD)
+    try {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+      const key = `planeacion_${fechaFormateada}`;
+
+      const datosParaGuardar = {
+        productos: nuevosProductos,
+        timestamp: Date.now(),
+        fecha: fechaFormateada
+      };
+      localStorage.setItem(key, JSON.stringify(datosParaGuardar));
+    } catch (e) {
+      console.error('Error guardando backup local:', e);
     }
 
     // 🔒 Pausar actualización automática mientras el usuario edita
@@ -816,6 +838,39 @@ const InventarioPlaneacion = () => {
     }
   };
 
+  // 🚀 Guardar Reporte Histórico (Snapshot)
+  const guardarReporte = async () => {
+    try {
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      const response = await fetch(`${API_URL}/reportes-planeacion/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fecha_reporte: fechaFormateada,
+          datos_json: productos,
+          usuario: 'Usuario Sistema'
+        })
+      });
+
+      if (response.ok) {
+        setReporteGuardado(true);
+        mostrarMensaje('📝 Reporte guardado exitosamente para historial', 'success');
+
+        // Volver al color azul después de 3 segundos
+        setTimeout(() => setReporteGuardado(false), 3000);
+      } else {
+        mostrarMensaje('Error al guardar reporte', 'danger');
+      }
+    } catch (error) {
+      console.error('Error guardando reporte:', error);
+      mostrarMensaje('Error de conexión', 'danger');
+    }
+  };
+
   const handleDateSelect = (date) => setFechaSeleccionada(date);
 
   return (
@@ -833,6 +888,28 @@ const InventarioPlaneacion = () => {
           <DateSelector onDateSelect={handleDateSelect} />
         </Col>
         <Col xs={12} md={6} className="d-flex justify-content-end align-items-center gap-2">
+          {/* ✅ Nuevo botón GUARDAR REPORTE */}
+          <Button
+            variant={reporteGuardado ? "success" : "primary"}
+            size="sm"
+            className="mb-2 mb-md-0 d-flex align-items-center"
+            onClick={guardarReporte}
+            disabled={cargando || reporteGuardado || productos.length === 0}
+            title="Guardar una copia de esta planeación en Reportes Avanzados"
+          >
+            {reporteGuardado ? (
+              <>
+                <i className="bi bi-check-circle-fill me-1"></i>
+                Guardado
+              </>
+            ) : (
+              <>
+                <i className="bi bi-save me-1"></i>
+                Guardar Reporte
+              </>
+            )}
+          </Button>
+
           <Button
             variant="outline-primary"
             size="sm"
@@ -915,12 +992,12 @@ const InventarioPlaneacion = () => {
             <Table className="align-middle mb-0 table-kardex planeacion-table">
               <thead>
                 <tr>
-                  <th scope="col" style={{ width: '30%' }}>Producto</th>
-                  <th scope="col" className="text-center" style={{ width: '10%' }}>Existencias</th>
-                  <th scope="col" className="text-center" style={{ width: '10%' }}>Solicitadas</th>
-                  <th scope="col" className="text-center" style={{ width: '10%' }}>Pedidos</th>
-                  <th scope="col" className="text-center" style={{ width: '10%' }}>Total</th>
-                  <th scope="col" className="text-center" style={{ width: '10%' }}>Orden</th>
+                  <th scope="col" style={{ width: '32%' }}>Producto</th>
+                  <th scope="col" className="text-center" style={{ width: '9%' }}>Existencias</th>
+                  <th scope="col" className="text-center" style={{ width: '5%' }}>Solicitadas</th>
+                  <th scope="col" className="text-center" style={{ width: '19%' }}>Pedidos</th>
+                  <th scope="col" className="text-center" style={{ width: '13%' }}>Total</th>
+                  <th scope="col" className="text-center" style={{ width: '12%' }}>Orden</th>
                   <th scope="col" className="text-center" style={{ width: '10%' }}>IA</th>
                 </tr>
               </thead>
@@ -963,6 +1040,7 @@ const InventarioPlaneacion = () => {
                             min="0"
                             value={producto.orden || 0}
                             onChange={(e) => handleOrdenChange(producto.id, e.target.value)}
+                            onFocus={(e) => e.target.select()} // 🎯 Seleccionar todo al hacer clic
                             className="solicitadas-display"
                             style={{
                               cursor: diaCongelado ? 'not-allowed' : 'text',

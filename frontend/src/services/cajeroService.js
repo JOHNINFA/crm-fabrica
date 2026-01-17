@@ -1,5 +1,6 @@
 // Servicio para gestión de cajeros
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import { API_URL } from './api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Función para manejar errores de la API
 const handleApiError = (error) => {

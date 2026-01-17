@@ -22,61 +22,71 @@ export default function MainMenu() {
   };
 
   return (
-    <div className="main-menu" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundImage: `url(${bannermenu})`, backgroundSize: '120% auto', backgroundPosition: '50% 50%', backgroundRepeat: 'no-repeat' }}>
-      <div style={{ marginBottom: '5px', textAlign: 'center' }}>
-        <img src={icono} alt="Logo" style={{ width: '230px', height: 'auto', objectFit: 'contain', imageRendering: 'high-quality' }} />
+    <div className="main-menu" style={{ backgroundImage: `url(${bannermenu})` }}>
+      <div className="logo-container">
+        <img src={icono} alt="Logo Arepas Guerrero" className="logo-img" />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 240px)', gridTemplateRows: 'repeat(2, 140px)', columnGap: '40px', rowGap: '25px', justifyContent: 'center', padding: '30px 40px' }}>
-        <div onClick={() => handleCardClick("/pos")} className="menu-card">
-          <i className="bi bi-cart"></i>
-          <h3>Punto de Venta (POS)</h3>
-          <p>Gestiona ventas y facturación en tiempo real.</p>
-        </div>
-        <div
+
+      <div className="menu-grid">
+        <button onClick={() => handleCardClick("/pos")} className="menu-card">
+          <i className="bi bi-cart3"></i>
+          <h3>Punto de Venta</h3>
+          <p>Facturación rápida y control de caja.</p>
+        </button>
+
+        <button
           onClick={() => handleCardClick("/inventario", true)}
           className="menu-card"
-          style={isPosOnlyMode ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          disabled={isPosOnlyMode}
+          style={isPosOnlyMode ? { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
         >
-          <i className="bi bi-box"></i>
+          {isPosOnlyMode && <i className="bi bi-lock text-danger position-absolute top-0 end-0 m-2"></i>}
+          <i className="bi bi-box-seam"></i>
           <h3>Inventario</h3>
-          <p>Controla el stock y los movimientos de productos.</p>
-          {isPosOnlyMode && <span style={{ fontSize: '10px', color: '#dc3545', marginTop: '5px' }}>🔒 Bloqueado</span>}
-        </div>
-        <div
+          <p>Stock, producción y materia prima.</p>
+        </button>
+
+        <button
           onClick={() => handleCardClick("/cargue", true)}
           className="menu-card"
-          style={isPosOnlyMode ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          disabled={isPosOnlyMode}
+          style={isPosOnlyMode ? { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
         >
+          {isPosOnlyMode && <i className="bi bi-lock text-danger position-absolute top-0 end-0 m-2"></i>}
           <i className="bi bi-people"></i>
           <h3>Cargue</h3>
-          <p>Gestiona producción y devoluciones de vendedores.</p>
-          {isPosOnlyMode && <span style={{ fontSize: '10px', color: '#dc3545', marginTop: '5px' }}>🔒 Bloqueado</span>}
-        </div>
-        <div
+          <p>Salidas a vendedores y devoluciones.</p>
+        </button>
+
+        <button
           onClick={() => handleCardClick("/remisiones", true)}
           className="menu-card"
-          style={isPosOnlyMode ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          disabled={isPosOnlyMode}
+          style={isPosOnlyMode ? { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
         >
-          <i className="bi bi-file-text"></i>
+          {isPosOnlyMode && <i className="bi bi-lock text-danger position-absolute top-0 end-0 m-2"></i>}
+          <i className="bi bi-file-earmark-text"></i>
           <h3>Pedidos</h3>
-          <p>Crea y administra los pedidos de clientes.</p>
-          {isPosOnlyMode && <span style={{ fontSize: '10px', color: '#dc3545', marginTop: '5px' }}>🔒 Bloqueado</span>}
-        </div>
-        <div
+          <p>Gestión de pedidos de clientes.</p>
+        </button>
+
+        <button
           onClick={() => handleCardClick("/trazabilidad", true)}
           className="menu-card"
-          style={isPosOnlyMode ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          disabled={isPosOnlyMode}
+          style={isPosOnlyMode ? { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
         >
+          {isPosOnlyMode && <i className="bi bi-lock text-danger position-absolute top-0 end-0 m-2"></i>}
           <i className="bi bi-diagram-3"></i>
           <h3>Trazabilidad</h3>
-          <p>Rastrea el ciclo de vida de tus productos.</p>
-          {isPosOnlyMode && <span style={{ fontSize: '10px', color: '#dc3545', marginTop: '5px' }}>🔒 Bloqueado</span>}
-        </div>
-        <div onClick={() => handleCardClick("/otros")} className="menu-card">
+          <p>Historial y lotes de productos.</p>
+        </button>
+
+        <button onClick={() => handleCardClick("/otros")} className="menu-card">
           <i className="bi bi-gear"></i>
           <h3>Otros</h3>
-          <p>Otras opciones y configuraciones del sistema.</p>
-        </div>
+          <p>Configuración y utilidades.</p>
+        </button>
       </div>
     </div>
   );

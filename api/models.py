@@ -1843,6 +1843,7 @@ class ClienteRuta(models.Model):
     latitud = models.FloatField(null=True, blank=True)
     longitud = models.FloatField(null=True, blank=True)
     activo = models.BooleanField(default=True)
+    nota = models.TextField(blank=True, null=True) # 🆕 Campo para nota/preferencias del cliente
     
     def __str__(self):
         return f"{self.nombre_negocio} ({self.dia_visita})"
@@ -2035,3 +2036,18 @@ class AgentSession(models.Model):
     
     def __str__(self):
         return f"Session {self.session_id} - {self.tool_name or 'idle'}"
+
+class ReportePlaneacion(models.Model):
+    """Modelo para guardar snapshots históricos de planeación"""
+    fecha_reporte = models.DateField()      # Fecha de la planeación
+    fecha_creacion = models.DateTimeField(auto_now_add=True) # Cuándo se creó
+    usuario = models.CharField(max_length=100, blank=True, null=True, default='Sistema')
+    
+    # Guardamos el JSON completo de la tabla
+    datos_json = models.JSONField() 
+    
+    def __str__(self):
+        return f"Reporte {self.fecha_reporte} - {self.fecha_creacion.strftime('%Y-%m-%d %H:%M')}"
+    
+    class Meta:
+        ordering = ['-fecha_creacion']

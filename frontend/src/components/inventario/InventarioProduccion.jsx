@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Swal from 'sweetalert2';
+
 import {
   Container,
   Row,
@@ -18,7 +20,7 @@ import DateSelector from "../common/DateSelector";
 import { useProductos } from "../../hooks/useUnifiedProducts";
 import { loteService } from "../../services/loteService";
 import { registroInventarioService } from "../../services/registroInventarioService";
-import { productoService } from "../../services/api";
+import { productoService, API_URL } from "../../services/api";
 import "../../styles/InventarioProduccion.css";
 import "../../styles/TablaKardex.css";
 import "../../styles/ActionButtons.css";
@@ -43,6 +45,15 @@ const InventarioProduccion = () => {
   const [productoEditar, setProductoEditar] = useState(null);
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [productos, setProductos] = useState([]);
+
+  // 🆕 REF para mantener el estado actualizado dentro de los timers
+  const productosRef = useRef(productos);
+
+  // Sincronizar ref con estado
+  useEffect(() => {
+    productosRef.current = productos;
+  }, [productos]);
+
   const [cargando, setCargando] = useState(true);
   const [productosGrabados, setProductosGrabados] = useState({});
 
@@ -51,6 +62,98 @@ const InventarioProduccion = () => {
 
   // Estado para indicar que ya se grabó (sombreado de inputs)
   const [yaSeGrabo, setYaSeGrabo] = useState(false);
+
+
+
+  // 🛡️ PERSISTENCIA: Estado para controlar restauración
+  const [restauracionCompleta, setRestauracionCompleta] = useState(false);
+
+  // 🛡️ PERSISTENCIA: Clave dinámica por fecha
+  const fechaKeyStr = useMemo(() => {
+    if (!fechaSeleccionada) return "";
+    return `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, "0")}-${String(fechaSeleccionada.getDate()).padStart(2, "0")}`;
+  }, [fechaSeleccionada]);
+
+  // 🛡️ PERSISTENCIA: Resetear flag al cambiar fecha (ELIMINADO - Se hace en handleDateSelect para evitar race condition)
+  // useEffect(() => {
+  //   setRestauracionCompleta(false);
+  // }, [fechaKeyStr]);
+
+  // 🛡️ PERSISTENCIA: Función para restaurar datos (Extraída para uso manual)
+  const restaurarDatosDeLocalStorage = useCallback((fechaK) => {
+    // Si no hay productos cargados, abortar restauración (se reintentará cuando carguen)
+    if (productosRef.current.length === 0) {
+      return;
+    }
+
+
+
+    const lotesGuardados = localStorage.getItem(`inv_prod_lotes_${fechaK}`);
+    const cantidadesGuardadas = localStorage.getItem(`inv_prod_cantidades_${fechaK}`);
+
+    if (lotesGuardados) {
+      try {
+        const parsedLotes = JSON.parse(lotesGuardados);
+        if (Array.isArray(parsedLotes) && parsedLotes.length > 0) {
+          setLotes(parsedLotes);
+        }
+      } catch (e) { console.error("Error restaurando lotes", e); }
+    }
+
+    if (cantidadesGuardadas) {
+      try {
+        const mapaCantidades = JSON.parse(cantidadesGuardadas);
+        setProductos(prev => prev.map(p => {
+          return mapaCantidades[p.id] ? { ...p, cantidad: mapaCantidades[p.id] } : p;
+        }));
+      } catch (e) { console.error("Error restaurando cantidades", e); }
+    }
+
+    // Marcar como completa para permitir el auto-guardado subsiguiente
+    setRestauracionCompleta(true);
+  }, []);
+
+  // 🛡️ PERSISTENCIA: Restaurar datos al cargar productos INICIALMENTE
+  useEffect(() => {
+    // Si es la carga inicial (o F5), productos ya cargaron, y aún no hemos restaurado
+    if (productos.length > 0 && !restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+      // Verificar si NO estamos en medio de una carga manual de fecha (checked by logic elsewhere, but good to delay)
+      // Usamos un timeout para asegurar que no choque con otros efectos de montaje
+      const timer = setTimeout(() => {
+        restaurarDatosDeLocalStorage(fechaKeyStr);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [productos.length, fechaKeyStr, yaSeGrabo, restaurarDatosDeLocalStorage]); // Quitamos restauracionCompleta de deps para evitar bucles, se controla dentro
+
+
+  // 🛡️ PERSISTENCIA: Auto-guardar lotes
+  useEffect(() => {
+    if (restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+      if (lotes.length > 0) {
+        localStorage.setItem(`inv_prod_lotes_${fechaKeyStr}`, JSON.stringify(lotes));
+      } else {
+        // Si está vacío, borrar (o guardar vacío, pero mejor borrar para ahorrar espacio)
+        // Pero cuidado: si el usuario borra todo, debe borrarse en LS.
+        // Mejor guardar el array vacío explícitamente si antes había algo
+        localStorage.setItem(`inv_prod_lotes_${fechaKeyStr}`, JSON.stringify([]));
+      }
+    }
+  }, [lotes, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
+
+  // 🛡️ PERSISTENCIA: Auto-guardar cantidades
+  useEffect(() => {
+    if (restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+      const mapaCantidades = {};
+      const hayCantidades = productos.some(p => p.cantidad > 0);
+      if (hayCantidades) {
+        productos.forEach(p => { if (p.cantidad > 0) mapaCantidades[p.id] = p.cantidad; });
+        localStorage.setItem(`inv_prod_cantidades_${fechaKeyStr}`, JSON.stringify(mapaCantidades));
+      } else {
+        localStorage.removeItem(`inv_prod_cantidades_${fechaKeyStr}`);
+      }
+    }
+  }, [productos, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
 
   // Estado para modal de edición de producción del día
   const [showModalEditarProduccion, setShowModalEditarProduccion] = useState(false);
@@ -110,13 +213,21 @@ const InventarioProduccion = () => {
       );
 
       if (inventoryProducts.length > 0) {
-        console.log(
-          "Cargando productos desde inventario:",
-          inventoryProducts.length
-        );
+
+
+
+        // 🆕 Mapear productos e inyectar cantidades preservadas (desde REF)
+        const productosPreservados = inventoryProducts.map((p) => {
+          const productoExistente = productosRef.current.find(prod => prod.id === p.id);
+          const cantidadActual = productoExistente?.cantidad || 0;
+          return {
+            ...p,
+            cantidad: cantidadActual // 🔥 Preservar cantidad del usuario
+          };
+        });
 
         // Ordenar por el campo 'orden' si existe, sino por ID
-        const productosOrdenados = [...inventoryProducts].sort((a, b) => {
+        const productosOrdenados = productosPreservados.sort((a, b) => {
           // Usar el campo orden si existe
           const ordenA = a.orden !== undefined ? a.orden : 999999;
           const ordenB = b.orden !== undefined ? b.orden : 999999;
@@ -139,17 +250,25 @@ const InventarioProduccion = () => {
         if (posProducts.length > 0) {
 
 
-          const productosFormateados = posProducts.map((producto) => ({
-            id: producto.id,
-            nombre: producto.name?.toUpperCase() || "SIN NOMBRE",
-            existencias: producto.stock || 0,
-            cantidad: 0,
-            precio: producto.price || 0,
-            categoria: producto.category || "General",
-            imagen: producto.image || null,
-            orden: producto.orden || 0,
-            disponible_inventario: producto.disponible_inventario !== false, // 🆕 Incluir flag
-          }));
+
+          const productosFormateados = posProducts.map((producto) => {
+            // 🆕 Buscar si este producto ya tiene cantidad escrita por el usuario (usando REF actualizada)
+            const productoExistente = productosRef.current.find(p => p.id === producto.id);
+            const cantidadActual = productoExistente?.cantidad || 0;
+
+            return {
+              id: producto.id,
+              nombre: producto.name?.toUpperCase() || "SIN NOMBRE",
+              existencias: producto.stock || 0,
+              cantidad: cantidadActual, // 🔥 Preservar cantidad del usuario
+              precio: producto.price || 0,
+              categoria: producto.category || "General",
+              imagen: producto.image || null,
+              orden: producto.orden || 0,
+              disponible_inventario: producto.disponible_inventario !== false, // 🆕 Incluir flag
+            };
+          });
+
 
           // Ordenar por el campo 'orden' si existe, sino por ID
           const productosOrdenados = productosFormateados.sort((a, b) => {
@@ -173,25 +292,27 @@ const InventarioProduccion = () => {
           // Intentar cargar directamente desde la API
           try {
             const response = await fetch(
-              "http://localhost:8000/api/productos/"
+              `${API_URL}/productos/`
             );
             if (response.ok) {
               const productosFromBD = await response.json();
-              console.log(
-                "Productos cargados desde API:",
-                productosFromBD.length
-              );
 
-              const productosFormateados = productosFromBD.map((p) => ({
-                id: p.id,
-                nombre: p.nombre,
-                existencias: p.stock_total || 0,
-                cantidad: 0,
-                precio: parseFloat(p.precio) || 0,
-                categoria: p.categoria_nombre || "General",
-                orden: p.orden || 0,
-                disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
-              }));
+              const productosFormateados = productosFromBD.map((p) => {
+                // 🆕 Preservar cantidad si el producto ya existe (usando REF actualizada)
+                const productoExistente = productosRef.current.find(prod => prod.id === p.id);
+                const cantidadActual = productoExistente?.cantidad || 0;
+
+                return {
+                  id: p.id,
+                  nombre: p.nombre,
+                  existencias: p.stock_total || 0,
+                  cantidad: cantidadActual, // 🔥 Preservar cantidad del usuario
+                  precio: parseFloat(p.precio) || 0,
+                  categoria: p.categoria_nombre || "General",
+                  orden: p.orden || 0,
+                  disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
+                };
+              });
 
               // Ordenar por el campo 'orden' si existe, sino por ID
               const productosOrdenados = productosFormateados.sort((a, b) => {
@@ -228,21 +349,27 @@ const InventarioProduccion = () => {
 
 
       // Cargar existencias desde BD
-      const response = await fetch("http://localhost:8000/api/productos/");
+      const response = await fetch(`${API_URL}/productos/`);
       if (response.ok) {
         const productosFromBD = await response.json();
 
 
         // Actualizar productos en localStorage
-        const productosParaInventario = productosFromBD.map((p) => ({
-          id: p.id,
-          nombre: p.nombre,
-          existencias: p.stock_total,
-          categoria: p.categoria_nombre || "General",
-          cantidad: 0,
-          orden: p.orden || 0, // ✅ Incluir campo orden
-          disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
-        }));
+        const productosParaInventario = productosFromBD.map((p) => {
+          // 🆕 Preservar cantidad si el producto ya existe (usando REF actualizada)
+          const productoExistente = productosRef.current.find(prod => prod.id === p.id);
+          const cantidadActual = productoExistente?.cantidad || 0;
+
+          return {
+            id: p.id,
+            nombre: p.nombre,
+            existencias: p.stock_total,
+            categoria: p.categoria_nombre || "General",
+            cantidad: cantidadActual, // 🔥 Preservar cantidad del usuario
+            orden: p.orden || 0, // ✅ Incluir campo orden
+            disponible_inventario: p.disponible_inventario !== false, // 🆕 Incluir flag
+          };
+        });
         localStorage.setItem(
           "productos",
           JSON.stringify(productosParaInventario)
@@ -264,15 +391,6 @@ const InventarioProduccion = () => {
 
         // Guardar en localStorage
         localStorage.setItem("products", JSON.stringify(productosParaPOS));
-
-        console.log(
-          "📊 Stock actualizado desde BD:",
-          productosParaPOS.map((p) => ({
-            id: p.id,
-            nombre: p.name,
-            stock: p.stock,
-          }))
-        );
       } else {
         console.error("Error al obtener productos de la BD:", response.status);
       }
@@ -329,12 +447,11 @@ const InventarioProduccion = () => {
     // 🆕 Cargar usuario desde la API (BD)
     const cargarUsuarioDesdeAPI = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/configuracion-produccion/?clave=usuario_produccion');
+        const response = await fetch(`${API_URL}/configuracion-produccion/?clave=usuario_produccion`);
         if (response.ok) {
           const data = await response.json();
           if (data.valor && data.valor !== 'Usuario Predeterminado') {
             setUsuario(data.valor);
-            console.log('✅ Usuario cargado desde BD:', data.valor);
           }
         }
       } catch (error) {
@@ -472,7 +589,7 @@ const InventarioProduccion = () => {
       // Actualizar stock en BD
       try {
         const responsePatch = await fetch(
-          `http://localhost:8000/api/productos/${id}/`,
+          `${API_URL}/productos/${id}/`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -519,7 +636,7 @@ const InventarioProduccion = () => {
         tipo: "success",
       });
 
-      console.log(`✅ Producción editada: ${productoEditado.nombre} ${cantidadOriginal} → ${nuevaCantidadProduccion}`);
+
     } catch (error) {
       console.error("Error al editar producción del día:", error);
       setMensaje({ texto: "Error al editar producción del día", tipo: "danger" });
@@ -729,12 +846,33 @@ const InventarioProduccion = () => {
 
   const handleAgregarLote = () => {
     if (!lote) {
-      mostrarMensaje("Debe ingresar un número de lote", "warning");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta información',
+        text: 'Debe ingresar un número de lote',
+        confirmButtonColor: '#f59e0b'
+      });
+      return;
+    }
+
+    // 🆕 Validación estricta de fecha de vencimiento
+    if (!fechaVencimiento) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta información',
+        text: 'Debe seleccionar una fecha de vencimiento',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
     if (lotes.some((l) => l.numero === lote)) {
-      mostrarMensaje("Este número de lote ya fue agregado", "warning");
+      Swal.fire({
+        icon: 'error',
+        title: 'Duplicado',
+        text: 'Este número de lote ya fue agregado',
+        confirmButtonColor: '#ef4444'
+      });
       return;
     }
 
@@ -747,7 +885,14 @@ const InventarioProduccion = () => {
     setLotes([...lotes, nuevoLote]);
     setLote("");
     setFechaVencimiento("");
-    mostrarMensaje("Lote agregado correctamente", "success");
+    Swal.fire({
+      icon: 'success',
+      title: 'Lote agregado',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000
+    });
   };
 
   const handleEliminarLote = (id) => {
@@ -758,18 +903,63 @@ const InventarioProduccion = () => {
   const handleGrabarMovimiento = async () => {
     const productosConCantidad = productos.filter((p) => p.cantidad > 0);
 
-    // Validaciones
+    // Validaciones con SweetAlert
     if (productosConCantidad.length === 0) {
-      mostrarMensaje("No hay cantidades para registrar", "warning");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sin datos',
+        text: 'No hay productos con cantidades para registrar',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
     if (lotes.length === 0) {
-      mostrarMensaje("Debe Ingresar Lote", "warning");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta Lote',
+        text: 'Debe ingresar al menos un lote antes de grabar',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
-    const fechaStr = fechaSeleccionada.toLocaleDateString("es-ES");
+    // Crear lista HTML para el resumen
+    const listaProductosHtml = productosConCantidad
+      .map(p => `<li style="text-align: left; margin-bottom: 5px;">
+                  <strong>${p.nombre}:</strong> ${p.cantidad} und.
+                 </li>`)
+      .join('');
+
+    const fechaStr = fechaSeleccionada.toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Confirmación con SweetAlert
+    const confirmacion = await Swal.fire({
+      title: '¿Grabar Movimiento?',
+      html: `
+        <div style="text-align: left; font-size: 0.95rem;">
+          <p>Se registrará la producción para: <br><strong>${fechaStr}</strong></p>
+          <p class="mb-2">Productos a registrar:</p>
+          <ul style="max-height: 200px; overflow-y: auto; padding-left: 20px; background: #f8fafc; padding: 10px; border-radius: 6px;">
+            ${listaProductosHtml}
+          </ul>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: '<i class="bi bi-save"></i> Sí, Grabar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    });
+
+    if (!confirmacion.isConfirmed) {
+      return;
+    }
+
+    // <-- Continuar con el proceso de grabado original -->
+    const fechaCorta = fechaSeleccionada.toLocaleDateString("es-ES");
     const hora = new Date().toLocaleTimeString("es-ES", {
       hour: "2-digit",
       minute: "2-digit",
@@ -786,7 +976,7 @@ const InventarioProduccion = () => {
         const loteInfo = lotes.map((l) => l.numero).join(", ");
         nuevosMovimientos.push({
           id: Date.now() + Math.random(),
-          fecha: fechaStr,
+          fecha: fechaCorta,
           hora,
           producto: producto.nombre,
           cantidad: cantidadAAgregar,
@@ -905,9 +1095,7 @@ const InventarioProduccion = () => {
         const cantidadAAgregar = parseInt(producto.cantidad) || 0;
         const stockActual = stockBD + cantidadAAgregar;
 
-        console.log(
-          `📊 Actualizando stock BD - ${producto.nombre}: ${stockBD} (BD) + ${cantidadAAgregar} = ${stockActual}`
-        );
+
 
         // Actualizar el stock en la base de datos
         const responsePatch = await fetch(
@@ -925,14 +1113,7 @@ const InventarioProduccion = () => {
             `Error al actualizar stock: ${responsePatch.status} - ${errorText}`
           );
         }
-
-        // Actualizar también el stock en el movimiento de inventario
-        await productoService.updateStock(
-          producto.id,
-          cantidadAAgregar,
-          usuario,
-          `Producción: ${lotes.map((l) => l.numero).join(", ")}`
-        );
+        // Stock actualizado correctamente con PATCH - No llamar a updateStock para evitar doble suma
       } catch (error) {
         console.error("Error al actualizar stock:", error);
         // Intentar actualizar usando el servicio de API como fallback
@@ -997,14 +1178,6 @@ const InventarioProduccion = () => {
 
         // Guardar en localStorage y mostrar log para verificar
         localStorage.setItem("products", JSON.stringify(productosParaPOS));
-        console.log(
-          "📊 Productos actualizados en POS con stock de BD:",
-          productosParaPOS.map((p) => ({
-            id: p.id,
-            nombre: p.name,
-            stock: p.stock,
-          }))
-        );
 
         // Notificar cambios
         window.dispatchEvent(new Event("storage"));
@@ -1015,14 +1188,6 @@ const InventarioProduccion = () => {
           try {
             const verificacion = JSON.parse(
               localStorage.getItem("products") || "[]"
-            );
-            console.log(
-              "✅ Verificación de sincronización:",
-              verificacion.map((p) => ({
-                id: p.id,
-                nombre: p.name,
-                stock: p.stock,
-              }))
             );
           } catch (e) {
             console.error("Error en verificación:", e);
@@ -1068,6 +1233,11 @@ const InventarioProduccion = () => {
     setLote("");
     setFechaVencimiento("");
 
+    // 🛡️ PERSISTENCIA: Limpiar localStorage (Solo para la fecha actual)
+    const fechaKeyLimpieza = `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, "0")}-${String(fechaSeleccionada.getDate()).padStart(2, "0")}`;
+    localStorage.removeItem(`inv_prod_lotes_${fechaKeyLimpieza}`);
+    localStorage.removeItem(`inv_prod_cantidades_${fechaKeyLimpieza}`);
+
     // 🎯 NUEVO: Activar indicador visual de que ya se grabó
     setYaSeGrabo(true);
   };
@@ -1089,7 +1259,7 @@ const InventarioProduccion = () => {
 
       if (response.ok) {
         mostrarMensaje("✅ Usuario guardado en base de datos", "success");
-        console.log('✅ Usuario guardado en BD:', nuevoUsuario);
+        mostrarMensaje("✅ Usuario guardado en base de datos", "success");
       } else {
         throw new Error('Error al guardar');
       }
@@ -1102,6 +1272,9 @@ const InventarioProduccion = () => {
   };
 
   const handleDateSelect = async (date) => {
+    // 🛡️ PERSISTENCIA: Detener guardado automático inmediatamente antes de cambiar nada
+    setRestauracionCompleta(false);
+
     setFechaSeleccionada(date);
 
     // Limpiar campos
@@ -1134,9 +1307,15 @@ const InventarioProduccion = () => {
       const registrosFromBD = await registroInventarioService.getByFecha(
         fechaStr
       );
-      if (registrosFromBD?.length > 0) {
+
+      // 🔥 FILTRAR solo registros de PRODUCCIÓN (excluir MAQUILA)
+      const registrosProduccion = registrosFromBD?.filter(
+        r => r.tipo_movimiento !== 'ENTRADA_MAQUILA'
+      ) || [];
+
+      if (registrosProduccion.length > 0) {
         // Cargar usuario del día
-        const usuarioDelDia = registrosFromBD[0].usuario;
+        const usuarioDelDia = registrosProduccion[0].usuario;
         if (usuarioDelDia && usuarioDelDia !== "Sistema") {
           setUsuario(usuarioDelDia);
         }
@@ -1159,7 +1338,7 @@ const InventarioProduccion = () => {
             } catch (parseError) {
               console.error("Error al parsear datos de confirmación:", parseError);
               // Fallback: crear datos de confirmación desde BD
-              const productosConCantidad = registrosFromBD.map((registro) => ({
+              const productosConCantidad = registrosProduccion.map((registro) => ({
                 nombre: registro.producto_nombre,
                 cantidad: registro.cantidad,
               }));
@@ -1168,7 +1347,7 @@ const InventarioProduccion = () => {
                 const datosParaConfirmacion = {
                   lote: lotesFromBD?.map((l) => l.lote).join(", ") || "N/A",
                   fechaVencimiento: lotesFromBD?.[0]?.fecha_vencimiento || null,
-                  fechaCreacion: registrosFromBD[0]?.fecha_creacion || new Date().toISOString(),
+                  fechaCreacion: registrosProduccion[0]?.fecha_creacion || new Date().toISOString(),
                   usuario: usuarioDelDia || "Usuario Predeterminado",
                   productos: productosConCantidad,
                 };
@@ -1178,7 +1357,7 @@ const InventarioProduccion = () => {
             }
           } else {
             // Si no hay datos en localStorage, crear desde BD
-            const productosConCantidad = registrosFromBD.map((registro) => ({
+            const productosConCantidad = registrosProduccion.map((registro) => ({
               nombre: registro.producto_nombre,
               cantidad: registro.cantidad,
             }));
@@ -1187,7 +1366,7 @@ const InventarioProduccion = () => {
               const datosParaConfirmacion = {
                 lote: lotesFromBD?.map((l) => l.lote).join(", ") || "N/A",
                 fechaVencimiento: lotesFromBD?.[0]?.fecha_vencimiento || null,
-                fechaCreacion: registrosFromBD[0]?.fecha_creacion || new Date().toISOString(),
+                fechaCreacion: registrosProduccion[0]?.fecha_creacion || new Date().toISOString(),
                 usuario: usuarioDelDia || "Usuario Predeterminado",
                 productos: productosConCantidad,
               };
@@ -1222,6 +1401,9 @@ const InventarioProduccion = () => {
       }));
       setProductos(productosReseteados);
     }
+
+
+    // 🛡️ PERSISTENCIA: Restaurar datos locales después de cargar todo lo de la BD (ELIMINADO: Se maneja vía useEffect)
   };
 
   return (
@@ -1398,6 +1580,7 @@ const InventarioProduccion = () => {
               handleCantidadChange={handleCantidadChange}
               productosGrabados={productosGrabados}
               yaSeGrabo={yaSeGrabo}
+              lotesIngresados={lotes.length > 0} // 🆕 Validar si hay lotes antes de permitir cantidades
             />
           </div>
         </Col>
@@ -1423,7 +1606,12 @@ const InventarioProduccion = () => {
               disabled={yaSeGrabo}
             >
               <i className="bi bi-save me-2"></i>
-              {yaSeGrabo ? "Ya Grabado" : "Grabar Movimiento"}
+              {yaSeGrabo ? "Ya Grabado" : (
+                <>
+                  <span className="d-none d-md-inline">Grabar Movimiento</span>
+                  <span className="d-md-none">Grabar</span>
+                </>
+              )}
             </Button>
 
 

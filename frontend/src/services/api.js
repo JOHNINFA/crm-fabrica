@@ -4,6 +4,23 @@ const configServerUrl = searchParams.get('serverUrl');
 
 let FINAL_BASE_URL = 'http://localhost:8000';
 
+// Lógica de detección inteligente de URL de API
+// Prioridad 1: Variable de entorno explícita (siempre gana)
+// Prioridad 2: Detección automática según entorno (Dev vs Prod)
+
+if (!process.env.REACT_APP_API_URL) {
+  if (process.env.NODE_ENV === 'development') {
+    // EN DESARROLLO: Si accedemos desde una IP de red (celular), usar esa IP y puerto 8000
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      FINAL_BASE_URL = `http://${window.location.hostname}:8000`;
+    }
+  } else {
+    // EN PRODUCCIÓN (VPS): Asumimos que la API está servida bajo el mismo dominio (reverse proxy standard)
+    // Ejemplo: tudominio.com/api -> backend
+    FINAL_BASE_URL = window.location.origin;
+  }
+}
+
 if (configServerUrl) {
   try {
     const urlObj = new URL(configServerUrl);
@@ -14,7 +31,8 @@ if (configServerUrl) {
   }
 }
 
-const API_URL = process.env.REACT_APP_API_URL || `${FINAL_BASE_URL}/api`;
+// Exportamos la constante para que otros archivos la usen
+export const API_URL = process.env.REACT_APP_API_URL || `${FINAL_BASE_URL}/api`;
 
 /**
  * Fetch con timeout de 5 segundos

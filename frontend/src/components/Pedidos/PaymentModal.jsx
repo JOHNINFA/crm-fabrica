@@ -7,7 +7,7 @@ import './PaymentModal.css';
 const PaymentModal = ({
     show, onClose, cart, total, subtotal = 0, impuestos = 0, descuentos = 0,
     seller = 'Sistema', client = 'CONSUMIDOR FINAL', clientData = null, clearCart = () => { }, resetForm = () => { },
-    volverGestion = false, date = null, navigate = null
+    volverGestion = false, date = null, navigate = null, nota: notaInicial = ""
 }) => {
     const safeTotal = typeof total === 'number' ? total : 0;
 
@@ -20,7 +20,12 @@ const PaymentModal = ({
     const [telefonoContacto, setTelefonoContacto] = useState("");
     const [zonaBarrio, setZonaBarrio] = useState(""); // 🆕 Zona/Barrio del cliente
     const [fechaEntrega, setFechaEntrega] = useState("");
-    const [nota, setNota] = useState("");
+    const [nota, setNota] = useState(notaInicial);
+
+    // 🆕 Sincronizar nota si cambia desde el padre
+    useEffect(() => {
+        setNota(notaInicial);
+    }, [notaInicial]);
     const [tipoPedido, setTipoRemision] = useState("ENTREGA");
     const [metodoPago, setMetodoPago] = useState("Efectivo");
     const [transportadora, setTransportadora] = useState("Propia");

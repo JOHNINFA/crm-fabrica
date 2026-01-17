@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Form, InputGroup, Row, Col } from 'react-bootstrap';
+import { API_URL } from '../../services/api';
 import DateSelector from '../common/DateSelector';
 import HoverToggleButton from '../common/HoverToggleButton';
 import { useProductos } from '../../hooks/useUnifiedProducts';
@@ -59,7 +60,7 @@ const TablaKardex = () => {
       }
 
       // 🚀 USAR api_stock COMO FUENTE PRINCIPAL (TODOS los productos activos)
-      const stockResponse = await fetch('http://localhost:8000/api/stock/');
+      const stockResponse = await fetch(`${API_URL}/stock/`);
 
       if (!stockResponse.ok) throw new Error('Error al obtener stocks');
       const stocksBD = await stockResponse.json();
@@ -84,7 +85,7 @@ const TablaKardex = () => {
       }));
 
       // 🚀 OPTIMIZADO: Solo obtener últimos registros (limitar a 100)
-      const response = await fetch('http://localhost:8000/api/registro-inventario/?limit=100&ordering=-fecha_creacion');
+      const response = await fetch(`${API_URL}/registro-inventario/?limit=100&ordering=-fecha_creacion`);
       const todosLosRegistros = response.ok ? await response.json() : [];
 
       // Crear mapa de último movimiento por producto

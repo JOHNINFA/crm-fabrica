@@ -6,7 +6,8 @@ import * as XLSX from 'xlsx';
 import usePageTitle from '../hooks/usePageTitle';
 import '../styles/TrazabilidadScreen.css';
 
-const API_URL = 'http://localhost:8000/api';
+import { API_URL } from '../services/api';
+// const API_URL = 'http://localhost:8000/api';
 
 const TrazabilidadScreen = () => {
     const navigate = useNavigate();

@@ -9,9 +9,9 @@ import base64
 import re
 import uuid
 from api.services.ai_assistant_service import AIAssistant
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion
 from .serializers import (
-    PlaneacionSerializer,
+    PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
@@ -584,6 +584,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 cliente_ruta_existente.tipo_negocio = tipo_negocio
                 cliente_ruta_existente.dia_visita = cliente.dia_entrega or 'SABADO'
                 cliente_ruta_existente.activo = cliente.activo
+                cliente_ruta_existente.nota = cliente.nota # 🆕 Sincronizar nota
                 cliente_ruta_existente.save()
                 print(f"✅ ClienteRuta actualizado: {cliente_ruta_existente.nombre_negocio} en {ruta.nombre}")
             else:
@@ -602,7 +603,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     tipo_negocio=tipo_negocio,
                     dia_visita=cliente.dia_entrega or 'SABADO',
                     orden=ultimo_orden + 1,
-                    activo=cliente.activo
+                    activo=cliente.activo,
+                    nota=cliente.nota # 🆕 Sincronizar nota
                 )
                 print(f"✅ ClienteRuta creado: {cliente.alias or cliente.nombre_completo} en ruta {ruta.nombre}")
                 
@@ -1747,6 +1749,27 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def anular(self, request, pk=None):
         """Anular pedido y revertir en Planeación y Cargue"""
         pedido = self.get_object()
+        
+        # 🆕 VALIDACIÓN: Verificar si el vendedor ya procesó el pedido en la app
+        if pedido.estado == 'ENTREGADO':
+            return Response(
+                {
+                    'success': False,
+                    'message': '⚠️ No se puede anular: El vendedor ya marcó este pedido como ENTREGADO en la app móvil'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if pedido.estado == 'ANULADA' and pedido.novedades and len(pedido.novedades) > 0:
+            return Response(
+                {
+                    'success': False,
+                    'message': '⚠️ No se puede anular: El vendedor ya marcó este pedido como NO ENTREGADO en la app móvil'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Si ya está anulado (sin novedades = anulación manual previa)
         if pedido.estado == 'ANULADA':
             # Si ya está anulado, devolvemos una respuesta exitosa para que el frontend no quede bloqueado
             return Response(
@@ -3286,6 +3309,7 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
                 cliente.direccion = cliente_ruta.direccion or cliente.direccion
                 cliente.telefono_1 = cliente_ruta.telefono or cliente.telefono_1
                 cliente.zona_barrio = cliente_ruta.ruta.nombre  # Sincronizar la ruta
+                cliente.nota = cliente_ruta.nota # 🆕 Sincronizar nota
                 cliente.save()
                 print(f"✅ Cliente sincronizado desde ClienteRuta: {cliente.alias} - Días: {cliente.dia_entrega}")
             else:
@@ -5070,3 +5094,19 @@ def ai_agent_command(request):
         return Response({
             'error': f'Error procesando comando: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ReportePlaneacionViewSet(viewsets.ModelViewSet):
+    """API para gestionar snapshots de reportes de planeación"""
+    queryset = ReportePlaneacion.objects.all()
+    serializer_class = ReportePlaneacionSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ReportePlaneacion.objects.all().order_by('-fecha_creacion')
+        
+        # Filtros
+        fecha = self.request.query_params.get('fecha')
+        if fecha:
+            queryset = queryset.filter(fecha_reporte=fecha)
+            
+        return queryset

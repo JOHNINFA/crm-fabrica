@@ -234,6 +234,7 @@ function PedidosMainContent() {
                                         setPriceList={setPriceList}
                                         sellers={sellers}
                                         setSellers={setSellers}
+                                        clientData={clientData} // 🆕 Pasar datos del cliente
                                     />
                                     <Cart
                                         cart={cart}

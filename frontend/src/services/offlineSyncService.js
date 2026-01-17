@@ -7,7 +7,8 @@
 
 import { offlineService } from './offlineService';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import { API_URL } from './api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 const SYNC_INTERVAL = 30000; // 30 segundos
 const MAX_RETRY_ATTEMPTS = 5;
 

@@ -287,6 +287,7 @@ export default function Cart({
                 volverGestion={volverGestion}
                 date={date}
                 navigate={navigate}
+                nota={nota} // 🆕 Pasar nota
             />
         </div>
     );

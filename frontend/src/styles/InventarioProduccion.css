@@ -123,18 +123,35 @@ input[type="number"] {
   }
 }
 
-/* Estilos para dispositivos muy pequeños */
-@media (max-width: 575.98px) {
+/* Estilos para dispositivos muy pequeños y tablets */
+@media (max-width: 767.98px) {
   .botones-container {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: center;
+    /* Centrado para estética compacta */
+    align-items: center;
     width: 100%;
+    gap: 1.5rem;
+    /* Más separación entre botones */
+    margin-top: 1rem;
+    margin-bottom: 2rem;
   }
 
-  .grabar-btn {
-    width: 60%;
-    margin-left: auto;
+  /* Botón GRABAR - Tamaño Compacto Simétrico */
+  .botones-container .action-button {
+    width: 40% !important;
+    /* Reducido al 40% */
+    height: 40px !important;
+    padding: 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   }
 
   /* Ajustar títulos de secciones */
@@ -168,18 +185,25 @@ input[type="number"] {
     width: 40%;
   }
 
-  /* Estilo para botón de editar global */
-  .editar-global-btn {
-    padding: 0.4rem 1rem;
-    font-weight: 500;
-    max-width: 200px;
-    width: 40%;
-    margin-top: 0;
-    margin-bottom: 0;
-    background-color: #0d6efd;
-    color: white;
-    border-color: #0d6efd;
-    transition: all 0.15s ease-in-out;
+  /* Botón EDITAR - Tamaño Compacto Simétrico */
+  .botones-container .editar-global-btn {
+    width: 40% !important;
+    /* Reducido al 40% */
+    height: 40px !important;
+    max-width: none !important;
+    padding: 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+
+    background-color: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   }
 
   /* Estilos para los botones de encabezado en pantallas pequeñas */

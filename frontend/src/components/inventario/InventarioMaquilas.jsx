@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Swal from 'sweetalert2';
 import {
   Container,
   Row,
@@ -18,7 +19,7 @@ import DateSelector from "../common/DateSelector";
 import { useProductos } from "../../hooks/useUnifiedProducts";
 import { loteService } from "../../services/loteService";
 import { registroInventarioService } from "../../services/registroInventarioService";
-import { productoService } from "../../services/api";
+import { productoService, API_URL } from "../../services/api";
 import productosMaquilasData from "../../data/productosMaquilas";
 import "../../styles/InventarioProduccion.css";
 import "../../styles/TablaKardex.css";
@@ -26,8 +27,7 @@ import "../../styles/ActionButtons.css";
 
 const InventarioMaquilas = () => {
   // Context y estados principales
-  const { actualizarExistencias, agregarMovimientos, movimientos } =
-    useProductos();
+  const { agregarMovimientos, movimientos } = useProductos();
 
   // Estados de producción
   const [usuario, setUsuario] = useState("Usuario Predeterminado");
@@ -43,6 +43,15 @@ const InventarioMaquilas = () => {
   const [productoEditar, setProductoEditar] = useState(null);
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [productos, setProductos] = useState([]);
+
+  // 🆕 REF para mantener el estado actualizado dentro de los timers
+  const productosRef = useRef(productos);
+
+  // Sincronizar ref con estado
+  useEffect(() => {
+    productosRef.current = productos;
+  }, [productos]);
+
   const [cargando, setCargando] = useState(true);
   const [productosGrabados, setProductosGrabados] = useState({});
 
@@ -51,6 +60,104 @@ const InventarioMaquilas = () => {
 
   // Estado para indicar que ya se grabó (sombreado de inputs)
   const [yaSeGrabo, setYaSeGrabo] = useState(false);
+
+
+
+  // 🛡️ PERSISTENCIA: Estado para controlar restauración
+  const [restauracionCompleta, setRestauracionCompleta] = useState(false);
+  // Bloqueo para evitar restauración mientras se cargan datos de la nueva fecha
+  const [procesandoCambioFecha, setProcesandoCambioFecha] = useState(false);
+
+  // 🛡️ PERSISTENCIA: Clave dinámica por fecha
+  const fechaKeyStr = useMemo(() => {
+    if (!fechaSeleccionada) return "";
+    return `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, "0")}-${String(fechaSeleccionada.getDate()).padStart(2, "0")}`;
+  }, [fechaSeleccionada]);
+
+  // 🛡️ PERSISTENCIA: Resetear flag al cambiar fecha (ELIMINADO - Se hace en handleDateSelect para evitar race condition)
+  // useEffect(() => {
+  //   setRestauracionCompleta(false);
+  // }, [fechaKeyStr]);
+
+  // 🛡️ PERSISTENCIA: Función para restaurar datos (Extraída para uso manual)
+  const restaurarDatosDeLocalStorage = useCallback((fechaK) => {
+    // Si no hay productos cargados, abortar restauración (se reintentará cuando carguen)
+    if (productosRef.current.length === 0) {
+      return;
+    }
+
+
+
+    const lotesGuardados = localStorage.getItem(`inv_maq_lotes_${fechaK}`);
+    const cantidadesGuardadas = localStorage.getItem(`inv_maq_cantidades_${fechaK}`);
+
+    if (lotesGuardados) {
+      try {
+        const parsedLotes = JSON.parse(lotesGuardados);
+        if (Array.isArray(parsedLotes) && parsedLotes.length > 0) {
+          setLotes(parsedLotes);
+        }
+      } catch (e) { console.error("Error restaurando lotes", e); }
+    }
+
+    if (cantidadesGuardadas) {
+      try {
+        const mapaCantidades = JSON.parse(cantidadesGuardadas);
+        setProductos(prev => prev.map(p => {
+          return mapaCantidades[p.id] ? { ...p, cantidad: mapaCantidades[p.id] } : p;
+        }));
+      } catch (e) { console.error("Error restaurando cantidades", e); }
+    }
+
+    // Marcar como completa para permitir el auto-guardado subsiguiente
+    setRestauracionCompleta(true);
+  }, []);
+
+  // 🛡️ PERSISTENCIA: Restaurar datos al cargar productos INICIALMENTE
+  useEffect(() => {
+    // Si estamos procesando cambio de fecha, ESPERAR.
+    if (procesandoCambioFecha) {
+      return;
+    }
+
+    // Si es la carga inicial (o F5), productos ya cargaron, y aún no hemos restaurado
+    if (productos.length > 0 && !restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+      const timer = setTimeout(() => {
+        restaurarDatosDeLocalStorage(fechaKeyStr);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [productos.length, fechaKeyStr, yaSeGrabo, restaurarDatosDeLocalStorage, procesandoCambioFecha]);
+
+
+  // 🛡️ PERSISTENCIA: Auto-guardar lotes
+  useEffect(() => {
+    if (restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+      if (lotes.length > 0) {
+        localStorage.setItem(`inv_maq_lotes_${fechaKeyStr}`, JSON.stringify(lotes));
+      } else {
+        localStorage.setItem(`inv_maq_lotes_${fechaKeyStr}`, JSON.stringify([]));
+      }
+    }
+  }, [lotes, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
+
+  // 🛡️ PERSISTENCIA: Auto-guardar cantidades
+  useEffect(() => {
+    if (restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+      const mapaCantidades = {};
+      const hayCantidades = productos.some(p => p.cantidad > 0);
+      if (hayCantidades) {
+        productos.forEach(p => { if (p.cantidad > 0) mapaCantidades[p.id] = p.cantidad; });
+        localStorage.setItem(`inv_maq_cantidades_${fechaKeyStr}`, JSON.stringify(mapaCantidades));
+      } else {
+        // Solo limpiar si había datos antes (evitar borrar al cargar página vacía)
+        const datosGuardados = localStorage.getItem(`inv_maq_cantidades_${fechaKeyStr}`);
+        if (datosGuardados) {
+          localStorage.removeItem(`inv_maq_cantidades_${fechaKeyStr}`);
+        }
+      }
+    }
+  }, [productos, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
 
   // Estado para modal de edición de producción del día
   const [showModalEditarProduccion, setShowModalEditarProduccion] = useState(false);
@@ -104,7 +211,7 @@ const InventarioMaquilas = () => {
       }
 
       // Cargar productos desde la API
-      const response = await fetch("http://localhost:8000/api/productos/");
+      const response = await fetch(`${API_URL}/productos/`);
       if (!response.ok) {
         throw new Error("Error al cargar productos desde BD");
       }
@@ -120,17 +227,23 @@ const InventarioMaquilas = () => {
 
 
       // Formatear productos
-      const productosFormateados = productosMaquila.map((producto) => ({
-        id: producto.id,
-        nombre: producto.nombre?.toUpperCase() || "SIN NOMBRE",
-        existencias: producto.stock_total || 0,
-        cantidad: 0,
-        precio: parseFloat(producto.precio) || 0,
-        categoria: producto.categoria_nombre || "Maquila",
-        imagen: producto.imagen || null,
-        orden: producto.orden || 0,
-        ubicacionInventario: producto.ubicacion_inventario
-      }));
+      const productosFormateados = productosMaquila.map((producto) => {
+        // 🆕 Preservar cantidad si el producto ya existe (usando REF actualizada)
+        const productoExistente = productosRef.current.find(p => p.id === producto.id);
+        const cantidadActual = productoExistente?.cantidad || 0;
+
+        return {
+          id: producto.id,
+          nombre: producto.nombre?.toUpperCase() || "SIN NOMBRE",
+          existencias: producto.stock_total || 0,
+          cantidad: cantidadActual, // 🔥 Preservar cantidad del usuario
+          precio: parseFloat(producto.precio) || 0,
+          categoria: producto.categoria_nombre || "Maquila",
+          imagen: producto.imagen || null,
+          orden: producto.orden || 0,
+          ubicacionInventario: producto.ubicacion_inventario
+        };
+      });
 
       // Ordenar por campo orden
       const productosOrdenados = productosFormateados.sort((a, b) => {
@@ -252,12 +365,33 @@ const InventarioMaquilas = () => {
 
   const handleAgregarLote = () => {
     if (!lote) {
-      mostrarMensaje("Debe ingresar un número de lote", "warning");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta información',
+        text: 'Debe ingresar un número de lote',
+        confirmButtonColor: '#f59e0b'
+      });
+      return;
+    }
+
+    // 🆕 Validación estricta de fecha de vencimiento
+    if (!fechaVencimiento) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta información',
+        text: 'Debe seleccionar una fecha de vencimiento',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
     if (lotes.some((l) => l.numero === lote)) {
-      mostrarMensaje("Este número de lote ya fue agregado", "warning");
+      Swal.fire({
+        icon: 'error',
+        title: 'Duplicado',
+        text: 'Este número de lote ya fue agregado',
+        confirmButtonColor: '#ef4444'
+      });
       return;
     }
 
@@ -270,7 +404,14 @@ const InventarioMaquilas = () => {
     setLotes([...lotes, nuevoLote]);
     setLote("");
     setFechaVencimiento("");
-    mostrarMensaje("Lote agregado correctamente", "success");
+    Swal.fire({
+      icon: 'success',
+      title: 'Lote agregado',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000
+    });
   };
 
   const handleEliminarLote = (id) => {
@@ -281,18 +422,63 @@ const InventarioMaquilas = () => {
   const handleGrabarMovimiento = async () => {
     const productosConCantidad = productos.filter((p) => p.cantidad > 0);
 
-    // Validaciones
+    // Validaciones con SweetAlert
     if (productosConCantidad.length === 0) {
-      mostrarMensaje("No hay cantidades para registrar", "warning");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sin datos',
+        text: 'No hay productos con cantidades para registrar',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
     if (lotes.length === 0) {
-      mostrarMensaje("Debe Ingresar Lote", "warning");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta Lote',
+        text: 'Debe ingresar al menos un lote antes de grabar',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
-    const fechaStr = fechaSeleccionada.toLocaleDateString("es-ES");
+    // Crear lista HTML para el resumen
+    const listaProductosHtml = productosConCantidad
+      .map(p => `<li style="text-align: left; margin-bottom: 5px;">
+                  <strong>${p.nombre}:</strong> ${p.cantidad} und.
+                 </li>`)
+      .join('');
+
+    const fechaStr = fechaSeleccionada.toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Confirmación con SweetAlert
+    const confirmacion = await Swal.fire({
+      title: '¿Grabar Maquila?',
+      html: `
+        <div style="text-align: left; font-size: 0.95rem;">
+          <p>Se registrará la maquila para: <br><strong>${fechaStr}</strong></p>
+          <p class="mb-2">Productos a registrar:</p>
+          <ul style="max-height: 200px; overflow-y: auto; padding-left: 20px; background: #f8fafc; padding: 10px; border-radius: 6px;">
+            ${listaProductosHtml}
+          </ul>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: '<i class="bi bi-save"></i> Sí, Grabar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    });
+
+    if (!confirmacion.isConfirmed) {
+      return;
+    }
+
+    // <-- Continuar con el proceso de grabado original -->
+    const fechaCorta = fechaSeleccionada.toLocaleDateString("es-ES");
     const hora = new Date().toLocaleTimeString("es-ES", {
       hour: "2-digit",
       minute: "2-digit",
@@ -365,7 +551,7 @@ const InventarioMaquilas = () => {
         let saldoActual;
         try {
           const response = await fetch(
-            "http://localhost:8000/api/registro-inventario/"
+            `${API_URL}/registro-inventario/`
           );
           if (response.ok) {
             const todosRegistros = await response.json();
@@ -402,14 +588,28 @@ const InventarioMaquilas = () => {
         };
 
         await registroInventarioService.create(registroData);
+
+        // 🔥 Actualizar stock en la BD
+        try {
+          await productoService.updateStock(
+            producto.id,
+            cantidadMovimiento,
+            usuario,
+            `Maquila: ${lotes.map((l) => l.numero).join(", ")}`
+          );
+        } catch (stockError) {
+          console.error("Error al actualizar stock en BD:", stockError);
+        }
       } catch (error) {
         console.error("Error al guardar cantidad de maquila:", error);
       }
     }
 
+
     // Finalizar
     setProductos(nuevosProductos);
-    actualizarExistencias(nuevosProductos);
+    // ❌ NO actualizar contexto global - Maquila maneja su propio estado
+    // actualizarExistencias(nuevosProductos);  // ← Esto sobrescribe los productos de Producción
     agregarMovimientos(nuevosMovimientos);
     setProductosGrabados({});
 
@@ -444,6 +644,11 @@ const InventarioMaquilas = () => {
     // 🎯 Limpiar campos de lote y fecha vencimiento
     setLotes([]);
     setLote("");
+
+    // 🛡️ PERSISTENCIA: Limpiar localStorage (Solo para la fecha actual)
+    const fechaKeyLimpieza = `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth() + 1).padStart(2, "0")}-${String(fechaSeleccionada.getDate()).padStart(2, "0")}`;
+    localStorage.removeItem(`inv_maq_lotes_${fechaKeyLimpieza}`);
+    localStorage.removeItem(`inv_maq_cantidades_${fechaKeyLimpieza}`);
     setFechaVencimiento("");
 
     // 🎯 Activar indicador visual de que ya se grabó
@@ -480,7 +685,20 @@ const InventarioMaquilas = () => {
       );
 
       setProductos(nuevosProductos);
-      actualizarExistencias(nuevosProductos);
+      // ❌ NO actualizar contexto global
+      // actualizarExistencias(nuevosProductos);
+
+      // 🔥 Actualizar stock en BD
+      try {
+        await productoService.updateStock(
+          id,
+          diferenciaCantidad,
+          usuario,
+          `Edición Maquila: ${cantidadOriginal}→${nuevaCantidadProduccion}`
+        );
+      } catch (stockError) {
+        console.error("Error al actualizar stock en BD:", stockError);
+      }
 
       // Actualizar datos de confirmación
       if (datosGuardados) {
@@ -537,7 +755,7 @@ const InventarioMaquilas = () => {
         tipo: "success",
       });
 
-      console.log(`✅ Maquila editada: ${productoEditado.nombre} ${cantidadOriginal} → ${nuevaCantidadProduccion}`);
+
     } catch (error) {
       console.error("Error al editar maquila del día:", error);
       setMensaje({ texto: "Error al editar maquila del día", tipo: "danger" });
@@ -569,7 +787,20 @@ const InventarioMaquilas = () => {
       );
 
       setProductos(nuevosProductos);
-      actualizarExistencias(nuevosProductos);
+      // ❌ NO actualizar contexto global
+      // actualizarExistencias(nuevosProductos);
+
+      // 🔥 Actualizar stock en BD
+      try {
+        await productoService.updateStock(
+          id,
+          diferenciaExistencias,
+          usuario,
+          `Edición Existencias: ${productoEditado.existencias}→${nuevasExistencias}`
+        );
+      } catch (stockError) {
+        console.error("Error al actualizar stock en BD:", stockError);
+      }
 
       // Crear movimiento si hay diferencia
       if (diferenciaExistencias !== 0) {
@@ -638,7 +869,8 @@ const InventarioMaquilas = () => {
     }));
 
     setProductos(nuevosProductos);
-    actualizarExistencias(nuevosProductos);
+    // ❌ NO actualizar contexto global
+    // actualizarExistencias(nuevosProductos);
 
     // Crear movimientos para productos modificados
     const hora = new Date().toLocaleTimeString("es-ES", {
@@ -680,6 +912,11 @@ const InventarioMaquilas = () => {
   };
 
   const handleDateSelect = async (date) => {
+    // 🛡️ PERSISTENCIA: Bloquear auto-guardado y resetear flag SÍNCRONAMENTE
+    setProcesandoCambioFecha(true);
+    setRestauracionCompleta(false);
+    console.log('🔄 handleDateSelect: Reseteando restauracionCompleta');
+
     setFechaSeleccionada(date);
 
     // Limpiar campos
@@ -704,9 +941,14 @@ const InventarioMaquilas = () => {
         fechaStr
       );
 
-      if (registrosFromBD?.length > 0) {
+      // 🔥 FILTRAR solo registros de MAQUILA
+      const registrosMaquila = registrosFromBD?.filter(
+        r => r.tipo_movimiento === 'ENTRADA_MAQUILA'
+      ) || [];
+
+      if (registrosMaquila.length > 0) {
         // Cargar usuario del día
-        const usuarioDelDia = registrosFromBD[0].usuario;
+        const usuarioDelDia = registrosMaquila[0].usuario;
         if (usuarioDelDia && usuarioDelDia !== "Sistema") {
           setUsuario(usuarioDelDia);
         }
@@ -757,6 +999,9 @@ const InventarioMaquilas = () => {
       }));
       setProductos(productosReseteados);
     }
+
+    // Desbloquear para permitir que el useEffect restaure los datos
+    setProcesandoCambioFecha(false);
   };
 
   const handleCambiarUsuario = (nuevoUsuario) => {
@@ -784,7 +1029,7 @@ const InventarioMaquilas = () => {
       {/* Selector de fecha */}
       <Row className="mb-4">
         <Col xs={12} md={6}>
-          <DateSelector onDateSelect={(date) => setFechaSeleccionada(date)} />
+          <DateSelector onDateSelect={handleDateSelect} />
         </Col>
       </Row>
 
@@ -924,6 +1169,7 @@ const InventarioMaquilas = () => {
               handleCantidadChange={handleCantidadChange}
               productosGrabados={productosGrabados}
               yaSeGrabo={yaSeGrabo}
+              lotesIngresados={lotes.length > 0} // 🆕 Validar si hay lotes antes de permitir cantidades
             />
           </div>
         </Col>
@@ -949,7 +1195,12 @@ const InventarioMaquilas = () => {
               disabled={yaSeGrabo}
             >
               <i className="bi bi-save me-2"></i>
-              {yaSeGrabo ? "Ya Grabado" : "Grabar Movimiento"}
+              {yaSeGrabo ? "Ya Grabado" : (
+                <>
+                  <span className="d-none d-md-inline">Grabar Movimiento</span>
+                  <span className="d-md-none">Grabar</span>
+                </>
+              )}
             </Button>
 
             {/* Botón para desbloquear productos grabados */}
@@ -971,6 +1222,7 @@ const InventarioMaquilas = () => {
         <Row className="mt-5 mb-4 justify-content-center">
           <Col xs={12} lg={11}>
             <TablaConfirmacionProduccion
+              tipo="Maquila"
               datosGuardados={datosGuardados}
               onCerrar={() => {
                 setDatosGuardados(null);

@@ -6,7 +6,7 @@ from .models import (
     CargueProductos, CargueResumen, CarguePagos, CargueCumplimiento,  # Nuevos modelos normalizados
     Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, 
     ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, 
-    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden
+    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden, ReportePlaneacion
 )
 
 
@@ -798,6 +798,14 @@ class PedidoSerializer(serializers.ModelSerializer):
 class PlaneacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Planeacion
+        fields = '__all__'
+
+class ReportePlaneacionSerializer(serializers.ModelSerializer):
+    """Serializer para snapshots de reportes de planeación"""
+    class Meta:
+        model = ReportePlaneacion
+        fields = '__all__'
+
         fields = '__all__'
 
 

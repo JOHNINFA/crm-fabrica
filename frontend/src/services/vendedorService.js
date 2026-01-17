@@ -1,5 +1,6 @@
 // 🚀 SERVICIO DE VENDEDORES ADAPTADO - NUEVA ESTRUCTURA SIMPLIFICADA
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import { API_URL } from './api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Función para manejar errores de la API
 const handleApiError = (error) => {
@@ -13,7 +14,7 @@ export const vendedorService = {
   getAll: async (params = {}) => {
     try {
 
-      
+
       // Simular datos de vendedores basados en los IDs conocidos
       const vendedoresSimulados = [
         { id: 1, nombre: 'Vendedor 1', id_vendedor: 'ID1', ruta: 'Ruta 1', responsable: 'RESPONSABLE', activo: true },
@@ -23,22 +24,22 @@ export const vendedorService = {
         { id: 5, nombre: 'Vendedor 5', id_vendedor: 'ID5', ruta: 'Ruta 5', responsable: 'RESPONSABLE', activo: true },
         { id: 6, nombre: 'Vendedor 6', id_vendedor: 'ID6', ruta: 'Ruta 6', responsable: 'RESPONSABLE', activo: true }
       ];
-      
+
       // Aplicar filtros si existen
       let resultado = vendedoresSimulados;
-      
+
       if (params.id_vendedor) {
         resultado = resultado.filter(v => v.id_vendedor === params.id_vendedor);
       }
-      
+
       if (params.activo !== undefined) {
         const activoBoolean = params.activo === 'true' || params.activo === true;
         resultado = resultado.filter(v => v.activo === activoBoolean);
       }
-      
+
       console.log(`✅ Vendedores obtenidos: ${resultado.length}`);
       return resultado;
-      
+
     } catch (error) {
       console.error('Error en getAll vendedores:', error);
       return handleApiError(error);
@@ -49,7 +50,7 @@ export const vendedorService = {
   create: async (vendedorData) => {
     try {
 
-      
+
       // En la nueva estructura, no hay tabla de vendedores
       // Simular creación exitosa
       const nuevoVendedor = {
@@ -57,10 +58,10 @@ export const vendedorService = {
         ...vendedorData,
         fecha_creacion: new Date().toISOString()
       };
-      
+
 
       return nuevoVendedor;
-      
+
     } catch (error) {
       console.error('Error en create vendedor:', error);
       return handleApiError(error);
@@ -71,16 +72,16 @@ export const vendedorService = {
   getById: async (id) => {
     try {
 
-      
+
       const vendedores = await vendedorService.getAll();
       const vendedor = vendedores.find(v => v.id === parseInt(id));
-      
+
       if (!vendedor) {
         throw new Error(`Vendedor con ID ${id} no encontrado`);
       }
-      
+
       return vendedor;
-      
+
     } catch (error) {
       console.error('Error en getById vendedor:', error);
       return handleApiError(error);
@@ -91,10 +92,10 @@ export const vendedorService = {
   getByIdVendedor: async (idVendedor) => {
     try {
 
-      
+
       const vendedores = await vendedorService.getAll();
       const vendedor = vendedores.find(v => v.id_vendedor === idVendedor);
-      
+
       if (!vendedor) {
         console.warn(`⚠️ Vendedor ${idVendedor} no encontrado, usando datos por defecto`);
         return {
@@ -106,9 +107,9 @@ export const vendedorService = {
           activo: true
         };
       }
-      
+
       return vendedor;
-      
+
     } catch (error) {
       console.error('Error en getByIdVendedor:', error);
       return handleApiError(error);
@@ -119,7 +120,7 @@ export const vendedorService = {
   update: async (id, vendedorData) => {
     try {
 
-      
+
       // En la nueva estructura, los datos se manejan via localStorage
       // Simular actualización exitosa
       const vendedorActualizado = {
@@ -127,10 +128,10 @@ export const vendedorService = {
         ...vendedorData,
         fecha_actualizacion: new Date().toISOString()
       };
-      
+
 
       return vendedorActualizado;
-      
+
     } catch (error) {
       console.error('Error en update vendedor:', error);
       return handleApiError(error);
@@ -141,10 +142,10 @@ export const vendedorService = {
   actualizarResponsable: async (idVendedor, nuevoResponsable) => {
     try {
       console.log(`📝 Actualizando responsable ${idVendedor}: ${nuevoResponsable}`);
-      
+
       // En la nueva estructura, esto se maneja via localStorage
       // El responsableStorage.js ya maneja esta funcionalidad
-      
+
       return {
         success: true,
         vendedor: {
@@ -153,7 +154,7 @@ export const vendedorService = {
         },
         message: 'Responsable actualizado exitosamente'
       };
-      
+
     } catch (error) {
       console.error('Error actualizando responsable:', error);
       return handleApiError(error);
@@ -164,12 +165,12 @@ export const vendedorService = {
   delete: async (id) => {
     try {
 
-      
+
       // En la nueva estructura, no hay tabla de vendedores
       // Simular eliminación exitosa
 
       return true;
-      
+
     } catch (error) {
       console.error('Error en delete vendedor:', error);
       return handleApiError(error);

@@ -94,51 +94,51 @@ const ReportesAvanzadosScreen = () => {
         setLoading(true);
         setError('');
         setSearched(true);
-        setPrediccionesIA({}); // Limpiar anteriores
 
         try {
-            // 1. Consultar Snapshot de Planeación (tabla independiente)
-            const response = await fetch(`${API_URL}/registros-planeacion-dia/consultar_fecha/?fecha=${selectedDate}`);
+            // 1. Consultar Reporte Histórico de Planeación (Nuevo Endpoint)
+            const response = await fetch(`${API_URL}/reportes-planeacion/?fecha=${selectedDate}`);
 
             if (!response.ok) {
                 throw new Error(`Error en la consulta: ${response.status}`);
             }
 
-            const resultado = await response.json();
+            const reportes = await response.json();
 
             // Verificar si existe snapshot para esta fecha
-            if (!resultado.existe || resultado.registros.length === 0) {
-                setError(`No hay snapshot guardado para ${selectedDate}. El snapshot se guarda cuando el botón cambia de SUGERIDO → ALISTAMIENTO ACTIVO.`);
+            if (reportes.length === 0) {
+                setError(`No hay reporte guardado para ${selectedDate}. Debes guardar el reporte desde la pantalla de Inventario Planeación.`);
                 setPlaneacionData([]);
                 setLoading(false);
                 return;
             }
 
-            let data = resultado.registros;
+            // Tomar el reporte más reciente
+            const reporteReciente = reportes[0];
+            let data = reporteReciente.datos_json || [];
 
-            // 2. Consultar IA en paralelo
-            const predicciones = await fetchPrediccionesIA(selectedDate);
+            console.log(`✅ Reporte cargado: ${reporteReciente.fecha_creacion}`);
 
-            // 3. Combinar datos
-            data = data.map(item => {
-                const pred = predicciones[item.producto_nombre];
-                return {
-                    ...item,
-                    ia: item.ia || (pred ? pred.ia_sugerido : 0),
-                    ia_confianza: pred ? pred.confianza : null
-                };
-            });
+            // 2. Normalizar datos para la tabla
+            data = data.map(p => ({
+                id: p.id,
+                producto_nombre: p.nombre || p.producto_nombre, // Adaptar nombres
+                existencias: p.existencias || 0,
+                solicitadas: p.solicitado || p.solicitadas || 0,
+                pedidos: p.pedidos || 0,
+                total: ((p.solicitado || p.solicitadas || 0) + (p.pedidos || 0)),
+                orden: p.orden || 0,
+                ia: p.ia || 0
+            }));
 
-            // Ordenar productos según el orden de Cargue
+            // 3. Ordenar productos según el orden de Cargue
             data = sortProductos(data);
 
             setPlaneacionData(data);
 
-            console.log(`✅ Snapshot cargado: ${data.length} productos, congelado: ${resultado.fecha_congelado}`);
-
         } catch (err) {
             console.error('Error consultando planeación:', err);
-            setError('Error al consultar la planeación. Por favor intenta nuevamente.');
+            setError('Error al consultar el reporte. Por favor intenta nuevamente.');
             setPlaneacionData([]);
         } finally {
             setLoading(false);
