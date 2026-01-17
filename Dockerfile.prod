@@ -1,0 +1,59 @@
+# Dockerfile.prod - PRODUCCIÓN CON GUNICORN
+# Para usar: docker build -f Dockerfile.prod -t crm-backend-prod .
+
+FROM python:3.10-slim
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TZ=America/Bogota
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    libpq-dev \
+    gcc \
+    g++ \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar requirements e instalar dependencias Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código del proyecto
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p media/productos media/vencidos api/ml_models staticfiles
+
+# Recolectar archivos estáticos
+RUN python manage.py collectstatic --noinput || true
+
+# Exponer puerto
+EXPOSE 8000
+
+# Script de entrada
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# ⭐ PRODUCCIÓN: Usar Gunicorn en lugar de runserver
+CMD ["gunicorn", \
+     "backend_crm.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "4", \
+     "--worker-class", "sync", \
+     "--timeout", "120", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "100", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "--log-level", "info"]
