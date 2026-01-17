@@ -1850,7 +1850,30 @@ class ClienteRuta(models.Model):
 
 class VentaRuta(models.Model):
     """Modelo para registrar ventas realizadas en ruta (App Móvil)"""
-    id_local = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="ID único de la venta generado en el dispositivo")  # 🆕 Para evitar duplicados
+    # 🆕 ID único aumentado para formato largo (vendedor-dispositivo-timestamp-random)
+    id_local = models.CharField(
+        max_length=150,  # Aumentado de 50 a 150 para IDs largos
+        unique=True, 
+        null=True, 
+        blank=True, 
+        help_text="ID único: vendedor-dispositivo-timestamp-random"
+    )
+    
+    # 🆕 Tracking multi-dispositivo
+    dispositivo_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Identificador del dispositivo (ej: ANDROID-SAMSUNG-K3J9X2)"
+    )
+    
+    ip_origen = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="IP desde donde se registró la venta"
+    )
+    
+    # Campos existentes
     vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='ventas_ruta')
     ruta = models.ForeignKey(Ruta, on_delete=models.SET_NULL, null=True, blank=True)
     cliente_nombre = models.CharField(max_length=200) # Guardamos nombre por si borran el cliente
@@ -2051,3 +2074,53 @@ class ReportePlaneacion(models.Model):
     
     class Meta:
         ordering = ['-fecha_creacion']
+
+
+# ========================================
+# MODELO PARA LOGS DE SINCRONIZACIÓN MULTI-DISPOSITIVO
+# ========================================
+
+class SyncLog(models.Model):
+    """Modelo para trackear sincronización multi-dispositivo"""
+    
+    ACCION_CHOICES = [
+        ('CREATE_VENTA', 'Crear Venta'),
+        ('CREATE_DUPLICADO', 'Intento Duplicado'),
+        ('UPDATE_CARGUE', 'Actualizar Cargue'),
+        ('CLOSE_TURNO', 'Cerrar Turno'),
+        ('CONFLICT', 'Conflicto Detectado'),
+    ]
+    
+    # Qué se hizo
+    accion = models.CharField(max_length=50, choices=ACCION_CHOICES)
+    modelo = models.CharField(max_length=50)  # VentaRuta, CargueID1, etc.
+    registro_id = models.IntegerField(default=0)
+    id_local = models.CharField(max_length=150, blank=True, default='')  # Para duplicados
+    
+    # Quién lo hizo
+    vendedor_id = models.CharField(max_length=10, blank=True, default='')
+    dispositivo_id = models.CharField(max_length=100, blank=True, default='')
+    ip_origen = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+    
+    # Resultado
+    exito = models.BooleanField(default=True)
+    error_mensaje = models.TextField(blank=True, default='')
+    
+    # Timestamps
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        db_table = 'api_sync_log'
+        verbose_name = 'Log de Sincronización'
+        verbose_name_plural = 'Logs de Sincronización'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['accion', 'timestamp']),
+            models.Index(fields=['dispositivo_id', 'timestamp']),
+            models.Index(fields=['id_local']),
+        ]
+    
+    def __str__(self):
+        status_emoji = '✅' if self.exito else '❌'
+        return f"{status_emoji} {self.accion} - {self.dispositivo_id} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"

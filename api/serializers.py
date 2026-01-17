@@ -909,7 +909,20 @@ class VentaRutaSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = VentaRuta
+        fields = '__all__'  # Incluye automáticamente dispositivo_id e ip_origen
+        read_only_fields = ('fecha',)  # fecha se genera automáticamente
+
+
+# ===== SERIALIZER PARA LOGS DE SINCRONIZACIÓN =====
+
+class SyncLogSerializer(serializers.ModelSerializer):
+    """Serializer para logs de sincronización multi-dispositivo"""
+    
+    class Meta:
+        from .models import SyncLog
+        model = SyncLog
         fields = '__all__'
+        read_only_fields = ('timestamp',)
 
 
 # ===== SERIALIZER PARA SNAPSHOT PLANEACIÓN =====
