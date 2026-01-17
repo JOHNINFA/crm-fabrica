@@ -3447,26 +3447,87 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         import json
-        from .models import Vendedor, EvidenciaVenta
+        from .models import Vendedor, EvidenciaVenta, SyncLog
         from rest_framework import status
         from django.http import QueryDict
+        from django.db import transaction, IntegrityError
+        
+        # 🆕 Obtener IP del cliente
+        def _get_client_ip(request):
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0]
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            return ip
+        
+        # 🆕 Logging de sincronización
+        def _log_sync(accion, exito=True, error_mensaje='', id_local='', registro_id=0):
+            try:
+                SyncLog.objects.create(
+                    accion=accion,
+                    modelo='VentaRuta',
+                    registro_id=registro_id,
+                    id_local=id_local,
+                    vendedor_id=request.data.get('vendedor_id', ''),
+                    dispositivo_id=request.data.get('dispositivo_id', ''),
+                    ip_origen=_get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                    exito=exito,
+                    error_mensaje=error_mensaje
+                )
+            except Exception as e:
+                print(f"⚠️ Error logging: {e}")
         
         # 🆕 Verificar duplicados por id_local
         id_local = request.data.get('id_local')
+        dispositivo_id = request.data.get('dispositivo_id', '')
+        
         if id_local:
-            from .models import VentaRuta
-            venta_existente = VentaRuta.objects.filter(id_local=id_local).first()
-            if venta_existente:
-                print(f"⚠️ Venta duplicada detectada: id_local={id_local}, ID={venta_existente.id}")
-                serializer = self.get_serializer(venta_existente)
+            try:
+                venta_existente = VentaRuta.objects.get(id_local=id_local)
+                print(f"⚠️ DUPLICADO DETECTADO: id_local={id_local}, ID={venta_existente.id}")
+                print(f"   Dispositivo original: {venta_existente.dispositivo_id}")
+                print(f"   Dispositivo actual: {dispositivo_id}")
+                
+                # Log del intento de duplicado
+                _log_sync(
+                    accion='CREATE_DUPLICADO',
+                    exito=False,
+                    error_mensaje=f'Venta ya existe (ID: {venta_existente.id})',
+                    id_local=id_local
+                )
+                
+                # 🆕 Retornar 200 OK con warning (no error)
                 return Response(
                     {
                         'id': venta_existente.id,
                         'message': 'Venta ya registrada previamente',
-                        'duplicada': True
+                        'duplicada': True,
+                        'id_local': id_local,
+                        'dispositivo_original': venta_existente.dispositivo_id,
+                        'timestamp': venta_existente.fecha
                     },
-                    status=status.HTTP_200_OK
+                    status=status.HTTP_200_OK  # No HTTP_409_CONFLICT para no fallar en app
                 )
+                
+            except VentaRuta.DoesNotExist:
+                # No existe, continuar con creación
+                pass
+            except VentaRuta.MultipleObjectsReturned:
+                # ❌ Si hay múltiples (no debería pasar por unique=True)
+                print(f"❌ ERROR: Múltiples ventas con id_local={id_local}")
+                _log_sync(
+                    accion='CREATE_DUPLICADO',
+                    exito=False,
+                    error_mensaje=f'Múltiples ventas con mismo id_local',
+                    id_local=id_local
+                )
+                return Response(
+                    {'error': 'Error de integridad de datos'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
         
         # Crear un QueryDict mutable o dict regular
         if isinstance(request.data, QueryDict):
@@ -3513,10 +3574,61 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             print("❌ ERRORES DE VALIDACIÓN:")
             print(serializer.errors)
-
+            
+            # 🆕 Log de error de validación
+            _log_sync(
+                accion='CREATE_VENTA',
+                exito=False,
+                error_mensaje=f'Errores de validación: {serializer.errors}',
+                id_local=id_local or ''
+            )
             
         serializer.is_valid(raise_exception=True)
-        venta = serializer.save()
+        
+        # 🆕 Agregar metadatos de multi-dispositivo antes del save
+        try:
+            with transaction.atomic():
+                # Guardar con metadatos
+                venta = serializer.save(
+                    dispositivo_id=dispositivo_id,
+                    ip_origen=_get_client_ip(request)
+                )
+                
+                print(f"✅ VENTA CREADA: ID={venta.id}, id_local={venta.id_local}")
+                print(f"   Dispositivo: {venta.dispositivo_id}")
+                print(f"   IP: {venta.ip_origen}")
+                
+                # 🆕 Log de creación exitosa
+                _log_sync(
+                    accion='CREATE_VENTA',
+                    exito=True,
+                    error_mensaje='',
+                    id_local=venta.id_local or '',
+                    registro_id=venta.id
+                )
+                
+        except IntegrityError as e:
+            # Error de integridad (posible race condition con id_local duplicado)
+            print(f"❌ IntegrityError: {e}")
+            _log_sync(
+                accion='CONFLICT',
+                exito=False,
+                error_mensaje=f'IntegrityError: {str(e)}',
+                id_local=id_local or ''
+            )
+            return Response(
+                {'error': 'Conflicto de sincronización. La venta puede haber sido registrada por otro dispositivo.'},
+                status=status.HTTP_409_CONFLICT
+            )
+        except Exception as e:
+            print(f"❌ Error al crear venta: {e}")
+            _log_sync(
+                accion='CREATE_VENTA',
+                exito=False,
+                error_mensaje=str(e),
+                id_local=id_local or ''
+            )
+            raise
         
         # Guardar las evidencias asociadas
         for evidencia_info in evidencias_data:
