@@ -22,7 +22,9 @@ from .views import (
     # 🆕 Trazabilidad de lotes
     buscar_lote, lotes_por_fecha, lotes_por_mes,
     # 🤖 Endpoints de IA
-    ai_chat, ai_analyze_data, ai_health, ai_agent_command
+    ai_chat, ai_analyze_data, ai_health, ai_agent_command,
+    # 📊 Reportes Avanzados
+    reportes_vendedores
 )
 
 router = DefaultRouter()
@@ -114,5 +116,8 @@ urlpatterns = router.urls + [
     path('ai/analyze/', ai_analyze_data, name='ai-analyze'),
     path('ai/health/', ai_health, name='ai-health'),
     path('ai/agent/', ai_agent_command, name='ai-agent'),  # Agente con herramientas
+    
+    # 📊 Reportes Avanzados
+    path('reportes/vendedores/', reportes_vendedores, name='reportes-vendedores'),
 ]
 

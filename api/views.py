@@ -5222,3 +5222,76 @@ class ReportePlaneacionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(fecha_reporte=fecha)
             
         return queryset
+
+
+# ==================== REPORTES AVANZADOS ====================
+
+@api_view(['GET'])
+def reportes_vendedores(request):
+    """
+    Reporte consolidado de vendedores con ventas, vencidas y devoluciones
+    GET /api/reportes/vendedores/?periodo=mes&fecha_inicio=2026-01-01&fecha_fin=2026-01-31
+    """
+    try:
+        from django.db.models import Sum, Count, Q
+        from datetime import datetime
+        
+        periodo = request.GET.get('periodo', 'mes')
+        fecha_inicio = request.GET.get('fecha_inicio')
+        fecha_fin = request.GET.get('fecha_fin')
+        
+        if not fecha_inicio or not fecha_fin:
+            return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
+        
+        # Obtener todos los vendedores
+        vendedores = Vendedor.objects.filter(activo=True)
+        
+        resultado = []
+        
+        for vendedor in vendedores:
+            # Contar ventas en ruta
+            ventas_ruta = VentaRuta.objects.filter(
+                vendedor=vendedor,
+                fecha__date__gte=fecha_inicio,
+                fecha__date__lte=fecha_fin
+            )
+            
+            total_ventas = ventas_ruta.count()
+            monto_total = ventas_ruta.aggregate(total=Sum('total'))['total'] or 0
+            
+            # Contar productos vencidos (del campo productos_vencidos JSON)
+            vencidas = 0
+            for venta in ventas_ruta:
+                if venta.productos_vencidos:
+                    vencidas += len(venta.productos_vencidos)
+            
+            # Calcular efectividad (ventas - vencidas) / ventas * 100
+            efectividad = 100.0
+            if total_ventas > 0:
+                efectividad = ((total_ventas - vencidas) / total_ventas) * 100
+            
+            resultado.append({
+                'id': vendedor.id_vendedor,
+                'nombre': vendedor.nombre,
+                'ventas_totales': total_ventas,
+                'monto': float(monto_total),
+                'vencidas': vencidas,
+                'devoluciones': 0,  # TODO: Implementar cuando haya modelo de devoluciones
+                'efectividad': round(efectividad, 2)
+            })
+        
+        # Ordenar por monto descendente
+        resultado.sort(key=lambda x: x['monto'], reverse=True)
+        
+        return Response({
+            'vendedores': resultado,
+            'periodo': periodo,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin
+        })
+        
+    except Exception as e:
+        print(f"Error en reportes_vendedores: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)

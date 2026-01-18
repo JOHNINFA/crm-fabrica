@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Button, Form, Table, Alert, Spinner } from 'react-bootstrap';
 import usePageTitle from '../hooks/usePageTitle';
 import './ReportesAvanzadosScreen.css';
+import ReporteVendedores from './ReportesAvanzados/ReporteVendedores';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -371,6 +372,131 @@ const ReportesAvanzadosScreen = () => {
                             </div>
                         </Col>
                     </Row>
+                </Container>
+            </div>
+        );
+    }
+
+    // 🆕 Vista: Reportes de Vendedores
+    if (vistaActual === 'reportes-vendedores') {
+        return <ReporteVendedores onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Próximamente (Pedidos por Ruta)
+    if (vistaActual === 'pedidos-ruta') {
+        return (
+            <div className="reportes-screen">
+                <div className="header-dark">
+                    <Container>
+                        <div className="d-flex align-items-center justify-content-center py-4">
+                            <h5 className="mb-0 d-flex align-items-center">
+                                <i className="bi bi-signpost-2 me-2" style={{ fontSize: '1.5rem' }}></i>
+                                Pedidos por Ruta
+                            </h5>
+                        </div>
+                    </Container>
+                </div>
+                <Container className="py-4">
+                    <div className="mb-4">
+                        <a href="#" onClick={(e) => { e.preventDefault(); setVistaActual('menu'); }} className="link-volver">
+                            <i className="bi bi-arrow-left me-1"></i> Volver al Menú
+                        </a>
+                    </div>
+                    <div className="empty-state">
+                        <i className="bi bi-signpost-2 text-muted" style={{ fontSize: '3rem' }}></i>
+                        <h5 className="mt-3">Reporte en desarrollo</h5>
+                        <p className="text-muted">Este reporte estará disponible próximamente</p>
+                    </div>
+                </Container>
+            </div>
+        );
+    }
+
+    // 🆕 Vista: Próximamente (Pedidos por Transportadora)
+    if (vistaActual === 'pedidos-transportadora') {
+        return (
+            <div className="reportes-screen">
+                <div className="header-dark">
+                    <Container>
+                        <div className="d-flex align-items-center justify-content-center py-4">
+                            <h5 className="mb-0 d-flex align-items-center">
+                                <i className="bi bi-truck me-2" style={{ fontSize: '1.5rem' }}></i>
+                                Pedidos por Transportadora
+                            </h5>
+                        </div>
+                    </Container>
+                </div>
+                <Container className="py-4">
+                    <div className="mb-4">
+                        <a href="#" onClick={(e) => { e.preventDefault(); setVistaActual('menu'); }} className="link-volver">
+                            <i className="bi bi-arrow-left me-1"></i> Volver al Menú
+                        </a>
+                    </div>
+                    <div className="empty-state">
+                        <i className="bi bi-truck text-muted" style={{ fontSize: '3rem' }}></i>
+                        <h5 className="mt-3">Reporte en desarrollo</h5>
+                        <p className="text-muted">Este reporte estará disponible próximamente</p>
+                    </div>
+                </Container>
+            </div>
+        );
+    }
+
+    // 🆕 Vista: Próximamente (Estado de Entregas)
+    if (vistaActual === 'estado-entregas') {
+        return (
+            <div className="reportes-screen">
+                <div className="header-dark">
+                    <Container>
+                        <div className="d-flex align-items-center justify-content-center py-4">
+                            <h5 className="mb-0 d-flex align-items-center">
+                                <i className="bi bi-box-seam me-2" style={{ fontSize: '1.5rem' }}></i>
+                                Estado de Entregas
+                            </h5>
+                        </div>
+                    </Container>
+                </div>
+                <Container className="py-4">
+                    <div className="mb-4">
+                        <a href="#" onClick={(e) => { e.preventDefault(); setVistaActual('menu'); }} className="link-volver">
+                            <i className="bi bi-arrow-left me-1"></i> Volver al Menú
+                        </a>
+                    </div>
+                    <div className="empty-state">
+                        <i className="bi bi-box-seam text-muted" style={{ fontSize: '3rem' }}></i>
+                        <h5 className="mt-3">Reporte en desarrollo</h5>
+                        <p className="text-muted">Este reporte estará disponible próximamente</p>
+                    </div>
+                </Container>
+            </div>
+        );
+    }
+
+    // 🆕 Vista: Próximamente (Devoluciones)
+    if (vistaActual === 'devoluciones') {
+        return (
+            <div className="reportes-screen">
+                <div className="header-dark">
+                    <Container>
+                        <div className="d-flex align-items-center justify-content-center py-4">
+                            <h5 className="mb-0 d-flex align-items-center">
+                                <i className="bi bi-arrow-return-left me-2" style={{ fontSize: '1.5rem' }}></i>
+                                Devoluciones de Pedidos
+                            </h5>
+                        </div>
+                    </Container>
+                </div>
+                <Container className="py-4">
+                    <div className="mb-4">
+                        <a href="#" onClick={(e) => { e.preventDefault(); setVistaActual('menu'); }} className="link-volver">
+                            <i className="bi bi-arrow-left me-1"></i> Volver al Menú
+                        </a>
+                    </div>
+                    <div className="empty-state">
+                        <i className="bi bi-arrow-return-left text-muted" style={{ fontSize: '3rem' }}></i>
+                        <h5 className="mt-3">Reporte en desarrollo</h5>
+                        <p className="text-muted">Este reporte estará disponible próximamente</p>
+                    </div>
                 </Container>
             </div>
         );
