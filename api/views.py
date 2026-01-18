@@ -5295,3 +5295,96 @@ def reportes_vendedores(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def reportes_efectividad_vendedores(request):
+    """
+    Reporte de efectividad de vendedores: Vendió, Devolvió, Vencidas, Cumplimiento, Efectividad
+    GET /api/reportes/efectividad-vendedores/?periodo=mes&fecha_inicio=2026-01-01&fecha_fin=2026-01-31
+    """
+    try:
+        from django.db.models import Sum, Count, Q
+        from datetime import datetime
+        
+        periodo = request.GET.get('periodo', 'mes')
+        fecha_inicio = request.GET.get('fecha_inicio')
+        fecha_fin = request.GET.get('fecha_fin')
+        
+        if not fecha_inicio or not fecha_fin:
+            return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
+        
+        # Obtener todos los vendedores activos
+        vendedores = Vendedor.objects.filter(activo=True)
+        
+        resultado = []
+        
+        for vendedor in vendedores:
+            # Obtener todas las ventas del vendedor en el período
+            ventas_ruta = VentaRuta.objects.filter(
+                vendedor=vendedor,
+                fecha__date__gte=fecha_inicio,
+                fecha__date__lte=fecha_fin
+            )
+            
+            # VENDIÓ: Total de productos que llevó (cantidad en cada venta)
+            vendio = 0
+            for venta in ventas_ruta:
+                if venta.detalle_productos:  # JSON con los productos de la venta
+                    for producto in venta.detalle_productos:
+                        vendio += producto.get('cantidad', 0)
+            
+            # DEVOLVIÓ: Productos devueltos
+            devolvio = 0
+            for venta in ventas_ruta:
+                if venta.productos_devueltos:  # JSON con productos devueltos
+                    for producto in venta.productos_devueltos:
+                        devolvio += producto.get('cantidad', 0)
+            
+            # VENCIDAS: Productos vencidos
+            vencidas = 0
+            for venta in ventas_ruta:
+                if venta.productos_vencidos:  # JSON con productos vencidos
+                    for producto in venta.productos_vencidos:
+                        vencidas += producto.get('cantidad', 0)
+            
+            # VENTAS REALES: Vendió - (Devolvió + Vencidas)
+            ventas_reales = vendio - (devolvio + vencidas)
+            if ventas_reales < 0:
+                ventas_reales = 0
+            
+            # EFECTIVIDAD: (Ventas Reales / Vendió) * 100
+            efectividad = 0.0
+            if vendio > 0:
+                efectividad = (ventas_reales / vendio) * 100
+            
+            # CUMPLIMIENTO: (Ventas Reales / Meta) * 100
+            # Por ahora asumimos meta = vendió, se puede ajustar si hay campo de meta
+            cumplimiento = efectividad  # Simplificado
+            
+            resultado.append({
+                'id': vendedor.id_vendedor,
+                'nombre': vendedor.nombre,
+                'vendio': vendio,
+                'devolvio': devolvio,
+                'vencidas': vencidas,
+                'ventas_reales': ventas_reales,
+                'cumplimiento': round(cumplimiento, 2),
+                'efectividad': round(efectividad, 2)
+            })
+        
+        # Ordenar por ventas reales descendente
+        resultado.sort(key=lambda x: x['ventas_reales'], reverse=True)
+        
+        return Response({
+            'vendedores': resultado,
+            'periodo': periodo,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin
+        })
+        
+    except Exception as e:
+        print(f"Error en reportes_efectividad_vendedores: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)

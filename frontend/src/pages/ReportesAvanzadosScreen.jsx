@@ -4,6 +4,7 @@ import { Container, Row, Col, Button, Form, Table, Alert, Spinner } from 'react-
 import usePageTitle from '../hooks/usePageTitle';
 import './ReportesAvanzadosScreen.css';
 import ReporteVendedores from './ReportesAvanzados/ReporteVendedores';
+import ReporteEfectividadVendedores from './ReportesAvanzados/ReporteEfectividadVendedores';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -434,6 +435,11 @@ const ReportesAvanzadosScreen = () => {
     // 🆕 Vista: Reportes de Vendedores
     if (vistaActual === 'reportes-vendedores') {
         return <ReporteVendedores onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Efectividad de Vendedores
+    if (vistaActual === 'efectividad-vendedores') {
+        return <ReporteEfectividadVendedores onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Próximamente (Pedidos por Ruta)
