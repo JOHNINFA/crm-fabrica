@@ -5480,3 +5480,60 @@ def reportes_analisis_productos(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def reportes_pedidos_ruta(request):
+    """
+    Pedidos por ruta agrupados por vendedor
+    GET /api/reportes/pedidos-ruta/?fecha_inicio=2026-01-01&fecha_fin=2026-01-31&vendedor=ID1&estado=pendiente
+    """
+    try:
+        from datetime import datetime
+        
+        fecha_inicio = request.GET.get('fecha_inicio')
+        fecha_fin = request.GET.get('fecha_fin')
+        vendedor_id = request.GET.get('vendedor')
+        estado_filtro = request.GET.get('estado')
+        
+        if not fecha_inicio or not fecha_fin:
+            return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
+        
+        # Query base
+        pedidos = Pedido.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin
+        ).select_related('usuario')
+        
+        # Filtros opcionales
+        if vendedor_id:
+            pedidos = pedidos.filter(usuario__username__icontains=vendedor_id)
+        
+        if estado_filtro and estado_filtro != 'todos':
+            pedidos = pedidos.filter(estado=estado_filtro)
+        
+        # Serializar resultado
+        resultado = []
+        for pedido in pedidos:
+            resultado.append({
+                'id': pedido.id,
+                'vendedor_nombre': pedido.usuario.username if pedido.usuario else 'Sin vendedor',
+                'ruta': getattr(pedido, 'ruta', None),  # Si existe campo ruta
+                'cliente_nombre': pedido.cliente.nombre if pedido.cliente else 'Sin cliente',
+                'fecha': pedido.fecha.isoformat(),
+                'total': float(pedido.total),
+                'estado': pedido.estado
+            })
+        
+        return Response({
+            'pedidos': resultado,
+            'total': len(resultado),
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin
+        })
+        
+    except Exception as e:
+        print(f"Error en reportes_pedidos_ruta: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)

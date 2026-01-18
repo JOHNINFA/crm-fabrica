@@ -6,6 +6,7 @@ import './ReportesAvanzadosScreen.css';
 import ReporteVendedores from './ReportesAvanzados/ReporteVendedores';
 import ReporteEfectividadVendedores from './ReportesAvanzados/ReporteEfectividadVendedores';
 import ReporteAnalisisProductos from './ReportesAvanzados/ReporteAnalisisProductos';
+import ReportePedidosRuta from './ReportesAvanzados/ReportePedidosRuta';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -416,34 +417,9 @@ const ReportesAvanzadosScreen = () => {
         return <ReporteAnalisisProductos onVolver={() => setVistaActual('menu')} />;
     }
 
-    // 🆕 Vista: Próximamente (Pedidos por Ruta)
+    // 🆕 Vista: Pedidos por Ruta
     if (vistaActual === 'pedidos-ruta') {
-        return (
-            <div className="reportes-screen">
-                <div className="header-dark">
-                    <Container>
-                        <div className="d-flex align-items-center justify-content-center py-4">
-                            <h5 className="mb-0 d-flex align-items-center">
-                                <i className="bi bi-signpost-2 me-2" style={{ fontSize: '1.5rem' }}></i>
-                                Pedidos por Ruta
-                            </h5>
-                        </div>
-                    </Container>
-                </div>
-                <Container className="py-4">
-                    <div className="mb-4">
-                        <a href="#" onClick={(e) => { e.preventDefault(); setVistaActual('menu'); }} className="link-volver">
-                            <i className="bi bi-arrow-left me-1"></i> Volver al Menú
-                        </a>
-                    </div>
-                    <div className="empty-state">
-                        <i className="bi bi-signpost-2 text-muted" style={{ fontSize: '3rem' }}></i>
-                        <h5 className="mt-3">Reporte en desarrollo</h5>
-                        <p className="text-muted">Este reporte estará disponible próximamente</p>
-                    </div>
-                </Container>
-            </div>
-        );
+        return <ReportePedidosRuta onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Próximamente (Pedidos por Transportadora)
