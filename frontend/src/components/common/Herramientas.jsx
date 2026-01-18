@@ -185,6 +185,216 @@ const Herramientas = () => {
         }
     };
 
+    // 🆕 NUEVA FUNCIÓN: Resetear Stock a 0 (mantiene productos)
+    const resetearStock = async () => {
+        const confirmText = window.prompt(
+            '⚠️ ADVERTENCIA: Esto pondrá el stock de TODOS los productos en 0.\n\n' +
+            'Los productos NO se eliminarán, solo se resetea la cantidad.\n\n' +
+            'Para confirmar, escribe: RESETEAR STOCK'
+        );
+
+        if (confirmText !== 'RESETEAR STOCK') {
+            setMessage({ type: 'warning', text: 'Operación cancelada' });
+            return;
+        }
+
+        setLoading(true);
+        setMessage({ type: 'info', text: 'Reseteando stock de productos...' });
+
+        try {
+            const response = await fetch(`${API_URL}/stocks/`);
+            if (response.ok) {
+                const stocks = await response.json();
+                let reseteados = 0;
+
+                for (const stock of stocks) {
+                    try {
+                        // Actualizar stock a 0 en lugar de eliminarlo
+                        await fetch(`${API_URL}/stocks/${stock.id}/`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                cantidad: 0
+                            })
+                        });
+                        reseteados++;
+                    } catch (err) {
+                        console.warn(`⚠️ Error reseteando stock ${stock.id}:`, err);
+                    }
+                }
+
+                setMessage({
+                    type: 'success',
+                    text: `✅ ${reseteados} productos con stock reseteado a 0`
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error reseteando stock:', error);
+            setMessage({ type: 'danger', text: `Error: ${error.message}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🆕 NUEVA FUNCIÓN: Limpiar Lotes de Producción
+    const limpiarLotes = async () => {
+        const confirmText = window.prompt(
+            '⚠️ PELIGRO: Esto eliminará TODOS los lotes de producción.\n\n' +
+            'Esta acción NO se puede deshacer.\n\n' +
+            'Para confirmar, escribe: ELIMINAR LOTES'
+        );
+
+        if (confirmText !== 'ELIMINAR LOTES') {
+            setMessage({ type: 'warning', text: 'Operación cancelada' });
+            return;
+        }
+
+        setLoading(true);
+        setMessage({ type: 'info', text: 'Limpiando lotes de producción...' });
+
+        try {
+            const response = await fetch(`${API_URL}/lotes/`);
+            if (response.ok) {
+                const lotes = await response.json();
+                let eliminados = 0;
+
+                for (const lote of lotes) {
+                    try {
+                        await fetch(`${API_URL}/lotes/${lote.id}/`, {
+                            method: 'DELETE'
+                        });
+                        eliminados++;
+                    } catch (err) {
+                        console.warn(`⚠️ Error eliminando lote ${lote.id}:`, err);
+                    }
+                }
+
+                setMessage({
+                    type: 'success',
+                    text: `✅ ${eliminados} lotes eliminados correctamente`
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error limpiando lotes:', error);
+            setMessage({ type: 'danger', text: `Error: ${error.message}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🆕 NUEVA FUNCIÓN: Limpieza Total de Transacciones (mantiene maestros)
+    const limpiarTodasTransacciones = async () => {
+        const confirmText = window.prompt(
+            '⚠️ PELIGRO MÁXIMO: Esto eliminará TODAS las transacciones:\n\n' +
+            '- Cargues\n' +
+            '- Ventas de Ruta\n' +
+            '- Pedidos\n' +
+            '- Lotes\n' +
+            '- Stock → 0\n\n' +
+            'NO se eliminarán: Productos, Clientes, Vendedores, Usuarios\n\n' +
+            'Para confirmar, escribe: RESET COMPLETO'
+        );
+
+        if (confirmText !== 'RESET COMPLETO') {
+            setMessage({ type: 'warning', text: 'Operación cancelada' });
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            let totalEliminado = 0;
+
+            // 1. Limpiar Cargues
+            setMessage({ type: 'info', text: '1/5: Limpiando cargues...' });
+            const tablasALimpiar = ['cargue-id1', 'cargue-id2', 'cargue-id3', 'cargue-id4', 'cargue-id5', 'cargue-id6'];
+            for (const tabla of tablasALimpiar) {
+                try {
+                    const getResponse = await fetch(`${API_URL}/${tabla}/`);
+                    if (getResponse.ok) {
+                        const registros = await getResponse.json();
+                        for (const registro of registros) {
+                            await fetch(`${API_URL}/${tabla}/${registro.id}/`, { method: 'DELETE' });
+                            totalEliminado++;
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`Error limpiando ${tabla}:`, err);
+                }
+            }
+
+            // 2. Limpiar Ventas
+            setMessage({ type: 'info', text: '2/5: Limpiando ventas...' });
+            const ventasResp = await fetch(`${API_URL}/ventas-ruta/`);
+            if (ventasResp.ok) {
+                const ventas = await ventasResp.json();
+                for (const venta of ventas) {
+                    try {
+                        await fetch(`${API_URL}/ventas-ruta/${venta.id}/`, { method: 'DELETE' });
+                        totalEliminado++;
+                    } catch (err) { }
+                }
+            }
+
+            // 3. Limpiar Pedidos
+            setMessage({ type: 'info', text: '3/5: Limpiando pedidos...' });
+            const pedidosResp = await fetch(`${API_URL}/pedidos/`);
+            if (pedidosResp.ok) {
+                const pedidos = await pedidosResp.json();
+                for (const pedido of pedidos) {
+                    try {
+                        await fetch(`${API_URL}/pedidos/${pedido.id}/`, { method: 'DELETE' });
+                        totalEliminado++;
+                    } catch (err) { }
+                }
+            }
+
+            // 4. Limpiar Lotes
+            setMessage({ type: 'info', text: '4/5: Limpiando lotes...' });
+            const lotesResp = await fetch(`${API_URL}/lotes/`);
+            if (lotesResp.ok) {
+                const lotes = await lotesResp.json();
+                for (const lote of lotes) {
+                    try {
+                        await fetch(`${API_URL}/lotes/${lote.id}/`, { method: 'DELETE' });
+                        totalEliminado++;
+                    } catch (err) { }
+                }
+            }
+
+            // 5. Resetear Stock a 0
+            setMessage({ type: 'info', text: '5/5: Reseteando stock a 0...' });
+            const stocksResp = await fetch(`${API_URL}/stocks/`);
+            if (stocksResp.ok) {
+                const stocks = await stocksResp.json();
+                for (const stock of stocks) {
+                    try {
+                        await fetch(`${API_URL}/stocks/${stock.id}/`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ cantidad: 0 })
+                        });
+                        totalEliminado++;
+                    } catch (err) { }
+                }
+            }
+
+            setMessage({
+                type: 'success',
+                text: `✅ Reset completo: ${totalEliminado} transacciones eliminadas/reseteadas. Recargando...`
+            });
+            setTimeout(() => window.location.reload(), 3000);
+
+        } catch (error) {
+            console.error('❌ Error en reset completo:', error);
+            setMessage({ type: 'danger', text: `Error: ${error.message}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Card className="shadow-sm">
             <Card.Header className="bg-white">
@@ -293,12 +503,69 @@ const Herramientas = () => {
                     <Button
                         variant="outline-danger"
                         onClick={limpiarPedidos}
-                        className="d-flex align-items-center w-100 justify-content-center"
+                        className="d-flex align-items-center w-100 justify-content-center mb-2"
                         disabled={loading}
                     >
                         <span className="material-icons me-2">shopping_cart</span>
                         Limpiar Pedidos
                     </Button>
+
+                    {/* 🆕 Resetear Stock */}
+                    <Button
+                        variant="outline-warning"
+                        onClick={resetearStock}
+                        className="d-flex align-items-center w-100 justify-content-center mb-2"
+                        disabled={loading}
+                    >
+                        <span className="material-icons me-2">inventory_2</span>
+                        Resetear Stock a 0
+                    </Button>
+
+                    {/* 🆕 Limpiar Lotes */}
+                    <Button
+                        variant="outline-danger"
+                        onClick={limpiarLotes}
+                        className="d-flex align-items-center w-100 justify-content-center"
+                        disabled={loading}
+                    >
+                        <span className="material-icons me-2">qr_code</span>
+                        Limpiar Lotes de Producción
+                    </Button>
+                </div>
+
+                <hr className="my-4" />
+
+                {/* 🆕 SECCIÓN: Reset Completo para Piloto */}
+                <div className="mb-3">
+                    <h6 className="text-danger">🔥 Reset Completo (Piloto)</h6>
+                    <p className="text-muted small">
+                        <strong>Ideal para después del piloto:</strong> Elimina todas las transacciones de prueba
+                        pero mantiene productos, clientes, vendedores y usuarios.
+                    </p>
+
+                    <Button
+                        variant="danger"
+                        onClick={limpiarTodasTransacciones}
+                        className="d-flex align-items-center w-100 justify-content-center"
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <>
+                                <Spinner animation="border" size="sm" className="me-2" />
+                                Procesando...
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-icons me-2">restart_alt</span>
+                                Reset Completo de Transacciones
+                            </>
+                        )}
+                    </Button>
+
+                    <small className="text-muted d-block mt-2">
+                        ✅ Elimina: Cargues, Ventas, Pedidos, Lotes, Stock→0<br />
+                        ❌ NO elimina: Productos, Clientes, Vendedores, Usuarios
+                    </small>
                 </div>
 
                 {/* Alerta de Advertencia */}
