@@ -269,6 +269,7 @@ const ReportesAvanzadosScreen = () => {
 
                     {/* Grid de botones de reportes */}
                     <Row className="g-3">
+                        {/* Planeación - Existente */}
                         <Col md={6} lg={4}>
                             <div
                                 className="reporte-card"
@@ -278,34 +279,94 @@ const ReportesAvanzadosScreen = () => {
                                 <div className="reporte-card-icon">
                                     <i className="bi bi-calendar-check" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
                                 </div>
-                                <h5 className="mt-3 mb-2">Planeación de Producción</h5>
+                                <h5 className="mt-3 mb-2">📊 Planeación de Producción</h5>
                                 <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                                    Consulta la planeación diaria con existencias, solicitadas y pedidos por producto
+                                    Consulta la planeación diaria con existencias, solicitadas y pedidos
                                 </p>
                             </div>
                         </Col>
 
-                        {/* Próximos reportes - Deshabilitados por ahora */}
+                        {/* 🆕 Pedidos por Ruta */}
                         <Col md={6} lg={4}>
-                            <div className="reporte-card disabled">
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('pedidos-ruta')}
+                                style={{ cursor: 'pointer' }}
+                            >
                                 <div className="reporte-card-icon">
-                                    <i className="bi bi-graph-up" style={{ fontSize: '2.5rem', color: '#6c757d' }}></i>
+                                    <i className="bi bi-signpost-2" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
                                 </div>
-                                <h5 className="mt-3 mb-2 text-muted">Ventas por Cajero</h5>
+                                <h5 className="mt-3 mb-2">📊 Pedidos por Ruta</h5>
                                 <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                                    Próximamente
+                                    Reportes de pedidos agrupados por ruta y vendedor
                                 </p>
                             </div>
                         </Col>
 
+                        {/* 🆕 Pedidos por Transportadora */}
                         <Col md={6} lg={4}>
-                            <div className="reporte-card disabled">
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('pedidos-transportadora')}
+                                style={{ cursor: 'pointer' }}
+                            >
                                 <div className="reporte-card-icon">
-                                    <i className="bi bi-shop" style={{ fontSize: '2.5rem', color: '#6c757d' }}></i>
+                                    <i className="bi bi-truck" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
                                 </div>
-                                <h5 className="mt-3 mb-2 text-muted">Ventas por Sucursal</h5>
+                                <h5 className="mt-3 mb-2">🚚 Pedidos por Transportadora</h5>
                                 <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                                    Próximamente
+                                    Tracking y estado de entregas por transportadora
+                                </p>
+                            </div>
+                        </Col>
+
+                        {/* 🆕 Estado de Entregas */}
+                        <Col md={6} lg={4}>
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('estado-entregas')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-box-seam" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">📦 Estado de Entregas</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                                    Dashboard con métricas de entregados, pendientes y devoluciones
+                                </p>
+                            </div>
+                        </Col>
+
+                        {/* 🆕 Devoluciones */}
+                        <Col md={6} lg={4}>
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('devoluciones')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-arrow-return-left" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">↩️ Devoluciones de Pedidos</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                                    Análisis de devoluciones por motivo, producto y cliente
+                                </p>
+                            </div>
+                        </Col>
+
+                        {/* 🆕 Reportes de Vendedores */}
+                        <Col md={6} lg={4}>
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('reportes-vendedores')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-people" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">👥 Reportes de Vendedores</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                                    Desempeño, comparativas y ranking de vendedores
                                 </p>
                             </div>
                         </Col>
