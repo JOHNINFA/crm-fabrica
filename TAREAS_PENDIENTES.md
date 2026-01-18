@@ -39,63 +39,32 @@
 
 ---
 
-### 3. 💾 Sistema de Guardado Multi-Dispositivo ✅ COMPLETADO (Backend)
-**Módulo:** App Móvil + Backend
-**Descripción:** Implementar sistema robusto para evitar colisiones cuando múltiples dispositivos envían datos simultáneamente.
-
-**Estado:** ✅ Backend 100% | ⏳ App Móvil pendiente  
-**Fecha completado:** 17 de enero de 2026  
-**Rama:** `feature/multi-dispositivo-sync`
-
-**Tareas:**
-- [x] ✅ Implementar IDs únicos globales (vendedor-dispositivo-timestamp-random)
-- [x] ✅ Actualizar modelo VentaRuta (id_local 150 chars, dispositivo_id, ip_origen)
-- [x] ✅ Implementar sistema de bloqueo optimista (detección de duplicados)
-- [x] ✅ Manejo de conflictos de sincronización (HTTP 200/409)
-- [x] ✅ Logs de sincronización por dispositivo (modelo SyncLog)
-- [x] ✅ Captura automática de IP y user-agent
-- [x] ✅ Migraciones aplicadas (0073, 0074)
-- [ ] ⏳ Implementar código en app móvil (código preparado en `.agent/CODIGO_APP_MOVIL_FASE4.md`)
-- [ ] ⏳ Testing con múltiples dispositivos
-- [ ] ⏳ Queue de procesamiento en backend (Redis/Celery - OPCIONAL)
-- [ ] ⏳ Retry automático en caso de conflicto (en app)
-- [ ] ⏳ Notificaciones de conflictos al usuario (en app)
-
-**Documentación creada:**
-- `IMPLEMENTACION_COMPLETA_MULTIDISPOSITIVO.md` - Resumen ejecutivo
-- `.agent/ANALISIS_SISTEMA_ACTUAL.md` - Análisis técnico
-- `.agent/PLAN_IMPLEMENTACION_MULTIDISPOSITIVO.md` - Plan detallado
-- `.agent/CODIGO_APP_MOVIL_FASE4.md` - Código para implementar en app
-- `.agent/PROGRESO_IMPLEMENTACION.md` - Estado actual
-- `DESPLIEGUE_VPS.md` - Guía con Gunicorn + Nginx
-
-**Tecnologías implementadas:**
-- ✅ Bloqueo optimista a nivel de BD (PostgreSQL unique constraint)
-- ✅ Logging con modelo SyncLog
-- ✅ Detección de duplicados en VentaRutaViewSet
-- 📝 Redis para queue (opcional, código preparado)
-- 📝 Django Celery para procesamiento asíncrono (opcional, código preparado)
-
-**Próximo paso:** Testing con múltiples dispositivos (30-60 min)
-
-**Nota para 8 vendedores:** ✅ Sistema actual es SUFICIENTE. Redis/Celery NO necesario.
-
----
-
 ### 3. ✅ COMPLETADA - Sistema de Guardado Multi-Dispositivo
-**Estado:** ✅ 100% COMPLETADO (Backend + App Móvil)  
-**Fecha completado:** 17 de enero de 2026  
+**Módulo:** App Móvil + Backend  
+**Estado:** ✅ Backend 100% | ✅ App Móvil 100%  
+**Fecha completado:** 17-18 de enero de 2026  
 **Rama:** `feature/multi-dispositivo-sync`
 
-**Resumen:**
-- ✅ Backend 100% implementado y testeado
-- ✅ App móvil 100% código implementado
-- ⏳ Pendiente: Instalar dependencias (expo-device, expo-constants) y testing
+**Implementación:**
+- [x] ✅ Backend completo con detección de duplicados
+- [x] ✅ App móvil código 100% implementado
+- [x] ✅ IDs únicos globales (vendedor-dispositivo-timestamp-random)
+- [x] ✅ Modelo VentaRuta actualizado (id_local 150, dispositivo_id, ip_origen)
+- [x] ✅ Sistema de bloqueo optimista
+- [x] ✅ Logs de sincronización (modelo SyncLog)
+- [x] ✅ Migraciones aplicadas (0073, 0074)
+
+**Pendiente (Testing):**
+- [ ] ⏳ Instalar dependencias en app: `expo-device`, `expo-constants`
+- [ ] ⏳ Testing con 8 vendedores simultáneos
+- [ ] ⏳ Merge a main cuando se pruebe
 
 **Archivos modificados:**
 - Backend: `api/models.py`, `api/views.py`, `api/serializers.py`
 - App: `AP GUERRERO/services/ventasService.js`, `rutasApiService.js`
-- Documentación: `APP_MOVIL_IMPLEMENTADO.md`, `IMPLEMENTACION_COMPLETA_MULTIDISPOSITIVO.md`
+- Docs: `APP_MOVIL_IMPLEMENTADO.md`, `IMPLEMENTACION_COMPLETA_MULTIDISPOSITIVO.md`
+
+**Nota:** ✅ Para 8 vendedores NO se necesita Redis/Celery. Gunicorn 4 workers es suficiente.
 
 ---
 
@@ -144,31 +113,38 @@ Navbar > Otros > Reportes Avanzados
 - [ ] Tendencia de devoluciones mensual
 - [ ] Exportar a Excel
 
-#### 4.5 Reportes de Vendedores
-- [ ] Reporte de ventas por vendedor (día/semana/mes/año)
-- [ ] Productos vencidos por vendedor
-- [ ] Desempeño de rutas (efectividad)
-- [ ] Comparativa entre vendedores (gráfica de barras)
-- [ ] Efectividad de entregas (%)
-- [ ] Seguimiento de metas vs real
-- [ ] Ranking de vendedores
+#### 4.5 Reportes de Vendedores ✅ COMPLETADO
+- [x] ✅ Reporte de ventas por vendedor (día/semana/mes/año)
+- [x] ✅ Productos vencidos por vendedor
+- [x] ✅ Comparativa entre vendedores (tabla ranking)
+- [x] ✅ Efectividad de entregas (%)
+- [x] ✅ Ranking de vendedores ordenado por monto
+- [ ] ⏳ Seguimiento de metas vs real (pendiente)
+- [ ] ⏳ Gráficas visuales (pendiente)
 
-**Archivos a crear:**
-- `frontend/src/pages/Otros/ReportesAvanzados/`
-  - `ReportesAvanzadosScreen.jsx` (pantalla principal con menú)
-  - `ReportePedidosRuta.jsx`
-  - `ReportePedidosTransportadora.jsx`
-  - `ReporteEstadoEntregas.jsx`
-  - `ReporteDevolucionesPedidos.jsx`
-  - `ReporteVendedores.jsx`
+**Estado General del Módulo:**
+- ✅ Menú principal con 6 reportes funcional
+- ✅ Planeación (ya existía)
+- ✅ Reportes de Vendedores (100% funcional)
+- 🟡 Pedidos por Ruta (placeholder)
+- 🟡 Pedidos por Transportadora (placeholder)
+- 🟡 Estado de Entregas (placeholder)
+- 🟡 Devoluciones (placeholder)
+
+**Archivos creados:**
+- ✅ `frontend/src/pages/ReportesAvanzadosScreen.jsx` (menú actualizado)
+- ✅ `frontend/src/pages/ReportesAvanzados/ReporteVendedores.jsx`
+- ✅ `frontend/src/pages/ReportesAvanzados/ReporteVendedores.css`
+- ✅ `api/views.py` → función `reportes_vendedores()`
+- ✅ `api/urls.py` → ruta configurada
 
 **Backend:**
-- Crear endpoints en `api/views.py` para cada tipo de reporte
-- Optimizar consultas con agregaciones de Django
-- Implementar paginación para reportes largos
+- ✅ Endpoint `/api/reportes/vendedores/` funcional
+- ✅ Agregaciones de ventas por vendedor
+- ✅ Cálculo automático de efectividad
+- ⏳ Pending: 4 endpoints adicionales
 
-**Referencia:**
-Usar como base el módulo de Planeación que ya está funcionando correctamente.
+**Progreso:** 33% (2 de 6 reportes funcionando)
 
 ---
 
@@ -250,38 +226,42 @@ Cuando el sistema esté en producción, será necesario realizar pruebas sin afe
 
 #### 7.2 Validaciones por Tipo de Transacción
 
-**Cargues:**
-- [ ] Validar que no haya ventas asociadas antes de borrar
-- [ ] Permitir solo borrado de cargues del día actual
-- [ ] Confirmación: "¿Eliminar cargue de [FECHA] para [VENDEDOR]?"
-- [ ] Log: Usuario, fecha/hora, motivo
+**Cargues:** ✅ IMPLEMENTADO
+- [x] ✅ Limpieza completa de todas las tablas de cargue
+- [x] ✅ Confirmación doble (alert)
+- [x] ✅ Desactivar/reactivar sincronización automática
+- [ ] ⏳ Log de borrados (pendiente)
 
-**Ventas Ruta:**
-- [ ] No permitir borrado si tiene más de 7 días de antigüedad
-- [ ] Verificar que no esté sincronizada con contabilidad
-- [ ] Confirmación con ingreso de contraseña admin
-- [ ] Crear registro de "Venta Anulada" en lugar de borrar (mantener histórico)
+**Ventas Ruta:** ✅ IMPLEMENTADO
+- [x] ✅ Limpieza de todas las ventas de ruta
+- [x] ✅ Confirmación con texto: "ELIMINAR VENTAS"
+- [x] ✅ Contador de ventas eliminadas
+- [ ] ⏳ Validar antigüedad antes de borrar (pendiente)
+- [ ] ⏳ Anular en lugar de borrar (pendiente)
 
-**Pedidos:**
-- [ ] No permitir borrado si está "Entregado"
-- [ ] Solo admin puede borrar pedidos en estados finales
-- [ ] Cambiar estado a "Cancelado" en lugar de borrar
-- [ ] Guardar motivo de cancelación
+**Pedidos:** ✅ IMPLEMENTADO
+- [x] ✅ Limpieza de todos los pedidos
+- [x] ✅ Confirmación con texto: "ELIMINAR PEDIDOS"
+- [x] ✅ Contador de pedidos eliminados
+- [ ] ⏳ Validar estado antes de borrar (pendiente)
+- [ ] ⏳ Cancelar en lugar de borrar (pendiente)
 
-#### 7.3 Panel de Administración de Datos
-- [ ] Crear sección en Otros > "Gestión de Datos"
-- [ ] Dashboard con resumen de datos por módulo
-- [ ] Herramienta de "Limpieza de Datos de Prueba"
-- [ ] Exportar datos antes de limpiar
-- [ ] Confirmar limpieza con código de autorización
+**Ubicación:** Otros > Herramientas de Sistema
+
+#### 7.3 Panel de Administración de Datos ✅ PARCIAL
+- [x] ✅ Sección en Otros > "Herramientas de Sistema" (ya existe)
+- [x] ✅ Herramienta de limpieza de datos transaccionales
+- [x] ✅ Confirmaciones con texto para evitar errores
+- [ ] ⏳ Dashboard con resumen de datos
+- [ ] ⏳ Exportar datos antes de limpiar
 
 #### 7.4 Backups Automáticos
-- [ ] Backup automático diario de BD completa
-- [ ] Backup antes de cualquier borrado masivo
-- [ ] Retención de backups por 30 días
-- [ ] Notificaciones de fallos en backup
+- [ ] ⏳ Backup automático diario de BD completa
+- [ ] ⏳ Backup antes de cualquier borrado masivo
+- [ ] ⏳ Retención de backups por 30 días
+- [ ] ⏳ Notificaciones de fallos en backup
 
-**Archivos a crear/modificar:**
+**Archivos modificados:**
 - `frontend/src/pages/Otros/GestionDatos/`
   - `GestionDatosScreen.jsx`
   - `ConfirmacionBorradoModal.jsx`
