@@ -5,6 +5,7 @@ import usePageTitle from '../hooks/usePageTitle';
 import './ReportesAvanzadosScreen.css';
 import ReporteVendedores from './ReportesAvanzados/ReporteVendedores';
 import ReporteEfectividadVendedores from './ReportesAvanzados/ReporteEfectividadVendedores';
+import ReporteAnalisisProductos from './ReportesAvanzados/ReporteAnalisisProductos';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -347,47 +348,15 @@ const ReportesAvanzadosScreen = () => {
                         <Col md={6} lg={4}>
                             <div
                                 className="reporte-card"
-                                onClick={() => setVistaActual('productos-vendidos')}
+                                onClick={() => setVistaActual('analisis-productos')}
                                 style={{ cursor: 'pointer' }}
                             >
                                 <div className="reporte-card-icon">
                                     <i className="bi bi-bar-chart-fill" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
                                 </div>
-                                <h5 className="mt-3 mb-2">Productos Más Vendidos</h5>
+                                <h5 className="mt-3 mb-2">Análisis de Productos</h5>
                                 <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                                    Top productos con mayor venta por período
-                                </p>
-                            </div>
-                        </Col>
-
-                        <Col md={6} lg={4}>
-                            <div
-                                className="reporte-card"
-                                onClick={() => setVistaActual('productos-vencidos')}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <div className="reporte-card-icon">
-                                    <i className="bi bi-exclamation-triangle" style={{ fontSize: '2.5rem', color: '#dc3545' }}></i>
-                                </div>
-                                <h5 className="mt-3 mb-2">Productos Más Vencidos</h5>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                                    Productos con mayor cantidad vencida
-                                </p>
-                            </div>
-                        </Col>
-
-                        <Col md={6} lg={4}>
-                            <div
-                                className="reporte-card"
-                                onClick={() => setVistaActual('productos-devueltos')}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <div className="reporte-card-icon">
-                                    <i className="bi bi-arrow-counterclockwise" style={{ fontSize: '2.5rem', color: '#ffc107' }}></i>
-                                </div>
-                                <h5 className="mt-3 mb-2">Productos Más Devueltos</h5>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                                    Productos con mayor tasa de devolución
+                                    Vendidos, Devueltos y Vencidos con tabs
                                 </p>
                             </div>
                         </Col>
@@ -440,6 +409,11 @@ const ReportesAvanzadosScreen = () => {
     // 🆕 Vista: Efectividad de Vendedores
     if (vistaActual === 'efectividad-vendedores') {
         return <ReporteEfectividadVendedores onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Análisis de Productos (Consolidado con tabs)
+    if (vistaActual === 'analisis-productos') {
+        return <ReporteAnalisisProductos onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Próximamente (Pedidos por Ruta)

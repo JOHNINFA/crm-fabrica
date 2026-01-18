@@ -24,7 +24,7 @@ from .views import (
     # 🤖 Endpoints de IA
     ai_chat, ai_analyze_data, ai_health, ai_agent_command,
     # 📊 Reportes Avanzados
-    reportes_vendedores, reportes_efectividad_vendedores
+    reportes_vendedores, reportes_efectividad_vendedores, reportes_analisis_productos
 )
 
 router = DefaultRouter()
@@ -120,5 +120,6 @@ urlpatterns = router.urls + [
     # 📊 Reportes Avanzados
     path('reportes/vendedores/', reportes_vendedores, name='reportes-vendedores'),
     path('reportes/efectividad-vendedores/', reportes_efectividad_vendedores, name='reportes-efectividad-vendedores'),
+    path('reportes/analisis-productos/', reportes_analisis_productos, name='reportes-analisis-productos'),
 ]
 

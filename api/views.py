@@ -5388,3 +5388,95 @@ def reportes_efectividad_vendedores(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def reportes_analisis_productos(request):
+    """
+    Análisis consolidado de productos: vendidos, devueltos y vencidos
+    GET /api/reportes/analisis-productos/?tipo=vendidos&periodo=mes&fecha_inicio=2026-01-01&fecha_fin=2026-01-31&orden=desc&limite=10
+
+    tipo: vendidos | devueltos | vencidos
+    """
+    try:
+        from django.db.models import Sum, Count
+        from collections import Counter
+        
+        tipo = request.GET.get('tipo', 'vendidos')
+        periodo = request.GET.get('periodo', 'mes')
+        fecha_inicio = request.GET.get('fecha_inicio')
+        fecha_fin = request.GET.get('fecha_fin')
+        orden = request.GET.get('orden', 'desc')  # desc o asc
+        limite = int(request.GET.get('limite', 10))
+        
+        if not fecha_inicio or not fecha_fin:
+            return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
+        
+        # Obtener ventas en el período
+        ventas_ruta = VentaRuta.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin
+        )
+        
+        productos_conteo = Counter()
+        vendedores_por_producto = {}
+        
+        for venta in ventas_ruta:
+            lista_productos = None
+            
+            # Seleccionar el campo JSON según el tipo
+            if tipo == 'vendidos':
+                lista_productos = venta.detalle_productos or []
+            elif tipo == 'devueltos':
+                lista_productos = venta.productos_devueltos or []
+            elif tipo == 'vencidos':
+                lista_productos = venta.productos_vencidos or []
+            
+            if lista_productos:
+                for producto in lista_productos:
+                    nombre_producto = producto.get('nombre') or producto.get('producto', 'Desconocido')
+                    cantidad = producto.get('cantidad', 0)
+                    
+                    productos_conteo[nombre_producto] += cantidad
+                    
+                    # Contar vendedores únicos por producto (para devueltos y vencidos)
+                    if tipo in ['devueltos', 'vencidos']:
+                        if nombre_producto not in vendedores_por_producto:
+                            vendedores_por_producto[nombre_producto] = set()
+                        vendedores_por_producto[nombre_producto].add(venta.vendedor.id_vendedor)
+        
+        # Convertir a lista y ordenar
+        resultado = []
+        for nombre, total in productos_conteo.items():
+            item = {
+                'nombre': nombre,
+                'total': total
+            }
+            
+            # Agregar conteo de vendedores para devueltos/vencidos
+            if tipo in ['devueltos', 'vencidos']:
+                item['vendedores'] = len(vendedores_por_producto.get(nombre, set()))
+            
+            resultado.append(item)
+        
+        # Ordenar
+        reverse = (orden == 'desc')
+        resultado.sort(key=lambda x: x['total'], reverse=reverse)
+        
+        # Limitar resultados
+        resultado = resultado[:limite]
+        
+        return Response({
+            'productos': resultado,
+            'tipo': tipo,
+            'periodo': periodo,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'total_productos': len(resultado)
+        })
+        
+    except Exception as e:
+        print(f"Error en reportes_analisis_productos: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
