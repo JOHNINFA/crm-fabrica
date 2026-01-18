@@ -93,6 +93,98 @@ const Herramientas = () => {
         }
     };
 
+    // 🆕 NUEVA FUNCIÓN: Limpiar Ventas de Ruta
+    const limpiarVentas = async () => {
+        const confirmText = window.prompt(
+            '⚠️ PELIGRO: Esto eliminará TODAS las ventas de ruta de la base de datos.\n\n' +
+            'Esta acción NO se puede deshacer.\n\n' +
+            'Para confirmar, escribe: ELIMINAR VENTAS'
+        );
+
+        if (confirmText !== 'ELIMINAR VENTAS') {
+            setMessage({ type: 'warning', text: 'Operación cancelada' });
+            return;
+        }
+
+        setLoading(true);
+        setMessage({ type: 'info', text: 'Limpiando ventas de ruta...' });
+
+        try {
+            const response = await fetch(`${API_URL}/ventas-ruta/`);
+            if (response.ok) {
+                const ventas = await response.json();
+                let eliminadas = 0;
+
+                for (const venta of ventas) {
+                    try {
+                        await fetch(`${API_URL}/ventas-ruta/${venta.id}/`, {
+                            method: 'DELETE'
+                        });
+                        eliminadas++;
+                    } catch (err) {
+                        console.warn(`⚠️ Error eliminando venta ${venta.id}:`, err);
+                    }
+                }
+
+                setMessage({
+                    type: 'success',
+                    text: `✅ ${eliminadas} ventas eliminadas correctamente`
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error limpiando ventas:', error);
+            setMessage({ type: 'danger', text: `Error: ${error.message}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🆕 NUEVA FUNCIÓN: Limpiar Pedidos
+    const limpiarPedidos = async () => {
+        const confirmText = window.prompt(
+            '⚠️ PELIGRO: Esto eliminará TODOS los pedidos de la base de datos.\n\n' +
+            'Esta acción NO se puede deshacer.\n\n' +
+            'Para confirmar, escribe: ELIMINAR PEDIDOS'
+        );
+
+        if (confirmText !== 'ELIMINAR PEDIDOS') {
+            setMessage({ type: 'warning', text: 'Operación cancelada' });
+            return;
+        }
+
+        setLoading(true);
+        setMessage({ type: 'info', text: 'Limpiando pedidos...' });
+
+        try {
+            const response = await fetch(`${API_URL}/pedidos/`);
+            if (response.ok) {
+                const pedidos = await response.json();
+                let eliminados = 0;
+
+                for (const pedido of pedidos) {
+                    try {
+                        await fetch(`${API_URL}/pedidos/${pedido.id}/`, {
+                            method: 'DELETE'
+                        });
+                        eliminados++;
+                    } catch (err) {
+                        console.warn(`⚠️ Error eliminando pedido ${pedido.id}:`, err);
+                    }
+                }
+
+                setMessage({
+                    type: 'success',
+                    text: `✅ ${eliminados} pedidos eliminados correctamente`
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error limpiando pedidos:', error);
+            setMessage({ type: 'danger', text: `Error: ${error.message}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Card className="shadow-sm">
             <Card.Header className="bg-white">
@@ -175,6 +267,51 @@ const Herramientas = () => {
                         )}
                     </Button>
                 </div>
+
+                <hr className="my-4" />
+
+                {/* 🆕 SECCIÓN: Limpieza de Transacciones */}
+                <div className="mb-3">
+                    <h6 className="text-danger">⚠️ Limpieza de Transacciones</h6>
+                    <p className="text-muted small">
+                        Herramientas para limpiar datos transaccionales (Ventas, Pedidos).
+                        <strong> Solo usar para pruebas. NO usar en producción con datos reales.</strong>
+                    </p>
+
+                    {/* Limpiar Ventas */}
+                    <Button
+                        variant="outline-danger"
+                        onClick={limpiarVentas}
+                        className="d-flex align-items-center w-100 justify-content-center mb-2"
+                        disabled={loading}
+                    >
+                        <span className="material-icons me-2">receipt_long</span>
+                        Limpiar Ventas de Ruta
+                    </Button>
+
+                    {/* Limpiar Pedidos */}
+                    <Button
+                        variant="outline-danger"
+                        onClick={limpiarPedidos}
+                        className="d-flex align-items-center w-100 justify-content-center"
+                        disabled={loading}
+                    >
+                        <span className="material-icons me-2">shopping_cart</span>
+                        Limpiar Pedidos
+                    </Button>
+                </div>
+
+                {/* Alerta de Advertencia */}
+                <Alert variant="danger" className="mt-3">
+                    <div className="d-flex align-items-start">
+                        <span className="material-icons me-2">warning</span>
+                        <div>
+                            <strong>IMPORTANTE:</strong> Las opciones de limpieza de transacciones son
+                            <strong> IRREVERSIBLES</strong>. Requieren confirmación por texto para evitar
+                            borrados accidentales. No usar en ambiente de producción.
+                        </div>
+                    </div>
+                </Alert>
             </Card.Body>
         </Card>
     );
