@@ -76,53 +76,99 @@
 - 📝 Redis para queue (opcional, código preparado)
 - 📝 Django Celery para procesamiento asíncrono (opcional, código preparado)
 
-**Próximo paso:** Implementar código en app móvil (30-60 min)
+**Próximo paso:** Testing con múltiples dispositivos (30-60 min)
+
+**Nota para 8 vendedores:** ✅ Sistema actual es SUFICIENTE. Redis/Celery NO necesario.
 
 ---
 
-## 📊 REPORTES
+### 3. ✅ COMPLETADA - Sistema de Guardado Multi-Dispositivo
+**Estado:** ✅ 100% COMPLETADO (Backend + App Móvil)  
+**Fecha completado:** 17 de enero de 2026  
+**Rama:** `feature/multi-dispositivo-sync`
 
-### 4. Nuevos Reportes Requeridos
-**Módulo:** Frontend - Reportes
+**Resumen:**
+- ✅ Backend 100% implementado y testeado
+- ✅ App móvil 100% código implementado
+- ⏳ Pendiente: Instalar dependencias (expo-device, expo-constants) y testing
+
+**Archivos modificados:**
+- Backend: `api/models.py`, `api/views.py`, `api/serializers.py`
+- App: `AP GUERRERO/services/ventasService.js`, `rutasApiService.js`
+- Documentación: `APP_MOVIL_IMPLEMENTADO.md`, `IMPLEMENTACION_COMPLETA_MULTIDISPOSITIVO.md`
+
+---
+
+## 📊 MÓDULO: OTROS - REPORTES AVANZADOS
+
+### 4. Nuevos Reportes de Negocio
+**Módulo:** Frontend - Otros > Reportes Avanzados  
+**Descripción:** Crear módulo de reportes avanzados similar al de Planeación (que ya funciona bien), para centralizar todos los reportes de negocio.
+
+**Estructura del módulo:**
+```
+Navbar > Otros > Reportes Avanzados
+  ├── 📊 Pedidos por Ruta
+  ├── 🚚 Pedidos por Transportadora
+  ├── 📦 Estado de Entregas
+  ├── ↩️ Devoluciones de Pedidos
+  └── 👥 Reportes de Vendedores
+```
 
 #### 4.1 Pedidos por Ruta
 - [ ] Crear pantalla de reporte de pedidos por ruta
 - [ ] Filtros por fecha, vendedor, estado
+- [ ] Tabla con datos agrupados por ruta
 - [ ] Exportar a Excel/PDF
-- [ ] Gráficas de desempeño
+- [ ] Gráficas de desempeño por ruta
 
 #### 4.2 Pedidos por Transportadora
 - [ ] Crear pantalla de reporte de pedidos por transportadora
-- [ ] Tracking de entregas
-- [ ] Estados de pedidos
+- [ ] Tracking de entregas en tiempo real
+- [ ] Estados: En ruta, Entregado, Pendiente
 - [ ] Exportar a Excel/PDF
+- [ ] Gráfica de rendimiento por transportadora
 
 #### 4.3 Estado de Entregas
-- [ ] Dashboard de estado de entregas
+- [ ] Dashboard visual de estado de entregas
 - [ ] Métricas: Entregados, Pendientes, No Entregados, Devoluciones
-- [ ] Gráfica de tendencias
-- [ ] Alertas de pedidos atrasados
+- [ ] Gráfica de tendencias (últimos 30 días)
+- [ ] Alertas de pedidos atrasados (más de 3 días)
+- [ ] Filtros por fecha y transportadora
 
 #### 4.4 Devoluciones de Pedidos
 - [ ] Reporte detallado de devoluciones
-- [ ] Motivos de devolución
-- [ ] Productos más devueltos
+- [ ] Motivos de devolución (categorías)
+- [ ] Productos más devueltos (top 10)
 - [ ] Clientes con más devoluciones
+- [ ] Tendencia de devoluciones mensual
+- [ ] Exportar a Excel
 
 #### 4.5 Reportes de Vendedores
-- [ ] Reporte de ventas por vendedor (día/mes/año)
+- [ ] Reporte de ventas por vendedor (día/semana/mes/año)
 - [ ] Productos vencidos por vendedor
-- [ ] Desempeño de rutas
-- [ ] Comparativa entre vendedores
-- [ ] Efectividad de entregas
-- [ ] Seguimiento de metas
+- [ ] Desempeño de rutas (efectividad)
+- [ ] Comparativa entre vendedores (gráfica de barras)
+- [ ] Efectividad de entregas (%)
+- [ ] Seguimiento de metas vs real
+- [ ] Ranking de vendedores
 
 **Archivos a crear:**
-- `frontend/src/pages/ReportePedidosRuta.jsx`
-- `frontend/src/pages/ReportePedidosTransportadora.jsx`
-- `frontend/src/pages/ReporteEstadoEntregas.jsx`
-- `frontend/src/pages/ReporteDevolucionesPedidos.jsx`
-- `frontend/src/pages/ReporteVendedores.jsx`
+- `frontend/src/pages/Otros/ReportesAvanzados/`
+  - `ReportesAvanzadosScreen.jsx` (pantalla principal con menú)
+  - `ReportePedidosRuta.jsx`
+  - `ReportePedidosTransportadora.jsx`
+  - `ReporteEstadoEntregas.jsx`
+  - `ReporteDevolucionesPedidos.jsx`
+  - `ReporteVendedores.jsx`
+
+**Backend:**
+- Crear endpoints en `api/views.py` para cada tipo de reporte
+- Optimizar consultas con agregaciones de Django
+- Implementar paginación para reportes largos
+
+**Referencia:**
+Usar como base el módulo de Planeación que ya está funcionando correctamente.
 
 ---
 
@@ -181,9 +227,76 @@
 
 ---
 
+## ⚙️ MÓDULO: OTROS - VALIDACIONES
+
+### 7. Validación de Borrado de Transacciones en Producción
+**Módulo:** Frontend - Otros  
+**Prioridad:** ⚠️ ALTA - Crítico antes de producción  
+**Descripción:** Implementar sistema de validación y confirmación para borrado de datos transaccionales (Cargues, Ventas, Pedidos) para evitar pérdida accidental de datos en producción durante pruebas.
+
+**Contexto:**
+Cuando el sistema esté en producción, será necesario realizar pruebas sin afectar datos reales. Necesitamos un sistema que:
+- Proteja datos históricos importantes
+- Permita borrado controlado en casos específicos
+- Mantenga logs de borrados para auditoría
+
+**Tareas:**
+
+#### 7.1 Sistema de Protección de Datos
+- [ ] Crear flag de "Modo Producción" en configuración
+- [ ] Deshabilitar opciones de borrado masivo cuando esté en producción
+- [ ] Implementar confirmación doble para borrados (contraseña admin)
+- [ ] Logs de auditoría de borrados
+
+#### 7.2 Validaciones por Tipo de Transacción
+
+**Cargues:**
+- [ ] Validar que no haya ventas asociadas antes de borrar
+- [ ] Permitir solo borrado de cargues del día actual
+- [ ] Confirmación: "¿Eliminar cargue de [FECHA] para [VENDEDOR]?"
+- [ ] Log: Usuario, fecha/hora, motivo
+
+**Ventas Ruta:**
+- [ ] No permitir borrado si tiene más de 7 días de antigüedad
+- [ ] Verificar que no esté sincronizada con contabilidad
+- [ ] Confirmación con ingreso de contraseña admin
+- [ ] Crear registro de "Venta Anulada" en lugar de borrar (mantener histórico)
+
+**Pedidos:**
+- [ ] No permitir borrado si está "Entregado"
+- [ ] Solo admin puede borrar pedidos en estados finales
+- [ ] Cambiar estado a "Cancelado" en lugar de borrar
+- [ ] Guardar motivo de cancelación
+
+#### 7.3 Panel de Administración de Datos
+- [ ] Crear sección en Otros > "Gestión de Datos"
+- [ ] Dashboard con resumen de datos por módulo
+- [ ] Herramienta de "Limpieza de Datos de Prueba"
+- [ ] Exportar datos antes de limpiar
+- [ ] Confirmar limpieza con código de autorización
+
+#### 7.4 Backups Automáticos
+- [ ] Backup automático diario de BD completa
+- [ ] Backup antes de cualquier borrado masivo
+- [ ] Retención de backups por 30 días
+- [ ] Notificaciones de fallos en backup
+
+**Archivos a crear/modificar:**
+- `frontend/src/pages/Otros/GestionDatos/`
+  - `GestionDatosScreen.jsx`
+  - `ConfirmacionBorradoModal.jsx`
+  - `LogBorradosTable.jsx`
+- `backend/api/models.py` - Modelo `LogBorrado`
+- `backend/api/views.py` - Middleware de validación
+- `backend/api/permissions.py` - Permisos de borrado
+
+**Prioridad:** Implementar ANTES de despliegue a producción.
+
+---
+
 ## 🗄️ BASE DE DATOS Y DESPLIEGUE
 
-### 7. Revisión General del Proyecto
+### 8. Revisión General del Proyecto
 **Descripción:** Revisión exhaustiva antes de despliegue final en producción.
 
 #### 7.1 Base de Datos
@@ -223,24 +336,33 @@
 ## 📝 NOTAS IMPORTANTES
 
 ### Orden de Implementación Sugerido:
-1. **Guardado Multi-Dispositivo** (crítico para estabilidad)
-2. **Gestión de Usuarios** (seguridad)
-3. **Impresión Móvil** (bug crítico de UX)
-4. **Organización de Clientes** (mejora de productividad)
-5. **Reportes** (por prioridad de negocio)
-6. **Redes Neuronales** (optimización avanzada)
-7. **Revisión y Despliegue** (producción)
+1. ✅ **COMPLETADO: Guardado Multi-Dispositivo** (crítico para estabilidad)
+2. **Validación de Borrado de Transacciones** (⚠️ ANTES de producción)
+3. **Gestión de Usuarios** (seguridad)
+4. **Impresión Móvil** (bug crítico de UX)
+5. **Organización de Clientes** (mejora de productividad)
+6. **Reportes Avanzados** (por prioridad de negocio)
+7. **Redes Neuronales** (optimización avanzada)
+8. **Revisión y Despliegue** (producción)
 
 ### Estimaciones de Tiempo:
-- Guardado Multi-Dispositivo: 2-3 días
+- ✅ Guardado Multi-Dispositivo: COMPLETADO
+- ⚠️ Validación de Borrado: 3-4 días (ALTA PRIORIDAD)
 - Gestión de Usuarios: 3-4 días
 - Impresión Móvil: 1 día
 - Organización de Clientes: 2-3 días
-- Reportes (todos): 1-2 semanas
+- Reportes Avanzados (todos): 2-3 semanas
 - Redes Neuronales: 2-3 semanas
 - Revisión y Despliegue: 1 semana
 
-**Total estimado: 6-8 semanas**
+**Total estimado: 7-9 semanas**
+
+### Prioridades Críticas Pre-Producción:
+1. ✅ Sistema multi-dispositivo (HECHO)
+2. ⚠️ Validación de borrado de transacciones (URGENTE)
+3. ⚠️ Backups automáticos configurados
+4. ⚠️ SSL/HTTPS en VPS
+5. ⚠️ Modo producción vs desarrollo
 
 ---
 
