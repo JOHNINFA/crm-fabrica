@@ -275,33 +275,6 @@ const ReportesAvanzadosScreen = () => {
 
                     {/* Grid de botones de reportes */}
                     <Row className="g-3">
-                        {/* ⭐ DASHBOARD EJECUTIVO - DESTACADO */}
-                        <Col xs={12}>
-                            <div
-                                className="reporte-card"
-                                onClick={() => setVistaActual('dashboard-ejecutivo')}
-                                style={{
-                                    cursor: 'pointer',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    color: 'white',
-                                    border: 'none'
-                                }}
-                            >
-                                <Row className="align-items-center">
-                                    <Col md={2} className="text-center">
-                                        <i className="bi bi-graph-up-arrow" style={{ fontSize: '4rem' }}></i>
-                                    </Col>
-                                    <Col md={10}>
-                                        <h4 className="mb-2">📊 Dashboard Ejecutivo - Ventas desde App Móvil</h4>
-                                        <p className="mb-0" style={{ fontSize: '0.95rem', opacity: 0.9 }}>
-                                            Vista completa: Ventas por vendedor, devoluciones, vencidas, efectividad, gráficos comparativos y rankings de productos.
-                                            <strong className="ms-2">⚡ Ideal para piloto</strong>
-                                        </p>
-                                    </Col>
-                                </Row>
-                            </div>
-                        </Col>
-
                         {/* SECCIÓN 1: PLANEACIÓN */}
                         <Col xs={12}><h6 className="text-muted mt-3 mb-2">📊 Planeación y Producción</h6></Col>
 
@@ -317,6 +290,23 @@ const ReportesAvanzadosScreen = () => {
                                 <h5 className="mt-3 mb-2">Planeación de Producción</h5>
                                 <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
                                     Consulta planeación diaria con existencias y pedidos
+                                </p>
+                            </div>
+                        </Col>
+
+                        {/* ⭐ Dashboard Ejecutivo - Tamaño normal */}
+                        <Col md={6} lg={4}>
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('dashboard-ejecutivo')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-graph-up-arrow" style={{ fontSize: '2.5rem', color: '#667eea' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">📊 Dashboard Ejecutivo</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                                    Ventas desde App Móvil con gráficos
                                 </p>
                             </div>
                         </Col>
