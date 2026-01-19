@@ -5542,13 +5542,12 @@ def reportes_pedidos_ruta(request):
 @api_view(['GET'])
 def dashboard_ejecutivo(request):
     """
-    Dashboard ejecutivo consolidado con información de CARGUE (ventas, devoluciones, vencidas)
+    Dashboard ejecutivo consolidado con información de CARGUE
     GET /api/dashboard-ejecutivo/?periodo=dia&fecha_inicio=2026-01-24&fecha_fin=2026-01-24
     """
     try:
         from django.db.models import Sum, Count, Q
         from collections import Counter, defaultdict
-        from datetime import datetime, timedelta
         
         periodo = request.GET.get('periodo', 'dia')
         fecha_inicio = request.GET.get('fecha_inicio')
@@ -5557,7 +5556,34 @@ def dashboard_ejecutivo(request):
         if not fecha_inicio or not fecha_fin:
             return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
         
-        # Obtener todos los cargues del período (de los 6 modelos)
+        # OBTENER TOTALES POR VENDEDOR desde CargueResumen (tiene los $$ correctos)
+        resumenes = CargueResumen.objects.filter(
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+            activo=True
+        )
+        
+        # DATOS POR VENDEDOR usando CargueResumen
+        vendedores_data = {}
+        
+        for resumen in resumenes:
+            vendedor_id = resumen.vendedor_id
+            
+            if vendedor_id not in vendedores_data:
+                vendedores_data[vendedor_id] = {
+                    'nombre': vendedor_id,
+                    'ventas_count': 0,
+                    'ventas_monto': 0,
+                    'devueltas_count': 0,
+                    'devueltas_monto': 0,
+                    'vencidas_count': 0,
+                    'vencidas_monto': 0
+                }
+            
+            # Sumar el monto de venta (ya calculado en el resumen)
+            vendedores_data[vendedor_id]['ventas_monto'] += float(resumen.venta or 0)
+        
+        # OBTENER PRODUCTOS (vendidas, devoluciones, vencidas) desde los 6 modelos
         todos_cargues = []
         for modelo in [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]:
             cargues = modelo.objects.filter(
@@ -5567,18 +5593,17 @@ def dashboard_ejecutivo(request):
             )
             todos_cargues.extend(list(cargues))
         
-        # DATOS POR VENDEDOR (usando responsable como vendedor)
-        vendedores_data = {}
+        # Contadores de productos
         productos_vendidos = Counter()
         productos_devueltos = Counter()
         productos_vencidos = Counter()
         
         for cargue in todos_cargues:
-            vendedor_nombre = cargue.responsable or 'Sin vendedor'
+            vendedor_id = cargue.responsable or 'Sin vendedor'
             
-            if vendedor_nombre not in vendedores_data:
-                vendedores_data[vendedor_nombre] = {
-                    'nombre': vendedor_nombre,
+            if vendedor_id not in vendedores_data:
+                vendedores_data[vendedor_id] = {
+                    'nombre': vendedor_id,
                     'ventas_count': 0,
                     'ventas_monto': 0,
                     'devueltas_count': 0,
@@ -5587,25 +5612,24 @@ def dashboard_ejecutivo(request):
                     'vencidas_monto': 0
                 }
             
-            # VENTAS
+            # VENTAS (unidades)
             if cargue.vendidas > 0:
-                vendedores_data[vendedor_nombre]['ventas_count'] += cargue.vendidas
-                vendedores_data[vendedor_nombre]['ventas_monto'] += float(cargue.vendidas * cargue.valor)
+                vendedores_data[vendedor_id]['ventas_count'] += cargue.vendidas
                 productos_vendidos[cargue.producto] += cargue.vendidas
             
-            # DEVOLUCIONES
+            # DEVOLUCIONES (unidades + monto)
             if cargue.devoluciones > 0:
-                vendedores_data[vendedor_nombre]['devueltas_count'] += cargue.devoluciones
-                vendedores_data[vendedor_nombre]['devueltas_monto'] += float(cargue.devoluciones * cargue.valor)
+                vendedores_data[vendedor_id]['devueltas_count'] += cargue.devoluciones
+                vendedores_data[vendedor_id]['devueltas_monto'] += float(cargue.devoluciones * cargue.valor)
                 productos_devueltos[cargue.producto] += cargue.devoluciones
             
-            # VENCIDAS
+            # VENCIDAS (unidades + monto)
             if cargue.vencidas > 0:
-                vendedores_data[vendedor_nombre]['vencidas_count'] += cargue.vencidas
-                vendedores_data[vendedor_nombre]['vencidas_monto'] += float(cargue.vencidas * cargue.valor)
+                vendedores_data[vendedor_id]['vencidas_count'] += cargue.vencidas
+                vendedores_data[vendedor_id]['vencidas_monto'] += float(cargue.vencidas * cargue.valor)
                 productos_vencidos[cargue.producto] += cargue.vencidas
         
-        # Calcular porcentajes y totales
+        # Calcular porcentajes
         vendedores_list = []
         for v_data in vendedores_data.values():
             total_productos = v_data['ventas_count'] + v_data['devueltas_count'] + v_data['vencidas_count']
@@ -5617,18 +5641,17 @@ def dashboard_ejecutivo(request):
                 v_data['porcentaje_devolucion'] = 0
                 v_data['porcentaje_vencidas'] = 0
                 v_data['efectividad'] = 0
-            
             vendedores_list.append(v_data)
         
-        # Ordenar vendedores por monto de ventas
+        # Ordenar por monto
         vendedores_list.sort(key=lambda x: x['ventas_monto'], reverse=True)
         
         # Top 10 productos
-        top_vendidos = [{'nombre': nombre, 'cantidad': cant} for nombre, cant in productos_vendidos.most_common(10)]
-        top_devueltos = [{'nombre': nombre, 'cantidad': cant} for nombre, cant in productos_devueltos.most_common(10)]
-        top_vencidos = [{'nombre': nombre, 'cantidad': cant} for nombre, cant in productos_vencidos.most_common(10)]
+        top_vendidos = [{'nombre': n, 'cantidad': c} for n, c in productos_vendidos.most_common(10)]
+        top_devueltos = [{'nombre': n, 'cantidad': c} for n, c in productos_devueltos.most_common(10)]
+        top_vencidos = [{'nombre': n, 'cantidad': c} for n, c in productos_vencidos.most_common(10)]
         
-        # TOTALES GENERALES
+        # TOTALES
         totales = {
             'ventas_total': sum(v['ventas_count'] for v in vendedores_list),
             'ventas_monto_total': sum(v['ventas_monto'] for v in vendedores_list),
@@ -5638,7 +5661,6 @@ def dashboard_ejecutivo(request):
             'vencidas_monto_total': sum(v['vencidas_monto'] for v in vendedores_list),
         }
         
-        # Efectividad promedio
         total_all = totales['ventas_total'] + totales['devueltas_total'] + totales['vencidas_total']
         totales['efectividad_promedio'] = round((totales['ventas_total'] / total_all * 100), 2) if total_all > 0 else 0
         
