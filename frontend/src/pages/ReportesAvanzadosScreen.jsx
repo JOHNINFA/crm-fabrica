@@ -419,7 +419,7 @@ const ReportesAvanzadosScreen = () => {
 
 
     // 📊 Vista: Planeación de Producción
-    if (vistaActual === 'planeacion' || vistaActual === 'menu') {
+    if (vistaActual === 'planeacion') {
         // Vista de Reporte de Planeación
         return (
             <div className="reportes-screen">
