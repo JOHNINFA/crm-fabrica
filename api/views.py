@@ -5557,12 +5557,15 @@ def dashboard_ejecutivo(request):
         if not fecha_inicio or not fecha_fin:
             return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
         
-        # Obtener todos los cargues del período
-        cargues = Cargue.objects.filter(
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin,
-            activo=True
-        )
+        # Obtener todos los cargues del período (de los 6 modelos)
+        todos_cargues = []
+        for modelo in [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]:
+            cargues = modelo.objects.filter(
+                fecha__gte=fecha_inicio,
+                fecha__lte=fecha_fin,
+                activo=True
+            )
+            todos_cargues.extend(list(cargues))
         
         # DATOS POR VENDEDOR (usando responsable como vendedor)
         vendedores_data = {}
@@ -5570,7 +5573,7 @@ def dashboard_ejecutivo(request):
         productos_devueltos = Counter()
         productos_vencidos = Counter()
         
-        for cargue in cargues:
+        for cargue in todos_cargues:
             vendedor_nombre = cargue.responsable or 'Sin vendedor'
             
             if vendedor_nombre not in vendedores_data:
