@@ -27,7 +27,9 @@ from .views import (
     reportes_vendedores, reportes_efectividad_vendedores, reportes_analisis_productos,
     reportes_pedidos_ruta, reportes_ventas_pos,
     # 📈 Dashboard Ejecutivo
-    dashboard_ejecutivo
+    dashboard_ejecutivo,
+    # 🧪 Test
+    test_dashboard_data
 )
 
 router = DefaultRouter()
@@ -129,5 +131,8 @@ urlpatterns = router.urls + [
     
     # 📈 Dashboard Ejecutivo
     path('dashboard-ejecutivo/', dashboard_ejecutivo, name='dashboard-ejecutivo'),
+    
+    # 🧪 Test  
+    path('test-dashboard-data/', test_dashboard_data, name='test-dashboard-data'),
 ]
 

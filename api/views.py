@@ -5542,8 +5542,8 @@ def reportes_pedidos_ruta(request):
 @api_view(['GET'])
 def dashboard_ejecutivo(request):
     """
-    Dashboard ejecutivo consolidado con TODA la información de ventas desde la app móvil
-    GET /api/dashboard-ejecutivo/?periodo=dia&fecha_inicio=2026-01-18&fecha_fin=2026-01-18
+    Dashboard ejecutivo consolidado con información de CARGUE (ventas, devoluciones, vencidas)
+    GET /api/dashboard-ejecutivo/?periodo=dia&fecha_inicio=2026-01-24&fecha_fin=2026-01-24
     """
     try:
         from django.db.models import Sum, Count, Q
@@ -5557,76 +5557,59 @@ def dashboard_ejecutivo(request):
         if not fecha_inicio or not fecha_fin:
             return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
         
-        # Obtener todas las ventas del período desde la app móvil
-        ventas_ruta = VentaRuta.objects.filter(
-            fecha__date__gte=fecha_inicio,
-            fecha__date__lte=fecha_fin
-        ).select_related('vendedor')
+        # Obtener todos los cargues del período
+        cargues = Cargue.objects.filter(
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+            activo=True
+        )
         
-        # DATOS POR VENDEDOR
+        # DATOS POR VENDEDOR (usando responsable como vendedor)
         vendedores_data = {}
         productos_vendidos = Counter()
         productos_devueltos = Counter()
         productos_vencidos = Counter()
         
-        for venta in ventas_ruta:
-            vendedor_id = venta.vendedor.id_vendedor
-            vendedor_nombre = venta.vendedor.nombre
+        for cargue in cargues:
+            vendedor_nombre = cargue.responsable or 'Sin vendedor'
             
-            if vendedor_id not in vendedores_data:
-                vendedores_data[vendedor_id] = {
-                    'id': vendedor_id,
+            if vendedor_nombre not in vendedores_data:
+                vendedores_data[vendedor_nombre] = {
                     'nombre': vendedor_nombre,
                     'ventas_count': 0,
                     'ventas_monto': 0,
                     'devueltas_count': 0,
                     'devueltas_monto': 0,
                     'vencidas_count': 0,
-                    'vencidas_monto': 0,
-                    'productos': []
+                    'vencidas_monto': 0
                 }
             
-            # VENTAS (detalle_productos)
-            if venta.detalle_productos:
-                for prod in venta.detalle_productos:
-                    nombre = prod.get('nombre') or prod.get('producto', 'Desconocido')
-                    cantidad = prod.get('cantidad', 0)
-                    precio = prod.get('precio', 0)
-                    
-                    vendedores_data[vendedor_id]['ventas_count'] += cantidad
-                    vendedores_data[vendedor_id]['ventas_monto'] += cantidad * precio
-                    productos_vendidos[nombre] += cantidad
+            # VENTAS
+            if cargue.vendidas > 0:
+                vendedores_data[vendedor_nombre]['ventas_count'] += cargue.vendidas
+                vendedores_data[vendedor_nombre]['ventas_monto'] += float(cargue.vendidas * cargue.valor)
+                productos_vendidos[cargue.producto] += cargue.vendidas
             
-            # DEVOLUCIONES (productos_devueltos)
-            if venta.productos_devueltos:
-                for prod in venta.productos_devueltos:
-                    nombre = prod.get('nombre') or prod.get('producto', 'Desconocido')
-                    cantidad = prod.get('cantidad', 0)
-                    precio = prod.get('precio', 0)
-                    
-                    vendedores_data[vendedor_id]['devueltas_count'] += cantidad
-                    vendedores_data[vendedor_id]['devueltas_monto'] += cantidad * precio
-                    productos_devueltos[nombre] += cantidad
+            # DEVOLUCIONES
+            if cargue.devoluciones > 0:
+                vendedores_data[vendedor_nombre]['devueltas_count'] += cargue.devoluciones
+                vendedores_data[vendedor_nombre]['devueltas_monto'] += float(cargue.devoluciones * cargue.valor)
+                productos_devueltos[cargue.producto] += cargue.devoluciones
             
-            # VENCIDAS (productos_vencidos)
-            if venta.productos_vencidos:
-                for prod in venta.productos_vencidos:
-                    nombre = prod.get('nombre') or prod.get('producto', 'Desconocido')
-                    cantidad = prod.get('cantidad', 0)
-                    precio = prod.get('precio', 0)
-                    
-                    vendedores_data[vendedor_id]['vencidas_count'] += cantidad
-                    vendedores_data[vendedor_id]['vencidas_monto'] += cantidad * precio
-                    productos_vencidos[nombre] += cantidad
+            # VENCIDAS
+            if cargue.vencidas > 0:
+                vendedores_data[vendedor_nombre]['vencidas_count'] += cargue.vencidas
+                vendedores_data[vendedor_nombre]['vencidas_monto'] += float(cargue.vencidas * cargue.valor)
+                productos_vencidos[cargue.producto] += cargue.vencidas
         
         # Calcular porcentajes y totales
         vendedores_list = []
         for v_data in vendedores_data.values():
-            total_productos = v_data['ventas_count']
+            total_productos = v_data['ventas_count'] + v_data['devueltas_count'] + v_data['vencidas_count']
             if total_productos > 0:
                 v_data['porcentaje_devolucion'] = round((v_data['devueltas_count'] / total_productos) * 100, 2)
                 v_data['porcentaje_vencidas'] = round((v_data['vencidas_count'] / total_productos) * 100, 2)
-                v_data['efectividad'] = round(100 - v_data['porcentaje_devolucion'] - v_data['porcentaje_vencidas'], 2)
+                v_data['efectividad'] = round((v_data['ventas_count'] / total_productos) * 100, 2)
             else:
                 v_data['porcentaje_devolucion'] = 0
                 v_data['porcentaje_vencidas'] = 0
@@ -5634,26 +5617,13 @@ def dashboard_ejecutivo(request):
             
             vendedores_list.append(v_data)
         
-        # Ordenar vendedores por monto de ventas (mayor a menor)
+        # Ordenar vendedores por monto de ventas
         vendedores_list.sort(key=lambda x: x['ventas_monto'], reverse=True)
         
-        # Top 10 productos más vendidos
-        top_vendidos = [
-            {'nombre': nombre, 'cantidad': cant}
-            for nombre, cant in productos_vendidos.most_common(10)
-        ]
-        
-        # Top 10 productos más devueltos
-        top_devueltos = [
-            {'nombre': nombre, 'cantidad': cant}
-            for nombre, cant in productos_devueltos.most_common(10)
-        ]
-        
-        # Top 10 productos más vencidos
-        top_vencidos = [
-            {'nombre': nombre, 'cantidad': cant}
-            for nombre, cant in productos_vencidos.most_common(10)
-        ]
+        # Top 10 productos
+        top_vendidos = [{'nombre': nombre, 'cantidad': cant} for nombre, cant in productos_vendidos.most_common(10)]
+        top_devueltos = [{'nombre': nombre, 'cantidad': cant} for nombre, cant in productos_devueltos.most_common(10)]
+        top_vencidos = [{'nombre': nombre, 'cantidad': cant} for nombre, cant in productos_vencidos.most_common(10)]
         
         # TOTALES GENERALES
         totales = {
@@ -5665,14 +5635,18 @@ def dashboard_ejecutivo(request):
             'vencidas_monto_total': sum(v['vencidas_monto'] for v in vendedores_list),
         }
         
+        # Efectividad promedio
+        total_all = totales['ventas_total'] + totales['devueltas_total'] + totales['vencidas_total']
+        totales['efectividad_promedio'] = round((totales['ventas_total'] / total_all * 100), 2) if total_all > 0 else 0
+        
         return Response({
             'periodo': periodo,
             'fecha_inicio': fecha_inicio,
             'fecha_fin': fecha_fin,
             'vendedores': vendedores_list,
-            'productos_mas_vendidos': top_vendidos,
-            'productos_mas_devueltos': top_devueltos,
-            'productos_mas_vencidos': top_vencidos,
+            'top_productos_vendidos': top_vendidos,
+            'top_productos_devueltos': top_devueltos,
+            'top_productos_vencidos': top_vencidos,
             'totales': totales
         })
         
@@ -5681,7 +5655,6 @@ def dashboard_ejecutivo(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
-
 
 @api_view(['GET'])
 def reportes_ventas_pos(request):
@@ -5770,3 +5743,44 @@ def reportes_ventas_pos(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def test_dashboard_data(request):
+    """
+    Test endpoint para verificar datos de VentaRuta
+    GET /api/test-dashboard-data/
+    """
+    try:
+        fecha_inicio = request.GET.get('fecha_inicio', '2026-01-24')
+        fecha_fin = request.GET.get('fecha_fin', '2026-01-24')
+        
+        ventas = VentaRuta.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin
+        ).select_related('vendedor')
+        
+        resultado = {
+            'total_ventas': ventas.count(),
+            'ventas': []
+        }
+        
+        for venta in ventas[:5]:  # Solo las primeras 5
+            resultado['ventas'].append({
+                'id': venta.id,
+                'fecha': venta.fecha.isoformat(),
+                'vendedor': venta.vendedor.nombre if venta.vendedor else None,
+                'cliente': venta.cliente.nombre if venta.cliente else None,
+                'detalle_productos_type': type(venta.detalle_productos).__name__,
+                'detalle_productos': venta.detalle_productos,
+                'productos_devueltos': venta.productos_devueltos,
+                'productos_vencidos': venta.productos_vencidos,
+            })
+        
+        return Response(resultado)
+    except Exception as e:
+        import traceback
+        return Response({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
