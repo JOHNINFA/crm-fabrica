@@ -1,0 +1,11 @@
+.dashboard-ejecutivo {
+    background: #f8f9fa;
+}
+
+.metric-card {
+    transition: transform 0.2s;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+}
