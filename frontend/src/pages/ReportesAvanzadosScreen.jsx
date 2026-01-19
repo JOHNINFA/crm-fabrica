@@ -8,6 +8,7 @@ import ReporteEfectividadVendedores from './ReportesAvanzados/ReporteEfectividad
 import ReporteAnalisisProductos from './ReportesAvanzados/ReporteAnalisisProductos';
 import ReportePedidosRuta from './ReportesAvanzados/ReportePedidosRuta';
 import DashboardEjecutivo from './ReportesAvanzados/DashboardEjecutivo';
+import ReporteVentasPOS from './ReportesAvanzados/ReporteVentasPOS';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -424,6 +425,22 @@ const ReportesAvanzadosScreen = () => {
                                 </p>
                             </div>
                         </Col>
+
+                        <Col md={6} lg={4}>
+                            <div
+                                className="reporte-card"
+                                onClick={() => setVistaActual('ventas-pos')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-pc-display" style={{ fontSize: '2.5rem', color: '#6f42c1' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">Mis Ventas POS</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                                    Tus ventas por día/semana/mes/año
+                                </p>
+                            </div>
+                        </Col>
                     </Row>
                 </Container>
             </div>
@@ -453,6 +470,11 @@ const ReportesAvanzadosScreen = () => {
     // 🆕 Vista: Pedidos por Ruta
     if (vistaActual === 'pedidos-ruta') {
         return <ReportePedidosRuta onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Ventas POS
+    if (vistaActual === 'ventas-pos') {
+        return <ReporteVentasPOS onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Próximamente (Pedidos por Transportadora)

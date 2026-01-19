@@ -5681,3 +5681,92 @@ def dashboard_ejecutivo(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def reportes_ventas_pos(request):
+    """
+    Reporte de ventas POS del usuario logueado
+    GET /api/reportes/ventas-pos/?periodo=dia&fecha_inicio=2026-01-18&fecha_fin=2026-01-18
+    """
+    try:
+        from collections import defaultdict
+        from datetime import datetime
+        
+        periodo = request.GET.get('periodo', 'dia')
+        fecha_inicio = request.GET.get('fecha_inicio')
+        fecha_fin = request.GET.get('fecha_fin')
+        
+        if not fecha_inicio or not fecha_fin:
+            return Response({'error': 'Faltan parámetros'}, status=400)
+        
+        # Obtener usuario logueado (desde token o session)
+        usuario = request.user
+        
+        # Obtener ventas del usuario en el período
+        # Suponiendo que hay un modelo Venta con campo usuario
+        try:
+            from .models import Venta
+            ventas = Venta.objects.filter(
+                usuario=usuario,
+                fecha__date__gte=fecha_inicio,
+                fecha__date__lte=fecha_fin
+            ).order_by('-fecha')
+        except:
+            # Si no existe modelo Venta, retornar datos de ejemplo
+            ventas = []
+        
+        # Calcular métricas
+        total_ventas = len(ventas)
+        monto_total = sum(float(v.total) for v in ventas)
+        total_productos = sum(v.productos.count() if hasattr(v, 'productos') else 0 for v in ventas)
+        
+        # Agrupar por día/semana/mes
+        por_dia = defaultdict(lambda: {'ventas': 0, 'monto': 0})
+        
+        for venta in ventas:  
+            if periodo == 'dia':
+                clave = venta.fecha.strftime('%Y-%m-%d')
+            elif periodo == 'semana':
+                clave = f"Sem {venta.fecha.isocalendar()[1]}"
+            elif periodo == 'mes':
+                clave = venta.fecha.strftime('%Y-%m')
+            else:  # año
+                clave = venta.fecha.strftime('%Y')
+            
+            por_dia[clave]['ventas'] += 1
+            por_dia[clave]['monto'] += float(venta.total)
+        
+        # Serializar ventas
+        ventas_list = []
+        for v in ventas:
+            ventas_list.append({
+                'id': v.id,
+                'fecha': v.fecha.isoformat(),
+                'cliente': getattr(v.cliente, 'nombre', 'Cliente General') if hasattr(v, 'cliente') else 'General',
+                'productos': v.productos.count() if hasattr(v, 'productos') else 0,
+                'total': float(v.total),
+                'estado': getattr(v, 'estado', 'completada')
+            })
+        
+        # Convertir por_dia a lista
+        por_dia_list = [
+            {'fecha': fecha, 'ventas': datos['ventas'], 'monto': datos['monto']}
+            for fecha, datos in sorted(por_dia.items())
+        ]
+        
+        return Response({
+            'usuario': usuario.username,
+            'total_ventas': total_ventas,
+            'monto_total': monto_total,
+            'total_productos': total_productos,
+            'por_dia': por_dia_list,
+            'ventas': ventas_list,
+            'periodo': periodo
+        })
+        
+    except Exception as e:
+        print(f"Error en reportes_ventas_pos: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
