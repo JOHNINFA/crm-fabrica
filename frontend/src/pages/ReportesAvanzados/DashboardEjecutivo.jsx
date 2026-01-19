@@ -147,42 +147,22 @@ const DashboardEjecutivo = ({ onVolver }) => {
                             </Col>
                         </Row>
 
-                        {/* GRÁFICO: VENTAS POR VENDEDOR */}
+                        {/* GRÁFICO: VENTAS POR VENDEDOR - BARRAS HORIZONTALES */}
                         <Row className="g-3 mb-4">
-                            <Col lg={6}>
+                            <Col lg={12}>
                                 <Card className="shadow-sm">
                                     <Card.Header className="bg-primary text-white">
                                         <strong><i className="bi bi-bar-chart me-2"></i>Ventas por Vendedor (Mayor a Menor)</strong>
                                     </Card.Header>
                                     <Card.Body>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <BarChart data={data.vendedores.slice(0, 10)}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} fontSize={12} />
-                                                <YAxis />
+                                        <ResponsiveContainer width="100%" height={Math.max(300, data.vendedores.length * 50)}>
+                                            <BarChart data={data.vendedores.slice(0, 10)} layout="horizontal" margin={{ left: 100, right: 30 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                                <XAxis type="number" />
+                                                <YAxis type="category" dataKey="nombre" width={90} fontSize={13} />
                                                 <Tooltip formatter={(value) => value.toLocaleString()} />
                                                 <Legend />
-                                                <Bar dataKey="ventas_count" fill="#0088FE" name="Unidades Vendidas" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </Card.Body>
-                                </Card>
-                            </Col>
-
-                            {/* GRÁFICO: PRODUCTOS MÁS VENDIDOS */}
-                            <Col lg={6}>
-                                <Card className="shadow-sm">
-                                    <Card.Header className="bg-success text-white">
-                                        <strong><i className="bi bi-graph-up me-2"></i>Productos Más Vendidos (Top 10)</strong>
-                                    </Card.Header>
-                                    <Card.Body>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <BarChart data={data.productos_mas_vendidos}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} fontSize={10} />
-                                                <YAxis />
-                                                <Tooltip />
-                                                <Bar dataKey="cantidad" fill="#00C49F" name="Cantidad" />
+                                                <Bar dataKey="ventas_count" fill="#0088FE" name="Unidades Vendidas" radius={[0, 8, 8, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </Card.Body>
@@ -190,7 +170,30 @@ const DashboardEjecutivo = ({ onVolver }) => {
                             </Col>
                         </Row>
 
-                        {/* GRÁFICO: DEVOLUCIONES Y VENCIDAS */}
+                        {/* GRÁFICOS: PRODUCTOS - BARRAS HORIZONTALES */}
+                        <Row className="g-3 mb-4">
+                            {/* PRODUCTOS MÁS VENDIDOS */}
+                            <Col lg={12}>
+                                <Card className="shadow-sm">
+                                    <Card.Header className="bg-success text-white">
+                                        <strong><i className="bi bi-graph-up me-2"></i>Productos Más Vendidos (Top 10)</strong>
+                                    </Card.Header>
+                                    <Card.Body>
+                                        <ResponsiveContainer width="100%" height={Math.max(300, (data.top_productos_vendidos || []).length * 40)}>
+                                            <BarChart data={data.top_productos_vendidos || []} layout="horizontal" margin={{ left: 150, right: 30 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                                <XAxis type="number" />
+                                                <YAxis type="category" dataKey="nombre" width={140} fontSize={11} />
+                                                <Tooltip />
+                                                <Bar dataKey="cantidad" fill="#00C49F" name="Cantidad" radius={[0, 8, 8, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
+
+                        {/* GRÁFICO: DEVOLUCIONES Y VENCIDAS - BARRAS HORIZONTALES */}
                         <Row className="g-3 mb-4">
                             <Col lg={6}>
                                 <Card className="shadow-sm">
@@ -198,13 +201,13 @@ const DashboardEjecutivo = ({ onVolver }) => {
                                         <strong><i className="bi bi-arrow-counterclockwise me-2"></i>Productos Más Devueltos</strong>
                                     </Card.Header>
                                     <Card.Body>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <BarChart data={data.productos_mas_devueltos}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} fontSize={10} />
-                                                <YAxis />
+                                        <ResponsiveContainer width="100%" height={Math.max(300, (data.top_productos_devueltos || []).length * 40)}>
+                                            <BarChart data={data.top_productos_devueltos || []} layout="horizontal" margin={{ left: 120, right: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                                <XAxis type="number" />
+                                                <YAxis type="category" dataKey="nombre" width={110} fontSize={10} />
                                                 <Tooltip />
-                                                <Bar dataKey="cantidad" fill="#FFBB28" name="Cantidad Devuelta" />
+                                                <Bar dataKey="cantidad" fill="#FFBB28" name="Cantidad Devuelta" radius={[0, 8, 8, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </Card.Body>
@@ -217,13 +220,13 @@ const DashboardEjecutivo = ({ onVolver }) => {
                                         <strong><i className="bi bi-exclamation-circle me-2"></i>Productos Más Vencidos</strong>
                                     </Card.Header>
                                     <Card.Body>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <BarChart data={data.productos_mas_vencidos}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} fontSize={10} />
-                                                <YAxis />
+                                        <ResponsiveContainer width="100%" height={Math.max(300, (data.top_productos_vencidos || []).length * 40)}>
+                                            <BarChart data={data.top_productos_vencidos || []} layout="horizontal" margin={{ left: 120, right: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                                <XAxis type="number" />
+                                                <YAxis type="category" dataKey="nombre" width={110} fontSize={10} />
                                                 <Tooltip />
-                                                <Bar dataKey="cantidad" fill="#FF8042" name="Cantidad Vencida" />
+                                                <Bar dataKey="cantidad" fill="#FF8042" name="Cantidad Vencida" radius={[0, 8, 8, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </Card.Body>
