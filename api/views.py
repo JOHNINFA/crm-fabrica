@@ -5537,3 +5537,147 @@ def reportes_pedidos_ruta(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def dashboard_ejecutivo(request):
+    """
+    Dashboard ejecutivo consolidado con TODA la información de ventas desde la app móvil
+    GET /api/dashboard-ejecutivo/?periodo=dia&fecha_inicio=2026-01-18&fecha_fin=2026-01-18
+    """
+    try:
+        from django.db.models import Sum, Count, Q
+        from collections import Counter, defaultdict
+        from datetime import datetime, timedelta
+        
+        periodo = request.GET.get('periodo', 'dia')
+        fecha_inicio = request.GET.get('fecha_inicio')
+        fecha_fin = request.GET.get('fecha_fin')
+        
+        if not fecha_inicio or not fecha_fin:
+            return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
+        
+        # Obtener todas las ventas del período desde la app móvil
+        ventas_ruta = VentaRuta.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin
+        ).select_related('vendedor')
+        
+        # DATOS POR VENDEDOR
+        vendedores_data = {}
+        productos_vendidos = Counter()
+        productos_devueltos = Counter()
+        productos_vencidos = Counter()
+        
+        for venta in ventas_ruta:
+            vendedor_id = venta.vendedor.id_vendedor
+            vendedor_nombre = venta.vendedor.nombre
+            
+            if vendedor_id not in vendedores_data:
+                vendedores_data[vendedor_id] = {
+                    'id': vendedor_id,
+                    'nombre': vendedor_nombre,
+                    'ventas_count': 0,
+                    'ventas_monto': 0,
+                    'devueltas_count': 0,
+                    'devueltas_monto': 0,
+                    'vencidas_count': 0,
+                    'vencidas_monto': 0,
+                    'productos': []
+                }
+            
+            # VENTAS (detalle_productos)
+            if venta.detalle_productos:
+                for prod in venta.detalle_productos:
+                    nombre = prod.get('nombre') or prod.get('producto', 'Desconocido')
+                    cantidad = prod.get('cantidad', 0)
+                    precio = prod.get('precio', 0)
+                    
+                    vendedores_data[vendedor_id]['ventas_count'] += cantidad
+                    vendedores_data[vendedor_id]['ventas_monto'] += cantidad * precio
+                    productos_vendidos[nombre] += cantidad
+            
+            # DEVOLUCIONES (productos_devueltos)
+            if venta.productos_devueltos:
+                for prod in venta.productos_devueltos:
+                    nombre = prod.get('nombre') or prod.get('producto', 'Desconocido')
+                    cantidad = prod.get('cantidad', 0)
+                    precio = prod.get('precio', 0)
+                    
+                    vendedores_data[vendedor_id]['devueltas_count'] += cantidad
+                    vendedores_data[vendedor_id]['devueltas_monto'] += cantidad * precio
+                    productos_devueltos[nombre] += cantidad
+            
+            # VENCIDAS (productos_vencidos)
+            if venta.productos_vencidos:
+                for prod in venta.productos_vencidos:
+                    nombre = prod.get('nombre') or prod.get('producto', 'Desconocido')
+                    cantidad = prod.get('cantidad', 0)
+                    precio = prod.get('precio', 0)
+                    
+                    vendedores_data[vendedor_id]['vencidas_count'] += cantidad
+                    vendedores_data[vendedor_id]['vencidas_monto'] += cantidad * precio
+                    productos_vencidos[nombre] += cantidad
+        
+        # Calcular porcentajes y totales
+        vendedores_list = []
+        for v_data in vendedores_data.values():
+            total_productos = v_data['ventas_count']
+            if total_productos > 0:
+                v_data['porcentaje_devolucion'] = round((v_data['devueltas_count'] / total_productos) * 100, 2)
+                v_data['porcentaje_vencidas'] = round((v_data['vencidas_count'] / total_productos) * 100, 2)
+                v_data['efectividad'] = round(100 - v_data['porcentaje_devolucion'] - v_data['porcentaje_vencidas'], 2)
+            else:
+                v_data['porcentaje_devolucion'] = 0
+                v_data['porcentaje_vencidas'] = 0
+                v_data['efectividad'] = 0
+            
+            vendedores_list.append(v_data)
+        
+        # Ordenar vendedores por monto de ventas (mayor a menor)
+        vendedores_list.sort(key=lambda x: x['ventas_monto'], reverse=True)
+        
+        # Top 10 productos más vendidos
+        top_vendidos = [
+            {'nombre': nombre, 'cantidad': cant}
+            for nombre, cant in productos_vendidos.most_common(10)
+        ]
+        
+        # Top 10 productos más devueltos
+        top_devueltos = [
+            {'nombre': nombre, 'cantidad': cant}
+            for nombre, cant in productos_devueltos.most_common(10)
+        ]
+        
+        # Top 10 productos más vencidos
+        top_vencidos = [
+            {'nombre': nombre, 'cantidad': cant}
+            for nombre, cant in productos_vencidos.most_common(10)
+        ]
+        
+        # TOTALES GENERALES
+        totales = {
+            'ventas_total': sum(v['ventas_count'] for v in vendedores_list),
+            'ventas_monto_total': sum(v['ventas_monto'] for v in vendedores_list),
+            'devueltas_total': sum(v['devueltas_count'] for v in vendedores_list),
+            'devueltas_monto_total': sum(v['devueltas_monto'] for v in vendedores_list),
+            'vencidas_total': sum(v['vencidas_count'] for v in vendedores_list),
+            'vencidas_monto_total': sum(v['vencidas_monto'] for v in vendedores_list),
+        }
+        
+        return Response({
+            'periodo': periodo,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'vendedores': vendedores_list,
+            'productos_mas_vendidos': top_vendidos,
+            'productos_mas_devueltos': top_devueltos,
+            'productos_mas_vencidos': top_vencidos,
+            'totales': totales
+        })
+        
+    except Exception as e:
+        print(f"Error en dashboard_ejecutivo: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
