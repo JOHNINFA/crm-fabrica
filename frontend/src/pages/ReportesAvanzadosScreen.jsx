@@ -418,176 +418,182 @@ const ReportesAvanzadosScreen = () => {
     }
 
 
-    // Vista de Reporte de Planeación
-    return (
-        <div className="reportes-screen">
-            {/* Header */}
-            <div className="header-dark">
-                <Container>
-                    <div className="d-flex align-items-center justify-content-center py-4">
-                        <h5 className="mb-0 d-flex align-items-center">
-                            <i className="bi bi-bar-chart-fill me-2" style={{ fontSize: '1.5rem' }}></i>
-                            Reportes de Planeación
-                        </h5>
+    // 📊 Vista: Planeación de Producción
+    if (vistaActual === 'planeacion' || vistaActual === 'menu') {
+        // Vista de Reporte de Planeación
+        return (
+            <div className="reportes-screen">
+                {/* Header */}
+                <div className="header-dark">
+                    <Container>
+                        <div className="d-flex align-items-center justify-content-center py-4">
+                            <h5 className="mb-0 d-flex align-items-center">
+                                <i className="bi bi-bar-chart-fill me-2" style={{ fontSize: '1.5rem' }}></i>
+                                Reportes de Planeación
+                            </h5>
+                        </div>
+                    </Container>
+                </div>
+
+                {/* Contenido */}
+                <Container className="py-4">
+                    {/* Link volver */}
+                    <div className="mb-4">
+                        <a
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setVistaActual('menu');
+                                setSearched(false);
+                                setPlaneacionData([]);
+                                setError('');
+                            }}
+                            className="link-volver"
+                        >
+                            <i className="bi bi-arrow-left me-1"></i>
+                            Volver al Menú
+                        </a>
                     </div>
-                </Container>
-            </div>
 
-            {/* Contenido */}
-            <Container className="py-4">
-                {/* Link volver */}
-                <div className="mb-4">
-                    <a
-                        href="#"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            setVistaActual('menu');
-                            setSearched(false);
-                            setPlaneacionData([]);
-                            setError('');
-                        }}
-                        className="link-volver"
-                    >
-                        <i className="bi bi-arrow-left me-1"></i>
-                        Volver al Menú
-                    </a>
-                </div>
+                    {/* Card de búsqueda */}
+                    <div className="card-wrapper mb-4">
+                        <Row className="g-2">
+                            <Col md={8}>
+                                <Form.Control
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    size="sm"
+                                />
+                            </Col>
+                            <Col md={4}>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    className="w-100 btn-consultar"
+                                    onClick={handleConsultar}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Spinner animation="border" size="sm" className="me-2" style={{ width: '14px', height: '14px' }} />
+                                            Buscando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-search me-2"></i>
+                                            Consultar
+                                        </>
+                                    )}
+                                </Button>
+                            </Col>
+                        </Row>
+                    </div>
 
-                {/* Card de búsqueda */}
-                <div className="card-wrapper mb-4">
-                    <Row className="g-2">
-                        <Col md={8}>
-                            <Form.Control
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                size="sm"
-                            />
-                        </Col>
-                        <Col md={4}>
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                className="w-100 btn-consultar"
-                                onClick={handleConsultar}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <>
-                                        <Spinner animation="border" size="sm" className="me-2" style={{ width: '14px', height: '14px' }} />
-                                        Buscando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="bi bi-search me-2"></i>
-                                        Consultar
-                                    </>
-                                )}
-                            </Button>
-                        </Col>
-                    </Row>
-                </div>
+                    {/* Error */}
+                    {error && (
+                        <Alert variant="warning" className="mb-4">
+                            <i className="bi bi-exclamation-triangle me-2"></i>
+                            {error}
+                        </Alert>
+                    )}
 
-                {/* Error */}
-                {error && (
-                    <Alert variant="warning" className="mb-4">
-                        <i className="bi bi-exclamation-triangle me-2"></i>
-                        {error}
-                    </Alert>
-                )}
+                    {/* Resultados */}
+                    {searched && !loading && planeacionData.length > 0 && (
+                        <div className="card-wrapper">
+                            {/* Info de fecha */}
+                            <div className="fecha-info">
+                                <h6 className="mb-0">
+                                    <strong>{formatDate(selectedDate)}</strong>
+                                </h6>
+                                <span className="text-muted">{planeacionData.length} productos</span>
+                            </div>
 
-                {/* Resultados */}
-                {searched && !loading && planeacionData.length > 0 && (
-                    <div className="card-wrapper">
-                        {/* Info de fecha */}
-                        <div className="fecha-info">
-                            <h6 className="mb-0">
-                                <strong>{formatDate(selectedDate)}</strong>
-                            </h6>
-                            <span className="text-muted">{planeacionData.length} productos</span>
-                        </div>
+                            {/* Botón Aplicar IA */}
+                            <div className="d-flex justify-content-end mb-3 px-3">
+                                <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={handleAplicarIA}
+                                    disabled={loadingIA}
+                                    className="d-flex align-items-center"
+                                    style={{ borderColor: '#6f42c1', color: '#6f42c1' }}
+                                >
+                                    <i className="bi bi-robot me-2"></i>
+                                    Aplicar Sugerencias IA
+                                </Button>
+                            </div>
 
-                        {/* Botón Aplicar IA */}
-                        <div className="d-flex justify-content-end mb-3 px-3">
-                            <Button
-                                variant="outline-primary"
-                                size="sm"
-                                onClick={handleAplicarIA}
-                                disabled={loadingIA}
-                                className="d-flex align-items-center"
-                                style={{ borderColor: '#6f42c1', color: '#6f42c1' }}
-                            >
-                                <i className="bi bi-robot me-2"></i>
-                                Aplicar Sugerencias IA
-                            </Button>
-                        </div>
-
-                        {/* Tabla */}
-                        <div className="table-wrapper">
-                            <div className="table-responsive">
-                                <Table hover className="table-modern">
-                                    <thead>
-                                        <tr>
-                                            <th className="text-center" style={{ width: '60px' }}>#</th>
-                                            <th>Producto</th>
-                                            <th className="text-center">Exist.</th>
-                                            <th className="text-center">Solic.</th>
-                                            <th className="text-center">Ped.</th>
-                                            <th className="text-center">Total</th>
-                                            <th className="text-center">Ord.</th>
-                                            <th className="text-center">IA</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {planeacionData.map((item, index) => (
-                                            <tr key={item.id}>
-                                                <td className="text-center">{index + 1}</td>
-                                                <td>{item.producto_nombre}</td>
-                                                <td className="text-center">
-                                                    <span className="badge-pill bg-info">{item.existencias || 0}</span>
-                                                </td>
-                                                <td className="text-center">
-                                                    <span className="badge-pill bg-warning">{item.solicitadas || 0}</span>
-                                                </td>
-                                                <td className="text-center">
-                                                    <span className="badge-pill bg-success">{item.pedidos || 0}</span>
-                                                </td>
-                                                <td className="text-center">
-                                                    <span className="badge-pill bg-primary">{item.total || 0}</span>
-                                                </td>
-                                                <td className="text-center">{item.orden || 0}</td>
-                                                <td className="text-center">
-                                                    {item.ia > 0 ? (
-                                                        <span
-                                                            className="badge-pill"
-                                                            style={{ backgroundColor: '#6f42c1', color: 'white', cursor: 'help' }}
-                                                            title={`Confianza: ${item.ia_confianza || 'N/A'}`}
-                                                        >
-                                                            {item.ia}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-muted">-</span>
-                                                    )}
-                                                </td>
+                            {/* Tabla */}
+                            <div className="table-wrapper">
+                                <div className="table-responsive">
+                                    <Table hover className="table-modern">
+                                        <thead>
+                                            <tr>
+                                                <th className="text-center" style={{ width: '60px' }}>#</th>
+                                                <th>Producto</th>
+                                                <th className="text-center">Exist.</th>
+                                                <th className="text-center">Solic.</th>
+                                                <th className="text-center">Ped.</th>
+                                                <th className="text-center">Total</th>
+                                                <th className="text-center">Ord.</th>
+                                                <th className="text-center">IA</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                        </thead>
+                                        <tbody>
+                                            {planeacionData.map((item, index) => (
+                                                <tr key={item.id}>
+                                                    <td className="text-center">{index + 1}</td>
+                                                    <td>{item.producto_nombre}</td>
+                                                    <td className="text-center">
+                                                        <span className="badge-pill bg-info">{item.existencias || 0}</span>
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <span className="badge-pill bg-warning">{item.solicitadas || 0}</span>
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <span className="badge-pill bg-success">{item.pedidos || 0}</span>
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <span className="badge-pill bg-primary">{item.total || 0}</span>
+                                                    </td>
+                                                    <td className="text-center">{item.orden || 0}</td>
+                                                    <td className="text-center">
+                                                        {item.ia > 0 ? (
+                                                            <span
+                                                                className="badge-pill"
+                                                                style={{ backgroundColor: '#6f42c1', color: 'white', cursor: 'help' }}
+                                                                title={`Confianza: ${item.ia_confianza || 'N/A'}`}
+                                                            >
+                                                                {item.ia}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Mensaje inicial */}
-                {!searched && (
-                    <div className="empty-state">
-                        <i className="bi bi-calendar-week text-muted" style={{ fontSize: '3rem' }}></i>
-                        <p className="text-muted mb-0 mt-3">Selecciona una fecha para consultar la planeación</p>
-                    </div>
-                )}
-            </Container>
-        </div>
-    );
+                    {/* Mensaje inicial */}
+                    {!searched && (
+                        <div className="empty-state">
+                            <i className="bi bi-calendar-week text-muted" style={{ fontSize: '3rem' }}></i>
+                            <p className="text-muted mb-0 mt-3">Selecciona una fecha para consultar la planeación</p>
+                        </div>
+                    )}
+                </Container>
+            </div>
+        );
+    }
+
+    // Si llega aquí, volver a menu
+    return null;
 };
 
 export default ReportesAvanzadosScreen;
