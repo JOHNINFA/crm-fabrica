@@ -64,7 +64,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        - REACT_APP_API_URL=${API_URL:-https://tudominio.com}/api
+        - REACT_APP_API_URL=/api
         - GENERATE_SOURCEMAP=false
     container_name: crm_frontend_prod
     # Builder: corre una vez y termina
