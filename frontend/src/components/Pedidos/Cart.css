@@ -389,8 +389,7 @@
     display: inline-block !important;
 }
 
-/* Resp
-onsive para móvil */
+/* Responsive para móvil */
 @media (max-width: 768px) {
     .cart-container {
         font-size: 12px;
@@ -446,7 +445,7 @@ onsive para móvil */
     width: 2.5em !important;
     height: 1.25em !important;
     cursor: pointer !important;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%236c757d'/%3e%3c/svg%3e") !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%236c757d'%2F%3e%3c%2Fsvg%3e") !important;
     /* Círculo gris por defecto */
 }
 
@@ -461,7 +460,7 @@ onsive para móvil */
 .cart-container .form-check-input:checked {
     background-color: #113685 !important;
     border-color: #113685 !important;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'%2F%3e%3c%2Fsvg%3e") !important;
     /* Círculo blanco al activar */
     opacity: 1 !important;
 }
