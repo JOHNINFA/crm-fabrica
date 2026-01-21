@@ -1,0 +1,159 @@
+/* Estilos específicos para la pestaña Maquilas */
+.lote-input,
+.vencimiento-input {
+  width: 100%;
+  text-align: center;
+  margin: 0 auto;
+  font-size: 0.85rem;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: nowrap;
+}
+
+.lote-col {
+  width: 20%;
+}
+
+.vencimiento-col {
+  width: 25%;
+}
+
+/* Eliminar flechas del input date en algunos navegadores */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+input[type="date"]::-webkit-inner-spin-button {
+  display: none;
+}
+
+/* === ESTILOS RESPONSIVOS MEJORADOS (IGUAL QUE PRODUCCIÓN) === */
+@media (max-width: 767.98px) {
+
+  /* --- 1. AJUSTES DE BOTONES DE ACCIÓN (SIMÉTRICOS Y TÁCTILES) --- */
+  .botones-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    /* Centrado para estética compacta */
+    align-items: center;
+    width: 100%;
+    gap: 1.5rem;
+    /* Espacio aumentado para consistencia */
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Botón GRABAR (action-button) - Tamaño Compacto Simétrico */
+  .botones-container .action-button {
+    width: 40% !important;
+    /* Ancho 40% */
+    height: 40px !important;
+    /* Alto Táctil Estándar */
+    padding: 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Botón EDITAR (editar-global-btn) - Tamaño Compacto Simétrico */
+  .botones-container .editar-global-btn {
+    width: 40% !important;
+    /* Ancho 40% - IGUAL QUE EL DE GRABAR */
+    height: 40px !important;
+    /* Alto Táctil Estándar */
+    max-width: none !important;
+    padding: 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+
+    background-color: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* --- 2. AJUSTES DE TABLA RESPONSIVA --- */
+  .lote-input,
+  .vencimiento-input {
+    width: 100%;
+    font-size: 0.8rem;
+  }
+
+  .table th,
+  .table td {
+    font-size: 0.875rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .nombre-col {
+    width: 35%;
+  }
+
+  .cantidad-col {
+    width: 20%;
+  }
+
+  .lote-col {
+    width: 20%;
+  }
+
+  .vencimiento-col {
+    width: 25%;
+  }
+
+  .lote-input,
+  .vencimiento-input {
+    font-size: 0.75rem;
+    padding: 0.2rem;
+  }
+
+  /* Ajustar tamaño de los controles de cantidad */
+  .quantity-control .btn {
+    padding: 0.15rem 0.3rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .nombre-col {
+    width: 35%;
+  }
+
+  .cantidad-col {
+    width: 20%;
+  }
+
+  .lote-col {
+    width: 20%;
+  }
+
+  .vencimiento-col {
+    width: 25%;
+  }
+
+  .lote-input,
+  .vencimiento-input {
+    font-size: 0.7rem;
+    padding: 0.15rem;
+  }
+
+  /* Ajustar tamaño de los controles de cantidad */
+  .quantity-control .btn {
+    padding: 0.1rem 0.25rem;
+    font-size: 0.7rem;
+  }
+}

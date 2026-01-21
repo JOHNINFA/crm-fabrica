@@ -1,0 +1,532 @@
+/* ============================================
+   PLANTILLA OPERATIVA - RESPONSIVE & SCALABLE
+   ============================================ */
+
+/* Variables personalizadas para Cargue */
+.plantilla-operativa {
+    --cargue-primary: #06386d;
+    --cargue-primary-hover: #052c65;
+    --cargue-header-bg: #e2efda;
+    --cargue-row-odd: #e8f5e8;
+    --cargue-row-even: #ffffff;
+}
+
+/* Botones Primary con color personalizado */
+.plantilla-operativa .btn-primary {
+    background-color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.plantilla-operativa .btn-primary:hover {
+    background-color: var(--cargue-primary-hover) !important;
+    border-color: var(--cargue-primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(6, 56, 109, 0.3);
+}
+
+.plantilla-operativa .btn-primary:focus,
+.plantilla-operativa .btn-primary.focus {
+    box-shadow: 0 0 0 0.2rem rgba(6, 56, 109, 0.4) !important;
+}
+
+/* Checkboxes personalizados */
+.plantilla-operativa .form-check-input:checked,
+.tabla-productos input[type="checkbox"]:checked,
+input[type="checkbox"]:checked,
+.container-fluid input[type="checkbox"]:checked,
+.table input[type="checkbox"]:checked,
+.form-check-input:checked {
+    background-color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
+    /* background-image: url("data:image/svg+xml... (removed causing build error) */
+}
+
+.plantilla-operativa .form-check-input:focus,
+.tabla-productos input[type="checkbox"]:focus,
+input[type="checkbox"]:focus {
+    border-color: var(--cargue-primary) !important;
+    box-shadow: 0 0 0 0.25rem rgba(6, 56, 109, 0.25) !important;
+}
+
+/* Botones Outline Primary */
+.plantilla-operativa .btn-outline-primary {
+    color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+}
+
+.plantilla-operativa .btn-outline-primary:hover {
+    background-color: var(--cargue-primary) !important;
+    border-color: var(--cargue-primary) !important;
+    color: white !important;
+}
+
+/* Título Responsable */
+.responsable-title,
+.plantilla-operativa .responsable-title,
+.plantilla-operativa .btn-link.responsable-title {
+    font-weight: 700 !important;
+    color: #FF3333 !important;
+    font-size: 1.3rem !important;
+    text-decoration: none !important;
+}
+
+.plantilla-operativa .responsable-title:hover,
+.plantilla-operativa .responsable-title:focus,
+.plantilla-operativa .btn-link.responsable-title:hover,
+.plantilla-operativa .btn-link.responsable-title:focus {
+    color: #FF3333 !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* ==================== TABLA DE PRODUCTOS ==================== */
+.tabla-productos {
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.tabla-productos .table-header {
+    background-color: var(--cargue-header-bg);
+    font-weight: 700;
+    text-align: center;
+    color: #000;
+}
+
+.tabla-productos .table-header th {
+    text-align: center !important;
+}
+
+.tabla-productos td,
+.tabla-productos th {
+    vertical-align: middle !important;
+    border: 1px solid var(--color-border, #dee2e6) !important;
+    padding: 0.4rem 0.5rem !important;
+    text-align: center;
+    line-height: 1.4 !important;
+    height: auto !important;
+    min-height: 2.2rem !important;
+}
+
+.tabla-productos tbody tr {
+    min-height: 2.2rem !important;
+    transition: background 0.2s;
+}
+
+.tabla-productos tbody tr:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Columnas V y D - checkboxes */
+.tabla-productos th:nth-child(1),
+.tabla-productos td:nth-child(1),
+.tabla-productos th:nth-child(2),
+.tabla-productos td:nth-child(2) {
+    width: 3rem;
+    min-width: 3rem;
+    padding: 0.2rem;
+}
+
+/* Columna PRODUCTOS */
+.tabla-productos th:nth-child(3) {
+    min-width: 24rem;
+    max-width: 28rem;
+    white-space: normal;
+    text-align: center;
+    padding: 0.4rem 0.8rem;
+    font-weight: 700;
+}
+
+.tabla-productos td:nth-child(3) {
+    min-width: 24rem;
+    max-width: 28rem;
+    white-space: normal;
+    text-align: left;
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
+}
+
+/* CANTIDAD */
+.tabla-productos th:nth-child(4),
+.tabla-productos td:nth-child(4) {
+    min-width: 7rem;
+    width: 7rem;
+}
+
+/* DCTOS. */
+.tabla-productos th:nth-child(5),
+.tabla-productos td:nth-child(5) {
+    min-width: 6rem;
+    width: 6rem;
+}
+
+/* ADICIONAL */
+.tabla-productos th:nth-child(6),
+.tabla-productos td:nth-child(6) {
+    min-width: 7rem;
+    width: 7rem;
+}
+
+/* DEVOLUCIONES */
+.tabla-productos th:nth-child(7),
+.tabla-productos td:nth-child(7) {
+    min-width: 7rem;
+    width: 7rem;
+}
+
+/* VENCIDAS */
+.tabla-productos th:nth-child(8),
+.tabla-productos td:nth-child(8) {
+    min-width: 7rem;
+    width: 7rem;
+}
+
+/* LOTES VENCIDOS */
+.tabla-productos th:nth-child(9),
+.tabla-productos td:nth-child(9) {
+    min-width: 10rem;
+    width: 10rem;
+}
+
+/* TOTAL */
+.tabla-productos th:nth-child(10),
+.tabla-productos td:nth-child(10) {
+    min-width: 5.5rem;
+    width: 5.5rem;
+}
+
+/* VALOR */
+.tabla-productos th:nth-child(11),
+.tabla-productos td:nth-child(11) {
+    min-width: 7rem;
+    width: 7rem;
+}
+
+/* NETO */
+.tabla-productos th:nth-child(12),
+.tabla-productos td:nth-child(12) {
+    min-width: 7rem;
+    width: 7rem;
+}
+
+.tabla-productos td span,
+.tabla-productos td div {
+    text-align: center;
+    display: block;
+    width: 100%;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #000;
+}
+
+.table-row {
+    background-color: #f8f9fa;
+}
+
+.producto-nombre {
+    font-weight: 600;
+    min-width: 15rem;
+}
+
+.tabla-productos tbody tr:nth-child(odd) td:nth-child(n+3) {
+    background-color: var(--cargue-row-odd) !important;
+}
+
+.tabla-productos tbody tr:nth-child(even) td:nth-child(n+3) {
+    background-color: var(--cargue-row-even) !important;
+}
+
+.total-cell {
+    font-weight: 700;
+    background-color: var(--cargue-header-bg);
+    text-align: center;
+}
+
+.valor-cell {
+    font-weight: 700;
+    text-align: center;
+    color: #cc0000 !important;
+}
+
+.neto-cell {
+    font-weight: 700;
+    background-color: #d4edda;
+    text-align: center !important;
+    min-width: 6rem;
+    width: 6rem;
+}
+
+/* Inputs en la tabla */
+.tabla-productos input[type="number"] {
+    border: none;
+    background: transparent;
+    width: 4rem;
+    padding: 0.2rem 0.3rem;
+    text-align: center;
+    display: block;
+    margin: 0 auto;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #000;
+    line-height: 1.3;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.tabla-productos input[type="number"]:focus {
+    background: white;
+    border: 2px solid var(--cargue-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(6, 56, 109, 0.1);
+}
+
+.tabla-productos input[type="checkbox"] {
+    transform: scale(1.3);
+    cursor: pointer;
+}
+
+/* ==================== RESUMEN ==================== */
+.resumen-container {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--border-radius, 12px);
+    border: 1px solid var(--color-border, #dee2e6);
+    box-shadow: var(--shadow-sm);
+    width: 100%;
+    max-width: 38rem;
+    margin-left: 450px;
+    margin-right: 80px;
+}
+
+.resumen-pagos {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.resumen-container h5 {
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: 1.1rem;
+}
+
+.resumen-pagos .table-header {
+    background: linear-gradient(135deg, #c6e0b4 0%, #a8d08c 100%);
+    font-weight: 700;
+    text-align: center;
+    color: #000;
+}
+
+.resumen-pagos .table-header th {
+    text-align: center !important;
+}
+
+.resumen-pagos tfoot td {
+    background-color: var(--cargue-header-bg);
+    font-weight: 700;
+}
+
+.resumen-pagos td,
+.resumen-pagos th {
+    padding: 0.4rem 0.5rem !important;
+    min-height: 2.2rem !important;
+    vertical-align: middle !important;
+    border: 1px solid var(--color-border, #dee2e6);
+    font-size: 0.85rem;
+    line-height: 1.4 !important;
+}
+
+.resumen-pagos .form-control {
+    height: auto !important;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85rem;
+    border: none;
+    background: transparent;
+    width: 100%;
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+.resumen-pagos .form-control:focus {
+    background: white;
+    border: 1px solid var(--cargue-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(6, 56, 109, 0.1);
+    border-radius: 4px;
+}
+
+/* Totales */
+.resumen-totales {
+    width: 100%;
+    font-size: 0.95rem;
+}
+
+.resumen-totales>div {
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #dee2e6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.resumen-totales .bg-lightpink {
+    background-color: #fce4d6 !important;
+    border-color: #f8cbad !important;
+}
+
+.resumen-totales .bg-lightgreen {
+    background-color: #e2efda !important;
+    border-color: #c6e0b4 !important;
+}
+
+/* Botón Limpiar */
+.btn-limpiar {
+    background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%);
+    border-color: #ffc107;
+    color: #000;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-limpiar:hover {
+    background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+    border-color: #d39e00;
+    color: #000;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+/* Info de Cargue */
+.info-cargue .badge {
+    font-size: 0.95rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* Responsive - Pantallas Grandes */
+@media (min-width: 1600px) {
+    .tabla-productos {
+        font-size: 0.85rem;
+    }
+
+    .tabla-productos input[type="number"] {
+        font-size: 0.95rem;
+        width: 4.5rem;
+    }
+
+    .responsable-title {
+        font-size: 1.5rem !important;
+    }
+
+    .tabla-productos td,
+    .tabla-productos th {
+        padding: 0.5rem 0.6rem !important;
+        min-height: 2.6rem !important;
+    }
+
+    .resumen-container {
+        max-width: 28rem;
+        padding: 1.2rem;
+    }
+
+    .resumen-totales {
+        font-size: 1.05rem;
+    }
+}
+
+@media (min-width: 2560px) {
+    .tabla-productos {
+        font-size: 1rem;
+    }
+
+    .tabla-productos input[type="number"] {
+        font-size: 1.1rem;
+        width: 5rem;
+    }
+
+    .responsable-title {
+        font-size: 1.8rem !important;
+    }
+
+    .tabla-productos td,
+    .tabla-productos th {
+        padding: 0.7rem 0.8rem !important;
+        min-height: 3rem !important;
+    }
+
+    .tabla-productos input[type="checkbox"] {
+        transform: scale(1.6);
+    }
+
+    .resumen-container {
+        max-width: 32rem;
+        padding: 1.5rem;
+    }
+
+    .resumen-totales {
+        font-size: 1.2rem;
+    }
+
+    .btn-primary,
+    .btn-outline-primary,
+    .btn-limpiar {
+        padding: 0.8rem 1.6rem !important;
+        font-size: 1.1rem !important;
+    }
+}
+
+/* Responsive - Pantallas Pequeñas */
+@media (max-width: 768px) {
+    .tabla-productos {
+        font-size: 0.7rem;
+    }
+
+    .tabla-productos input[type="number"] {
+        width: 3.5rem;
+    }
+
+    .responsable-title {
+        font-size: 1.1rem !important;
+    }
+
+    .resumen-container {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+    }
+}
+
+/*
+ ==================== ANIMACIÓN SINCRONIZAR ==================== */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-sincronizar .material-icons {
+    transition: transform 0.3s ease;
+}
+
+.btn-sincronizar:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

@@ -1,0 +1,49 @@
+/* Sidebar.css - Estilos específicos para el sidebar de Pedidos */
+
+/* Sobrescribir completamente el box-shadow del sidebar */
+.pedidos-sidebar {
+    box-shadow: none !important;
+}
+
+.pedidos-sidebar.sidebar-bg {
+    box-shadow: none !important;
+}
+
+nav.pedidos-sidebar.sidebar-bg {
+    box-shadow: none !important;
+}
+
+/* Ocultar el scrollbar del sidebar de Pedidos */
+.pedidos-sidebar::-webkit-scrollbar {
+    width: 0px;
+    display: none;
+}
+
+.pedidos-sidebar {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+}
+
+/* Para el contenedor interno también */
+.pedidos-sidebar>div::-webkit-scrollbar {
+    width: 0px;
+    display: none;
+}
+
+/* Re
+sponsive para móvil */
+@media (max-width: 768px) {
+    .pedidos-sidebar {
+        width: 210px !important;
+    }
+
+    .sidebar-item {
+        font-size: 14px;
+    }
+
+    .sidebar-item .material-icons {
+        font-size: 20px !important;
+    }
+}

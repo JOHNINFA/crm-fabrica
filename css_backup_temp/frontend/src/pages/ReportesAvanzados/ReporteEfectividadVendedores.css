@@ -1,0 +1,52 @@
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.badge-pill {
+    display: inline-block;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 10rem;
+}
+
+.link-volver {
+    color: #0c2c53;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.link-volver:hover {
+    color: #1a4a7a;
+    text-decoration: underline;
+}
+
+.card-wrapper {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+}
+
+.table-modern {
+    margin-bottom: 0;
+}
+
+.table-modern thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.75rem;
+}
+
+.table-modern tbody td {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+.table-modern tbody tr:hover {
+    background-color: #f8f9fa;
+}

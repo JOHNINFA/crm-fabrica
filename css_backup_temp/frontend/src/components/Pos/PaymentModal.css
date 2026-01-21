@@ -424,8 +424,7 @@ label:has(+ textarea.compact-textarea) {
   color: white !important;
 }
 
-/* Estilos específicos para POS - Totales en azul */
-.pos-screen .payment-summary-box.total,
+/ * Estilos específicos para POS - Totales en azul */ .pos-screen .payment-summary-box.total,
 .pos-screen .payment-summary-box.pending,
 .pos-screen .payment-summary-box.change {
   background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%) !important;
@@ -433,7 +432,8 @@ label:has(+ textarea.compact-textarea) {
   color: white !important;
 }
 
-/* Estilos específicos para POS - Botones de métodos de pago */
+/*
+ Estilos específicos para POS - Botones de métodos de pago */
 .pos-screen .payment-method-btn.active {
   background-color: #6c757d !important;
   color: white !important;
@@ -448,7 +448,8 @@ label:has(+ textarea.compact-textarea) {
   color: white !important;
 }
 
-/* Estilo específico para POS - Color del monto de pago */
+/* Estilo 
+específico para POS - Color del monto de pago */
 .pos-screen .payment-method-amount {
   color: #007bff !important;
   font-weight: bold;
@@ -536,7 +537,8 @@ label:has(+ textarea.compact-textarea) {
   transform: none !important;
 }
 
-/* Estilos para mensaje de éxito después de crear venta */
+/* Est
+ilos para mensaje de éxito después de crear venta */
 .venta-success-message {
   flex: 1;
   background: #d4edda;

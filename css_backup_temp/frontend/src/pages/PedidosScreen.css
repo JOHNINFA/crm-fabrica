@@ -1,0 +1,169 @@
+/* ============================================
+   PEDIDOS SCREEN - RESPONSIVE & SCALABLE
+   ⚠️ NO interferir con Bootstrap Grid
+   ============================================ */
+
+.pedidos-screen {
+    min-height: 100vh;
+}
+
+.pedidos-screen main {
+    padding: 1.5rem;
+    max-width: 100%;
+}
+
+/* NO TOCAR el .row - Bootstrap lo maneja */
+.pedidos-screen .row {
+    /* Dejar que Bootstrap maneje el grid */
+}
+
+/* Catálogo de Productos */
+.pedidos-screen .card-bg.mb-3.p-3 {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    border-radius: var(--border-radius, 12px);
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
+}
+
+/* Barra de Búsqueda */
+.pedidos-screen .d-flex.align-items-center.gap-2 {
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1rem;
+}
+
+.pedidos-screen input[type="text"],
+.pedidos-screen input[type="search"] {
+    padding: 0.7rem 1rem;
+    font-size: 1rem;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.pedidos-screen input:focus {
+    border-color: var(--color-primary, #06386d);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(6, 56, 109, 0.1);
+}
+
+/* Botones */
+.pedidos-screen .btn {
+    padding: 0.7rem 1.3rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.pedidos-screen .btn-primary {
+    background: linear-gradient(135deg, var(--color-primary, #06386d) 0%, #052c65 100%);
+    box-shadow: 0 4px 12px rgba(6, 56, 109, 0.2);
+}
+
+.pedidos-screen .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(6, 56, 109, 0.3);
+}
+
+/* Cards de Producto */
+.pedidos-screen .product-card {
+    transition: all 0.2s;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.pedidos-screen .product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Responsive - Pantallas Grandes (Full HD) */
+@media (min-width: 1600px) {
+    .pedidos-screen main {
+        padding: 2rem;
+    }
+
+    .pedidos-screen .card-bg.mb-3.p-3 {
+        max-height: calc(100vh - 240px);
+    }
+
+    .pedidos-screen input[type="text"],
+    .pedidos-screen input[type="search"] {
+        padding: 0.8rem 1.2rem;
+        font-size: 1.05rem;
+    }
+
+    .pedidos-screen .btn {
+        padding: 0.8rem 1.5rem;
+        font-size: 1.05rem;
+    }
+}
+
+/* Responsive - Pantallas Ultra Grandes (4K) */
+@media (min-width: 2560px) {
+    .pedidos-screen main {
+        padding: 2.5rem;
+    }
+
+    .pedidos-screen .card-bg.mb-3.p-3 {
+        max-height: calc(100vh - 280px);
+    }
+
+    .pedidos-screen input[type="text"],
+    .pedidos-screen input[type="search"] {
+        padding: 1rem 1.5rem;
+        font-size: 1.2rem;
+    }
+
+    .pedidos-screen .btn {
+        padding: 1rem 2rem;
+        font-size: 1.2rem;
+    }
+}
+
+/* Responsive - Móviles */
+@media (max-width: 768px) {
+    .pedidos-screen main {
+        padding: 0.75rem !important;
+    }
+
+    .pedidos-screen .row {
+        margin: 0 !important;
+    }
+
+    .pedidos-screen .col-lg-7,
+    .pedidos-screen .col-lg-5 {
+        padding: 0 !important;
+    }
+
+    /* Hacer que el carrito esté primero en móvil */
+    .pedidos-screen .col-lg-5 {
+        order: -1;
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+
+    .pedidos-screen .card-bg.mb-3.p-3 {
+        max-height: calc(100vh - 380px) !important;
+    }
+
+    .pedidos-screen .d-flex.align-items-center.gap-2 {
+        padding: 0.6rem 0.8rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .pedidos-screen input[type="text"],
+    .pedidos-screen input[type="search"] {
+        padding: 0.6rem 0.8rem;
+        font-size: 0.95rem;
+    }
+
+    .pedidos-screen .btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
+    }
+}

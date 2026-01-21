@@ -1,0 +1,119 @@
+/* Estilos para el modal de vista previa */
+
+.ticket-preview-modal {
+    z-index: 10100 !important;
+}
+
+.ticket-preview-modal .modal-backdrop {
+    z-index: 10099 !important;
+}
+
+.ticket-preview-modal .modal-dialog {
+    max-width: 500px;
+    z-index: 10100;
+}
+
+.ticket-preview-modal .modal-content {
+    z-index: 10100;
+}
+
+.ticket-preview-modal .modal-body {
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+.preview-container {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.ticket-preview-modal .modal-footer {
+    border-top: 1px solid #dee2e6;
+    padding: 15px;
+}
+
+/* ===== ESTILOS DE IMPRESIÓN SIMPLIFICADOS ===== */
+@media print {
+
+    /* Ocultar TODA la página excepto el ticket */
+    body * {
+        display: none !important;
+    }
+
+    body,
+    body .modal,
+    body .modal-dialog,
+    body .modal-content,
+    body .modal-body,
+    body .preview-container,
+    body #ticket-to-print,
+    body .ticket-container,
+    body .ticket-container * {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    /* Forzar la imagen del logo */
+    body .ticket-container img,
+    body .ticket-logo {
+        display: block !important;
+        visibility: visible !important;
+        max-width: 150px !important;
+        max-height: 80px !important;
+        margin: 0 auto 10px auto !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Posicionar todo en la esquina superior izquierda */
+    body .modal,
+    body .modal-dialog,
+    body .modal-content {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
+
+    body .modal-header,
+    body .modal-footer,
+    body .no-print,
+    body .navbar,
+    body aside,
+    body header {
+        display: none !important;
+    }
+
+    body .modal-body,
+    body .preview-container {
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    body .ticket-container {
+        width: 80mm !important;
+        max-width: 80mm !important;
+        padding: 5mm !important;
+        background: white !important;
+    }
+
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+}

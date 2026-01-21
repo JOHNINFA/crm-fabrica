@@ -1,0 +1,12 @@
+/* Estilos específicos para hacer Kardex más compacto */
+.table-kardex:not(.planeacion-table) td {
+  padding: 0.25rem 0.5rem;
+}
+
+.table-kardex:not(.planeacion-table) tr {
+  height: 2.4rem;
+}
+
+.table-kardex:not(.planeacion-table) thead th {
+  padding: 0.35rem 0.5rem;
+}

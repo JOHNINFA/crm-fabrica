@@ -1,0 +1,517 @@
+/* Estilos del modal de remisión */
+.payment-modal-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1100;
+    padding: 20px;
+}
+
+.payment-modal {
+    background: white;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.payment-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 8px 5px 8px;
+    margin-bottom: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    flex-shrink: 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #dc3545;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-button:hover {
+    color: #bd2130;
+}
+
+/* Body con scroll */
+.payment-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px 8px 8px;
+    min-height: 0;
+}
+
+/* Sección de totales - Adaptado para remisiones */
+.payment-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2px;
+    margin-bottom: 8px;
+    background-color: #e9ecef;
+    padding: 1px;
+    border-radius: 4px;
+}
+
+.payment-summary-box {
+    text-align: center;
+    padding: 8px 6px;
+    color: white;
+    font-weight: 500;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.remisiones-screen .payment-summary-box.total,
+.remisiones-screen .payment-summary-box.pending,
+.remisiones-screen .payment-summary-box.change {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    border: 1px solid #1e7e34;
+}
+
+.payment-summary-box div {
+    font-size: 11px;
+    margin-bottom: 2px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    opacity: 0.95;
+    text-transform: uppercase;
+}
+
+.payment-summary-box strong {
+    font-size: 16px;
+    font-weight: bold;
+    display: block;
+}
+
+/* Tipos de remisión - Nuevo estilo */
+.payment-methods {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    padding: 5px 0;
+}
+
+.payment-method-btn {
+    background-color: #f4f4f4;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #155724;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s;
+    flex: 1;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin: 0;
+}
+
+.payment-method-btn:hover {
+    background-color: #dee2e6;
+}
+
+.remisiones-screen .payment-method-btn.active {
+    background-color: #28a745;
+    color: white;
+}
+
+.remisiones-screen .payment-method-btn i {
+    font-size: 12px;
+    color: #155724;
+}
+
+.remisiones-screen .payment-method-btn.active i {
+    color: white;
+}
+
+/* Formularios */
+.payment-form {
+    margin-bottom: 8px;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.compact-row {
+    gap: 5px;
+    margin-bottom: 3px;
+}
+
+.form-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+.payment-modal .form-label {
+    font-size: 12px;
+    font-weight: 400;
+    margin-bottom: 3px;
+    color: #6c757d;
+    display: block;
+}
+
+.payment-modal .compact-label {
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.payment-modal .form-control,
+.payment-modal .form-select {
+    width: 100%;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 13px;
+    height: auto;
+    background-color: white;
+    font-weight: 500;
+    color: #495057;
+}
+
+.payment-modal .compact-select {
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #86d295;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* Input con botón */
+.input-with-button {
+    position: relative;
+    display: flex;
+}
+
+.input-with-button .form-control {
+    flex: 1;
+    padding-right: 35px;
+}
+
+.exact-amount-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    background: none;
+    border: none;
+    color: #28a745;
+    padding: 0 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.exact-amount-btn:hover {
+    color: #1e7e34;
+}
+
+/* Campos de texto monetarios */
+.money-input {
+    text-align: right;
+    background-color: white;
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.compact-textarea {
+    min-height: 50px;
+    font-size: 11px;
+    resize: none;
+}
+
+/* Resumen de productos */
+.payment-summary-detail {
+    padding: 8px 6px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.remisiones-screen .payment-method-amount {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.payment-method-amount {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.payment-bank {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Footer con botones */
+.payment-modal-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 8px;
+    border-top: 1px solid #e9ecef;
+    flex-shrink: 0;
+    background-color: white;
+}
+
+.btn {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.btn:focus {
+    box-shadow: none;
+}
+
+.payment-modal .btn-primary {
+    background-color: #28a745;
+    border: 1px solid #28a745;
+    color: white;
+}
+
+.payment-modal .btn-primary:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-outline-secondary {
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: #28a745;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    color: #1e7e34;
+}
+
+/* Mensaje de éxito */
+.venta-success-message {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    color: #155724;
+    font-size: 13px;
+    margin-right: 8px;
+}
+
+.venta-success-message i {
+    font-size: 24px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .payment-modal {
+        margin: 10px;
+        padding: 15px;
+    }
+
+    .payment-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-methods {
+        justify-content: flex-start;
+    }
+}
+
+/* Es
+tilos específicos para REMISIONES - Tema Verde */
+.payment-modal-overlay .payment-modal .remisiones-payment-confirm-btn {
+    background-color: #28a745 !important;
+    border: 1px solid #28a745 !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .remisiones-payment-confirm-btn:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .remisiones-payment-confirm-btn:focus {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: white !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+}
+
+.payment-modal-overlay .payment-modal .remisiones-payment-confirm-btn:active {
+    background-color: #1e7e34 !important;
+    border-color: #1c7430 !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .remisiones-payment-confirm-btn:disabled {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+    opacity: 0.65;
+}
+
+/* 
+Responsive mejorado para móvil */
+@media (max-width: 768px) {
+    .payment-modal {
+        max-width: 95% !important;
+        padding: 10px !important;
+        max-height: 95vh !important;
+    }
+
+    .payment-modal-header {
+        font-size: 11px !important;
+        flex-wrap: wrap;
+    }
+
+    .payment-modal-header h4 {
+        font-size: 11px !important;
+    }
+
+    .payment-summary {
+        grid-template-columns: 1fr !important;
+        gap: 4px !important;
+    }
+
+    .payment-methods {
+        gap: 4px !important;
+    }
+
+    .payment-method-btn {
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        flex: 1 1 calc(50% - 4px) !important;
+        min-width: 80px !important;
+    }
+
+    .form-row {
+        flex-direction: column !important;
+        gap: 6px !important;
+    }
+
+    .form-group {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    .payment-modal .form-control,
+    .payment-modal .form-select {
+        font-size: 12px !important;
+    }
+
+    .payment-modal .form-label {
+        font-size: 11px !important;
+    }
+
+    .compact-textarea {
+        min-height: 60px !important;
+    }
+
+    .btn {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+}
+
+/* Ajustes específicos para el modal de Pedidos para reducir espacios */
+.pedidos-modal .form-row {
+    margin-bottom: 3px;
+}
+
+.pedidos-modal .compact-row {
+    margin-top: 0;
+    margin-bottom: 2px;
+}
+
+.pedidos-modal .form-label {
+    margin-bottom: 1px;
+}
+
+.pedidos-modal .form-group {
+    margin-bottom: 0;
+}
+
+/* Estilos específicos para PEDIDOS - Botón azul con texto blanco */
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn {
+    background-color: #0d6efd !important;
+    border: 1px solid #0d6efd !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:hover {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:focus {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:active {
+    background-color: #0a58ca !important;
+    border-color: #0a53be !important;
+    color: white !important;
+}
+
+.payment-modal-overlay .payment-modal .pedidos-payment-confirm-btn:disabled {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+    opacity: 0.65;
+}

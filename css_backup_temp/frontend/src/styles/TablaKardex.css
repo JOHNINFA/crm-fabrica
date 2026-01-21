@@ -1,0 +1,597 @@
+/* Estilos para TablaKardex */
+
+/* Fuente personalizada */
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+/* 🔥 Contenedor de tabla con scroll para sticky header */
+.table-container {
+  /* Clean Data Container - SIN SCROLL INTERNO (Expandido) */
+  max-height: none !important;
+  /* Dejar crecer libremente */
+  overflow: visible !important;
+  /* Usar scroll del navegador */
+  position: relative;
+  /* Clean Data Container */
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  /* rounded-xl */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  /* shadow-sm */
+
+  /* 🔥 Mejorar scroll en táctil */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-y pan-x;
+  /* Permitir scroll en todas direcciones */
+}
+
+/* Personalizar scrollbar en escritorio */
+.table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Estilo para celdas con existencias en verde */
+.bg-light-green {
+  background-color: #00A65A;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Estilo para celdas con existencias en rojo (agotado) */
+.bg-light-red {
+  background-color: #dc2626;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Etiquetas redondeadas pequeñas */
+.rounded-pill-sm {
+  display: inline-block;
+  padding: 0.7rem 0.1rem;
+  font-size: 0.88em;
+  font-weight: bold;
+  line-height: 1.2;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 6px;
+  width: 69.5px;
+  box-shadow: 0 2px 4px rgba(50, 50, 93, 0.11), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Estilos para inputs de cantidad - ESCRITORIO (default) */
+/* Estilos para inputs de cantidad - ESCRITORIO (Clean Data) */
+.quantity-input {
+  width: 80px;
+  text-align: center;
+  margin: 0 auto;
+  border-radius: 0.5rem;
+  /* rounded-lg */
+  border: 1px solid #e2e8f0;
+  padding: 0.375rem 0.5rem;
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  /* font-mono */
+  font-size: 0.875rem;
+  /* text-sm */
+  color: #475569;
+  /* text-slate-600 */
+  background: white;
+  transition: all 0.2s;
+}
+
+.quantity-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  outline: none;
+}
+
+/* Estilos para filas de tabla - ESCRITORIO (Clean Data View) */
+.table-kardex tr {
+  /* height: auto; Dejar que el padding controle la altura */
+}
+
+/* Hover sutil y elegante Clean Data */
+.table-kardex tbody tr:hover {
+  background-color: #f8fafc !important;
+  /* hover:bg-slate-50/50 */
+  transition: background-color 0.2s ease;
+}
+
+/* Deshabilitar bodes azules antiguos en hover */
+body:not(.hover-disabled) .table-kardex tbody tr:hover {
+  border: none;
+  box-shadow: none;
+  /* Mantener el border-bottom sutil */
+}
+
+/* Estilos para encabezados de tabla (Clean Data View) */
+.table-kardex thead th {
+  /* Estilo Tailwind: bg-slate-50 text-slate-500 uppercase text-xs font-semibold tracking-wider */
+  background: #f8fafc !important;
+  color: #64748b;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+  /* px-6 py-4 */
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  /* text-xs */
+  letter-spacing: 0.05em;
+
+  /* Sticky Header ELIMINADO por solicitud - Estilo plano */
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  box-shadow: none !important;
+}
+
+/* Forzar que el contenido y los inputs estén siempre DEBAJO del header */
+.table-kardex tbody tr,
+.table-kardex tbody td,
+.table-kardex tbody input {
+  z-index: 1 !important;
+  position: relative;
+}
+
+/* Alineación Horizontal precisa */
+.table-kardex thead th:nth-child(1) {
+  text-align: left !important;
+  padding-left: 0.5rem !important;
+  width: 45% !important;
+}
+
+.table-kardex thead th:nth-child(2) {
+  text-align: center !important;
+  width: 25% !important;
+}
+
+.table-kardex thead th:nth-child(3) {
+  text-align: center !important;
+  width: 30% !important;
+}
+
+/* Distribución de columnas RESPONSIVE */
+
+/* Escritorio (Por defecto) */
+.table-kardex thead th:nth-child(1) {
+  width: 50%;
+}
+
+/* Producto */
+.table-kardex thead th:nth-child(2) {
+  width: 25%;
+}
+
+/* Cantidad */
+.table-kardex thead th:nth-child(3) {
+  width: 25%;
+}
+
+/* Acciones */
+
+/* Móvil (< 768px) - Forzar visibilidad de todas las columnas */
+@media (max-width: 767px) {
+  .table-kardex {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  /* Producto: Forzar que el texto baje y no invada */
+  .table-kardex thead th:nth-child(1),
+  .table-kardex tbody td:nth-child(1) {
+    width: 45% !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word;
+    font-size: 0.85rem;
+    /* Un poco más grande que antes */
+    line-height: 1.2;
+    padding-right: 0.5rem !important;
+    /* Espacio antes del input */
+  }
+
+  /* Cantidad */
+  .table-kardex thead th:nth-child(2),
+  .table-kardex tbody td:nth-child(2) {
+    width: 25% !important;
+    vertical-align: middle;
+  }
+
+  /* Acciones */
+  .table-kardex thead th:nth-child(3),
+  .table-kardex tbody td:nth-child(3) {
+    width: 30% !important;
+  }
+
+  /* Compactar celdas generales */
+  .table-kardex td,
+  .table-kardex th {
+    padding: 0.5rem 0.2rem !important;
+  }
+
+  /* Input más compacto y centrado */
+  .quantity-input {
+    padding: 0.3rem;
+    font-size: 0.95rem;
+    min-height: 36px;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Botones más compactos */
+  .edit-button {
+    min-height: 40px;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* Usuario */
+.table-kardex thead th:nth-child(4) {
+  width: 20%;
+}
+
+/* Movimiento */
+
+/* Badge de existencias en Kardex */
+.table-kardex .rounded-pill-sm {
+  padding: 2.4px 7.2px 3.6px;
+  min-width: 50px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Estilos para celdas de tabla - ESCRITORIO (default) */
+/* Estilos para celdas de tabla - ESCRITORIO (Clean Data View) */
+.table-kardex td {
+  padding: 1rem 1.5rem;
+  /* px-6 py-4 */
+  vertical-align: middle;
+  border-bottom: 1px solid #e2e8f0;
+  /* divide-y divide-slate-200 */
+  color: #1e293b;
+  /* text-slate-900 */
+}
+
+/* Estilos para filas alternas - DESHABILITADO para fondo uniforme */
+/* Fondo blanco puro siempre (Clean Data) */
+.table-kardex tbody tr,
+.table-kardex tbody tr:nth-child(even) {
+  background-color: #ffffff !important;
+}
+
+/* Estilos para la tabla completa */
+.table-kardex {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin-bottom: 0;
+  /* Quitar margen inferior */
+  /* ❌ NO overflow: hidden aquí porque rompe sticky */
+}
+
+/* Estilos específicos para botones de editar en tabla de producción */
+.table-kardex .btn.rounded-pill-sm {
+  padding: 0.4rem 1rem;
+  font-size: 13px;
+  min-width: 100px;
+  font-weight: normal;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+/* Efecto hover para el botón editar */
+.table-kardex .btn.rounded-pill-sm:hover {
+  background-color: #ffffff !important;
+  color: #2563EB !important;
+  box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Mejorar botones "Editar" para touch - por defecto */
+/* Botones "Editar" estilo Clean Data (Outline Primary) */
+.edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* gap-2 */
+  padding: 0.375rem 0.75rem;
+  /* px-3 py-1.5 */
+  font-size: 0.875rem;
+  /* text-sm */
+  font-weight: 500;
+  /* font-medium */
+  color: #2563eb;
+  /* text-primary */
+  background: transparent;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  /* border-primary/20 */
+  border-radius: 0.5rem;
+  /* rounded-lg */
+  transition: all 0.2s ease;
+  min-height: auto;
+}
+
+.edit-button:hover {
+  border-color: #2563eb;
+  /* hover:border-primary */
+  background-color: rgba(37, 99, 235, 0.05);
+  /* hover:bg-primary/5 */
+  color: #2563eb;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN (Solo Móvil)
+   ========================================= */
+/* Bloque redundante eliminado para evitar conflictos en Tablet (768px) */
+
+/* ============================================
+   🔥 OPTIMIZACIONES PARA TABLET Y MÓVIL
+   ============================================ */
+
+/* Tablet (768px - 1024px) */
+@media (max-width: 1024px) {
+  .table-kardex thead th {
+    font-size: 0.85rem;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .quantity-input {
+    width: 90px;
+    font-size: 1.1rem;
+    min-height: 48px;
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+  }
+
+  .table-kardex tr {
+    height: 4rem;
+  }
+
+  .table-kardex td {
+    padding: 1rem 0.75rem;
+  }
+
+  .edit-button {
+    min-height: 44px;
+    padding: 0.625rem 1rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* ============================================
+   🔥 DISEÑO DE TARJETAS (CARDS) PARA MÓVIL
+   ============================================ */
+
+/* En pantallas pequeñas, transformamos la tabla en cartas */
+@media (max-width: 767px) {
+
+  /* Ocultar encabezados de tabla clásicos */
+  .table-kardex thead {
+    display: none !important;
+  }
+
+  /* Resetear display de tabla para convertirla en bloques */
+  .table-kardex,
+  .table-kardex tbody,
+  .table-kardex tr,
+  .table-kardex td {
+    display: block;
+    width: 100%;
+  }
+
+  /* El cuerpo de la tabla será el contenedor de las cartas */
+  .table-kardex tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    /* Espacio entre tarjetas */
+    padding: 0.5rem 0.25rem;
+    background: transparent;
+    /* El fondo lo da el contenedor padre o las cartas */
+  }
+
+  /* CADA FILA ES UNA TARJETA */
+  .table-kardex tr {
+    background: #ffffff !important;
+    border-radius: 12px;
+    /* Bordes muy redondeados */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #f1f5f9;
+    padding: 1rem;
+    position: relative;
+    display: flex !important;
+    /* Usar Flexbox para alinear items */
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    height: auto !important;
+    /* Altura automática según contenido */
+    margin-bottom: 0;
+  }
+
+  /* Estilo cuando se selecciona/toca - BORDE AZUL FINO */
+  .table-kardex tr:focus-within {
+    border: 1px solid #3b82f6 !important;
+    /* Borde fino de 1px */
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.15);
+    /* Sombra mínima */
+    transform: none;
+  }
+
+  /* --- CELDA 1: PRODUCTO (Izquierda - UNA SOLA LÍNEA GARANTIZADA) --- */
+  .table-kardex td:nth-child(1) {
+    /* Layout */
+    display: block !important;
+    /* Comportamiento de bloque estándar */
+    flex: 1;
+    /* Ocupar espacio restante */
+    width: auto !important;
+    max-width: 55vw;
+    /* Límite para forzar ellipsis en pantallas pequeñas */
+    margin-right: auto;
+
+    /* Reset de padding/border */
+    border: none;
+    padding: 0 !important;
+    padding-left: 0.75rem !important;
+
+    /* Alineación */
+    text-align: left;
+    align-self: center;
+    /* Centrado vertical por el padre flex (TR) */
+
+    /* Forzar UNA SOLA LÍNEA (CRÍTICO) */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    word-break: keep-all !important;
+    /* Prohibir romper palabras */
+
+    /* Tipografía ESTILO IMAGEN (Grande y Oscura) */
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+  }
+
+  /* --- CELDA 2: CANTIDAD (Derecha) --- */
+  .table-kardex td:nth-child(2) {
+    border: none;
+    padding: 0 !important;
+    width: 45% !important;
+    /* Input tiene espacio */
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  /* --- CELDA 3: ACCIONES (Ocultar) --- */
+  .table-kardex td:nth-child(3) {
+    display: none;
+  }
+
+  /* INPUT GIGANTE Y AMIGABLE - AZUL OSCURO */
+  .quantity-input {
+    width: 100% !important;
+    max-width: 100px;
+    /* Ancho contenido */
+    height: 44px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+    background: #f8fafc;
+    border: none;
+    border-radius: 8px;
+    color: #1e40af;
+    /* AZUL OSCURO (Blue 800) */
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .quantity-input:focus {
+    background: #ffffff;
+    border-color: #94a3b8;
+    /* Gris oscuro, NO azul */
+    outline: none;
+    /* Quitar outline nativo */
+    box-shadow: none;
+    /* Quitar sombras indeseadas */
+  }
+}
+
+/* ============================================
+   🔥 MEJORAS DE SCROLL PARA TOUCH DEVICES
+   ============================================ */
+
+/* Deshabilitar hover en dispositivos táctiles */
+@media (hover: none) and (pointer: coarse) {
+
+  /* Deshabilitar hover en filas para facilitar scroll */
+  .table-kardex tbody tr:hover {
+    background-color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  body:not(.hover-disabled) .table-kardex tbody tr:hover {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Permitir scroll fácil en toda la tabla */
+  .table-kardex {
+    touch-action: pan-y pan-x;
+  }
+
+  .table-kardex td {
+    touch-action: pan-y pan-x;
+  }
+
+  /* Más espacio entre filas para mejor scroll */
+  .table-kardex tr {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Área de scroll más grande en tablet/móvil */
+@media (max-width: 1024px) {
+  .table-container {
+    padding: 0 0.5rem 0.5rem 0.5rem;
+    /* 0 arriba para que el sticky pegue al borde real */
+  }
+
+  /* Asegurar que el padding del th móvil coincida con mi ajuste anterior y no sea sobreescrito */
+  .table-kardex thead th {
+    padding: 0 !important;
+    /* El padding lo manejo dentro con height y vertical-align */
+    height: 48px !important;
+  }
+}
+
+/* Ajuste específico móvil para el th - Corrección */
+@media (max-width: 767px) {
+  .table-kardex thead th {
+    padding: 0 !important;
+  }
+}
+
+/* Estilos para encabezados móviles (Producto/Cantidad) */
+@media (max-width: 767px) {
+  .mobile-headers {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background-color: #f8fafc;
+    /* Color de fondo sólido para tapar el scroll */
+    padding-top: 0.75rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0 !important;
+    display: flex;
+    /* Asegurar display flex */
+  }
+}
