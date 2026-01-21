@@ -36,7 +36,9 @@ from .views import (
     # 🔐 Autenticación
     auth_login, auth_recuperar_password, auth_cambiar_password,
     # 🧠 Configuración IA
-    ia_config, ia_retrain, ia_logs
+    ia_config, ia_retrain, ia_logs,
+    # 🆕 Exportar
+    exportar_clientes_excel
 )
 
 router = DefaultRouter()
@@ -154,5 +156,8 @@ urlpatterns = router.urls + [
     path('auth/login/', auth_login, name='auth-login'),
     path('auth/recuperar/', auth_recuperar_password, name='auth-recuperar'),
     path('auth/cambiar-password/', auth_cambiar_password, name='auth-cambiar-password'),
+    
+    # 📥 Exportar
+    path('clientes/exportar-excel/', exportar_clientes_excel, name='exportar-clientes-excel'),
 ]
 

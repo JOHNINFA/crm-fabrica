@@ -9,6 +9,7 @@ import os
 import base64
 import re
 import uuid
+import csv
 from api.services.ai_assistant_service import AIAssistant
 from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion, CargueResumen
 from .serializers import (
@@ -6645,4 +6646,68 @@ def ia_logs(request):
         logs.append({'time': config['lastTraining'].split('T')[1][:8], 'type': 'SUCCESS', 'message': 'Último re-entrenamiento exitoso'})
 
     return Response({'logs': logs, 'config': config})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def exportar_clientes_excel(request):
+    """
+    Genera un archivo CSV compatible con Excel con todos los clientes (Ruta y Pedidos).
+    """
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="clientes_backup_{timezone.now().strftime("%Y%m%d")}.csv"'
+    response.write(u'\ufeff'.encode('utf8')) # BOM para Excel
+
+    writer = csv.writer(response)
+    
+    # Encabezados
+    writer.writerow(['Origen', 'Nombre Negocio/Cliente', 'Contacto', 'Dirección', 'Teléfono', 'Ruta/Zona', 'Día Visita', 'Activo', 'Notas'])
+    
+    # 1. Clientes de Ruta
+    clientes_ruta = ClienteRuta.objects.all().order_by('ruta', 'orden')
+    for c in clientes_ruta:
+        ruta_nombre = c.ruta.nombre if c.ruta else 'Sin Ruta'
+        writer.writerow([
+            'Ruta',
+            c.nombre_negocio,
+            c.nombre_contacto or '',
+            c.direccion or '',
+            c.telefono or '',
+            ruta_nombre,
+            c.dia_visita,
+            'Si' if c.activo else 'No',
+            c.nota or ''
+        ])
+        
+    # 2. Clientes de Pedidos (Únicos por nombre y dirección)
+    pedidos = Pedido.objects.values(
+        'destinatario', 'telefono_contacto', 'direccion_entrega', 'zona_barrio', 'nota'
+    ).distinct()
+    
+    seen = set()
+    for p in pedidos:
+        nombre = p['destinatario']
+        direccion = p['direccion_entrega']
+        
+        if not nombre: continue
+        
+        # Normalizar para detectar duplicados
+        key = (nombre.lower().strip(), direccion.lower().strip() if direccion else '')
+        
+        if key not in seen:
+            seen.add(key)
+            writer.writerow([
+                'Pedido',
+                nombre,
+                '', # contacto
+                direccion or '',
+                p['telefono_contacto'] or '',
+                p['zona_barrio'] or '',
+                '', # dia visita
+                'Si', 
+                p['nota'] or ''
+            ])
+
+    return response
+
 

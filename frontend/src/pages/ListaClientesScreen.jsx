@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Form, InputGroup, Nav } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { clienteService } from '../services/clienteService';
+import { API_URL } from '../services/api';
 import usePageTitle from '../hooks/usePageTitle';
 import ChatIA from '../components/ChatIA/ChatIA';
 
@@ -112,6 +113,15 @@ const ListaClientesScreen = () => {
                 >
                   <i className="bi bi-robot me-2"></i>
                   Asistente
+                </Button>
+                <Button
+                  variant="outline-success"
+                  className="me-2"
+                  onClick={() => window.open(`${API_URL}/clientes/exportar-excel/`, '_blank')}
+                  title="Descargar listado completo de clientes"
+                >
+                  <i className="bi bi-file-earmark-excel me-2"></i>
+                  Excel
                 </Button>
                 <Button
                   variant="success"
