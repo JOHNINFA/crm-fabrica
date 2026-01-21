@@ -1,6 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Container, Row, Col, Card, Button, Table, Modal, Form, Badge, Alert } from 'react-bootstrap';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import rutasService from '../../services/rutasService';
+
+// Lista de días de la semana
+const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 
 const GestionRutas = () => {
     const [rutas, setRutas] = useState([]);
@@ -23,11 +27,15 @@ const GestionRutas = () => {
         direccion: '',
         telefono: '',
         tipo_negocio: '',
-        dia_visita: [],  // Ahora es un array para múltiples días
+        dia_visita: [],
         orden: 0,
-        nota: '' // 🆕 Campo Nota
+        nota: ''
     });
     const [editingCliente, setEditingCliente] = useState(null);
+
+    // 🆕 Día seleccionado para organizar
+    const [diaSeleccionado, setDiaSeleccionado] = useState(null); // null = todos, 'LUNES', 'MARTES', etc.
+    const [guardandoOrden, setGuardandoOrden] = useState(false);
 
     // Drag to scroll
     const scrollContainerRef = useRef(null);
@@ -71,13 +79,48 @@ const GestionRutas = () => {
         }
     };
 
-    const handleSelectRuta = async (ruta) => {
+    const handleSelectRuta = async (ruta, dia = diaSeleccionado) => {
         setSelectedRuta(ruta);
         try {
-            const clientesData = await rutasService.obtenerClientesRuta(ruta.id);
+            const clientesData = await rutasService.obtenerClientesRuta(ruta.id, dia);
             setClientes(clientesData);
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    // 🆕 Cambiar día seleccionado
+    const handleCambioDia = async (dia) => {
+        setDiaSeleccionado(dia);
+        if (selectedRuta) {
+            await handleSelectRuta(selectedRuta, dia);
+        }
+    };
+
+    // 🆕 Manejar drag & drop
+    const handleDragEnd = async (result) => {
+        if (!result.destination) return;
+        if (result.destination.index === result.source.index) return;
+
+        const items = Array.from(clientes);
+        const [reorderedItem] = items.splice(result.source.index, 1);
+        items.splice(result.destination.index, 0, reorderedItem);
+
+        // Actualizar UI inmediatamente
+        setClientes(items);
+
+        // Guardar en servidor
+        if (selectedRuta && diaSeleccionado) {
+            try {
+                setGuardandoOrden(true);
+                const clientesIds = items.map(c => c.id);
+                await rutasService.guardarOrdenClientes(selectedRuta.id, diaSeleccionado, clientesIds);
+                console.log('✅ Orden guardado para', diaSeleccionado);
+            } catch (err) {
+                console.error('Error guardando orden:', err);
+            } finally {
+                setGuardandoOrden(false);
+            }
         }
     };
 
@@ -281,57 +324,135 @@ const GestionRutas = () => {
                             <Card.Header style={{
                                 backgroundColor: 'white',
                                 borderBottom: '1px solid #e5e7eb',
-                                padding: '16px 24px',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
+                                padding: '16px 24px'
                             }}>
-                                <h2 style={{
-                                    marginBottom: 0,
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    color: '#111827',
-                                    fontFamily: "'Inter', sans-serif",
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                }}>
-                                    <span style={{ fontWeight: '400', fontSize: '1.125rem', color: '#0f3460' }}>Clientes de:</span>
-                                    {selectedRuta.nombre}
-                                </h2>
-                                <Button
-                                    variant="success"
-                                    size="sm"
-                                    onClick={() => {
-                                        setEditingCliente(null);
-                                        // Calcular el siguiente orden disponible (máximo + 1)
-                                        const maxOrden = clientes.length > 0
-                                            ? Math.max(...clientes.map(c => c.orden || 0))
-                                            : 0;
-                                        setClienteForm({
-                                            nombre_negocio: '', nombre_contacto: '', direccion: '', telefono: '', tipo_negocio: '',
-                                            dia_visita: [],
-                                            orden: maxOrden + 1
-                                        });
-                                        setShowClienteModal(true);
-                                    }}
-                                    style={{
-                                        backgroundColor: '#22c55e',
-                                        border: 'none',
-                                        fontWeight: '500',
-                                        padding: '8px 20px',
-                                        borderRadius: '6px',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                {/* Fila 1: Título y botones de acción */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h2 style={{
+                                        marginBottom: 0,
+                                        fontSize: '1.5rem',
+                                        fontWeight: 'bold',
+                                        color: '#111827',
+                                        fontFamily: "'Inter', sans-serif",
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '8px',
-                                        fontSize: '0.875rem',
-                                        fontFamily: "'Inter', sans-serif"
-                                    }}
-                                >
-                                    <span className="material-icons" style={{ fontSize: '1.125rem' }}>add_circle</span>
-                                    Agregar Cliente
-                                </Button>
+                                        gap: '8px'
+                                    }}>
+                                        <span style={{ fontWeight: '400', fontSize: '1.125rem', color: '#0f3460' }}>Clientes de:</span>
+                                        {selectedRuta.nombre}
+                                        {guardandoOrden && (
+                                            <span style={{ fontSize: '0.75rem', color: '#22c55e', marginLeft: '8px' }}>
+                                                💾 Guardando...
+                                            </span>
+                                        )}
+                                    </h2>
+
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        {/* 🆕 Botón Sincronizar (Recargar) */}
+                                        <Button
+                                            variant="light"
+                                            onClick={() => handleSelectRuta(selectedRuta, diaSeleccionado)}
+                                            title="Sincronizar datos (Recargar lista)"
+                                            style={{
+                                                backgroundColor: 'transparent',
+                                                border: 'none',
+                                                color: '#0284c7', // Azul brillante
+                                                padding: '8px',
+                                                borderRadius: '50%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0f2fe'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            <span className="material-icons" style={{ fontSize: '1.75rem' }}>sync</span>
+                                        </Button>
+
+                                        <Button
+                                            variant="success"
+                                            size="sm"
+                                            onClick={() => {
+                                                setEditingCliente(null);
+                                                const maxOrden = clientes.length > 0
+                                                    ? Math.max(...clientes.map(c => c.orden || 0))
+                                                    : 0;
+                                                setClienteForm({
+                                                    nombre_negocio: '', nombre_contacto: '', direccion: '', telefono: '', tipo_negocio: '',
+                                                    dia_visita: [],
+                                                    orden: maxOrden + 1
+                                                });
+                                                setShowClienteModal(true);
+                                            }}
+                                            style={{
+                                                backgroundColor: '#22c55e',
+                                                border: 'none',
+                                                fontWeight: '500',
+                                                padding: '8px 20px',
+                                                borderRadius: '6px',
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                fontSize: '0.875rem',
+                                                fontFamily: "'Inter', sans-serif"
+                                            }}
+                                        >
+                                            <span className="material-icons" style={{ fontSize: '1.125rem' }}>add_circle</span>
+                                            Agregar Cliente
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Fila 2: Selector de días */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: '500' }}>
+                                        📅 Organizar por día:
+                                    </span>
+                                    <Button
+                                        size="sm"
+                                        variant={diaSeleccionado === null ? 'primary' : 'outline-secondary'}
+                                        onClick={() => handleCambioDia(null)}
+                                        style={{
+                                            borderRadius: '20px',
+                                            padding: '4px 12px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: diaSeleccionado === null ? '600' : '400'
+                                        }}
+                                    >
+                                        TODOS
+                                    </Button>
+                                    {DIAS_SEMANA.map(dia => (
+                                        <Button
+                                            key={dia}
+                                            size="sm"
+                                            variant={diaSeleccionado === dia ? 'primary' : 'outline-secondary'}
+                                            onClick={() => handleCambioDia(dia)}
+                                            style={{
+                                                borderRadius: '20px',
+                                                padding: '4px 12px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: diaSeleccionado === dia ? '600' : '400'
+                                            }}
+                                        >
+                                            {dia.substring(0, 3)}
+                                        </Button>
+                                    ))}
+                                    {diaSeleccionado && (
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            color: '#0f3460',
+                                            backgroundColor: '#dbeafe',
+                                            padding: '4px 10px',
+                                            borderRadius: '20px',
+                                            fontWeight: '500'
+                                        }}>
+                                            ≡ Arrastra para reordenar
+                                        </span>
+                                    )}
+                                </div>
                             </Card.Header>
                             <Card.Body
                                 ref={scrollContainerRef}
@@ -346,285 +467,309 @@ const GestionRutas = () => {
                                     fontFamily: "'Inter', sans-serif"
                                 }}
                             >
-                                <Table hover size="sm" style={{ minWidth: '1200px', marginBottom: 0, borderCollapse: 'collapse' }}>
-                                    <thead style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 1 }}>
-                                        <tr>
-                                            <th style={{
-                                                width: '60px',
-                                                textAlign: 'center',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>#</th>
-                                            <th style={{
-                                                minWidth: '200px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Negocio</th>
-                                            <th style={{
-                                                minWidth: '150px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Contacto</th>
-                                            <th style={{
-                                                minWidth: '120px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Teléfono</th>
-                                            <th style={{
-                                                minWidth: '140px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Tipo Negocio</th>
-                                            <th style={{
-                                                textAlign: 'center',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Origen</th>
-                                            <th style={{
-                                                minWidth: '200px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Nota</th>
-                                            <th style={{
-                                                minWidth: '220px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Días Visita</th>
-                                            <th style={{
-                                                minWidth: '300px',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none'
-                                            }}>Dirección</th>
-                                            <th style={{
-                                                width: '80px',
-                                                textAlign: 'center',
-                                                padding: '16px',
-                                                fontWeight: '600',
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                border: 'none',
-                                                position: 'sticky',
-                                                right: 0,
-                                                backgroundColor: '#f9fafb',
-                                                boxShadow: '-2px 0 4px rgba(0,0,0,0.05)'
-                                            }}>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {clientes.map((cliente, index) => (
-                                            <tr
-                                                key={cliente.id}
-                                                style={{
-                                                    borderBottom: '1px solid #f3f4f6',
-                                                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9fafb',
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f9fafb'}
-                                            >
-                                                <td style={{
+                                <DragDropContext onDragEnd={handleDragEnd}>
+                                    <Table hover size="sm" style={{ minWidth: '1200px', marginBottom: 0, borderCollapse: 'collapse' }}>
+                                        <thead style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 1 }}>
+                                            <tr>
+                                                <th style={{
+                                                    width: '60px',
                                                     textAlign: 'center',
-                                                    fontWeight: 'bold',
-                                                    color: '#0f3460',
-                                                    fontSize: '0.875rem',
                                                     padding: '16px',
-                                                    border: 'none'
-                                                }}>
-                                                    {cliente.orden}
-                                                </td>
-                                                <td style={{
                                                     fontWeight: '600',
-                                                    fontSize: '0.875rem',
-                                                    padding: '16px',
-                                                    border: 'none',
-                                                    color: '#111827'
-                                                }}>{cliente.nombre_negocio}</td>
-                                                <td style={{
-                                                    fontSize: '0.875rem',
-                                                    padding: '16px',
-                                                    border: 'none',
-                                                    color: '#1f2937',
-                                                    fontWeight: '500'
-                                                }}>{cliente.nombre_contacto || '-'}</td>
-                                                <td style={{
-                                                    fontSize: '0.875rem',
-                                                    padding: '16px',
-                                                    border: 'none',
-                                                    color: '#1f2937',
-                                                    fontFamily: 'monospace',
-                                                    fontWeight: '500'
-                                                }}>{cliente.telefono || '-'}</td>
-                                                <td style={{ padding: '16px', border: 'none' }}>
-                                                    {cliente.tipo_negocio ? (
-                                                        <span style={{
-                                                            fontSize: '0.875rem',
-                                                            color: '#111827',
-                                                            fontWeight: '500'
-                                                        }}>
-                                                            {cliente.tipo_negocio.split('|')[0].trim().charAt(0).toUpperCase() + cliente.tipo_negocio.split('|')[0].trim().slice(1).toLowerCase()}
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ color: '#9ca3af', fontSize: '0.75rem', fontStyle: 'italic' }}>Sin especificar</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ textAlign: 'center', padding: '16px', border: 'none' }}>
-                                                    <span style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        padding: '2px 10px',
-                                                        borderRadius: '9999px',
-                                                        fontSize: '0.625rem',
-                                                        fontWeight: 'bold',
-                                                        backgroundColor: cliente.tipo_negocio?.includes('PEDIDOS') ? '#dbeafe' : '#e0f2fe',
-                                                        color: cliente.tipo_negocio?.includes('PEDIDOS') ? '#1e40af' : '#0369a1',
-                                                        border: `1px solid ${cliente.tipo_negocio?.includes('PEDIDOS') ? '#bfdbfe' : '#bae6fd'}`
-                                                    }}>
-                                                        {cliente.tipo_negocio?.includes('PEDIDOS') ? 'PEDIDOS' : 'RUTA'}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '16px', border: 'none' }}>
-                                                    {cliente.nota ? (
-                                                        <div style={{
-                                                            backgroundColor: '#fffbe6',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
-                                                            border: '1px solid #ffe58f',
-                                                            fontSize: '0.75rem',
-                                                            color: '#d48806',
-                                                            maxWidth: '200px',
-                                                            whiteSpace: 'normal'
-                                                        }}>
-                                                            {cliente.nota}
-                                                        </div>
-                                                    ) : (
-                                                        <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '16px', border: 'none' }}>
-                                                    {cliente.dia_visita ? (
-                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                                            {cliente.dia_visita.split(',').map((dia, idx, arr) => (
-                                                                <span
-                                                                    key={idx}
-                                                                    style={{
-                                                                        fontSize: '0.875rem',
-                                                                        color: '#06386D',
-                                                                        fontWeight: '500'
-                                                                    }}
-                                                                >
-                                                                    {dia.trim().charAt(0).toUpperCase() + dia.trim().slice(1).toLowerCase()}{idx < arr.length - 1 ? ', ' : ''}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <span style={{
-                                                            fontSize: '0.75rem',
-                                                            color: '#9ca3af',
-                                                            fontStyle: 'italic'
-                                                        }}>Sin asignar</span>
-                                                    )}
-                                                </td>
-                                                <td style={{
-                                                    fontSize: '0.875rem',
-                                                    color: '#111827',
-                                                    fontWeight: '500',
-                                                    padding: '16px',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
                                                     border: 'none'
-                                                }}>
-                                                    {cliente.direccion || '-'}
-                                                </td>
-                                                <td style={{
-                                                    textAlign: 'center',
-                                                    whiteSpace: 'nowrap',
+                                                }}>#</th>
+                                                <th style={{
+                                                    minWidth: '200px',
                                                     padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Negocio</th>
+                                                <th style={{
+                                                    minWidth: '150px',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Contacto</th>
+                                                <th style={{
+                                                    minWidth: '120px',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Teléfono</th>
+                                                <th style={{
+                                                    minWidth: '140px',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Tipo Negocio</th>
+                                                <th style={{
+                                                    textAlign: 'center',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Origen</th>
+                                                <th style={{
+                                                    minWidth: '200px',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Nota</th>
+                                                <th style={{
+                                                    minWidth: '220px',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Días Visita</th>
+                                                <th style={{
+                                                    minWidth: '300px',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    border: 'none'
+                                                }}>Dirección</th>
+                                                <th style={{
+                                                    width: '80px',
+                                                    textAlign: 'center',
+                                                    padding: '16px',
+                                                    fontWeight: '600',
+                                                    fontSize: '0.75rem',
+                                                    color: '#6b7280',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
                                                     border: 'none',
                                                     position: 'sticky',
                                                     right: 0,
-                                                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9fafb',
+                                                    backgroundColor: '#f9fafb',
                                                     boxShadow: '-2px 0 4px rgba(0,0,0,0.05)'
-                                                }}>
-                                                    <Button
-                                                        variant="link"
-                                                        size="sm"
-                                                        className="p-0 me-2"
-                                                        style={{ fontSize: '1.2rem', textDecoration: 'none' }}
-                                                        onClick={() => {
-                                                            setEditingCliente(cliente);
-                                                            // Convertir string de días a array para edición
-                                                            const diasArray = cliente.dia_visita ? cliente.dia_visita.split(',') : [];
-                                                            setClienteForm({
-                                                                ...cliente,
-                                                                dia_visita: diasArray
-                                                            });
-                                                            setShowClienteModal(true);
-                                                        }}
-                                                    >
-                                                        ✏️
-                                                    </Button>
-                                                    <Button
-                                                        variant="link"
-                                                        size="sm"
-                                                        className="p-0"
-                                                        style={{ fontSize: '1.2rem', textDecoration: 'none' }}
-                                                        onClick={() => handleDeleteCliente(cliente.id)}
-                                                    >
-                                                        🗑️
-                                                    </Button>
-                                                </td>
+                                                }}>Acciones</th>
                                             </tr>
-                                        ))}
-                                        {clientes.length === 0 && (
-                                            <tr><td colSpan="9" className="text-center text-muted py-4" style={{ border: 'none' }}>No hay clientes en esta ruta</td></tr>
-                                        )}
-                                    </tbody>
-                                </Table>
+                                        </thead>
+                                        <Droppable droppableId="clientes-list">
+                                            {(provided) => (
+                                                <tbody ref={provided.innerRef} {...provided.droppableProps}>
+                                                    {clientes.map((cliente, index) => (
+                                                        <Draggable
+                                                            key={cliente.id}
+                                                            draggableId={String(cliente.id)}
+                                                            index={index}
+                                                            isDragDisabled={!diaSeleccionado}
+                                                        >
+                                                            {(provided, snapshot) => (
+                                                                <tr
+                                                                    ref={provided.innerRef}
+                                                                    {...provided.draggableProps}
+                                                                    style={{
+                                                                        ...provided.draggableProps.style,
+                                                                        borderBottom: '1px solid #f3f4f6',
+                                                                        backgroundColor: snapshot.isDragging ? '#dbeafe' : (index % 2 === 0 ? '#ffffff' : '#f9fafb'),
+                                                                        transition: 'background-color 0.2s',
+                                                                        boxShadow: snapshot.isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+                                                                    }}
+                                                                >
+                                                                    <td style={{
+                                                                        textAlign: 'center',
+                                                                        fontWeight: 'bold',
+                                                                        color: '#0f3460',
+                                                                        fontSize: '0.875rem',
+                                                                        padding: '16px',
+                                                                        border: 'none',
+                                                                        cursor: diaSeleccionado ? 'grab' : 'default'
+                                                                    }} {...provided.dragHandleProps}>
+                                                                        {diaSeleccionado ? (
+                                                                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                                                                <span style={{ color: '#9ca3af', fontSize: '1.2rem' }}>≡</span>
+                                                                                {index + 1}
+                                                                            </span>
+                                                                        ) : (
+                                                                            cliente.orden
+                                                                        )}
+                                                                    </td>
+                                                                    <td style={{
+                                                                        fontWeight: '600',
+                                                                        fontSize: '0.875rem',
+                                                                        padding: '16px',
+                                                                        border: 'none',
+                                                                        color: '#111827'
+                                                                    }}>{cliente.nombre_negocio}</td>
+                                                                    <td style={{
+                                                                        fontSize: '0.875rem',
+                                                                        padding: '16px',
+                                                                        border: 'none',
+                                                                        color: '#1f2937',
+                                                                        fontWeight: '500'
+                                                                    }}>{cliente.nombre_contacto || '-'}</td>
+                                                                    <td style={{
+                                                                        fontSize: '0.875rem',
+                                                                        padding: '16px',
+                                                                        border: 'none',
+                                                                        color: '#1f2937',
+                                                                        fontFamily: 'monospace',
+                                                                        fontWeight: '500'
+                                                                    }}>{cliente.telefono || '-'}</td>
+                                                                    <td style={{ padding: '16px', border: 'none' }}>
+                                                                        {cliente.tipo_negocio ? (
+                                                                            <span style={{
+                                                                                fontSize: '0.875rem',
+                                                                                color: '#111827',
+                                                                                fontWeight: '500'
+                                                                            }}>
+                                                                                {cliente.tipo_negocio.split('|')[0].trim().charAt(0).toUpperCase() + cliente.tipo_negocio.split('|')[0].trim().slice(1).toLowerCase()}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span style={{ color: '#9ca3af', fontSize: '0.75rem', fontStyle: 'italic' }}>Sin especificar</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', padding: '16px', border: 'none' }}>
+                                                                        <span style={{
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            padding: '2px 10px',
+                                                                            borderRadius: '9999px',
+                                                                            fontSize: '0.625rem',
+                                                                            fontWeight: 'bold',
+                                                                            backgroundColor: cliente.tipo_negocio?.includes('PEDIDOS') ? '#dbeafe' : '#e0f2fe',
+                                                                            color: cliente.tipo_negocio?.includes('PEDIDOS') ? '#1e40af' : '#0369a1',
+                                                                            border: `1px solid ${cliente.tipo_negocio?.includes('PEDIDOS') ? '#bfdbfe' : '#bae6fd'}`
+                                                                        }}>
+                                                                            {cliente.tipo_negocio?.includes('PEDIDOS') ? 'PEDIDOS' : 'RUTA'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={{ padding: '16px', border: 'none' }}>
+                                                                        {cliente.nota ? (
+                                                                            <div style={{
+                                                                                backgroundColor: '#fffbe6',
+                                                                                padding: '4px 8px',
+                                                                                borderRadius: '4px',
+                                                                                border: '1px solid #ffe58f',
+                                                                                fontSize: '0.75rem',
+                                                                                color: '#d48806',
+                                                                                maxWidth: '200px',
+                                                                                whiteSpace: 'normal'
+                                                                            }}>
+                                                                                {cliente.nota}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td style={{ padding: '16px', border: 'none' }}>
+                                                                        {cliente.dia_visita ? (
+                                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                                                {cliente.dia_visita.split(',').map((dia, idx, arr) => (
+                                                                                    <span
+                                                                                        key={idx}
+                                                                                        style={{
+                                                                                            fontSize: '0.875rem',
+                                                                                            color: '#06386D',
+                                                                                            fontWeight: '500'
+                                                                                        }}
+                                                                                    >
+                                                                                        {dia.trim().charAt(0).toUpperCase() + dia.trim().slice(1).toLowerCase()}{idx < arr.length - 1 ? ', ' : ''}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span style={{
+                                                                                fontSize: '0.75rem',
+                                                                                color: '#9ca3af',
+                                                                                fontStyle: 'italic'
+                                                                            }}>Sin asignar</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td style={{
+                                                                        fontSize: '0.875rem',
+                                                                        color: '#111827',
+                                                                        fontWeight: '500',
+                                                                        padding: '16px',
+                                                                        border: 'none'
+                                                                    }}>
+                                                                        {cliente.direccion || '-'}
+                                                                    </td>
+                                                                    <td style={{
+                                                                        textAlign: 'center',
+                                                                        whiteSpace: 'nowrap',
+                                                                        padding: '16px',
+                                                                        border: 'none',
+                                                                        position: 'sticky',
+                                                                        right: 0,
+                                                                        backgroundColor: snapshot.isDragging ? '#dbeafe' : (index % 2 === 0 ? '#ffffff' : '#f9fafb'),
+                                                                        boxShadow: '-2px 0 4px rgba(0,0,0,0.05)'
+                                                                    }}>
+                                                                        <Button
+                                                                            variant="link"
+                                                                            size="sm"
+                                                                            className="p-0 me-2"
+                                                                            style={{ fontSize: '1.2rem', textDecoration: 'none' }}
+                                                                            onClick={() => {
+                                                                                setEditingCliente(cliente);
+                                                                                const diasArray = cliente.dia_visita ? cliente.dia_visita.split(',') : [];
+                                                                                setClienteForm({
+                                                                                    ...cliente,
+                                                                                    dia_visita: diasArray
+                                                                                });
+                                                                                setShowClienteModal(true);
+                                                                            }}
+                                                                        >
+                                                                            ✏️
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="link"
+                                                                            size="sm"
+                                                                            className="p-0"
+                                                                            style={{ fontSize: '1.2rem', textDecoration: 'none' }}
+                                                                            onClick={() => handleDeleteCliente(cliente.id)}
+                                                                        >
+                                                                            🗑️
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </Draggable>
+                                                    ))}
+                                                    {provided.placeholder}
+                                                    {clientes.length === 0 && (
+                                                        <tr><td colSpan="10" className="text-center text-muted py-4" style={{ border: 'none' }}>No hay clientes en esta ruta</td></tr>
+                                                    )}
+                                                </tbody>
+                                            )}
+                                        </Droppable>
+                                    </Table>
+                                </DragDropContext>
                             </Card.Body>
                             <Card.Footer className="d-flex justify-content-between align-items-center" style={{ backgroundColor: '#f9fafb', borderTop: '1px solid #e5e7eb', padding: '16px 24px' }}>
                                 <span style={{ fontSize: '0.75rem', color: '#6b7280', fontFamily: "'Inter', sans-serif" }}>

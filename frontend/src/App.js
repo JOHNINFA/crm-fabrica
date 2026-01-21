@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import './App.css';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { UsuariosProvider } from './context/UsuariosContext';
 import { UnifiedProductProvider } from './context/UnifiedProductContext';
 
+import LoginScreen from './pages/LoginScreen';
 import MainMenu from './pages/MainMenu';
 import PosScreen from './pages/PosScreen';
 import PedidosScreen from './pages/PedidosScreen';
@@ -35,7 +37,35 @@ import TrazabilidadScreen from './pages/TrazabilidadScreen';
 import PreciosCargueScreen from './pages/PreciosCargueScreen';
 import ReporteTransferenciasScreen from './pages/ReporteTransferenciasScreen';
 
-// Componente para manejar la redirección a POS
+// Componente para proteger rutas
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: '#f8f9fa'
+      }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
+// Componente para manejar la redirección a POS (Electron)
 function PosRedirect() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,58 +81,200 @@ function PosRedirect() {
   return null;
 }
 
+// Rutas de la aplicación (separadas para usar dentro de AuthProvider)
+function AppRoutes() {
+  return (
+    <>
+      <PosRedirect />
+      <div className="App">
+        <Routes>
+          {/* Ruta de Login (pública) */}
+          <Route path="/login" element={<LoginScreen />} />
+
+          {/* Rutas SIEMPRE accesibles (web y Electron) - Protegidas */}
+          <Route path="/pos" element={
+            <ProtectedRoute>
+              <PosScreen />
+            </ProtectedRoute>
+          } />
+          <Route path="/configuracion/impresion" element={
+            <ProtectedRoute>
+              <ConfiguracionImpresionScreen />
+            </ProtectedRoute>
+          } />
+
+          {/* Rutas solo accesibles en modo web (NO en POS_ONLY) */}
+          {!window.POS_ONLY_MODE && (
+            <>
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <MainMenu />
+                </ProtectedRoute>
+              } />
+              <Route path="/productos" element={
+                <ProtectedRoute>
+                  <ProductFormScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/remisiones" element={
+                <ProtectedRoute>
+                  <PedidosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/pedidos" element={
+                <ProtectedRoute>
+                  <SelectorDiasPedidosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/pedidos/:dia" element={
+                <ProtectedRoute>
+                  <PedidosDiaScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario" element={
+                <ProtectedRoute>
+                  <InventarioScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/cargue" element={
+                <ProtectedRoute>
+                  <SelectorDia />
+                </ProtectedRoute>
+              } />
+              <Route path="/cargue/:dia" element={
+                <ProtectedRoute>
+                  <MenuSheets />
+                </ProtectedRoute>
+              } />
+              <Route path="/informes/general" element={
+                <ProtectedRoute>
+                  <InformeVentasGeneral />
+                </ProtectedRoute>
+              } />
+              <Route path="/informes/transferencias" element={
+                <ProtectedRoute>
+                  <ReporteTransferenciasScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/informes/pedidos" element={
+                <ProtectedRoute>
+                  <InformePedidosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes" element={
+                <ProtectedRoute>
+                  <ListaClientesScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes/nuevo" element={
+                <ProtectedRoute>
+                  <ClientesScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes/editar/:id" element={
+                <ProtectedRoute>
+                  <ClientesScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes/ver/:id" element={
+                <ProtectedRoute>
+                  <ClientesScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/lista-precios" element={
+                <ProtectedRoute>
+                  <MaestroListaPreciosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/crear-lista-precios" element={
+                <ProtectedRoute>
+                  <ListaPreciosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/editar-lista-precios/:id" element={
+                <ProtectedRoute>
+                  <ListaPreciosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/informe-lista-precios" element={
+                <ProtectedRoute>
+                  <InformeListaPreciosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/vendedores" element={
+                <ProtectedRoute>
+                  <VendedoresScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/domiciliarios" element={
+                <ProtectedRoute>
+                  <DomiciliariosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/caja" element={
+                <ProtectedRoute>
+                  <CajaScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/cajero" element={
+                <ProtectedRoute>
+                  <CajeroScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/sucursales" element={
+                <ProtectedRoute>
+                  <SucursalesScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/cajeros" element={
+                <ProtectedRoute>
+                  <CajerosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/otros" element={
+                <ProtectedRoute>
+                  <OtrosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/configuracion" element={
+                <ProtectedRoute>
+                  <ConfiguracionScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/reportes-avanzados" element={
+                <ProtectedRoute>
+                  <ReportesAvanzadosScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/trazabilidad" element={
+                <ProtectedRoute>
+                  <TrazabilidadScreen />
+                </ProtectedRoute>
+              } />
+              <Route path="/precios-cargue" element={
+                <ProtectedRoute>
+                  <PreciosCargueScreen />
+                </ProtectedRoute>
+              } />
+            </>
+          )}
+        </Routes>
+      </div>
+    </>
+  );
+}
+
 function App() {
   return (
-    <UsuariosProvider>
-      <UnifiedProductProvider>
-        <Router>
-          <PosRedirect />
-          <div className="App">
-            <Routes>
-              {/* Rutas SIEMPRE accesibles (web y Electron) */}
-              <Route path="/pos" element={<PosScreen />} />
-              <Route path="/configuracion/impresion" element={<ConfiguracionImpresionScreen />} />
-
-              {/* Rutas solo accesibles en modo web (NO en POS_ONLY) */}
-              {!window.POS_ONLY_MODE && (
-                <>
-                  <Route path="/" element={<MainMenu />} />
-                  <Route path="/productos" element={<ProductFormScreen />} />
-                  <Route path="/remisiones" element={<PedidosScreen />} />
-                  <Route path="/pedidos" element={<SelectorDiasPedidosScreen />} />
-                  <Route path="/pedidos/:dia" element={<PedidosDiaScreen />} />
-                  <Route path="/inventario" element={<InventarioScreen />} />
-                  <Route path="/cargue" element={<SelectorDia />} />
-                  <Route path="/cargue/:dia" element={<MenuSheets />} />
-                  <Route path="/informes/general" element={<InformeVentasGeneral />} />
-                  <Route path="/informes/transferencias" element={<ReporteTransferenciasScreen />} />
-                  <Route path="/informes/pedidos" element={<InformePedidosScreen />} />
-                  <Route path="/clientes" element={<ListaClientesScreen />} />
-                  <Route path="/clientes/nuevo" element={<ClientesScreen />} />
-                  <Route path="/clientes/editar/:id" element={<ClientesScreen />} />
-                  <Route path="/clientes/ver/:id" element={<ClientesScreen />} />
-                  <Route path="/lista-precios" element={<MaestroListaPreciosScreen />} />
-                  <Route path="/crear-lista-precios" element={<ListaPreciosScreen />} />
-                  <Route path="/editar-lista-precios/:id" element={<ListaPreciosScreen />} />
-                  <Route path="/informe-lista-precios" element={<InformeListaPreciosScreen />} />
-                  <Route path="/vendedores" element={<VendedoresScreen />} />
-                  <Route path="/domiciliarios" element={<DomiciliariosScreen />} />
-                  <Route path="/caja" element={<CajaScreen />} />
-                  <Route path="/cajero" element={<CajeroScreen />} />
-                  <Route path="/sucursales" element={<SucursalesScreen />} />
-                  <Route path="/cajeros" element={<CajerosScreen />} />
-                  <Route path="/otros" element={<OtrosScreen />} />
-                  <Route path="/configuracion" element={<ConfiguracionScreen />} />
-                  <Route path="/reportes-avanzados" element={<ReportesAvanzadosScreen />} />
-                  <Route path="/trazabilidad" element={<TrazabilidadScreen />} />
-                  <Route path="/precios-cargue" element={<PreciosCargueScreen />} />
-                </>
-              )}
-            </Routes>
-          </div>
-        </Router>
-      </UnifiedProductProvider>
-    </UsuariosProvider >
+    <AuthProvider>
+      <UsuariosProvider>
+        <UnifiedProductProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </UnifiedProductProvider>
+      </UsuariosProvider>
+    </AuthProvider>
   );
 }
 

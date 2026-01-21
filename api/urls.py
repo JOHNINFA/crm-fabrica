@@ -14,7 +14,8 @@ from .views import (
     RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
     RegistrosPlaneacionDiaViewSet,
     CarguePagosViewSet, RutaOrdenViewSet, ReportePlaneacionViewSet,
-    obtener_estado_cargue, actualizar_estado_cargue,  # 🆕 Estado de cargue
+    obtener_estado_cargue, actualizar_estado_cargue,
+    CargueResumenViewSet,
     # 🆕 Endpoints de turno
     verificar_turno_activo, abrir_turno, cerrar_turno_estado,
     # 🆕 Configuración de producción
@@ -28,8 +29,14 @@ from .views import (
     reportes_pedidos_ruta, reportes_ventas_pos,
     # 📈 Dashboard Ejecutivo
     dashboard_ejecutivo,
+    # 📷 Evidencias de Pedidos
+    subir_evidencia_pedido, obtener_evidencias_pedido,
     # 🧪 Test
-    test_dashboard_data
+    test_dashboard_data,
+    # 🔐 Autenticación
+    auth_login, auth_recuperar_password, auth_cambiar_password,
+    # 🧠 Configuración IA
+    ia_config, ia_retrain, ia_logs
 )
 
 router = DefaultRouter()
@@ -54,6 +61,7 @@ router.register(r'cargue-id4', CargueID4ViewSet, basename='cargue-id4')
 router.register(r'cargue-id5', CargueID5ViewSet, basename='cargue-id5')
 router.register(r'cargue-id6', CargueID6ViewSet, basename='cargue-id6')
 router.register(r'cargue-pagos', CarguePagosViewSet, basename='cargue-pagos')  # 🆕 Pagos de cargue
+router.register(r'cargue-resumen', CargueResumenViewSet, basename='cargue-resumen')  # 🆕 Resumen y Estado
 
 # Domiciliarios
 router.register(r'domiciliarios', DomiciliarioViewSet, basename='domiciliarios')
@@ -120,7 +128,10 @@ urlpatterns = router.urls + [
     path('ai/chat/', ai_chat, name='ai-chat'),
     path('ai/analyze/', ai_analyze_data, name='ai-analyze'),
     path('ai/health/', ai_health, name='ai-health'),
-    path('ai/agent/', ai_agent_command, name='ai-agent'),  # Agente con herramientas
+    path('ai/agent/', ai_agent_command, name='ai-agent'),
+    path('ia/config/', ia_config, name='ia-config'),
+    path('ia/retrain/', ia_retrain, name='ia-retrain'),
+    path('ia/logs/', ia_logs, name='ia-logs'),
     
     # 📊 Reportes Avanzados
     path('reportes/vendedores/', reportes_vendedores, name='reportes-vendedores'),
@@ -132,7 +143,16 @@ urlpatterns = router.urls + [
     # 📈 Dashboard Ejecutivo
     path('dashboard-ejecutivo/', dashboard_ejecutivo, name='dashboard-ejecutivo'),
     
+    # 📷 Evidencias de Pedidos
+    path('evidencia-pedido/', subir_evidencia_pedido, name='subir-evidencia-pedido'),
+    path('evidencia-pedido/<str:pedido_id>/', obtener_evidencias_pedido, name='obtener-evidencias-pedido'),
+    
     # 🧪 Test  
     path('test-dashboard-data/', test_dashboard_data, name='test-dashboard-data'),
+    
+    # 🔐 Autenticación
+    path('auth/login/', auth_login, name='auth-login'),
+    path('auth/recuperar/', auth_recuperar_password, name='auth-recuperar'),
+    path('auth/cambiar-password/', auth_cambiar_password, name='auth-cambiar-password'),
 ]
 

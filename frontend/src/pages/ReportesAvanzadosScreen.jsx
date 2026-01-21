@@ -7,7 +7,6 @@ import ReporteVendedores from './ReportesAvanzados/ReporteVendedores';
 import ReporteEfectividadVendedores from './ReportesAvanzados/ReporteEfectividadVendedores';
 import ReporteAnalisisProductos from './ReportesAvanzados/ReporteAnalisisProductos';
 import ReportePedidosRuta from './ReportesAvanzados/ReportePedidosRuta';
-import DashboardEjecutivo from './ReportesAvanzados/DashboardEjecutivo';
 import ReporteVentasPOS from './ReportesAvanzados/ReporteVentasPOS';
 
 // Orden de productos según Cargue
@@ -286,16 +285,7 @@ const ReportesAvanzadosScreen = () => {
                             </div>
                         </Col>
 
-                        {/* Dashboard Ejecutivo */}
-                        <Col md={6} lg={4}>
-                            <div className="reporte-card" onClick={() => setVistaActual('dashboard-ejecutivo')} style={{ cursor: 'pointer' }}>
-                                <div className="reporte-card-icon">
-                                    <i className="bi bi-graph-up-arrow" style={{ fontSize: '2.5rem', color: '#667eea' }}></i>
-                                </div>
-                                <h5 className="mt-3 mb-2">📊 Dashboard Ejecutivo</h5>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Ventas desde App Móvil</p>
-                            </div>
-                        </Col>
+
 
                         {/* Pedidos por Ruta */}
                         <Col md={6} lg={4}>
@@ -357,10 +347,7 @@ const ReportesAvanzadosScreen = () => {
         );
     }
 
-    // ⭐ Vista: Dashboard Ejecutivo
-    if (vistaActual === 'dashboard-ejecutivo') {
-        return <DashboardEjecutivo onVolver={() => setVistaActual('menu')} />;
-    }
+
 
     // 🆕 Vista: Reportes de Vendedores
     if (vistaActual === 'reportes-vendedores') {

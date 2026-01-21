@@ -211,10 +211,12 @@ const ReporteVendedores = ({ onVolver }) => {
                                 <Table hover className="table-modern">
                                     <thead>
                                         <tr>
-                                            <th className="text-center" style={{ width: '60px' }}>#</th>
+                                            <th className="text-center" style={{ width: '50px' }}>#</th>
                                             <th>Vendedor</th>
-                                            <th className="text-center">Ventas</th>
-                                            <th className="text-end">Monto</th>
+                                            <th className="text-center">Días</th>
+                                            <th className="text-end text-muted">Ruta</th>
+                                            <th className="text-end text-muted">Pedidos</th>
+                                            <th className="text-end text-primary">Total Venta</th>
                                             <th className="text-center">Vencidas</th>
                                             <th className="text-center">Devoluc.</th>
                                             <th className="text-center">Efectividad</th>
@@ -234,12 +236,18 @@ const ReporteVendedores = ({ onVolver }) => {
                                                     </div>
                                                 </td>
                                                 <td className="text-center">
-                                                    <span className="badge-pill bg-primary">
+                                                    <span className="badge-pill bg-light text-dark border">
                                                         {vendedor.ventas_totales || 0}
                                                     </span>
                                                 </td>
+                                                <td className="text-end text-muted">
+                                                    ${(vendedor.monto_ruta || 0).toLocaleString()}
+                                                </td>
+                                                <td className="text-end text-muted">
+                                                    ${(vendedor.monto_pedidos || 0).toLocaleString()}
+                                                </td>
                                                 <td className="text-end">
-                                                    <strong>${(vendedor.monto || 0).toLocaleString()}</strong>
+                                                    <strong className="text-primary">${(vendedor.monto || 0).toLocaleString()}</strong>
                                                 </td>
                                                 <td className="text-center">
                                                     <span className="badge-pill bg-warning">

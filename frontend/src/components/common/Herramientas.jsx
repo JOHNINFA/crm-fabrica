@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Alert, Form, Spinner } from 'react-bootstrap';
+import { Card, Button, Alert, Form, Spinner, Modal } from 'react-bootstrap';
 import { cargueApiConfig } from '../../services/cargueApiService';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
@@ -8,6 +8,10 @@ const Herramientas = () => {
     const [apiEnabled, setApiEnabled] = useState(cargueApiConfig.USAR_API);
     const [message, setMessage] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // Estado para Modal de Reset Completo
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [resetInput, setResetInput] = useState('');
 
     const toggleApi = () => {
         if (apiEnabled) {
@@ -101,8 +105,10 @@ const Herramientas = () => {
             'Para confirmar, escribe: ELIMINAR VENTAS'
         );
 
-        if (confirmText !== 'ELIMINAR VENTAS') {
-            setMessage({ type: 'warning', text: 'Operación cancelada' });
+        if (confirmText && confirmText.trim().toUpperCase() !== 'ELIMINAR VENTAS') {
+            alert('❌ Código incorrecto. Operación cancelada.');
+            return;
+        } else if (!confirmText) {
             return;
         }
 
@@ -112,8 +118,11 @@ const Herramientas = () => {
         try {
             const response = await fetch(`${API_URL}/ventas-ruta/`);
             if (response.ok) {
-                const ventas = await response.json();
+                const data = await response.json();
+                const ventas = Array.isArray(data) ? data : (data.results || []);
                 let eliminadas = 0;
+
+                console.log(`🧹 Eliminando ${ventas.length} ventas de ruta`);
 
                 for (const venta of ventas) {
                     try {
@@ -147,8 +156,10 @@ const Herramientas = () => {
             'Para confirmar, escribe: ELIMINAR PEDIDOS'
         );
 
-        if (confirmText !== 'ELIMINAR PEDIDOS') {
-            setMessage({ type: 'warning', text: 'Operación cancelada' });
+        if (confirmText && confirmText.trim().toUpperCase() !== 'ELIMINAR PEDIDOS') {
+            alert('❌ Código incorrecto. Operación cancelada.');
+            return;
+        } else if (!confirmText) {
             return;
         }
 
@@ -193,8 +204,10 @@ const Herramientas = () => {
             'Para confirmar, escribe: RESETEAR STOCK'
         );
 
-        if (confirmText !== 'RESETEAR STOCK') {
-            setMessage({ type: 'warning', text: 'Operación cancelada' });
+        if (confirmText && confirmText.trim().toUpperCase() !== 'RESETEAR STOCK') {
+            alert('❌ Código incorrecto. Operación cancelada.');
+            return;
+        } else if (!confirmText) {
             return;
         }
 
@@ -246,8 +259,10 @@ const Herramientas = () => {
             'Para confirmar, escribe: ELIMINAR LOTES'
         );
 
-        if (confirmText !== 'ELIMINAR LOTES') {
-            setMessage({ type: 'warning', text: 'Operación cancelada' });
+        if (confirmText && confirmText.trim().toUpperCase() !== 'ELIMINAR LOTES') {
+            alert('❌ Código incorrecto. Operación cancelada.');
+            return;
+        } else if (!confirmText) {
             return;
         }
 
@@ -284,37 +299,38 @@ const Herramientas = () => {
         }
     };
 
-    // 🆕 NUEVA FUNCIÓN: Limpieza Total de Transacciones (mantiene maestros)
-    const limpiarTodasTransacciones = async () => {
-        const confirmText = window.prompt(
-            '⚠️ PELIGRO MÁXIMO: Esto eliminará TODAS las transacciones:\n\n' +
-            '- Cargues\n' +
-            '- Ventas de Ruta\n' +
-            '- Pedidos\n' +
-            '- Lotes\n' +
-            '- Stock → 0\n\n' +
-            'NO se eliminarán: Productos, Clientes, Vendedores, Usuarios\n\n' +
-            'Para confirmar, escribe: RESET COMPLETO'
-        );
-
-        if (confirmText !== 'RESET COMPLETO') {
-            setMessage({ type: 'warning', text: 'Operación cancelada' });
+    // 🆕 Lógica del Reset Completo (Ejecutada desde el Modal)
+    const procesarResetCompleto = async () => {
+        if (resetInput.trim().toUpperCase() !== 'RESET COMPLETO') {
+            alert('❌ Código incorrecto. Debes escribir "RESET COMPLETO"');
             return;
         }
 
+        setShowResetModal(false);
+        setResetInput('');
         setLoading(true);
 
         try {
             let totalEliminado = 0;
 
             // 1. Limpiar Cargues
-            setMessage({ type: 'info', text: '1/5: Limpiando cargues...' });
-            const tablasALimpiar = ['cargue-id1', 'cargue-id2', 'cargue-id3', 'cargue-id4', 'cargue-id5', 'cargue-id6'];
+            setMessage({ type: 'info', text: '1/6: Limpiando cargues...' });
+            const tablasALimpiar = [
+                'cargue-id1', 'cargue-id2', 'cargue-id3', 'cargue-id4', 'cargue-id5', 'cargue-id6',
+                'cargue-pagos',    // 🆕 Pagos
+                'cargue-resumen',   // 🆕 Resúmenes y Estados
+                'turnos'           // 🆕 Turnos de vendedores
+            ];
             for (const tabla of tablasALimpiar) {
                 try {
                     const getResponse = await fetch(`${API_URL}/${tabla}/`);
                     if (getResponse.ok) {
-                        const registros = await getResponse.json();
+                        const data = await getResponse.json();
+                        // 🆕 Soportar paginación (DRF usa .results par listas paginadas)
+                        const registros = Array.isArray(data) ? data : (data.results || []);
+
+                        console.log(`🧹 Limpiando ${registros.length} registros de ${tabla}`);
+
                         for (const registro of registros) {
                             await fetch(`${API_URL}/${tabla}/${registro.id}/`, { method: 'DELETE' });
                             totalEliminado++;
@@ -329,7 +345,8 @@ const Herramientas = () => {
             setMessage({ type: 'info', text: '2/5: Limpiando ventas...' });
             const ventasResp = await fetch(`${API_URL}/ventas-ruta/`);
             if (ventasResp.ok) {
-                const ventas = await ventasResp.json();
+                const data = await ventasResp.json();
+                const ventas = Array.isArray(data) ? data : (data.results || []);
                 for (const venta of ventas) {
                     try {
                         await fetch(`${API_URL}/ventas-ruta/${venta.id}/`, { method: 'DELETE' });
@@ -365,7 +382,7 @@ const Herramientas = () => {
             }
 
             // 5. Resetear Stock a 0
-            setMessage({ type: 'info', text: '5/5: Reseteando stock a 0...' });
+            setMessage({ type: 'info', text: '5/6: Reseteando stock a 0...' });
             const stocksResp = await fetch(`${API_URL}/stocks/`);
             if (stocksResp.ok) {
                 const stocks = await stocksResp.json();
@@ -380,6 +397,23 @@ const Herramientas = () => {
                     } catch (err) { }
                 }
             }
+
+            // 6. Limpiar estados de botones (LocalStorage) y Cachés
+            setMessage({ type: 'info', text: '6/6: Restaurando estados de botones y cachés...' });
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (
+                    key.startsWith('estado_boton_') ||
+                    key.startsWith('cargue_') ||
+                    key.startsWith('resumen_cache_') ||
+                    key.startsWith('conceptos_pagos_')
+                )) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            console.log(`🧹 ${keysToRemove.length} items eliminados del LocalStorage (estados, cargues, caché)`);
 
             setMessage({
                 type: 'success',
@@ -545,7 +579,7 @@ const Herramientas = () => {
 
                     <Button
                         variant="danger"
-                        onClick={limpiarTodasTransacciones}
+                        onClick={() => setShowResetModal(true)}
                         className="d-flex align-items-center w-100 justify-content-center"
                         disabled={loading}
                     >
@@ -580,6 +614,53 @@ const Herramientas = () => {
                     </div>
                 </Alert>
             </Card.Body>
+
+            {/* MODAL DE CONFIRMACIÓN DE RESET COMPLETO */}
+            <Modal show={showResetModal} onHide={() => setShowResetModal(false)} centered backdrop="static">
+                <Modal.Header closeButton className="bg-danger text-white">
+                    <Modal.Title>🔥 PELIGRO: Reset Completo</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="bg-light">
+                    <Alert variant="warning">
+                        <strong>¡ADVERTENCIA!</strong> Esta acción es irreversible.<br />
+                        Se eliminarán permanentemente:
+                        <ul className="mb-0 mt-2">
+                            <li>Todos los Cargues</li>
+                            <li>Ventas de Ruta</li>
+                            <li>Pedidos</li>
+                            <li>Lotes de Producción</li>
+                            <li>El Stock de todos los productos será 0</li>
+                        </ul>
+                    </Alert>
+
+                    <Form.Group className="mb-3">
+                        <Form.Label>
+                            Para confirmar, escribe: <span className="fw-bold text-danger">RESET COMPLETO</span>
+                        </Form.Label>
+                        <Form.Control
+                            type="text"
+                            placeholder="RESET COMPLETO"
+                            value={resetInput}
+                            onChange={(e) => setResetInput(e.target.value)}
+                            className="text-center fw-bold"
+                            style={{ textTransform: 'uppercase' }}
+                            autoFocus
+                        />
+                    </Form.Group>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowResetModal(false)}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={procesarResetCompleto}
+                        disabled={resetInput.trim().toUpperCase() !== 'RESET COMPLETO'}
+                    >
+                        CONFIRMAR RESET
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </Card>
     );
 };

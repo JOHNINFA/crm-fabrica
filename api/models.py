@@ -1335,27 +1335,43 @@ class Sucursal(models.Model):
         return f"{self.nombre} {'(Principal)' if self.es_principal else ''}"
 
 class Cajero(models.Model):
-    """Modelo para cajeros del sistema POS"""
+    """Modelo unificado para usuarios del sistema (Cajeros, Vendedores, Remisiones, Admin)"""
     ROLES_CHOICES = [
-        ('CAJERO', 'Cajero'),
+        ('CAJERO', 'Cajero POS'),
+        ('VENDEDOR', 'Vendedor App Móvil'),
+        ('REMISIONES', 'Remisiones/Pedidos'),
         ('SUPERVISOR', 'Supervisor'),
         ('ADMINISTRADOR', 'Administrador'),
     ]
+    
+    # 🆕 Código interno único (ID1, ID101, ID102, etc.)
+    codigo = models.CharField(max_length=20, unique=True, blank=True, null=True, help_text="Código interno: ID1, ID101, etc.")
     
     nombre = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     password = models.CharField(max_length=255)  # Hash de la contraseña
+    password_plano = models.CharField(max_length=255, blank=True, null=True)  # 🆕 Contraseña visible (texto plano)
     
-    # Relaciones
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='cajeros')
+    # Relaciones (opcional para vendedores)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='cajeros', null=True, blank=True)
     
     # Configuración
     rol = models.CharField(max_length=20, choices=ROLES_CHOICES, default='CAJERO')
     activo = models.BooleanField(default=True)
     puede_hacer_descuentos = models.BooleanField(default=False)
-    limite_descuento = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # Porcentaje
+    limite_descuento = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     puede_anular_ventas = models.BooleanField(default=False)
+    
+    # 🆕 PERMISOS POR MÓDULO
+    acceso_app_movil = models.BooleanField(default=False, verbose_name="App Móvil (Ventas Ruta)")
+    acceso_pos = models.BooleanField(default=False, verbose_name="POS (Punto de Venta)")
+    acceso_pedidos = models.BooleanField(default=False, verbose_name="Pedidos/Remisiones")
+    acceso_cargue = models.BooleanField(default=False, verbose_name="Cargue Vendedores")
+    acceso_produccion = models.BooleanField(default=False, verbose_name="Producción/Planeación")
+    acceso_inventario = models.BooleanField(default=False, verbose_name="Inventario")
+    acceso_reportes = models.BooleanField(default=False, verbose_name="Reportes")
+    acceso_configuracion = models.BooleanField(default=False, verbose_name="Configuración/Admin")
     
     # Metadatos
     fecha_creacion = models.DateTimeField(default=timezone.now)
@@ -1363,13 +1379,55 @@ class Cajero(models.Model):
     ultimo_login = models.DateTimeField(null=True, blank=True)
     
     class Meta:
-        verbose_name = 'Cajero'
-        verbose_name_plural = 'Cajeros'
-        unique_together = ('nombre', 'sucursal')
-        ordering = ['sucursal', 'nombre']
+        verbose_name = 'Usuario'
+        verbose_name_plural = 'Usuarios'
+        ordering = ['rol', 'nombre']
+    
+    def save(self, *args, **kwargs):
+        # Auto-generar código si no existe
+        if not self.codigo:
+            # Generar código según el rol
+            prefijo = {
+                'VENDEDOR': 'ID',
+                'CAJERO': 'POS',
+                'REMISIONES': 'REM',
+                'SUPERVISOR': 'SUP',
+                'ADMINISTRADOR': 'ADM'
+            }.get(self.rol, 'USR')
+            
+            ultimo = Cajero.objects.filter(codigo__startswith=prefijo).order_by('-id').first()
+            if ultimo and ultimo.codigo:
+                try:
+                    num = int(ultimo.codigo.replace(prefijo, '')) + 1
+                except:
+                    num = 1
+            else:
+                num = 1
+            self.codigo = f"{prefijo}{num}"
+        
+        # Auto-asignar permisos según rol
+        if self.pk is None:  # Solo en creación
+            if self.rol == 'VENDEDOR':
+                self.acceso_app_movil = True
+            elif self.rol == 'CAJERO':
+                self.acceso_pos = True
+            elif self.rol == 'REMISIONES':
+                self.acceso_pedidos = True
+                self.acceso_cargue = True
+            elif self.rol == 'ADMINISTRADOR':
+                self.acceso_app_movil = True
+                self.acceso_pos = True
+                self.acceso_pedidos = True
+                self.acceso_cargue = True
+                self.acceso_produccion = True
+                self.acceso_inventario = True
+                self.acceso_reportes = True
+                self.acceso_configuracion = True
+        
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.nombre} - {self.sucursal.nombre} ({self.rol})"
+        return f"[{self.codigo}] {self.nombre} ({self.rol})"
 
 class Turno(models.Model):
     """Modelo para turnos de cajeros"""
@@ -1901,6 +1959,23 @@ class EvidenciaVenta(models.Model):
         return f"Evidencia Venta {self.venta.id} - Prod {self.producto_id}"
 
 
+class EvidenciaPedido(models.Model):
+    """Modelo para guardar fotos de evidencia (vencidos/novedades) asociadas a un pedido"""
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='evidencias')
+    producto_nombre = models.CharField(max_length=200, blank=True, help_text="Nombre del producto")
+    imagen = models.ImageField(upload_to='evidencias_pedidos/%Y/%m/%d/')
+    motivo = models.CharField(max_length=255, blank=True, default='Devolución en entrega')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Evidencia de Pedido'
+        verbose_name_plural = 'Evidencias de Pedidos'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f"Evidencia Pedido {self.pedido.numero_pedido} - {self.producto_nombre}"
+
+
 # ========================================
 # MODELO PARA SNAPSHOT DE PLANEACIÓN
 # ========================================
@@ -2006,17 +2081,20 @@ class ConfiguracionProduccion(models.Model):
 
 
 class RutaOrden(models.Model):
-    """Modelo para guardar el orden personalizado de clientes (ruta) por día"""
-    dia = models.CharField(max_length=20, unique=True)  # LUNES, MARTES, etc.
+    """Modelo para guardar el orden personalizado de clientes por ruta y día"""
+    ruta = models.ForeignKey(Ruta, on_delete=models.CASCADE, related_name='ordenes_dia', null=True, blank=True)
+    dia = models.CharField(max_length=20)  # LUNES, MARTES, etc.
     clientes_ids = models.JSONField(default=list)  # Lista de IDs de clientes en orden [1, 5, 12, ...]
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Ruta {self.dia} - {len(self.clientes_ids)} clientes"
+        ruta_nombre = self.ruta.nombre if self.ruta else "Global"
+        return f"{ruta_nombre} - {self.dia} - {len(self.clientes_ids)} clientes"
 
     class Meta:
         verbose_name = "Orden de Ruta"
         verbose_name_plural = "Ordenes de Rutas"
+        unique_together = ['ruta', 'dia']  # Un orden por ruta + día
 
 
 class AgentSession(models.Model):

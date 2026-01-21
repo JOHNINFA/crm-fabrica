@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.response import Response
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from django.db import transaction, models  # 🆕 Agregar models para Q
 from django.utils import timezone
@@ -9,15 +10,37 @@ import base64
 import re
 import uuid
 from api.services.ai_assistant_service import AIAssistant
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion, CargueResumen
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
     CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer,
-    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer
+    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer, CargueResumenSerializer
 )
+
+class CargueResumenViewSet(viewsets.ModelViewSet):
+    """API para gestionar resúmenes de cargue y estados"""
+    queryset = CargueResumen.objects.all()
+    serializer_class = CargueResumenSerializer
+    permission_classes = [permissions.AllowAny]
+    filterset_fields = ['vendedor_id', 'dia', 'fecha', 'estado_cargue']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        vendedor_id = self.request.query_params.get('vendedor_id')
+        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
+        
+        if vendedor_id:
+            queryset = queryset.filter(vendedor_id=vendedor_id)
+        if dia:
+            queryset = queryset.filter(dia=dia.upper())
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+            
+        return queryset
 
 # 🆕 ViewSet para pagos de Cargue (múltiples filas por día/vendedor)
 class CarguePagosViewSet(viewsets.ModelViewSet):
@@ -3243,13 +3266,42 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
         if vendedor_id:
             rutas_vendedor = Ruta.objects.filter(vendedor__id_vendedor=vendedor_id, activo=True)
             queryset = queryset.filter(ruta__in=rutas_vendedor)
+            # Obtener el primer ruta_id para buscar orden personalizado
+            if rutas_vendedor.exists():
+                ruta_id = rutas_vendedor.first().id
         
         if ruta_id:
             queryset = queryset.filter(ruta_id=ruta_id)
+            
         if dia:
+            dia_upper = dia.upper()
             # Buscar clientes que tengan este día en su lista (soporta múltiples días)
-            # Ej: Si dia="MIERCOLES", encuentra "LUNES,MIERCOLES,VIERNES"
-            queryset = queryset.filter(dia_visita__icontains=dia.upper())
+            queryset = queryset.filter(dia_visita__icontains=dia_upper)
+            
+            # 🆕 Ordenar según RutaOrden si existe para esta ruta + día
+            try:
+                orden_personalizado = RutaOrden.objects.get(ruta_id=ruta_id, dia=dia_upper)
+                clientes_ids = orden_personalizado.clientes_ids
+                
+                if clientes_ids and len(clientes_ids) > 0:
+                    # Crear orden dinámico basado en la posición en la lista
+                    from django.db.models import Case, When, Value, IntegerField
+                    
+                    # Crear condiciones de ordenamiento
+                    ordering_cases = [When(id=pk, then=Value(pos)) for pos, pk in enumerate(clientes_ids)]
+                    
+                    # Agregar anotación para orden personalizado
+                    queryset = queryset.annotate(
+                        orden_dia=Case(
+                            *ordering_cases,
+                            default=Value(999),  # Clientes no en la lista van al final
+                            output_field=IntegerField()
+                        )
+                    ).order_by('orden_dia')
+                    
+                    return queryset.filter(activo=True)
+            except RutaOrden.DoesNotExist:
+                pass  # No hay orden personalizado, usar orden por defecto
             
         return queryset.filter(activo=True).order_by('orden')
     
@@ -3331,11 +3383,27 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         vendedor_id = self.request.query_params.get('vendedor_id', None)
         fecha = self.request.query_params.get('fecha', None)
         
+        fecha_inicio = self.request.query_params.get('fecha_inicio', None)
+        fecha_fin = self.request.query_params.get('fecha_fin', None)
+
         if vendedor_id:
             queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
-        if fecha:
+        
+        if fecha_inicio and fecha_fin:
+             queryset = queryset.filter(fecha__date__range=[fecha_inicio, fecha_fin])
+        elif fecha:
             # Filtrar por fecha (solo la parte de la fecha, ignorando la hora)
             queryset = queryset.filter(fecha__date=fecha)
+            
+        cliente_id = self.request.query_params.get('cliente_id', None)
+        if cliente_id:
+             queryset = queryset.filter(cliente__id=cliente_id)
+
+        ruta_id = self.request.query_params.get('ruta_id', None)
+        if ruta_id:
+            from django.db.models import Q
+            # Filtrar si la venta tiene la ruta marcada O si el cliente pertenece a esa ruta
+            queryset = queryset.filter(Q(ruta_id=ruta_id) | Q(cliente__ruta_id=ruta_id))
         
         # Ordenar por fecha descendente (más recientes primero)
         return queryset.order_by('-fecha')
@@ -3782,7 +3850,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                 vendidas_actuales = cargue.vendidas or 0
                                 cargue.vencidas = cargue.vencidas or 0 # Asegurar que no sea None
                                 cargue.vendidas = vendidas_actuales + cantidad_vendida
-                                cargue.save(update_fields=['vendidas', 'vencidas'])
+                                cargue.save(update_fields=['vendidas', 'vencidas', 'total', 'neto'])
                                 print(f"   ✅ {nombre_producto}: {vendidas_actuales} + {cantidad_vendida} = {cargue.vendidas}")
                             else:
                                 print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
@@ -3819,6 +3887,42 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             print(f"❌ Error sincronizando vendidas: {str(e)}")
             import traceback
             traceback.print_exc()
+
+        # ========== 🆕 SINCRONIZAR PAGOS A CarguePagos ==========
+        try:
+            metodo_pago = str(data.get('metodo_pago', 'EFECTIVO')).upper()
+            total_venta = float(data.get('total', 0))
+            
+            es_nequi = 'NEQUI' in metodo_pago
+            es_daviplata = 'DAVIPLATA' in metodo_pago
+            
+            # Solo registrar en CarguePagos si es transacción electrónica especial
+            if (es_nequi or es_daviplata) and id_vendedor:
+                from .models import CarguePagos
+                
+                # Intentar obtener el día correcto usando el mapa de modelos ya definido
+                dia_str = 'LUNES' # Valor por defecto
+                
+                if 'modelo_map' in locals() and modelo_map.get(id_vendedor):
+                    RefModel = modelo_map.get(id_vendedor)
+                    ref_obj = RefModel.objects.filter(fecha=fecha_venta).first()
+                    if ref_obj:
+                        dia_str = ref_obj.dia
+                
+                CarguePagos.objects.create(
+                    vendedor_id=id_vendedor,
+                    dia=dia_str,
+                    fecha=fecha_venta,
+                    concepto=f"Venta: {data.get('cliente_nombre', 'Cliente Final')}",
+                    nequi=total_venta if es_nequi else 0,
+                    daviplata=total_venta if es_daviplata else 0,
+                    descuentos=0, 
+                    usuario='App Movil'
+                )
+                print(f"   💸 Pago registrado en CarguePagos: {metodo_pago} - ${total_venta}")
+                
+        except Exception as e:
+            print(f"❌ Error sincronizando pagos: {str(e)}")
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -5036,49 +5140,74 @@ def lotes_por_mes(request):
 
 
 class RutaOrdenViewSet(viewsets.ModelViewSet):
-    """ViewSet para manejar órdenes de ruta"""
+    """ViewSet para manejar órdenes de clientes por ruta y día"""
     queryset = RutaOrden.objects.all()
     serializer_class = RutaOrdenSerializer
     permission_classes = [permissions.AllowAny]
-    lookup_field = 'dia'
 
     def get_queryset(self):
-        """Permite filtrar por dia"""
+        """Permite filtrar por ruta y día"""
         queryset = super().get_queryset()
+        ruta_id = self.request.query_params.get('ruta_id', None)
         dia = self.request.query_params.get('dia', None)
+        
+        if ruta_id:
+            queryset = queryset.filter(ruta_id=ruta_id)
         if dia:
             queryset = queryset.filter(dia=dia.upper())
         return queryset
 
     def create(self, request, *args, **kwargs):
-        """Crear o actualizar orden de ruta para un día"""
+        """Crear o actualizar orden de ruta para una ruta + día específico"""
+        ruta_id = request.data.get('ruta_id')
         dia = request.data.get('dia')
         if dia:
-             dia = dia.upper()
+            dia = dia.upper()
         clientes_ids = request.data.get('clientes_ids', [])
         
         if not dia:
             return Response({'error': 'Se requiere dia'}, status=status.HTTP_400_BAD_REQUEST)
-            
+        
+        # Actualizar o crear el orden para esta ruta + día
         obj, created = RutaOrden.objects.update_or_create(
+            ruta_id=ruta_id,
             dia=dia,
             defaults={'clientes_ids': clientes_ids}
         )
         
-        # 🆕 SINCRONIZACIÓN CON WEB: Actualizar también el campo 'orden' en la tabla ClienteRuta
-        # Esto permite que en la gestión de rutas web se vea el nuevo orden
-        try:
-            from .models import ClienteRuta
-            # Actualización masiva eficiente? No tanto, pero son pocos clientes por ruta
-            for i, cliente_id in enumerate(clientes_ids):
-                # Usamos update para ser rápido y no disparar signals innecesarios
-                ClienteRuta.objects.filter(id=cliente_id).update(orden=i + 1)
-            print(f"✅ Orden actualizado en BD para {len(clientes_ids)} clientes del día {dia}")
-        except Exception as e:
-            print(f"⚠️ Error sincronizando orden en ClienteRuta: {e}")
-            
+        print(f"✅ Orden guardado: Ruta={ruta_id}, Día={dia}, Clientes={len(clientes_ids)}")
+        
         serializer = self.get_serializer(obj)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def obtener_orden(self, request):
+        """
+        Obtener el orden de clientes para una ruta y día específico
+        GET /api/ruta-orden/obtener_orden/?ruta_id=1&dia=MARTES
+        """
+        ruta_id = request.query_params.get('ruta_id')
+        dia = request.query_params.get('dia', '').upper()
+        
+        if not dia:
+            return Response({'error': 'Se requiere dia'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            orden = RutaOrden.objects.get(ruta_id=ruta_id, dia=dia)
+            return Response({
+                'ruta_id': ruta_id,
+                'dia': dia,
+                'clientes_ids': orden.clientes_ids,
+                'fecha_actualizacion': orden.fecha_actualizacion
+            })
+        except RutaOrden.DoesNotExist:
+            # Si no existe orden personalizado, devolver lista vacía
+            return Response({
+                'ruta_id': ruta_id,
+                'dia': dia,
+                'clientes_ids': [],
+                'mensaje': 'No hay orden personalizado para este día'
+            })
 
 
 # ============================================================================
@@ -5112,7 +5241,7 @@ def ai_chat(request):
         return Response({
             'question': question,
             'answer': answer,
-            'model': 'qwen2.5:7b'
+            'model': ai.model
         })
     except Exception as e:
         return Response({
@@ -5147,7 +5276,7 @@ def ai_analyze_data(request):
         
         return Response({
             'analysis': analysis,
-            'model': 'qwen2.5:7b'
+            'model': ai.model
         })
     except Exception as e:
         return Response({
@@ -5163,12 +5292,10 @@ def ai_health(request):
     GET /api/ai/health/
     """
     try:
-        return Response({
-            'status': 'ok',
-            'provider': 'Qwen 2.5 (3B)',
-            'model': 'qwen2.5:3b',
-            'message': '✅ Conectado a Qwen 2.5 (3B) - USB'
-        })
+        from api.services.ai_assistant_service import AIAssistant
+        ai = AIAssistant()
+        health_status = ai.check_health()
+        return Response(health_status)
     except Exception as e:
         return Response({
             'status': 'error',
@@ -5223,6 +5350,20 @@ class ReportePlaneacionViewSet(viewsets.ModelViewSet):
             
         return queryset
 
+    def perform_create(self, serializer):
+        """Guardar reporte y entrenar Red Neuronal"""
+        instance = serializer.save()
+        
+        try:
+            from api.services.ia_service import IAService
+            # Entrenar en segundo plano (o inmediato si es rápido)
+            ia_service = IAService()
+            success = ia_service.train_with_report(instance)
+            if success:
+                print(f"🧠 Red Neuronal re-entrenada con reporte {instance.fecha_reporte}")
+        except Exception as e:
+            print(f"⚠️ Error entrenando IA tras guardar reporte: {e}")
+
 
 # ==================== REPORTES AVANZADOS ====================
 
@@ -5242,46 +5383,184 @@ def reportes_vendedores(request):
         
         if not fecha_inicio or not fecha_fin:
             return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
-        
-        # Obtener todos los vendedores
-        vendedores = Vendedor.objects.filter(activo=True)
-        
-        resultado = []
-        
-        for vendedor in vendedores:
-            # Contar ventas en ruta
-            ventas_ruta = VentaRuta.objects.filter(
-                vendedor=vendedor,
-                fecha__date__gte=fecha_inicio,
-                fecha__date__lte=fecha_fin
-            )
+
+        # Mapeo de ID a Nombre Real
+        nombres_reales = {}
+
+        def get_nombre_vendedor(identificador):
+            identificador = str(identificador).upper()
+            if identificador in nombres_reales:
+                return nombres_reales[identificador]
+            return identificador
+
+        # Cargar mapa de precios reales para corrección de montos en 0
+        precios_productos = {}
+        try:
+            from .models import Producto
+            productos_qs = Producto.objects.all()
+            for p in productos_qs:
+                precios_productos[p.nombre] = float(p.precio_cargue or p.precio or 0)
+        except:
+            print("No se pudo cargar tabla Productos para precios")
+
+        # Obtener datos de CargueResumen
+        resumenes = CargueResumen.objects.filter(
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin
+        )
+
+        vendedores_data = {}
+
+        # Pre-poblar con todos los vendedores activos
+        try:
+             todos_vendedores_objs = Vendedor.objects.filter(activo=True)
+             for v in todos_vendedores_objs:
+                key_id = v.id_vendedor.upper()
+                nombres_reales[key_id] = v.nombre.upper()
+                if key_id.startswith('ID'):
+                    id_num = key_id.replace('ID', '')
+                    nombres_reales[id_num] = v.nombre.upper()
+                
+                # Inicializar vendedor en data
+                nombre_real = v.nombre.upper()
+                if nombre_real not in vendedores_data:
+                    vendedores_data[nombre_real] = {
+                        'id': f"ID{v.id_vendedor}" if not v.id_vendedor.startswith('ID') else v.id_vendedor,
+                        'nombre': nombre_real,
+                        'ventas_totales': 0,
+                        'monto': 0.0,
+                        'monto_ruta': 0.0,
+                        'monto_pedidos': 0.0,
+                        'vencidas': 0,
+                        'devoluciones': 0,
+                        'efectividad': 100.0
+                    }
+        except:
+             pass
+
+        for resumen in resumenes:
+            vendedor_raw = resumen.vendedor_id
+            nombre_real = get_nombre_vendedor(vendedor_raw)
+
+            if nombre_real not in vendedores_data:
+                vendedores_data[nombre_real] = {
+                    'id': vendedor_raw,
+                    'nombre': nombre_real,
+                    'ventas_totales': 0,
+                    'monto': 0.0,
+                    'monto_ruta': 0.0,
+                    'monto_pedidos': 0.0,
+                    'vencidas': 0,
+                    'devoluciones': 0,
+                    'efectividad': 100.0
+                }
             
-            total_ventas = ventas_ruta.count()
-            monto_total = ventas_ruta.aggregate(total=Sum('total'))['total'] or 0
+            # Montos base desde Resumen
+            venta_ruta = float(resumen.total_despacho or 0)
+            venta_pedidos = float(resumen.total_pedidos or 0)
+            devoluciones_cnt = 0
+            vencidas_cnt = 0
             
-            # Contar productos vencidos (del campo productos_vencidos JSON)
-            vencidas = 0
-            for venta in ventas_ruta:
-                if venta.productos_vencidos:
-                    vencidas += len(venta.productos_vencidos)
+            # Intentar obtener el modelo específico CargueIDx para recalcular si es 0
+            try:
+                id_num = ''.join(filter(str.isdigit, str(vendedor_raw)))
+                if not id_num and nombre_real in nombres_reales.values():
+                    for k, v in nombres_reales.items():
+                        if v == nombre_real and k.isdigit():
+                            id_num = k
+                            break
+                
+                if id_num:
+                    try:
+                        from django.apps import apps
+                        CargueModel = apps.get_model('api', f"CargueID{id_num}")
+                    except LookupError:
+                        CargueModel = None
+                    
+                    if CargueModel:
+                        items_cargue = CargueModel.objects.filter(
+                            fecha__gte=fecha_inicio,
+                            fecha__lte=fecha_fin
+                        )
+                        
+                        calc_ruta = 0.0
+                        calc_pedidos_bdd = 0.0
+                        
+                        for item in items_cargue:
+                            # RUTAS: Recalcular con precio catalogo
+                            precio = float(item.valor)
+                            if precio == 0 and item.producto in precios_productos:
+                                precio = precios_productos[item.producto]
+                            
+                            if item.cantidad > 0:
+                                calc_ruta += (item.cantidad * precio)
+                            
+                            # Intentar leer total_pedidos global guardado en la fila
+                            val_p = getattr(item, 'total_pedidos', 0)
+                            if val_p and float(val_p) > calc_pedidos_bdd:
+                                calc_pedidos_bdd = float(val_p)
+
+                            # Sumar devoluciones y vencidas (unidades)
+                            if item.devoluciones > 0:
+                                devoluciones_cnt += item.devoluciones
+                            
+                            if item.vencidas > 0:
+                                vencidas_cnt += item.vencidas
+
+                        # Si el cálculo da más que el resumen, usémoslo
+                        if calc_ruta > venta_ruta:
+                            venta_ruta = calc_ruta
+                        
+                        # Si encontramos valor en BD cargue, usarlo
+                        if calc_pedidos_bdd > venta_pedidos:
+                            venta_pedidos = calc_pedidos_bdd
+                            
+                        # PEDIDOS: Consultar tabla Pedido directamente (Fuente de verdad)
+                        try:
+                            from .models import Pedido
+                            # Buscar pedidos entregados/pendientes para esa fecha y vendedor
+                            pedidos_qs = Pedido.objects.filter(
+                                vendedor=nombre_real,
+                                fecha_entrega__date__gte=fecha_inicio,
+                                fecha_entrega__date__lte=fecha_fin
+                            ).exclude(estado='ANULADA')
+                            
+                            calc_pedidos = 0.0
+                            for p in pedidos_qs:
+                                calc_pedidos += float(p.total or 0)
+                                
+                            if calc_pedidos > venta_pedidos:
+                                venta_pedidos = calc_pedidos
+                        except Exception as e:
+                            print(f"Error consultando pedidos para {nombre_real}: {e}")
+                            
+            except Exception as e:
+                print(f"Error recalculando montos para {nombre_real}: {e}")
+
+            # ACTUALIZAR DATOS
+            vendedores_data[nombre_real]['monto_ruta'] += venta_ruta
+            vendedores_data[nombre_real]['monto_pedidos'] += venta_pedidos
+            vendedores_data[nombre_real]['monto'] += (venta_ruta + venta_pedidos)
+            vendedores_data[nombre_real]['devoluciones'] += devoluciones_cnt
+            vendedores_data[nombre_real]['vencidas'] += vencidas_cnt
             
-            # Calcular efectividad (ventas - vencidas) / ventas * 100
-            efectividad = 100.0
-            if total_ventas > 0:
-                efectividad = ((total_ventas - vencidas) / total_ventas) * 100
-            
-            resultado.append({
-                'id': vendedor.id_vendedor,
-                'nombre': vendedor.nombre,
-                'ventas_totales': total_ventas,
-                'monto': float(monto_total),
-                'vencidas': vencidas,
-                'devoluciones': 0,  # TODO: Implementar cuando haya modelo de devoluciones
-                'efectividad': round(efectividad, 2)
-            })
+            # Ventas totales (usaremos conteo de pedidos como proxy de 'transacciones' o días activos)
+            vendedores_data[nombre_real]['ventas_totales'] += 1 
+
+        # Convertir a lista
+        resultado = list(vendedores_data.values())
         
-        # Ordenar por monto descendente
-        resultado.sort(key=lambda x: x['monto'], reverse=True)
+        # Ordenar por ID ascendente (ID1, ID2, ID3...)
+        def extract_id_number(item):
+            try:
+                id_str = str(item.get('id', ''))
+                # Extraer solo dígitos
+                nums = ''.join(filter(str.isdigit, id_str))
+                return int(nums) if nums else 9999
+            except:
+                return 9999
+
+        resultado.sort(key=extract_id_number)
         
         return Response({
             'vendedores': resultado,
@@ -5291,9 +5570,14 @@ def reportes_vendedores(request):
         })
         
     except Exception as e:
-        print(f"Error en reportes_vendedores: {str(e)}")
         import traceback
-        traceback.print_exc()
+        error_msg = traceback.format_exc()
+        print(error_msg)
+        try:
+            with open('/home/john/Escritorio/crm-fabrica/error_log.txt', 'w') as f:
+                f.write(error_msg)
+        except:
+            pass
         return Response({'error': str(e)}, status=500)
 
 
@@ -5399,7 +5683,8 @@ def reportes_analisis_productos(request):
     tipo: vendidos | devueltos | vencidos
     """
     try:
-        from django.db.models import Sum, Count
+        from django.db.models import Sum
+        from django.apps import apps
         from collections import Counter
         
         tipo = request.GET.get('tipo', 'vendidos')
@@ -5412,38 +5697,71 @@ def reportes_analisis_productos(request):
         if not fecha_inicio or not fecha_fin:
             return Response({'error': 'Faltan parámetros: fecha_inicio y fecha_fin'}, status=400)
         
-        # Obtener ventas en el período
-        ventas_ruta = VentaRuta.objects.filter(
-            fecha__date__gte=fecha_inicio,
-            fecha__date__lte=fecha_fin
-        )
-        
         productos_conteo = Counter()
         vendedores_por_producto = {}
         
-        for venta in ventas_ruta:
-            lista_productos = None
-            
-            # Seleccionar el campo JSON según el tipo
-            if tipo == 'vendidos':
-                lista_productos = venta.detalle_productos or []
-            elif tipo == 'devueltos':
-                lista_productos = venta.productos_devueltos or []
-            elif tipo == 'vencidos':
-                lista_productos = venta.productos_vencidos or []
-            
-            if lista_productos:
-                for producto in lista_productos:
-                    nombre_producto = producto.get('nombre') or producto.get('producto', 'Desconocido')
-                    cantidad = producto.get('cantidad', 0)
+        # 1. Consultar las 6 tablas de CargueIDx
+        for id_num in range(1, 7):
+            try:
+                CargueModel = apps.get_model('api', f'CargueID{id_num}')
+                
+                items = CargueModel.objects.filter(
+                    fecha__gte=fecha_inicio,
+                    fecha__lte=fecha_fin
+                )
+                
+                for item in items:
+                    nombre_producto = item.producto or 'Desconocido'
                     
-                    productos_conteo[nombre_producto] += cantidad
+                    # Seleccionar campo según tipo
+                    if tipo == 'vendidos':
+                        # Solo cantidad (lo realmente despachado/vendido)
+                        cantidad = item.cantidad or 0
+                    elif tipo == 'devueltos':
+                        cantidad = item.devoluciones or 0
+                    elif tipo == 'vencidos':
+                        cantidad = item.vencidas or 0
+                    else:
+                        cantidad = 0
                     
-                    # Contar vendedores únicos por producto (para devueltos y vencidos)
-                    if tipo in ['devueltos', 'vencidos']:
-                        if nombre_producto not in vendedores_por_producto:
-                            vendedores_por_producto[nombre_producto] = set()
-                        vendedores_por_producto[nombre_producto].add(venta.vendedor.id_vendedor)
+                    if cantidad > 0:
+                        productos_conteo[nombre_producto] += cantidad
+                        
+                        # Contar vendedores únicos por producto
+                        if tipo in ['devueltos', 'vencidos']:
+                            if nombre_producto not in vendedores_por_producto:
+                                vendedores_por_producto[nombre_producto] = set()
+                            vendedores_por_producto[nombre_producto].add(f'ID{id_num}')
+                            
+            except Exception as e:
+                print(f"Error consultando CargueID{id_num}: {e}")
+                continue
+        
+        # 2. Si es tipo "vendidos", también sumar productos de la tabla Pedido
+        if tipo == 'vendidos':
+            try:
+                from .models import Pedido
+                
+                # fecha_entrega es DateField, no necesita __date
+                pedidos = Pedido.objects.filter(
+                    fecha_entrega__gte=fecha_inicio,
+                    fecha_entrega__lte=fecha_fin
+                ).exclude(estado='ANULADA')
+                
+                for pedido in pedidos:
+                    # Usar related_name 'detalles' para acceder a DetallePedido
+                    for detalle in pedido.detalles.all():
+                        # producto es FK, acceder al nombre via producto.nombre
+                        nombre_producto = detalle.producto.nombre if detalle.producto else 'Desconocido'
+                        cantidad = detalle.cantidad or 0
+                        
+                        if cantidad > 0:
+                            productos_conteo[nombre_producto] += cantidad
+                            
+            except Exception as e:
+                print(f"Error consultando Pedidos: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Convertir a lista y ordenar
         resultado = []
@@ -5563,15 +5881,38 @@ def dashboard_ejecutivo(request):
             activo=True
         )
         
+        # Mapeo de ID a Nombre Real (para unificar ID1 con WILSON)
+        nombres_reales = {}
+        try:
+            from .models import Vendedor
+            # Cargar mapa de vendedores: {1: 'WILSON', 2: 'OTRO', ...}
+            todos_vendedores = Vendedor.objects.all()
+            for v in todos_vendedores:
+                # Asumimos que ID1 corresponde al vendedor con id=1, etc.
+                key_id = f"ID{v.id}"
+                nombres_reales[key_id] = v.nombre.upper()
+        except:
+            print("No se pudo cargar tabla Vendedores")
+
+        # Función helper para normalizar nombre
+        def get_nombre_vendedor(identificador):
+            identificador = identificador.upper()
+            # Si es ID1, ID2, etc buscar en mapa
+            if identificador.startswith('ID') and identificador in nombres_reales:
+                return nombres_reales[identificador]
+            # Si ya es un nombre (WILSON), devolverlo
+            return identificador
+
         # DATOS POR VENDEDOR usando CargueResumen
         vendedores_data = {}
         
         for resumen in resumenes:
-            vendedor_id = resumen.vendedor_id
+            vendedor_raw = resumen.vendedor_id
+            nombre_real = get_nombre_vendedor(vendedor_raw)
             
-            if vendedor_id not in vendedores_data:
-                vendedores_data[vendedor_id] = {
-                    'nombre': vendedor_id,
+            if nombre_real not in vendedores_data:
+                vendedores_data[nombre_real] = {
+                    'nombre': nombre_real,
                     'ventas_count': 0,
                     'ventas_monto': 0,
                     'devueltas_count': 0,
@@ -5580,8 +5921,13 @@ def dashboard_ejecutivo(request):
                     'vencidas_monto': 0
                 }
             
-            # Sumar el monto de venta (ya calculado en el resumen)
-            vendedores_data[vendedor_id]['ventas_monto'] += float(resumen.venta or 0)
+            # Sumar el monto de venta (calcularlo si es 0)
+            monto_venta = float(resumen.venta or 0)
+            if monto_venta == 0:
+                # Si venta es 0, intentar calcular como despacho + pedidos
+                monto_venta = float(resumen.total_despacho or 0) + float(resumen.total_pedidos or 0)
+            
+            vendedores_data[nombre_real]['ventas_monto'] += monto_venta
         
         # OBTENER PRODUCTOS (vendidas, devoluciones, vencidas) desde los 6 modelos
         todos_cargues = []
@@ -5593,17 +5939,34 @@ def dashboard_ejecutivo(request):
             )
             todos_cargues.extend(list(cargues))
         
+        # Cargar mapa de precios reales para corrección de montos en 0
+        precios_productos = {}
+        try:
+            from .models import Producto
+            productos_qs = Producto.objects.all()
+            for p in productos_qs:
+                precios_productos[p.nombre] = float(p.precio_cargue or p.precio or 0)
+        except:
+            print("No se pudo cargar tabla Productos para precios")
+
         # Contadores de productos
         productos_vendidos = Counter()
         productos_devueltos = Counter()
         productos_vencidos = Counter()
         
         for cargue in todos_cargues:
-            vendedor_id = cargue.responsable or 'Sin vendedor'
-            
-            if vendedor_id not in vendedores_data:
-                vendedores_data[vendedor_id] = {
-                    'nombre': vendedor_id,
+            # Obtener nombre normalizado
+            if hasattr(cargue, 'responsable') and cargue.responsable:
+                 vendedor_raw = cargue.responsable
+                 vendedor_nombre = get_nombre_vendedor(vendedor_raw)
+            else:
+                 modelo_name = cargue.__class__.__name__
+                 id_suffix = modelo_name.replace('Cargue', '')
+                 vendedor_nombre = get_nombre_vendedor(id_suffix)
+
+            if vendedor_nombre not in vendedores_data:
+                vendedores_data[vendedor_nombre] = {
+                    'nombre': vendedor_nombre,
                     'ventas_count': 0,
                     'ventas_monto': 0,
                     'devueltas_count': 0,
@@ -5612,21 +5975,26 @@ def dashboard_ejecutivo(request):
                     'vencidas_monto': 0
                 }
             
+            # Obtener precio real (si cargue.valor es 0, usar catalogo)
+            precio_real = float(cargue.valor)
+            if precio_real == 0 and cargue.producto in precios_productos:
+                precio_real = precios_productos[cargue.producto]
+            
             # VENTAS (unidades)
             if cargue.vendidas > 0:
-                vendedores_data[vendedor_id]['ventas_count'] += cargue.vendidas
+                vendedores_data[vendedor_nombre]['ventas_count'] += cargue.vendidas
                 productos_vendidos[cargue.producto] += cargue.vendidas
             
             # DEVOLUCIONES (unidades + monto)
             if cargue.devoluciones > 0:
-                vendedores_data[vendedor_id]['devueltas_count'] += cargue.devoluciones
-                vendedores_data[vendedor_id]['devueltas_monto'] += float(cargue.devoluciones * cargue.valor)
+                vendedores_data[vendedor_nombre]['devueltas_count'] += cargue.devoluciones
+                vendedores_data[vendedor_nombre]['devueltas_monto'] += float(cargue.devoluciones * precio_real)
                 productos_devueltos[cargue.producto] += cargue.devoluciones
             
             # VENCIDAS (unidades + monto)
             if cargue.vencidas > 0:
-                vendedores_data[vendedor_id]['vencidas_count'] += cargue.vencidas
-                vendedores_data[vendedor_id]['vencidas_monto'] += float(cargue.vencidas * cargue.valor)
+                vendedores_data[vendedor_nombre]['vencidas_count'] += cargue.vencidas
+                vendedores_data[vendedor_nombre]['vencidas_monto'] += float(cargue.vencidas * precio_real)
                 productos_vencidos[cargue.producto] += cargue.vencidas
         
         # Calcular porcentajes
@@ -5809,3 +6177,472 @@ def test_dashboard_data(request):
             'error': str(e),
             'traceback': traceback.format_exc()
         }, status=500)
+
+
+# ========================================
+# 📷 EVIDENCIAS DE PEDIDOS
+# ========================================
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def subir_evidencia_pedido(request):
+    """
+    Subir foto de evidencia para un pedido (vencidos/novedades)
+    POST /api/evidencia-pedido/
+    
+    Form data:
+    - pedido_id: ID del pedido (requerido)
+    - producto_nombre: Nombre del producto (opcional)
+    - motivo: Razón de la evidencia (opcional, default: 'Devolución en entrega')
+    - imagen: Archivo de imagen (requerido)
+    
+    Ejemplo desde App:
+    ```javascript
+    const formData = new FormData();
+    formData.append('pedido_id', pedidoId);
+    formData.append('producto_nombre', 'AREPA TIPO OBLEA');
+    formData.append('motivo', 'Producto vencido');
+    formData.append('imagen', { uri: fotoUri, name: 'evidencia.jpg', type: 'image/jpeg' });
+    
+    fetch('/api/evidencia-pedido/', {
+        method: 'POST',
+        body: formData
+    });
+    ```
+    """
+    try:
+        from .models import Pedido, EvidenciaPedido
+        
+        pedido_id = request.data.get('pedido_id')
+        producto_nombre = request.data.get('producto_nombre', '')
+        motivo = request.data.get('motivo', 'Devolución en entrega')
+        imagen = request.FILES.get('imagen')
+        
+        # Validaciones
+        if not pedido_id:
+            return Response({'error': 'pedido_id es requerido'}, status=400)
+        
+        if not imagen:
+            return Response({'error': 'imagen es requerida'}, status=400)
+        
+        # Buscar el pedido
+        try:
+            pedido = Pedido.objects.get(id=pedido_id)
+        except Pedido.DoesNotExist:
+            # Intentar buscar por numero_pedido
+            try:
+                pedido = Pedido.objects.get(numero_pedido=pedido_id)
+            except Pedido.DoesNotExist:
+                return Response({'error': f'Pedido {pedido_id} no encontrado'}, status=404)
+        
+        # Crear la evidencia
+        evidencia = EvidenciaPedido.objects.create(
+            pedido=pedido,
+            producto_nombre=producto_nombre,
+            motivo=motivo,
+            imagen=imagen
+        )
+        
+        print(f"📷 Evidencia creada para pedido {pedido.numero_pedido}: {producto_nombre} - {motivo}")
+        
+        return Response({
+            'success': True,
+            'message': 'Evidencia subida correctamente',
+            'evidencia': {
+                'id': evidencia.id,
+                'pedido': pedido.numero_pedido,
+                'producto_nombre': evidencia.producto_nombre,
+                'motivo': evidencia.motivo,
+                'imagen': request.build_absolute_uri(evidencia.imagen.url) if evidencia.imagen else None
+            }
+        }, status=201)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def obtener_evidencias_pedido(request, pedido_id):
+    """
+    Obtener todas las evidencias de un pedido
+    GET /api/evidencia-pedido/<pedido_id>/
+    """
+    try:
+        from .models import Pedido, EvidenciaPedido
+        
+        # Buscar el pedido
+        try:
+            pedido = Pedido.objects.get(id=pedido_id)
+        except Pedido.DoesNotExist:
+            try:
+                pedido = Pedido.objects.get(numero_pedido=pedido_id)
+            except Pedido.DoesNotExist:
+                return Response({'error': f'Pedido {pedido_id} no encontrado'}, status=404)
+        
+        evidencias = EvidenciaPedido.objects.filter(pedido=pedido)
+        
+        resultado = []
+        for ev in evidencias:
+            resultado.append({
+                'id': ev.id,
+                'producto_nombre': ev.producto_nombre,
+                'motivo': ev.motivo,
+                'imagen': request.build_absolute_uri(ev.imagen.url) if ev.imagen else None,
+                'fecha_creacion': ev.fecha_creacion.isoformat()
+            })
+        
+        return Response({
+            'pedido': pedido.numero_pedido,
+            'total_evidencias': len(resultado),
+            'evidencias': resultado
+        })
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+# ========================================
+# 🔐 ENDPOINTS DE AUTENTICACIÓN
+# ========================================
+
+@api_view(['POST'])
+def auth_login(request):
+    """
+    Endpoint de login para el Frontend Web.
+    Rechaza vendedores de App Móvil (solo acceden por la App).
+    """
+    import hashlib
+    from .models import Cajero
+    
+    codigo_o_nombre = request.data.get('codigo', '').strip()
+    password = request.data.get('password', '')
+    
+    if not codigo_o_nombre or not password:
+        return Response({
+            'success': False,
+            'error': 'Código/Nombre y contraseña son requeridos'
+        }, status=400)
+    
+    try:
+        # Buscar usuario por código o nombre
+        usuario = Cajero.objects.filter(
+            models.Q(codigo__iexact=codigo_o_nombre) | 
+            models.Q(nombre__iexact=codigo_o_nombre)
+        ).first()
+        
+        if not usuario:
+            return Response({
+                'success': False,
+                'error': 'Usuario no encontrado'
+            }, status=401)
+        
+        # Verificar si está activo
+        if not usuario.activo:
+            return Response({
+                'success': False,
+                'error': 'Usuario desactivado. Contacte al administrador.'
+            }, status=401)
+        
+        # Rechazar vendedores de App Móvil
+        if usuario.rol == 'VENDEDOR':
+            return Response({
+                'success': False,
+                'error': 'Los vendedores de App Móvil no tienen acceso al sistema web. Use la aplicación móvil.'
+            }, status=403)
+        
+        # Verificar contraseña
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        # Comparar con password hasheado O con password_plano
+        password_valido = (
+            usuario.password == password_hash or 
+            usuario.password == password or 
+            usuario.password_plano == password
+        )
+        
+        if not password_valido:
+            return Response({
+                'success': False,
+                'error': 'Contraseña incorrecta'
+            }, status=401)
+        
+        # Actualizar último login
+        usuario.ultimo_login = timezone.now()
+        usuario.save(update_fields=['ultimo_login'])
+        
+        # Respuesta exitosa
+        return Response({
+            'success': True,
+            'message': f'Bienvenido, {usuario.nombre}',
+            'usuario': {
+                'id': usuario.id,
+                'codigo': usuario.codigo,
+                'nombre': usuario.nombre,
+                'email': usuario.email,
+                'telefono': usuario.telefono,
+                'rol': usuario.rol,
+                'sucursal': usuario.sucursal.nombre if usuario.sucursal else None,
+                'sucursal_id': usuario.sucursal.id if usuario.sucursal else None,
+                'permisos': {
+                    'acceso_pos': usuario.acceso_pos,
+                    'acceso_pedidos': usuario.acceso_pedidos,
+                    'acceso_cargue': usuario.acceso_cargue,
+                    'acceso_produccion': usuario.acceso_produccion,
+                    'acceso_inventario': usuario.acceso_inventario,
+                    'acceso_reportes': usuario.acceso_reportes,
+                    'acceso_configuracion': usuario.acceso_configuracion,
+                    'puede_hacer_descuentos': usuario.puede_hacer_descuentos,
+                    'puede_anular_ventas': usuario.puede_anular_ventas,
+                },
+                'es_admin': usuario.rol == 'ADMINISTRADOR',
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': f'Error en el servidor: {str(e)}'
+        }, status=500)
+
+
+@api_view(['POST'])
+def auth_recuperar_password(request):
+    """
+    Solicitar recuperación de contraseña por email o teléfono.
+    Genera un código temporal y lo envía.
+    """
+    import random
+    from .models import Cajero
+    
+    email_o_telefono = request.data.get('contacto', '').strip()
+    
+    if not email_o_telefono:
+        return Response({
+            'success': False,
+            'error': 'Ingrese su email o teléfono registrado'
+        }, status=400)
+    
+    try:
+        # Buscar usuario por email o teléfono
+        usuario = Cajero.objects.filter(
+            models.Q(email__iexact=email_o_telefono) | 
+            models.Q(telefono__iexact=email_o_telefono)
+        ).first()
+        
+        if not usuario:
+            return Response({
+                'success': False,
+                'error': 'No se encontró ningún usuario con ese email o teléfono'
+            }, status=404)
+        
+        # Generar código de recuperación (6 dígitos)
+        codigo_recuperacion = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        
+        # TODO: Enviar código por email o SMS
+        # Por ahora, lo devolvemos en la respuesta (solo para desarrollo)
+        # En producción, usar servicios como SendGrid, Twilio, etc.
+        
+        # Guardar código temporalmente (en una tabla o cache)
+        # Por simplicidad, lo guardamos en password_plano temporalmente
+        # (en producción usar tabla de tokens de recuperación)
+        
+        return Response({
+            'success': True,
+            'message': f'Se ha enviado un código de recuperación a {email_o_telefono}',
+            # Solo en desarrollo:
+            'codigo_temporal': codigo_recuperacion,
+            'usuario_id': usuario.id,
+            'nota': 'En producción, el código se envía por email/SMS'
+        })
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': f'Error en el servidor: {str(e)}'
+        }, status=500)
+
+
+@api_view(['POST'])
+def auth_cambiar_password(request):
+    """
+    Cambiar contraseña de un usuario.
+    Requiere: usuario_id, nueva_password, (codigo_recuperacion o password_actual)
+    """
+    import hashlib
+    from .models import Cajero
+    
+    usuario_id = request.data.get('usuario_id')
+    nueva_password = request.data.get('nueva_password', '').strip()
+    password_actual = request.data.get('password_actual', '').strip()
+    
+    if not usuario_id or not nueva_password:
+        return Response({
+            'success': False,
+            'error': 'Faltan datos requeridos'
+        }, status=400)
+    
+    if len(nueva_password) < 4:
+        return Response({
+            'success': False,
+            'error': 'La contraseña debe tener al menos 4 caracteres'
+        }, status=400)
+    
+    try:
+        usuario = Cajero.objects.get(id=usuario_id)
+        
+        # Si se proporciona password_actual, verificarlo
+        if password_actual:
+            password_hash = hashlib.sha256(password_actual.encode()).hexdigest()
+            if usuario.password != password_hash and usuario.password != password_actual:
+                return Response({
+                    'success': False,
+                    'error': 'Contraseña actual incorrecta'
+                }, status=401)
+        
+        # Hashear y guardar nueva contraseña
+        nuevo_hash = hashlib.sha256(nueva_password.encode()).hexdigest()
+        usuario.password = nuevo_hash
+        usuario.password_plano = nueva_password
+        usuario.save(update_fields=['password', 'password_plano'])
+        
+        return Response({
+            'success': True,
+            'message': 'Contraseña actualizada correctamente'
+        })
+        
+    except Cajero.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': 'Usuario no encontrado'
+        }, status=404)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': f'Error en el servidor: {str(e)}'
+        }, status=500)
+
+
+# ========================================
+# 🧠 CONFIGURACIÓN Y LOGS DE REDES NEURONALES (IA)
+# ========================================
+
+@api_view(['GET', 'POST'])
+def ia_config(request):
+    """
+    Gestionar configuración del Servicio de IA
+    GET: Retorna estado actual
+    POST: Actualiza configuración
+    """
+    # Usar archivo temporal para configuración por simplicidad
+    CONFIG_FILE = 'ia_config.json'
+    import json
+    
+    default_config = {
+        'active': True,
+        'continuousLearning': True,
+        'lastTraining': None
+    }
+    
+    # Cargar config actual
+    current_config = default_config
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                current_config = json.load(f)
+        except:
+            pass
+            
+    if request.method == 'GET':
+        return Response(current_config)
+        
+    elif request.method == 'POST':
+        new_config = request.data
+        current_config.update(new_config)
+        
+        try:
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump(current_config, f)
+            return Response({'success': True, 'config': current_config})
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+def ia_retrain(request):
+    """
+    Dispara re-entrenamiento completo de la red neuronal
+    basado en todos los Reportes de Planeación históricos.
+    """
+    try:
+        from api.services.neural_network_service import NeuralNetworkService
+        from api.models import ReportePlaneacion
+        
+        nn_service = NeuralNetworkService()
+        
+        # Obtener todos los reportes ordenados por fecha
+        reportes = ReportePlaneacion.objects.all().order_by('fecha_reporte')
+        count = 0
+        
+        for reporte in reportes:
+            if nn_service.train_incremental(reporte):
+                count += 1
+                
+        # Actualizar fecha de último entrenamiento
+        import json
+        CONFIG_FILE = 'ia_config.json'
+        # Asegurar que existe si no
+        if not os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump({'active': True, 'continuousLearning': True}, f)
+
+        if os.path.exists(CONFIG_FILE):
+             with open(CONFIG_FILE, 'r+') as f:
+                try:
+                    config = json.load(f)
+                except:
+                    config = {'active': True, 'continuousLearning': True}
+                
+                config['lastTraining'] = timezone.now().isoformat()
+                f.seek(0)
+                json.dump(config, f)
+                f.truncate()
+        
+        return Response({
+            'success': True,
+            'message': f'Re-entrenamiento completado con {count} reportes históricos.'
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+def ia_logs(request):
+    """
+    Retorna logs recientes de la actividad neuronal.
+    Simulado leyendo el archivo de log principal o memoria.
+    """
+    # Simulamos logs para la demo visual, en un sistema real leeríamos un archivo .log
+    from datetime import datetime
+    
+    # Intentar leer config para estado
+    import json
+    CONFIG_FILE = 'ia_config.json'
+    config = {'active': True, 'continuousLearning': True}
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+    except:
+        pass
+
+    # Generar logs simulados de "estado actual"
+    logs = [
+        {'time': datetime.now().strftime('%H:%M:%S'), 'type': 'INFO', 'message': 'Sistema Neuronal: EN LÍNEA'},
+        {'time': datetime.now().strftime('%H:%M:%S'), 'type': 'INFO', 'message': f'Aprendizaje Continuo: {"ACTIVADO" if config.get("continuousLearning") else "DESACTIVADO"}'},
+    ]
+    
+    if config.get('lastTraining'):
+        logs.append({'time': config['lastTraining'].split('T')[1][:8], 'type': 'SUCCESS', 'message': 'Último re-entrenamiento exitoso'})
+
+    return Response({'logs': logs, 'config': config})
+

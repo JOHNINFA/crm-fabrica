@@ -24,8 +24,13 @@ const rutasService = {
 
     // Clientes de Ruta
     obtenerClientesRuta: async (rutaId, dia) => {
-        let url = `${API_URL}/clientes-ruta/?ruta=${rutaId}`;
-        if (dia) url += `&dia=${dia}`;
+        let url = `${API_URL}/clientes-ruta/`;
+        const params = [];
+        if (rutaId && rutaId !== 'todas') params.push(`ruta=${rutaId}`);
+        if (dia) params.push(`dia=${dia}`);
+
+        if (params.length > 0) url += `?${params.join('&')}`;
+
         const response = await axios.get(url);
         return response.data;
     },
@@ -42,11 +47,15 @@ const rutasService = {
     },
 
     // Ventas Ruta
-    obtenerVentasRuta: async (vendedorId, fecha) => {
+    obtenerVentasRuta: async (vendedorId, fecha, clienteId, rutaId, fechaInicio, fechaFin) => {
         let url = `${API_URL}/ventas-ruta/`;
         const params = [];
         if (vendedorId) params.push(`vendedor_id=${vendedorId}`);
         if (fecha) params.push(`fecha=${fecha}`);
+        if (clienteId) params.push(`cliente_id=${clienteId}`);
+        if (rutaId && rutaId !== 'todas') params.push(`ruta_id=${rutaId}`);
+        if (fechaInicio) params.push(`fecha_inicio=${fechaInicio}`);
+        if (fechaFin) params.push(`fecha_fin=${fechaFin}`);
 
         if (params.length > 0) url += `?${params.join('&')}`;
 
@@ -68,6 +77,23 @@ const rutasService = {
     // Vendedores (Auxiliar)
     obtenerVendedores: async () => {
         const response = await axios.get(`${API_URL}/vendedores/`);
+        return response.data;
+    },
+
+    // 🆕 Orden de Clientes por Día
+    obtenerOrdenClientes: async (rutaId, dia) => {
+        const response = await axios.get(`${API_URL}/ruta-orden/obtener_orden/`, {
+            params: { ruta_id: rutaId, dia: dia.toUpperCase() }
+        });
+        return response.data;
+    },
+
+    guardarOrdenClientes: async (rutaId, dia, clientesIds) => {
+        const response = await axios.post(`${API_URL}/ruta-orden/`, {
+            ruta_id: rutaId,
+            dia: dia.toUpperCase(),
+            clientes_ids: clientesIds
+        });
         return response.data;
     }
 };

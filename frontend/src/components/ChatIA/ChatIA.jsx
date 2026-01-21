@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Form, Button, Alert, Spinner, Badge } from 'react-bootstrap';
+import { Card, Form, Button, Alert, Spinner, Badge, Modal } from 'react-bootstrap';
 import LogoGuerrero from '../../assets/images/icono.png'; // Importar Logo
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
@@ -9,6 +9,12 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
         const saved = localStorage.getItem('chat_history_v1');
         return saved ? JSON.parse(saved) : [];
     });
+
+    // Estado Configuración
+    const [showConfig, setShowConfig] = useState(false);
+    const [apiKey, setApiKey] = useState('');
+    const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
+    const [savingConfig, setSavingConfig] = useState(false);
 
     // Persistir mensajes
     useEffect(() => {
@@ -47,7 +53,10 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
         inputBorder: darkMode ? 'transparent' : '#d9d9e3',
         toggleBg: darkMode ? '#2f2f2f' : '#f0f0f0',
         toggleText: darkMode ? '#ECECF1' : '#202123',
-        placeholder: darkMode ? '#8e8ea0' : '#8e8ea0'
+        placeholder: darkMode ? '#8e8ea0' : '#8e8ea0',
+        modalBg: darkMode ? '#2f2f2f' : '#fff',
+        modalText: darkMode ? '#ECECF1' : '#212529',
+        inputModalBg: darkMode ? '#3e3e3e' : '#fff',
     };
 
     const scrollToBottom = () => {
@@ -67,6 +76,7 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
 
     useEffect(() => {
         checkIAHealth();
+        loadConfig();
     }, []);
 
     const checkIAHealth = async () => {
@@ -77,6 +87,47 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
         } catch (error) {
             console.error('Error verificando IA:', error);
             setIaStatus({ status: 'error', message: 'No se puede conectar con la IA' });
+        }
+    };
+
+    const loadConfig = async () => {
+        try {
+            const res = await fetch(`${API_URL}/ia/config/`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.gemini_api_key) {
+                    setApiKey(data.gemini_api_key);
+                }
+                if (data.gemini_model) {
+                    setSelectedModel(data.gemini_model);
+                }
+            }
+        } catch (e) {
+            console.error("Error cargando config", e);
+        }
+    };
+
+    const handleSaveConfig = async () => {
+        setSavingConfig(true);
+        try {
+            const res = await fetch(`${API_URL}/ia/config/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gemini_api_key: apiKey,
+                    gemini_model: selectedModel
+                })
+            });
+            if (res.ok) {
+                setShowConfig(false);
+                checkIAHealth(); // Re-verificar salud con nueva key
+            } else {
+                alert('Error guardando configuración');
+            }
+        } catch (e) {
+            alert('Error conectando al servidor');
+        } finally {
+            setSavingConfig(false);
         }
     };
 
@@ -298,7 +349,7 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
         <div style={{
             position: 'fixed', // FULL SCREEN OVERLAY
             top: 0, left: 0, right: 0, bottom: 0,
-            zIndex: 9999,
+            zIndex: 1040, // Lower than Bootstrap Modal (1050)
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: theme.bg,
@@ -338,6 +389,30 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
                     </div>
                 </div>
                 <div className="d-flex align-items-center gap-2">
+                    {/* Botón Configuración (Nuevo) - SVG */}
+                    <button
+                        onClick={() => setShowConfig(true)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '8px',
+                            borderRadius: '50%',
+                            color: theme.text,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'all 0.2s',
+                            opacity: 0.7
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.opacity = 1}
+                        onMouseOut={(e) => e.currentTarget.style.opacity = 0.7}
+                        title="Configuración API"
+                    >
+                        <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="20" width="20" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+
                     {/* Botón Tema Minimalista SVG */}
                     <button
                         onClick={() => setDarkMode(!darkMode)}
@@ -540,6 +615,63 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
                     </Alert>
                 </div>
             )}
+
+            {/* MODAL CONFIGURACIÓN API KEY */}
+            <Modal show={showConfig} onHide={() => setShowConfig(false)} centered>
+                <Modal.Header closeButton style={{ backgroundColor: theme.modalBg, color: theme.modalText, borderBottomColor: theme.border }}>
+                    <Modal.Title>Configuración del Agente IA</Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ backgroundColor: theme.modalBg, color: theme.modalText }}>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Google Gemini API Key</Form.Label>
+                        <Form.Control
+                            type="password"
+                            placeholder="Introduce tu API Key (sk-...)"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            style={{ backgroundColor: theme.inputModalBg, color: theme.modalText, borderColor: theme.border }}
+                        />
+                        <Form.Text className="text-muted">
+                            Si se deja vacío, se usará la clave del sistema.
+                        </Form.Text>
+                    </Form.Group>
+
+                    <Form.Group className="mb-3">
+                        <Form.Label>Modelo de IA</Form.Label>
+                        <Form.Select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            style={{ backgroundColor: theme.inputModalBg, color: theme.modalText, borderColor: theme.border }}
+                        >
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rápido)</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Potente)</option>
+                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                            {!['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'].includes(selectedModel) && (
+                                <option value={selectedModel}>{selectedModel} (Personalizado)</option>
+                            )}
+                        </Form.Select>
+                        <div className="mt-2 text-end">
+                            <small
+                                style={{ cursor: 'pointer', color: '#0d6efd' }}
+                                onClick={() => {
+                                    const custom = prompt("Nombre técnico del modelo (ej: gemini-1.5-pro-002):", selectedModel);
+                                    if (custom) setSelectedModel(custom);
+                                }}
+                            >
+                                ¿Usar otro modelo?
+                            </small>
+                        </div>
+                    </Form.Group>
+                </Modal.Body>
+                <Modal.Footer style={{ backgroundColor: theme.modalBg, borderTopColor: theme.border }}>
+                    <Button variant="secondary" onClick={() => setShowConfig(false)}>
+                        Cancelar
+                    </Button>
+                    <Button variant="primary" onClick={handleSaveConfig} disabled={savingConfig}>
+                        {savingConfig ? 'Guardando...' : 'Guardar Configuración'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
 };

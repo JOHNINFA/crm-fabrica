@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/john/Escritorio/crm-fabrica/api/views.py", line 5289, in reportes_vendedores
+    nombre_real = get_nombre_vendedor(vendedor_raw)
+NameError: name 'get_nombre_vendedor' is not defined

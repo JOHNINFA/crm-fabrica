@@ -13,7 +13,8 @@ export const useUsuarios = () => {
 };
 
 export const UsuariosProvider = ({ children }) => {
-    const [usuarios, setUsuarios] = useState([]);
+    const [usuarios, setUsuarios] = useState([]);          // Usuarios del sistema (Cajero)
+    const [vendedores, setVendedores] = useState([]);      // 🆕 Vendedores de App Móvil
     const [sucursales, setSucursales] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -25,17 +26,62 @@ export const UsuariosProvider = ({ children }) => {
     const cargarDatos = async () => {
         setLoading(true);
         try {
-            const [usuariosData, sucursalesData] = await Promise.all([
+            const [usuariosData, sucursalesData, vendedoresData] = await Promise.all([
                 cajeroService.getAll(),
-                sucursalService.getAll()
+                sucursalService.getAll(),
+                // 🆕 Cargar vendedores de App Móvil
+                fetch('http://localhost:8000/api/vendedores/').then(r => r.json()).catch(() => [])
             ]);
             setUsuarios(usuariosData);
             setSucursales(sucursalesData);
+            setVendedores(vendedoresData);
         } catch (error) {
             console.error('Error cargando datos:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    // 🆕 Obtener todos los usuarios unificados (sistema + vendedores)
+    const getUsuariosUnificados = () => {
+        // Convertir vendedores al formato unificado
+        const vendedoresUnificados = vendedores.map(v => ({
+            id: v.id,
+            codigo: v.id_vendedor, // ID1, ID2, etc.
+            nombre: v.nombre,
+            ruta: v.ruta, // 🆕 Mapear ruta
+            email: null,
+            telefono: v.telefono,
+            rol: 'VENDEDOR',
+            activo: v.activo !== false,
+            // Permisos por defecto para vendedores
+            acceso_app_movil: true,
+            acceso_pos: false,
+            acceso_pedidos: false,
+            acceso_cargue: false,
+            acceso_produccion: false,
+            acceso_inventario: false,
+            acceso_reportes: false,
+            acceso_configuracion: false,
+            // Marcar como vendedor de app
+            es_vendedor_app: true,
+            password_visible: v.password // Los vendedores muestran password
+        }));
+
+        // Usuarios del sistema
+        const usuariosSistema = usuarios.map(u => ({
+            ...u,
+            es_vendedor_app: false,
+            password_visible: u.password_plano // 🆕 Ahora usamos la copia visible
+        }));
+
+        // Combinar y ordenar: usuarios sistema primero, vendedores app al final
+        return [...usuariosSistema, ...vendedoresUnificados].sort((a, b) => {
+            // Primero usuarios sistema, luego vendedores de app
+            if (!a.es_vendedor_app && b.es_vendedor_app) return -1;
+            if (a.es_vendedor_app && !b.es_vendedor_app) return 1;
+            return a.nombre.localeCompare(b.nombre);
+        });
     };
 
     // Crear usuario
@@ -50,14 +96,47 @@ export const UsuariosProvider = ({ children }) => {
         }
     };
 
-    // Actualizar usuario
-    const actualizarUsuario = async (id, datosUsuario) => {
+    // 🆕 Crear vendedor de App Móvil
+    const crearVendedor = async (datosVendedor) => {
         try {
-            const usuarioActualizado = await cajeroService.update(id, datosUsuario);
-            setUsuarios(prev =>
-                prev.map(u => u.id === id ? usuarioActualizado : u)
-            );
-            return { success: true, usuario: usuarioActualizado };
+            const response = await fetch('http://localhost:8000/api/vendedores/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosVendedor)
+            });
+            if (response.ok) {
+                const nuevoVendedor = await response.json();
+                setVendedores(prev => [...prev, nuevoVendedor]);
+                return { success: true, vendedor: nuevoVendedor };
+            }
+            return { success: false, error: 'Error creando vendedor' };
+        } catch (error) {
+            console.error('Error creando vendedor:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    // Actualizar usuario
+    const actualizarUsuario = async (id, datosUsuario, esVendedorApp = false) => {
+        try {
+            if (esVendedorApp) {
+                // Actualizar vendedor de App
+                const response = await fetch(`http://localhost:8000/api/vendedores/${id}/`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datosUsuario)
+                });
+                if (response.ok) {
+                    const vendedorActualizado = await response.json();
+                    setVendedores(prev => prev.map(v => v.id === id ? vendedorActualizado : v));
+                    return { success: true, usuario: vendedorActualizado };
+                }
+                return { success: false, error: 'Error actualizando vendedor' };
+            } else {
+                const usuarioActualizado = await cajeroService.update(id, datosUsuario);
+                setUsuarios(prev => prev.map(u => u.id === id ? usuarioActualizado : u));
+                return { success: true, usuario: usuarioActualizado };
+            }
         } catch (error) {
             console.error('Error actualizando usuario:', error);
             return { success: false, error: error.message };
@@ -65,11 +144,20 @@ export const UsuariosProvider = ({ children }) => {
     };
 
     // Eliminar usuario
-    const eliminarUsuario = async (id) => {
+    const eliminarUsuario = async (id, esVendedorApp = false) => {
         try {
-            await cajeroService.delete(id);
-            setUsuarios(prev => prev.filter(u => u.id !== id));
-            return { success: true };
+            if (esVendedorApp) {
+                const response = await fetch(`http://localhost:8000/api/vendedores/${id}/`, { method: 'DELETE' });
+                if (response.ok) {
+                    setVendedores(prev => prev.filter(v => v.id !== id));
+                    return { success: true };
+                }
+                return { success: false, error: 'Error eliminando vendedor' };
+            } else {
+                await cajeroService.delete(id);
+                setUsuarios(prev => prev.filter(u => u.id !== id));
+                return { success: true };
+            }
         } catch (error) {
             console.error('Error eliminando usuario:', error);
             return { success: false, error: error.message };
@@ -90,32 +178,32 @@ export const UsuariosProvider = ({ children }) => {
 
     // Obtener usuarios por módulo
     const getUsuariosPorModulo = (modulo) => {
-        return usuarios.filter(usuario => {
+        const todos = getUsuariosUnificados();
+        return todos.filter(usuario => {
             if (modulo === 'POS') {
-                // Para POS: cajeros que pueden vender (rol CAJERO o que tengan permisos de venta)
-                return usuario.activo && (
-                    usuario.rol === 'CAJERO' ||
-                    usuario.rol === 'SUPERVISOR' ||
-                    usuario.rol === 'ADMINISTRADOR'
-                );
-            } else if (modulo === 'PEDIDOS') {
-                // Para Pedidos: cualquier usuario activo (no necesariamente vendedor)
-                return usuario.activo;
+                return usuario.activo && usuario.acceso_pos;
+            } else if (modulo === 'REMISIONES' || modulo === 'PEDIDOS') {
+                return usuario.activo && usuario.acceso_pedidos;
+            } else if (modulo === 'APP') {
+                return usuario.activo && usuario.acceso_app_movil;
             }
-            return false;
+            return true;
         });
     };
 
     const value = {
         usuarios,
+        vendedores,
         sucursales,
         loading,
         cargarDatos,
         crearUsuario,
+        crearVendedor,
         actualizarUsuario,
         eliminarUsuario,
         crearSucursal,
-        getUsuariosPorModulo
+        getUsuariosPorModulo,
+        getUsuariosUnificados  // 🆕 Obtener lista unificada
     };
 
     return (

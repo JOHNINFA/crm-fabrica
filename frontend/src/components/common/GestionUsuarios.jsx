@@ -1,16 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Badge, Form, Alert, Modal } from 'react-bootstrap';
 import { useUsuarios } from '../../context/UsuariosContext';
+import rutasService from '../../services/rutasService';
 
 const GestionUsuarios = () => {
-    const { 
-        usuarios, 
-        sucursales, 
-        loading, 
-        crearUsuario, 
-        actualizarUsuario, 
+    // ... (contexto)
+
+    // 🆕 Estado para rutas
+    const [rutas, setRutas] = useState([]);
+
+    useEffect(() => {
+        cargarRutas();
+    }, []);
+
+    const cargarRutas = async () => {
+        try {
+            const data = await rutasService.obtenerRutas();
+            setRutas(data);
+        } catch (error) {
+            console.error('Error cargando rutas:', error);
+        }
+    };
+
+    const {
+        usuarios,
+        vendedores,
+        sucursales,
+        loading,
+        crearUsuario,
+        crearVendedor,
+        actualizarUsuario,
         eliminarUsuario,
-        getUsuariosPorModulo 
+        getUsuariosPorModulo,
+        getUsuariosUnificados
     } = useUsuarios();
 
     const [filtroModulo, setFiltroModulo] = useState('TODOS');
@@ -20,41 +42,121 @@ const GestionUsuarios = () => {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [usuarioPassword, setUsuarioPassword] = useState(null);
     const [nuevaPassword, setNuevaPassword] = useState('');
+    const [passwordsVisibles, setPasswordsVisibles] = useState({});  // 🆕 {id: true/false}
 
     // Estados del formulario
     const [formData, setFormData] = useState({
+        codigo: '', // 🆕 ID personalizado
         nombre: '',
+        ruta: '', // 🆕 Campo para Vendedores App
         email: '',
         telefono: '',
         password: '',
-        sucursal_id: '',
+        sucursal: '',
         rol: 'CAJERO',
-        modulo_asignado: 'POS', // POS, REMISIONES, AMBOS
         activo: true,
         puede_hacer_descuentos: false,
         limite_descuento: 0,
-        puede_anular_ventas: false
+        puede_anular_ventas: false,
+        // 🆕 Permisos por módulo
+        acceso_app_movil: false,
+        acceso_pos: false,
+        acceso_pedidos: false,
+        acceso_cargue: false,
+        acceso_produccion: false,
+        acceso_inventario: false,
+        acceso_reportes: false,
+        acceso_configuracion: false
     });
 
-    const usuariosFiltrados = filtroModulo === 'TODOS' 
-        ? usuarios 
-        : getUsuariosPorModulo(filtroModulo);
+    // 🆕 Usar lista unificada
+    const todosLosUsuarios = getUsuariosUnificados();
+    const usuariosFiltrados = filtroModulo === 'TODOS'
+        ? todosLosUsuarios
+        : filtroModulo === 'APP'
+            ? todosLosUsuarios.filter(u => u.acceso_app_movil)
+            : filtroModulo === 'POS'
+                ? todosLosUsuarios.filter(u => u.acceso_pos)
+                : filtroModulo === 'REMISIONES'
+                    ? todosLosUsuarios.filter(u => u.acceso_pedidos)
+                    : todosLosUsuarios;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         try {
             let resultado;
+
+            // 🆕 Determinar si es vendedor de app o usuario de sistema
+            const esVendedorApp = formData.rol === 'VENDEDOR';
+
             if (usuarioEditando) {
-                resultado = await actualizarUsuario(usuarioEditando.id, formData);
+                // 🔧 Preparar datos para actualizar usuario del sistema
+                const datosActualizar = esVendedorApp ? {
+                    nombre: formData.nombre,
+                    ruta: formData.ruta,
+                    password: formData.password || undefined, // Solo si tiene valor
+                    activo: formData.activo,
+                    telefono: formData.telefono
+                } : {
+                    // Usuario del sistema - incluir TODOS los campos, especialmente permisos
+                    nombre: formData.nombre,
+                    email: formData.email,
+                    telefono: formData.telefono,
+                    rol: formData.rol,
+                    activo: formData.activo,
+                    puede_hacer_descuentos: formData.puede_hacer_descuentos,
+                    limite_descuento: formData.limite_descuento,
+                    puede_anular_ventas: formData.puede_anular_ventas,
+                    // 🔐 PERMISOS DE ACCESO - Asegurar que se envíen explícitamente
+                    acceso_app_movil: formData.acceso_app_movil,
+                    acceso_pos: formData.acceso_pos,
+                    acceso_pedidos: formData.acceso_pedidos,
+                    acceso_cargue: formData.acceso_cargue,
+                    acceso_produccion: formData.acceso_produccion,
+                    acceso_inventario: formData.acceso_inventario,
+                    acceso_reportes: formData.acceso_reportes,
+                    acceso_configuracion: formData.acceso_configuracion
+                };
+
+                // Solo incluir password si tiene valor
+                if (formData.password) {
+                    datosActualizar.password = formData.password;
+                }
+
+                // Incluir sucursal si tiene valor
+                if (formData.sucursal_id) {
+                    datosActualizar.sucursal = formData.sucursal_id;
+                }
+
+                console.log('📤 Actualizando usuario:', usuarioEditando.id, datosActualizar);
+
+                resultado = await actualizarUsuario(
+                    usuarioEditando.id,
+                    datosActualizar,
+                    usuarioEditando.es_vendedor_app
+                );
             } else {
-                resultado = await crearUsuario(formData);
+                if (esVendedorApp) {
+                    // Crear vendedor de App Móvil
+                    resultado = await crearVendedor({
+                        id_vendedor: formData.codigo, // 🆕 Enviar ID manual
+                        nombre: formData.nombre,
+                        ruta: formData.ruta, // 🆕 Enviar ruta
+                        password: formData.password || '1234',
+                        activo: formData.activo,
+                        telefono: formData.telefono
+                    });
+                } else {
+                    // Crear usuario de sistema
+                    resultado = await crearUsuario(formData);
+                }
             }
 
             if (resultado.success) {
-                setMensaje({ 
-                    tipo: 'success', 
-                    texto: `Usuario ${usuarioEditando ? 'actualizado' : 'creado'} exitosamente` 
+                setMensaje({
+                    tipo: 'success',
+                    texto: `${esVendedorApp ? 'Vendedor' : 'Usuario'} ${usuarioEditando ? 'actualizado' : 'creado'} exitosamente`
                 });
                 handleCloseModal();
             } else {
@@ -70,17 +172,26 @@ const GestionUsuarios = () => {
     const handleEdit = (usuario) => {
         setUsuarioEditando(usuario);
         setFormData({
+            codigo: usuario.codigo || '',
             nombre: usuario.nombre || '',
+            ruta: usuario.ruta || '', // 🆕 Cargar ruta
             email: usuario.email || '',
             telefono: usuario.telefono || '',
-            password: '', // No mostrar password actual
-            sucursal_id: usuario.sucursal_id || usuario.sucursal || '',
+            password: '',
+            sucursal: usuario.sucursal || '',
             rol: usuario.rol || 'CAJERO',
-            modulo_asignado: usuario.modulo_asignado || 'POS',
             activo: usuario.activo !== false,
             puede_hacer_descuentos: usuario.puede_hacer_descuentos || false,
             limite_descuento: usuario.limite_descuento || 0,
-            puede_anular_ventas: usuario.puede_anular_ventas || false
+            puede_anular_ventas: usuario.puede_anular_ventas || false,
+            acceso_app_movil: usuario.acceso_app_movil || false,
+            acceso_pos: usuario.acceso_pos || false,
+            acceso_pedidos: usuario.acceso_pedidos || false,
+            acceso_cargue: usuario.acceso_cargue || false,
+            acceso_produccion: usuario.acceso_produccion || false,
+            acceso_inventario: usuario.acceso_inventario || false,
+            acceso_reportes: usuario.acceso_reportes || false,
+            acceso_configuracion: usuario.acceso_configuracion || false
         });
         setShowModal(true);
     };
@@ -93,13 +204,20 @@ const GestionUsuarios = () => {
             email: '',
             telefono: '',
             password: '',
-            sucursal_id: '',
+            sucursal: '',
             rol: 'CAJERO',
-            modulo_asignado: 'POS',
             activo: true,
             puede_hacer_descuentos: false,
             limite_descuento: 0,
-            puede_anular_ventas: false
+            puede_anular_ventas: false,
+            acceso_app_movil: false,
+            acceso_pos: false,
+            acceso_pedidos: false,
+            acceso_cargue: false,
+            acceso_produccion: false,
+            acceso_inventario: false,
+            acceso_reportes: false,
+            acceso_configuracion: false
         });
     };
 
@@ -137,14 +255,18 @@ const GestionUsuarios = () => {
         return sucursal ? sucursal.nombre : 'Sin asignar';
     };
 
-    const getModuloBadge = (usuario) => {
-        const modulo = usuario.modulo_asignado || 'POS';
-        const colores = {
-            'POS': 'primary',
-            'REMISIONES': 'success', 
-            'AMBOS': 'warning'
-        };
-        return <Badge bg={colores[modulo] || 'secondary'}>{modulo}</Badge>;
+    // 🆕 Mostrar badges de permisos
+    const getPermisosBadges = (usuario) => {
+        const permisos = [];
+        if (usuario.acceso_app_movil) permisos.push(<Badge bg="success" className="me-1" key="app">App</Badge>);
+        if (usuario.acceso_pos) permisos.push(<Badge bg="primary" className="me-1" key="pos">POS</Badge>);
+        if (usuario.acceso_pedidos) permisos.push(<Badge bg="info" className="me-1" key="ped">Pedidos</Badge>);
+        if (usuario.acceso_cargue) permisos.push(<Badge bg="warning" text="dark" className="me-1" key="car">Cargue</Badge>);
+        if (usuario.acceso_produccion) permisos.push(<Badge bg="secondary" className="me-1" key="prod">Producción</Badge>);
+        if (usuario.acceso_inventario) permisos.push(<Badge bg="dark" className="me-1" key="inv">Inventario</Badge>);
+        if (usuario.acceso_reportes) permisos.push(<Badge bg="danger" className="me-1" key="rep">Reportes</Badge>);
+        if (usuario.acceso_configuracion) permisos.push(<Badge bg="purple" style={{ backgroundColor: '#6f42c1' }} className="me-1" key="conf">Config</Badge>);
+        return permisos.length > 0 ? permisos : <span className="text-muted">Sin permisos</span>;
     };
 
     return (
@@ -156,10 +278,10 @@ const GestionUsuarios = () => {
                         <div>
                             <h2 className="mb-1">
                                 <i className="bi bi-people me-2"></i>
-                                Gestión de Usuarios
+                                Gestión Unificada de Usuarios
                             </h2>
                             <small className="text-muted">
-                                Administrar usuarios para POS y Remisiones
+                                Administrar usuarios del sistema y vendedores App Móvil
                             </small>
                         </div>
                         <Button
@@ -189,13 +311,11 @@ const GestionUsuarios = () => {
                 <Col md={4}>
                     <Form.Group>
                         <Form.Label>Filtrar por módulo:</Form.Label>
-                        <Form.Select 
-                            value={filtroModulo} 
-                            onChange={(e) => setFiltroModulo(e.target.value)}
-                        >
+                        <Form.Select value={filtroModulo} onChange={(e) => setFiltroModulo(e.target.value)}>
                             <option value="TODOS">Todos los usuarios</option>
-                            <option value="POS">Solo POS (Vendedores)</option>
-                            <option value="REMISIONES">Solo Remisiones</option>
+                            <option value="APP">App Móvil (Vendedores)</option>
+                            <option value="POS">POS (Punto de Venta)</option>
+                            <option value="REMISIONES">Pedidos/Remisiones</option>
                         </Form.Select>
                     </Form.Group>
                 </Col>
@@ -203,34 +323,34 @@ const GestionUsuarios = () => {
 
             {/* Estadísticas */}
             <Row className="mb-4">
-                <Col md={3}>
-                    <Card className="text-center">
+                <Col md={3} sm={6} className="mb-2">
+                    <Card className="text-center h-100">
                         <Card.Body>
-                            <h4 className="text-primary">{usuarios.length}</h4>
+                            <h4 className="text-primary">{todosLosUsuarios.length}</h4>
                             <small className="text-muted">Total Usuarios</small>
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={3}>
-                    <Card className="text-center">
+                <Col md={3} sm={6} className="mb-2">
+                    <Card className="text-center h-100 border-success">
                         <Card.Body>
-                            <h4 className="text-success">{getUsuariosPorModulo('POS').length}</h4>
-                            <small className="text-muted">Usuarios POS</small>
+                            <h4 className="text-success">{todosLosUsuarios.filter(u => u.es_vendedor_app).length}</h4>
+                            <small className="text-muted">📱 Vendedores App</small>
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={3}>
-                    <Card className="text-center">
+                <Col md={3} sm={6} className="mb-2">
+                    <Card className="text-center h-100 border-primary">
                         <Card.Body>
-                            <h4 className="text-info">{getUsuariosPorModulo('REMISIONES').length}</h4>
-                            <small className="text-muted">Usuarios Remisiones</small>
+                            <h4 className="text-info">{todosLosUsuarios.filter(u => u.acceso_pos).length}</h4>
+                            <small className="text-muted">🛒 Usuarios POS</small>
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={3}>
-                    <Card className="text-center">
+                <Col md={3} sm={6} className="mb-2">
+                    <Card className="text-center h-100 border-warning">
                         <Card.Body>
-                            <h4 className="text-warning">{usuarios.filter(u => u.activo).length}</h4>
+                            <h4 className="text-warning">{todosLosUsuarios.filter(u => u.activo).length}</h4>
                             <small className="text-muted">Activos</small>
                         </Card.Body>
                     </Card>
@@ -248,94 +368,92 @@ const GestionUsuarios = () => {
                             </h6>
                         </Card.Header>
                         <Card.Body className="p-0">
-                            <Table responsive hover className="mb-0">
+                            <Table responsive hover className="mb-0" size="sm">
                                 <thead className="table-light">
                                     <tr>
-                                        <th>ID</th>
+                                        <th>Código</th>
                                         <th>Nombre</th>
-                                        <th>Email</th>
-                                        <th>Sucursal</th>
+                                        <th>Contraseña</th>
                                         <th>Rol</th>
-                                        <th>Módulo</th>
                                         <th>Estado</th>
-                                        <th>Permisos</th>
+                                        <th>Accesos</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {usuariosFiltrados.map(usuario => (
-                                        <tr key={usuario.id}>
-                                            <td>
-                                                <Badge bg="secondary">{usuario.id}</Badge>
-                                            </td>
-                                            <td>
-                                                <div className="fw-bold">{usuario.nombre}</div>
-                                                {usuario.telefono && (
-                                                    <small className="text-muted">{usuario.telefono}</small>
-                                                )}
-                                            </td>
-                                            <td>{usuario.email || 'N/A'}</td>
-                                            <td>
-                                                <Badge bg="info">
-                                                    {getSucursalNombre(usuario.sucursal_id || usuario.sucursal)}
-                                                </Badge>
-                                            </td>
-                                            <td>
-                                                <Badge bg={
-                                                    usuario.rol === 'ADMINISTRADOR' ? 'danger' :
-                                                    usuario.rol === 'SUPERVISOR' ? 'warning' : 'secondary'
-                                                }>
-                                                    {usuario.rol}
-                                                </Badge>
-                                            </td>
-                                            <td>{getModuloBadge(usuario)}</td>
-                                            <td>
-                                                <Badge bg={usuario.activo ? 'success' : 'secondary'}>
-                                                    {usuario.activo ? 'Activo' : 'Inactivo'}
-                                                </Badge>
-                                            </td>
-                                            <td>
-                                                <div className="d-flex gap-1 flex-wrap">
-                                                    {usuario.puede_hacer_descuentos && (
-                                                        <Badge bg="primary" title={`Límite: ${usuario.limite_descuento}%`}>
-                                                            Descuentos
-                                                        </Badge>
+                                    {usuariosFiltrados.map(usuario => {
+                                        const key = `${usuario.es_vendedor_app ? 'v' : 'u'}-${usuario.id}`;
+                                        const mostrarPassword = passwordsVisibles[key];
+                                        return (
+                                            <tr key={key}>
+                                                <td>
+                                                    <Badge bg={usuario.es_vendedor_app ? 'success' : 'dark'}>
+                                                        {usuario.codigo || `ID${usuario.id}`}
+                                                    </Badge>
+                                                </td>
+                                                <td>
+                                                    <div className="fw-bold">{usuario.nombre}</div>
+                                                    {usuario.email && <small className="text-muted">{usuario.email}</small>}
+                                                    {usuario.es_vendedor_app && <small className="text-success d-block">📱 App Móvil</small>}
+                                                    {usuario.ruta && (
+                                                        <small className="d-block text-primary">
+                                                            <i className="bi bi-geo-alt me-1"></i>
+                                                            {usuario.ruta}
+                                                        </small>
                                                     )}
-                                                    {usuario.puede_anular_ventas && (
-                                                        <Badge bg="warning">Anular</Badge>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className="d-flex gap-1">
-                                                    <Button
-                                                        variant="outline-primary"
-                                                        size="sm"
-                                                        onClick={() => handleEdit(usuario)}
-                                                        title="Editar usuario"
-                                                    >
-                                                        <i className="bi bi-pencil"></i>
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline-warning"
-                                                        size="sm"
-                                                        onClick={() => handleRestablecerPassword(usuario)}
-                                                        title="Restablecer contraseña"
-                                                    >
-                                                        <i className="bi bi-key"></i>
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline-danger"
-                                                        size="sm"
-                                                        onClick={() => eliminarUsuario(usuario.id)}
-                                                        title="Eliminar usuario"
-                                                    >
-                                                        <i className="bi bi-trash"></i>
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td>
+                                                    <div className="d-flex align-items-center gap-1">
+                                                        {usuario.password_visible ? (
+                                                            <>
+                                                                <code className="bg-light px-2 py-1 rounded">
+                                                                    {mostrarPassword ? usuario.password_visible : '••••'}
+                                                                </code>
+                                                                <Button
+                                                                    variant="link"
+                                                                    size="sm"
+                                                                    className="p-0 text-muted"
+                                                                    onClick={() => setPasswordsVisibles(prev => ({ ...prev, [key]: !prev[key] }))}
+                                                                    title={mostrarPassword ? 'Ocultar' : 'Ver'}
+                                                                >
+                                                                    <i className={`bi bi-eye${mostrarPassword ? '-slash' : ''}`}></i>
+                                                                </Button>
+                                                            </>
+                                                        ) : (
+                                                            <small className="text-muted fst-italic">No visible (resetear)</small>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <Badge bg={
+                                                        usuario.rol === 'ADMINISTRADOR' ? 'danger' :
+                                                            usuario.rol === 'VENDEDOR' ? 'success' :
+                                                                usuario.rol === 'REMISIONES' ? 'info' :
+                                                                    usuario.rol === 'SUPERVISOR' ? 'warning' : 'primary'
+                                                    }>
+                                                        {usuario.rol}
+                                                    </Badge>
+                                                </td>
+                                                <td>
+                                                    <Badge bg={usuario.activo ? 'success' : 'secondary'}>
+                                                        {usuario.activo ? 'Activo' : 'Inactivo'}
+                                                    </Badge>
+                                                </td>
+                                                <td>
+                                                    <div className="d-flex gap-1 flex-wrap">
+                                                        {getPermisosBadges(usuario)}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="d-flex gap-1">
+                                                        <Button variant="outline-primary" size="sm" onClick={() => handleEdit(usuario)} title="Editar"><i className="bi bi-pencil"></i></Button>
+                                                        <Button variant="outline-warning" size="sm" onClick={() => handleRestablecerPassword(usuario)} title="Contraseña"><i className="bi bi-key"></i></Button>
+                                                        <Button variant="outline-danger" size="sm" onClick={() => eliminarUsuario(usuario.id, usuario.es_vendedor_app)} title="Eliminar"><i className="bi bi-trash"></i></Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </Table>
                         </Card.Body>
@@ -344,7 +462,7 @@ const GestionUsuarios = () => {
             </Row>
 
             {/* Modal para crear/editar usuario */}
-            <Modal show={showModal} onHide={handleCloseModal} size="lg" centered style={{maxHeight: '90vh'}}>
+            <Modal show={showModal} onHide={handleCloseModal} size="lg" centered style={{ maxHeight: '90vh' }}>
                 <Modal.Header closeButton>
                     <Modal.Title>
                         <i className="bi bi-person me-2"></i>
@@ -352,50 +470,81 @@ const GestionUsuarios = () => {
                     </Modal.Title>
                 </Modal.Header>
                 <Form onSubmit={handleSubmit}>
-                    <Modal.Body style={{maxHeight: '70vh', overflowY: 'auto'}}>
+                    <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                         <Row>
-                            <Col md={6}>
+                            <Col md={12}>
+                                <div className="alert alert-info py-2 mb-3">
+                                    <small><i className="bi bi-info-circle me-1"></i>
+                                        Para <b>Vendedores App</b>, el ID (ej: ID1, ID2) es obligatorio para vincular con rutas.
+                                        Para <b>Otros</b>, se genera automáticamente si se deja vacío.
+                                    </small>
+                                </div>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col md={4}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Código / ID {formData.rol === 'VENDEDOR' && '*'}</Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        placeholder={formData.rol === 'VENDEDOR' ? 'Ej: ID1' : 'Automático'}
+                                        value={formData.codigo}
+                                        onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+                                        required={formData.rol === 'VENDEDOR'}
+                                        disabled={usuarioEditando} // El ID no se debe cambiar una vez creado
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={8}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Nombre *</Form.Label>
                                     <Form.Control
                                         type="text"
                                         value={formData.nombre}
-                                        onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                         required
                                     />
                                 </Form.Group>
                             </Col>
+                        </Row>
+
+                        {formData.rol === 'VENDEDOR' && (
+                            <Row>
+                                <Col md={12}>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Ruta Asignada</Form.Label>
+                                        <Form.Select
+                                            value={formData.ruta}
+                                            onChange={(e) => setFormData({ ...formData, ruta: e.target.value })}
+                                        >
+                                            <option value="">-- Seleccionar Ruta --</option>
+                                            {rutas.map(r => (
+                                                <option key={r.id} value={r.nombre}>{r.nombre}</option>
+                                            ))}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        )}
+
+                        <Row>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Email</Form.Label>
                                     <Form.Control
                                         type="email"
                                         value={formData.email}
-                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     />
                                 </Form.Group>
                             </Col>
-                        </Row>
-
-                        <Row>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Teléfono</Form.Label>
                                     <Form.Control
                                         type="text"
                                         value={formData.telefono}
-                                        onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Contraseña {usuarioEditando ? '(dejar vacío para mantener)' : '*'}</Form.Label>
-                                    <Form.Control
-                                        type="password"
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                        required={!usuarioEditando}
+                                        onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                                     />
                                 </Form.Group>
                             </Col>
@@ -404,10 +553,21 @@ const GestionUsuarios = () => {
                         <Row>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
+                                    <Form.Label>Contraseña {usuarioEditando ? '(dejar vacío para mantener)' : '*'}</Form.Label>
+                                    <Form.Control
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        required={!usuarioEditando}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group className="mb-3">
                                     <Form.Label>Sucursal *</Form.Label>
                                     <Form.Select
                                         value={formData.sucursal_id}
-                                        onChange={(e) => setFormData({...formData, sucursal_id: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, sucursal_id: e.target.value })}
                                         required
                                     >
                                         <option value="">Seleccionar sucursal...</option>
@@ -424,10 +584,12 @@ const GestionUsuarios = () => {
                                     <Form.Label>Rol *</Form.Label>
                                     <Form.Select
                                         value={formData.rol}
-                                        onChange={(e) => setFormData({...formData, rol: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                                         required
                                     >
-                                        <option value="CAJERO">Cajero</option>
+                                        <option value="CAJERO">Cajero POS</option>
+                                        <option value="VENDEDOR">Vendedor App Móvil</option>
+                                        <option value="REMISIONES">Remisiones/Pedidos</option>
                                         <option value="SUPERVISOR">Supervisor</option>
                                         <option value="ADMINISTRADOR">Administrador</option>
                                     </Form.Select>
@@ -438,33 +600,34 @@ const GestionUsuarios = () => {
                         <Row>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Módulo Asignado *</Form.Label>
-                                    <Form.Select
-                                        value={formData.modulo_asignado}
-                                        onChange={(e) => setFormData({...formData, modulo_asignado: e.target.value})}
-                                        required
-                                    >
-                                        <option value="POS">Solo POS (Vendedor)</option>
-                                        <option value="REMISIONES">Solo Remisiones</option>
-                                        <option value="AMBOS">POS y Remisiones</option>
-                                    </Form.Select>
-                                    <Form.Text className="text-muted">
-                                        POS: Usuario se comporta como vendedor. Remisiones: Solo usuario sin función de venta.
-                                    </Form.Text>
-                                </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Check
-                                        type="checkbox"
-                                        label="Usuario activo"
-                                        checked={formData.activo}
-                                        onChange={(e) => setFormData({...formData, activo: e.target.checked})}
-                                    />
+                                    <Form.Check type="checkbox" label="Usuario activo" checked={formData.activo} onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} />
                                 </Form.Group>
                             </Col>
                         </Row>
-                        
+
+                        {/* 🆕 PERMISOS POR MÓDULO */}
+                        <Card className="mb-3 border-primary">
+                            <Card.Header className="bg-primary text-white py-2">
+                                <strong>🔐 Permisos de Acceso a Módulos</strong>
+                            </Card.Header>
+                            <Card.Body>
+                                <Row>
+                                    <Col md={4}><Form.Check type="switch" label="📱 App Móvil (Ventas Ruta)" checked={formData.acceso_app_movil} onChange={(e) => setFormData({ ...formData, acceso_app_movil: e.target.checked })} /></Col>
+                                    <Col md={4}><Form.Check type="switch" label="🛒 POS (Punto de Venta)" checked={formData.acceso_pos} onChange={(e) => setFormData({ ...formData, acceso_pos: e.target.checked })} /></Col>
+                                    <Col md={4}><Form.Check type="switch" label="📦 Pedidos/Remisiones" checked={formData.acceso_pedidos} onChange={(e) => setFormData({ ...formData, acceso_pedidos: e.target.checked })} /></Col>
+                                </Row>
+                                <Row className="mt-2">
+                                    <Col md={4}><Form.Check type="switch" label="📋 Cargue Vendedores" checked={formData.acceso_cargue} onChange={(e) => setFormData({ ...formData, acceso_cargue: e.target.checked })} /></Col>
+                                    <Col md={4}><Form.Check type="switch" label="🏭 Producción/Planeación" checked={formData.acceso_produccion} onChange={(e) => setFormData({ ...formData, acceso_produccion: e.target.checked })} /></Col>
+                                    <Col md={4}><Form.Check type="switch" label="📦 Inventario" checked={formData.acceso_inventario} onChange={(e) => setFormData({ ...formData, acceso_inventario: e.target.checked })} /></Col>
+                                </Row>
+                                <Row className="mt-2">
+                                    <Col md={4}><Form.Check type="switch" label="📊 Reportes" checked={formData.acceso_reportes} onChange={(e) => setFormData({ ...formData, acceso_reportes: e.target.checked })} /></Col>
+                                    <Col md={4}><Form.Check type="switch" label="⚙️ Configuración/Admin" checked={formData.acceso_configuracion} onChange={(e) => setFormData({ ...formData, acceso_configuracion: e.target.checked })} /></Col>
+                                </Row>
+                            </Card.Body>
+                        </Card>
+
                         <div className="d-flex gap-2 justify-content-end mt-4">
                             <Button variant="secondary" onClick={handleCloseModal}>
                                 Cancelar

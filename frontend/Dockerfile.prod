@@ -1,0 +1,19 @@
+# Dockerfile para Producción (Builder Pattern)
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 1. Instalar dependencias
+COPY package*.json ./
+RUN npm install
+
+# 2. Copiar código fuente
+COPY . .
+
+# 3. Argumentos de construcción (quemados en el build)
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+# 4. Comando por defecto: Construir y salir
+# Esto llenará el volumen montado en /app/build
+CMD ["npm", "run", "build"]

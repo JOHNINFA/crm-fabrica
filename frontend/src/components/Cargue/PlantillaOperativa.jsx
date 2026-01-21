@@ -712,46 +712,34 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         despachador: p.d || p.despachador || false
                     };
                 });
-
             } else {
                 console.warn(`⚠️ ${idSheet} - Formato de respuesta no reconocido:`, response);
             }
 
-            console.warn(`✅ ${idSheet} - Productos procesados:`, productosDesdeDB.length);
-            console.warn(`📋 ${idSheet} - Productos con datos:`, productosDesdeDB.filter(p => p.cantidad > 0 || p.total > 0));
+            // 🚀 LÓGICA ROBUSTA: Intentar mostrar datos siempre
+            let productosFinales = [];
 
-            if (productosDesdeDB.length > 0) {
-                // 🚀 ORDENAR según el índice en el array de productos del contexto
+            if (products && products.length > 0) {
+                // CASO 1: Tenemos contexto (Ideal) - Fusionar
                 const ordenProductos = {};
                 products.forEach((p, index) => {
-                    // Usar el índice del array como orden (el orden en que aparecen en la tabla)
                     ordenProductos[p.name] = index;
                 });
 
-                console.warn(`📋 ${idSheet} - Mapa de orden:`, ordenProductos);
-
-                // 🚀 FUSIONAR con el contexto para asegurar que estén TODOS los productos (36)
-                // Esto es crucial porque la BD puede devolver solo registros parciales (ej: solo los que tienen ventas)
-
-                const productosCompletos = products.map(product => {
-                    // Buscar si existe en la respuesta de la BD
+                productosFinales = products.map(product => {
                     const productoBD = productosDesdeDB.find(p => p.producto === product.name);
-
                     if (productoBD) {
                         const valorReal = preciosLista[product.id] !== undefined ? preciosLista[product.id] : (productoBD.valor || Math.round(product.price * 0.65));
                         const totalReal = productoBD.total || 0;
-
                         return {
                             ...productoBD,
-                            id: product.id || productoBD.id, // Preferir ID del contexto si existe
+                            id: product.id || productoBD.id,
                             valor: valorReal,
-                            neto: totalReal * valorReal, // 🚀 RECALCULAR NETO (Total * Valor)
-                            // Asegurar que check vendedor/despachador se mantengan
+                            neto: totalReal * valorReal,
                             vendedor: productoBD.vendedor || false,
                             despachador: productoBD.despachador || false
                         };
                     } else {
-                        // Si no está en BD, crear vacío
                         return {
                             id: product.id,
                             producto: product.name,
@@ -770,15 +758,22 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         };
                     }
                 });
+            } else if (productosDesdeDB.length > 0) {
+                // CASO 2: Sin contexto pero con datos de BD
+                console.warn(`⚠️ ${idSheet} - Sin contexto de productos, validando datos de BD`);
+                productosFinales = productosDesdeDB;
+            }
 
-                console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosCompletos.length} productos (fusionados BD + Contexto)`);
-                setProductosOperativos(productosCompletos);
+            // Validar si tenemos productos finales
+            if (productosFinales.length > 0) {
+                console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosFinales.length} productos`);
+                setProductosOperativos(productosFinales);
 
-                // 🚀 CORREGIDO: Calcular totalPedidos real desde la BD
-                const totalNeto = productosDesdeDB.reduce((sum, p) => sum + (p.neto || 0), 0);
+                // Calcular totales
+                const totalNeto = productosFinales.reduce((sum, p) => sum + (p.neto || 0), 0);
+
+                // Cargar pedidos solo si es necesario (evitar doble carga)
                 const resultadoPedidos = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
-
-                // 🔧 EXTRAER valores del objeto retornado (no asignar el objeto completo)
                 const totalPedidosReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.total : resultadoPedidos;
                 const nequiReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.nequi : 0;
                 const daviplataReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.daviplata : 0;
@@ -788,22 +783,17 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     totalPedidos: totalPedidosReal || 0,
                     nequi: nequiReal || 0,
                     daviplata: daviplataReal || 0,
-                    totalDctos: 4000,
-                    venta: 117000,
-                    totalEfectivo: 96000,
+                    // Estos valores fijos deberían venir de la BD idealmente, pero por ahora los mantenemos para no romper
+                    totalDctos: 0,
+                    venta: totalNeto + (totalPedidosReal || 0), // Aproximación
+                    totalEfectivo: 0,
                 };
 
-                console.warn(`💰 ${idSheet} - FORZANDO valores conocidos de BD:`, valoresForzados);
-                setDatosResumen(valoresForzados);
-
-                // Forzar re-render con delay
-                setTimeout(() => {
-                    setDatosResumen({ ...valoresForzados });
-                    console.warn(`💰 ${idSheet} - Re-render forzado automático`);
-                }, 200);
+                console.warn(`💰 ${idSheet} - Totales calculados:`, valoresForzados);
+                setDatosResumen(prev => ({ ...prev, ...valoresForzados }));
 
             } else {
-                console.warn(`⚠️ ${idSheet} - No hay productos para mostrar, usando fallback`);
+                console.warn(`⚠️ ${idSheet} - No se pudieron procesar productos (BD vacía y sin contexto), usando fallback`);
                 cargarDatosGuardados();
             }
         } catch (error) {
@@ -1157,8 +1147,17 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
         // No procesar contexto si el día está DESPACHO o COMPLETADO (usar datos de BD)
+        // Si está DESPACHO o COMPLETADO, verificar si necesitamos fusionar con contexto
         if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
-            console.log(`⏭️ ${idSheet} - Estado ${estadoBoton}, omitiendo actualización por contexto`);
+            const faltanProductos = products && products.length > 0 && productosOperativos.length < products.length;
+
+            if (faltanProductos) {
+                console.log(`🔄 ${idSheet} - Detectada lista incompleta en modo ${estadoBoton}, re-fusionando con contexto...`);
+                // Volver a cargar desde BD, ahora que tenemos contexto para fusionar
+                cargarDatosDesdeDB();
+            } else {
+                console.log(`⏭️ ${idSheet} - Estado ${estadoBoton} y lista completa, omitiendo actualización`);
+            }
             return;
         }
 
@@ -1205,9 +1204,21 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             if (isVisible) {
                 console.log(`🔄 ${idSheet} - Polling automático (pestaña visible)`);
                 const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+
+                // Si está completado, solo recargar si NO tenemos la lista completa
                 if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
-                    cargarDatosDesdeDB();
+                    // Verificar longitud actual vs contexto
+                    const longitudTotalEsperada = products ? products.length : 0;
+                    const longitudActual = productosOperativos.length;
+
+                    if (longitudActual < longitudTotalEsperada && longitudTotalEsperada > 0) {
+                        console.log(`🔄 ${idSheet} - Polling detectó lista incompleta (${longitudActual}/${longitudTotalEsperada}), recargando...`);
+                        cargarDatosDesdeDB();
+                    } else {
+                        console.log(`✅ ${idSheet} - Polling omitido: Lista ya está completa y modo solo lectura`);
+                    }
                 } else {
+                    // Si no está completado, cargar normal (localStorage)
                     cargarDatosGuardados();
                 }
             }

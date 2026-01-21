@@ -1,13 +1,13 @@
-            import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import GestionSucursales from '../components/common/GestionSucursales';
 import GestionUsuarios from '../components/common/GestionUsuarios';
-import GestionVendedores from '../components/common/GestionVendedores';
 import Herramientas from '../components/common/Herramientas';
 import GestionRutas from '../components/rutas/GestionRutas';
 import ReporteVentasRuta from '../components/rutas/ReporteVentasRuta';
 import ChatIA from '../components/ChatIA/ChatIA';
+import GestionIA from '../components/common/GestionIA';
 import usePageTitle from '../hooks/usePageTitle';
 
 const OtrosScreen = () => {
@@ -44,12 +44,12 @@ const OtrosScreen = () => {
             action: () => handleModuleChange('usuarios')
         },
         {
-            id: 'vendedores',
-            title: 'Contraseñas Vendedores',
-            description: 'Gestionar credenciales de vendedores App Móvil',
-            icon: 'badge',
-            color: 'info',
-            action: () => handleModuleChange('vendedores')
+            id: 'ia_manager',
+            title: 'Gestión de IA',
+            description: 'Controlar Redes Neuronales y Entrenamiento',
+            icon: 'psychology',
+            color: 'dark',
+            action: () => handleModuleChange('ia_manager')
         },
         {
             id: 'impresion',
@@ -107,16 +107,14 @@ const OtrosScreen = () => {
             color: 'warning',
             route: '/precios-cargue'
         },
-        /*
         {
-            id: 'chat_ia',
-            title: '🤖 Asistente IA',
-            description: 'Pregunta al asistente IA sobre el CRM',
+            id: 'ia',
+            title: 'Agente IA (Beta)',
+            description: 'Chat inteligente con datos de ventas y comandos',
             icon: 'smart_toy',
-            color: 'primary',
-            action: () => handleModuleChange('chat_ia')
+            color: 'dark',
+            action: () => handleModuleChange('ia')
         }
-        */
     ];
 
     return (
@@ -204,18 +202,6 @@ const OtrosScreen = () => {
                             </Button>
                             <GestionUsuarios />
                         </div>
-                    ) : activeModule === 'vendedores' ? (
-                        <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
-                                <i className="bi bi-arrow-left me-2"></i>
-                                Volver al Menú de Otros
-                            </Button>
-                            <GestionVendedores />
-                        </div>
                     ) : activeModule === 'herramientas' ? (
                         <div>
                             <Button
@@ -240,11 +226,20 @@ const OtrosScreen = () => {
                             </Button>
                             <ReporteVentasRuta />
                         </div>
-                        /*
-                        ) : activeModule === 'chat_ia' ? (
-                            // Chat IA renderizado (ahora manejará su propio layout full screen)
-                            <ChatIA onBack={() => handleModuleChange('')} />
-                        */
+                    ) : activeModule === 'ia_manager' ? (
+                        <div>
+                            <Button
+                                variant="outline-secondary"
+                                className="mb-3"
+                                onClick={() => handleModuleChange('')}
+                            >
+                                <i className="bi bi-arrow-left me-2"></i>
+                                Volver al Menú de Otros
+                            </Button>
+                            <GestionIA />
+                        </div>
+                    ) : activeModule === 'ia' ? (
+                        <ChatIA onBack={() => handleModuleChange('')} />
                     ) : (
                         <>
                             <Row>

@@ -62,11 +62,12 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
       args:
-        - REACT_APP_API_URL=${API_URL:-http://localhost}/api
+        - REACT_APP_API_URL=${API_URL:-https://tudominio.com}/api
     container_name: crm_frontend_prod
-    restart: always
+    # Builder: corre una vez y termina
+    restart: "no"
     environment:
       - NODE_ENV=production
     volumes:

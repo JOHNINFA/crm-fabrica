@@ -564,12 +564,10 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   };
 
   // 🆕 SINCRONIZACIÓN DE TOTALES CALCULADOS
-  // Ref para evitar sincronización en carga inicial
   const cargaInicialTotales = useRef(true);
+  const ultimosTotalesGuardados = useRef({});
 
-  // 🚫 DESACTIVADO: La sincronización de total_pedidos la maneja PlantillaOperativa
-  // Este useEffect causaba conflictos con el polling que actualiza totalPedidos
-  /*
+  // ✅ ACTIVADO: Sincronización de totales segura
   useEffect(() => {
     // Solo sincronizar si hay productos y no es carga inicial
     if (productos.length === 0 || cargaInicialTotales.current) {
@@ -588,40 +586,40 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       fechaParaBD = fechaSeleccionada;
     }
 
-    // Calcular totales
+    // Calcular totales actuales
     const totalDespacho = calcularTotalDespacho();
     const totalPedidosVal = datos.totalPedidos || 0;
     const totalDctosVal = calcularTotal('descuentos');
     const ventaVal = baseCaja + totalDespacho + totalPedidosVal - totalDctosVal;
     const totalEfectivoVal = ventaVal - calcularTotal('nequi') - calcularTotal('daviplata');
 
-    console.log(`🔄 Sincronizando totales: despacho=${totalDespacho}, pedidos=${totalPedidosVal}, venta=${ventaVal}`);
+    // Comparar con últimos guardados para evitar bucles infinitos
+    const nuevosTotales = { d: totalDespacho, p: totalPedidosVal, v: ventaVal };
+    if (JSON.stringify(nuevosTotales) === JSON.stringify(ultimosTotalesGuardados.current)) {
+      return;
+    }
 
-    // Sincronizar cada campo de totales
-    const totalesASincronizar = {
-      total_despacho: totalDespacho,
-      total_pedidos: totalPedidosVal, // 🚫 ESTO CAUSA EL PROBLEMA
-      total_dctos: totalDctosVal,
-      venta: ventaVal,
-      total_efectivo: totalEfectivoVal
-    };
+    const timer = setTimeout(() => {
+      ultimosTotalesGuardados.current = nuevosTotales;
+      console.log(`🔄 Sincronizando totales BD: despacho=${totalDespacho}, pedidos=${totalPedidosVal}`);
 
-    Object.entries(totalesASincronizar).forEach(([campo, valor]) => {
-      cargueRealtimeService.actualizarCampoGlobal(
-        idSheet,
-        dia,
-        fechaParaBD,
-        campo,
-        valor,
-        'Sistema'
-      ).then(result => {
-        if (result.success) {
-          console.log(`✅ Total sincronizado: ${campo} = ${valor}`);
-        }
-      }).catch(err => console.error(`❌ Error sincronizando ${campo}:`, err));
-    });
-  }, [productos, baseCaja, filas, datos.totalPedidos]);
-  */
+      const totalesASincronizar = {
+        total_despacho: totalDespacho,
+        total_pedidos: totalPedidosVal,
+        total_dctos: totalDctosVal,
+        venta: ventaVal,
+        total_efectivo: totalEfectivoVal
+      };
+
+      Object.entries(totalesASincronizar).forEach(([campo, valor]) => {
+        cargueRealtimeService.actualizarCampoGlobal(
+          idSheet, dia, fechaParaBD, campo, valor, 'Sistema'
+        ).catch(e => console.error(e));
+      });
+    }, 2000); // Debounce 2s para estabilidad
+
+    return () => clearTimeout(timer);
+  }, [productos, baseCaja, filas, datos.totalPedidos, idSheet, dia, fechaSeleccionada]);
 
   // 🚀 ACTUALIZADO: Sincronizar Pagos Detallados de App Móvil
   useEffect(() => {

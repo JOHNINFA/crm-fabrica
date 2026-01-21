@@ -393,39 +393,52 @@ class SucursalSerializer(serializers.ModelSerializer):
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
 
 class CajeroSerializer(serializers.ModelSerializer):
-    """Serializer para cajeros"""
-    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
-    password = serializers.CharField(write_only=True)
+    """Serializer para usuarios del sistema (unificado)"""
+    sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre', allow_null=True)
+    password = serializers.CharField(write_only=True, required=False)
     
     class Meta:
         model = Cajero
         fields = [
-            'id', 'nombre', 'email', 'telefono', 'password', 'sucursal', 
+            'id', 'codigo', 'nombre', 'email', 'telefono', 'password', 'password_plano', 'sucursal', 
             'sucursal_nombre', 'rol', 'activo', 'puede_hacer_descuentos',
-            'limite_descuento', 'puede_anular_ventas', 'fecha_creacion',
-            'fecha_actualizacion', 'ultimo_login'
+            'limite_descuento', 'puede_anular_ventas', 
+            # 🆕 Permisos por módulo
+            'acceso_app_movil', 'acceso_pos', 'acceso_pedidos', 'acceso_cargue',
+            'acceso_produccion', 'acceso_inventario', 'acceso_reportes', 'acceso_configuracion',
+            'fecha_creacion', 'fecha_actualizacion', 'ultimo_login'
         ]
-        read_only_fields = ('fecha_creacion', 'fecha_actualizacion', 'ultimo_login')
+        read_only_fields = ('password_plano', 'fecha_creacion', 'fecha_actualizacion', 'ultimo_login')
         extra_kwargs = {
-            'password': {'write_only': True}
+            'password': {'write_only': True, 'required': False},
+            'sucursal': {'required': False, 'allow_null': True}
         }
     
     def create(self, validated_data):
-        """Crear cajero con contraseña hasheada"""
+        """Crear usuario con contraseña hasheada y plana"""
         import hashlib
-        password = validated_data.pop('password')
-        # Hash simple para desarrollo (en producción usar bcrypt)
+        password = validated_data.pop('password', '1234')  # Default password
+        
+        # 🆕 Guardar copia visible
+        validated_data['password_plano'] = password
+        
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         validated_data['password'] = hashed_password
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
-        """Actualizar cajero, hashear contraseña si se proporciona"""
-        if 'password' in validated_data:
+        """Actualizar usuario, hashear contraseña si se proporciona"""
+        if 'password' in validated_data and validated_data['password']:
             import hashlib
             password = validated_data.pop('password')
+            
+            # 🆕 Actualizar copia visible
+            validated_data['password_plano'] = password
+            
             hashed_password = hashlib.sha256(password.encode()).hexdigest()
             validated_data['password'] = hashed_password
+        elif 'password' in validated_data:
+            validated_data.pop('password')  # Quitar si viene vacío
         return super().update(instance, validated_data)
 
 class TurnoSerializer(serializers.ModelSerializer):
@@ -604,9 +617,23 @@ class DetallePedidoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('subtotal',)
 
+
+class EvidenciaPedidoSerializer(serializers.ModelSerializer):
+    """Serializer para fotos de evidencia de pedidos"""
+    from .models import EvidenciaPedido
+    
+    class Meta:
+        from .models import EvidenciaPedido
+        model = EvidenciaPedido
+        fields = ['id', 'producto_nombre', 'imagen', 'motivo', 'fecha_creacion']
+        read_only_fields = ('fecha_creacion',)
+
+
 class PedidoSerializer(serializers.ModelSerializer):
     """Serializer para pedidos"""
     detalles = DetallePedidoSerializer(many=True, read_only=True)
+    detalles_info = DetallePedidoSerializer(source='detalles', many=True, read_only=True)  # Alias para frontend
+    evidencias = EvidenciaPedidoSerializer(many=True, read_only=True)  # 🆕 Fotos de evidencia
     
     class Meta:
         model = Pedido
@@ -615,7 +642,8 @@ class PedidoSerializer(serializers.ModelSerializer):
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
             'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
             'descuentos', 'total', 'estado', 'nota', 'metodo_pago', 'novedades',
-            'fecha_creacion', 'fecha_actualizacion', 'detalles',
+            'fecha_creacion', 'fecha_actualizacion', 'detalles', 'detalles_info',
+            'evidencias',  # 🆕 Fotos de evidencia
             # Nuevos campos
             'afectar_inventario_inmediato', 'asignado_a_tipo', 
             'asignado_a_id', 'inventario_afectado'
@@ -910,7 +938,7 @@ class VentaRutaSerializer(serializers.ModelSerializer):
     class Meta:
         model = VentaRuta
         fields = '__all__'  # Incluye automáticamente dispositivo_id e ip_origen
-        read_only_fields = ('fecha',)  # fecha se genera automáticamente
+        # read_only_fields = ('fecha',)  # FECHA debe ser editable para permitir simular días anteriores
 
 
 # ===== SERIALIZER PARA LOGS DE SINCRONIZACIÓN =====
