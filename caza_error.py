@@ -2,11 +2,11 @@
 import glob
 import os
 
-print("--- ESCANEANDO TODO EL PROYECTO EN BUSCA DE SLASHES MALOS ---")
+print("--- ESCANEO FINAL DE SINTAXIS CSS ---")
 
+# Buscar en frontend/src
 files = glob.glob('frontend/src/**/*.css', recursive=True)
-
-found_any = False
+count = 0
 
 for archivo in files:
     try:
@@ -15,33 +15,22 @@ for archivo in files:
 
         for i, line in enumerate(lines):
             l = line.strip()
-            if not l: continue
+            # 1. Buscar el error maldito: / * (slash espacio asterisco)
+            if '/ *' in l:
+                print(f"🚨 ERROR CRÍTICO en {archivo}:{i+1}")
+                print(f"   > {l}")
+                count += 1
             
-            # Buscar slashes fuera de lugar
-            if '/' in l:
-                # Ignorar comentarios validos (o parte de ellos)
-                if '/*' in l or '*/' in l: continue
-                 # Ignorar urls
-                if 'url(' in l: continue
-                # Ignorar calcs validos (con espacios)
-                if 'calc' in l and ' / ' in l: continue
-                # Ignorar propiedades que usan /
-                if any(prop in l for prop in ['font:', 'grid:', 'grid-template', 'border-radius:', 'aspect-ratio:', 'background:']): continue
-                
-                # Ignorar variables CSS que podrian tener / ?? raro pero posible
-                
-                # Si llegamos aqui, es sospechoso.
-                # Especimen común: calc(100%/3) -> falla
-                # Especimen común: / suelto
-                
-                print(f"!!! SOSPECHOSO en {archivo}:{i+1}")
-                print(f"    > {l}")
-                found_any = True
+            # 2. Buscar el inverso: * / (asterisco espacio slash, raro pero posible)
+            if '* /' in l:
+                print(f"🚨 ERROR CRÍTICO en {archivo}:{i+1}")
+                print(f"   > {l}")
+                count += 1
 
     except Exception as e:
         print(f"Error leyendo {archivo}: {e}")
 
-if not found_any:
-    print("No se encontraron errores obvios con este filtro.")
+if count == 0:
+    print("✅ No se encontraron patrones '/ *' ni '* /'.")
 else:
-    print("Revisa las líneas marcadas arriba.")
+    print(f"❌ SE ENCONTRARON {count} ERRORES. ¡ARREGLALOS!")
