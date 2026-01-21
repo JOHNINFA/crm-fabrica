@@ -32,7 +32,13 @@ if (configServerUrl) {
 }
 
 // Exportamos la constante para que otros archivos la usen
-export const API_URL = process.env.REACT_APP_API_URL || `${FINAL_BASE_URL}/api`;
+// Exportamos la constante para que otros archivos la usen
+// Corrección crítica: Si FINAL_BASE_URL está vacío (producción relativa),
+// API_URL debe ser simplemente '/api'.
+// Si tiene valor (ej: http://localhost:8000), le pegamos '/api'
+export const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL
+  : (FINAL_BASE_URL === '' ? '/api' : `${FINAL_BASE_URL}/api`);
 
 /**
  * Fetch con timeout de 5 segundos
