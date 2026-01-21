@@ -1,11 +1,11 @@
-/* Estilos para la página completa de Caja - Diseño limpio y profesional */
+
 .caja-screen {
     min-height: 100vh;
     background: #f8f9fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Header de la página - Estilo limpio */
+
 .caja-header {
     background: white;
     border-bottom: 1px solid #e9ecef;
@@ -26,14 +26,14 @@
     font-size: 0.9rem;
 }
 
-/* Contenido principal más compacto */
+
 .caja-content {
     padding: 1.5rem 0;
     max-width: 1200px;
     margin: 0 auto;
 }
 
-/* Cards estilo limpio y profesional */
+
 .caja-content .card {
     border: 1px solid #e9ecef;
     border-radius: 8px;
@@ -59,7 +59,7 @@
     padding: 1.25rem;
 }
 
-/* Estadísticas del día */
+
 .stat-card {
     padding: 1.5rem;
     border-radius: 12px;
@@ -88,7 +88,7 @@
     letter-spacing: 0.5px;
 }
 
-/* Tabla de arqueo estilo limpio como la imagen */
+
 .caja-table-page {
     font-size: 0.95rem;
     margin-bottom: 0;
@@ -139,7 +139,7 @@
     color: #495057;
 }
 
-/* Inputs de la tabla estilo limpio */
+
 .caja-input-page {
     border: 1px solid #ced4da;
     border-radius: 4px;
@@ -155,7 +155,7 @@
     outline: 0;
 }
 
-/* Tabs estilo limpio y consistente */
+
 .nav-tabs {
     border-bottom: 1px solid #dee2e6;
     margin-bottom: 0;
@@ -183,7 +183,7 @@
     font-weight: 600;
 }
 
-/* Botones de acción */
+
 .caja-actions {
     margin-top: 3rem;
     padding: 2rem;
@@ -224,7 +224,7 @@
     background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
 }
 
-/* Alertas mejoradas */
+
 .alert {
     border: none;
     border-radius: 10px;
@@ -252,14 +252,14 @@
     color: white;
 }
 
-/* Badges mejorados */
+
 .badge {
     border-radius: 8px;
     font-weight: 600;
     letter-spacing: 0.5px;
 }
 
-/* Formularios */
+
 .form-label {
     font-weight: 600;
     color: #495057;
@@ -281,13 +281,13 @@
     box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
 }
 
-/* Textarea de observaciones */
+
 textarea.form-control {
     resize: vertical;
     min-height: 120px;
 }
 
-/* Responsive */
+
 @media (max-width: 768px) {
     .caja-content {
         padding: 1rem 0;
@@ -338,7 +338,7 @@ textarea.form-control {
     }
 }
 
-/* Animaciones */
+
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -363,7 +363,7 @@ textarea.form-control {
     animation-delay: 0.2s;
 }
 
-/* Estados de validación */
+
 .text-danger {
     color: #e74c3c !important;
 }
@@ -376,13 +376,13 @@ textarea.form-control {
     color: #f39c12 !important;
 }
 
-/* Spinner personalizado */
+
 .spinner-border-sm {
     width: 1rem;
     height: 1rem;
 }
 
-/* Mejoras para impresión */
+
 @media print {
 
     .caja-header,
@@ -407,9 +407,9 @@ textarea.form-control {
     }
 }
 
-/* Estilos adicionales para mejoras */
 
-/* Mejoras para el tab de reportes */
+
+
 .bg-light .border-end:last-child {
     border-right: none !important;
 }
@@ -418,7 +418,7 @@ textarea.form-control {
     font-weight: 700;
 }
 
-/* Mejoras para botones en tabs */
+
 .card-body .btn {
     transition: all 0.3s ease;
 }
@@ -427,7 +427,7 @@ textarea.form-control {
     transform: translateY(-1px);
 }
 
-/* Mejoras para la tabla de historial */
+
 .table th {
     font-weight: 600;
     font-size: 0.9rem;
@@ -439,7 +439,7 @@ textarea.form-control {
     vertical-align: middle;
 }
 
-/* Badges mejorados */
+
 .badge.bg-success {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
 }
@@ -452,7 +452,7 @@ textarea.form-control {
     background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%) !important;
 }
 
-/* Botones pequeños mejorados */
+
 .btn-sm {
     padding: 0.375rem 0.75rem;
     border-radius: 6px;
@@ -467,13 +467,13 @@ textarea.form-control {
     transform: scale(1.05);
 }
 
-/* Mejoras para formularios en tabs */
+
 .form-group .form-label {
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
 }
 
-/* Espaciado mejorado */
+
 .gap-2>* {
     margin-right: 0.5rem !important;
 }
@@ -482,13 +482,13 @@ textarea.form-control {
     margin-right: 1rem !important;
 }
 
-/* Efectos hover para cards */
+
 .bg-light.card:hover {
     background: #f1f3f4 !important;
     transition: background-color 0.3s ease;
 }
 
-/* Mejoras para iconos */
+
 .bi {
     font-size: 1em;
 }
@@ -499,7 +499,7 @@ textarea.form-control {
     font-size: 0.9em;
 }
 
-/* Estilos responsive ya definidos arriba */
+
 
 .table-responsive {
     font-size: 0.85rem;
@@ -510,12 +510,12 @@ textarea.form-control {
     font-size: 0.8rem;
 }
 
-/* Mejoras para el estado de carga */
+
 .spinner-border {
     color: #3498db;
 }
 
-/* Mejoras para alertas en tabs */
+
 .alert {
     margin-bottom: 1rem;
 }
@@ -524,7 +524,7 @@ textarea.form-control {
     font-size: 1.1em;
 }
 
-/* Mejoras para estadísticas */
+
 .stat-card .h5,
 .stat-card .h4 {
     margin-bottom: 0.25rem;
@@ -535,9 +535,9 @@ textarea.form-control {
     color: #6c757d;
 }
 
-/* Estilos adicionales para el diseño limpio como la imagen */
 
-/* Botones del header estilo limpio */
+
+
 .card-body .btn-sm {
     padding: 0.375rem 0.75rem;
     font-size: 0.8rem;
@@ -555,13 +555,13 @@ textarea.form-control {
     border-color: #343a40;
 }
 
-/* Mejoras para la tabla principal */
+
 .caja-table-page tbody td:first-child {
     background-color: #f8f9fa;
     font-weight: 500;
 }
 
-/* Colores específicos para diferencias */
+
 .text-danger {
     color: #dc3545 !important;
     font-weight: 600;
@@ -576,7 +576,7 @@ textarea.form-control {
     color: #007bff !important;
 }
 
-/* Estilo para valores destacados */
+
 .caja-table-page .text-success.fw-bold {
     color: #28a745 !important;
     font-size: 1rem;
@@ -586,13 +586,13 @@ textarea.form-control {
     color: #007bff !important;
 }
 
-/* Mejoras para inputs en la tabla */
+
 .caja-input-page {
     height: 32px;
     padding: 0.25rem 0.5rem;
 }
 
-/* Header más limpio */
+
 .caja-header .btn-outline-secondary {
     color: #6c757d;
     border-color: #6c757d;
@@ -604,14 +604,14 @@ textarea.form-control {
     color: white;
 }
 
-/* Espaciado mejorado */
+
 .card-body {
     padding: 1.25rem;
 }
 
-/* Estilos duplicados eliminados - ya están definidos arriba */
 
-/* Mejoras para estadísticas */
+
+
 .stat-card {
     padding: 1rem;
     border: 1px solid #e9ecef;
@@ -631,7 +631,7 @@ textarea.form-control {
     font-weight: 500;
 }
 
-/* Responsive mejorado */
+
 @media (max-width: 768px) {
     .caja-input-page {
         width: 120px !important;
@@ -648,7 +648,7 @@ textarea.form-control {
     }
 }
 
-/* Mejoras para alertas */
+
 .alert {
     border-radius: 6px;
     border: none;
@@ -665,7 +665,7 @@ textarea.form-control {
     color: #721c24;
 }
 
-/* Botones de acción mejorados */
+
 .caja-actions .btn {
     border-radius: 6px;
     font-weight: 500;
@@ -682,7 +682,7 @@ textarea.form-control {
     border-color: #1e7e34;
 }
 
-/* Estilo especial para diferencias negativas como en la imagen */
+
 .diferencia-negativa {
     background-color: #cce5ff !important;
     color: #0066cc !important;
@@ -704,7 +704,7 @@ textarea.form-control {
     font-weight: 500;
 }
 
-/* Mejora para valores del sistema destacados */
+
 .valor-sistema-destacado {
     background-color: #e8f5e8;
     color: #155724;
@@ -716,7 +716,7 @@ textarea.form-control {
     text-align: center;
 }
 
-/* Mejora para valores de transferencia */
+
 .valor-transferencia {
     background-color: #cce5ff;
     color: #0066cc;
@@ -728,7 +728,7 @@ textarea.form-control {
     text-align: center;
 }
 
-/* Estilo para la fila de efectivo destacada */
+
 .fila-efectivo {
     background-color: #f8f9fa !important;
 }
@@ -738,7 +738,7 @@ textarea.form-control {
     color: #495057;
 }
 
-/* Mejoras adicionales para la tabla */
+
 .caja-table-page tbody tr:nth-child(odd) {
     background-color: #fdfdfd;
 }
@@ -747,26 +747,26 @@ textarea.form-control {
     background-color: #f9f9f9;
 }
 
-/* Estilos adicionales para diseño más compacto */
 
-/* Contenedor más compacto */
+
+
 .caja-screen .container {
     max-width: 1100px;
 }
 
-/* Reducir espaciado entre cards */
+
 .caja-content .card+.card {
     margin-top: 1rem;
 }
 
-/* Hacer los inputs más pequeños */
+
 .caja-input-page {
     height: 30px;
     padding: 0.25rem 0.5rem;
     font-size: 0.85rem;
 }
 
-/* Compactar las estadísticas */
+
 .stat-card {
     padding: 0.75rem;
 }
@@ -780,12 +780,12 @@ textarea.form-control {
     font-size: 0.75rem;
 }
 
-/* Reducir padding en tabs */
+
 .tab-content {
     padding-top: 1rem;
 }
 
-/* Hacer los botones más compactos */
+
 .caja-actions {
     margin-top: 2rem;
     padding: 1.5rem;
@@ -796,13 +796,13 @@ textarea.form-control {
     font-size: 0.95rem;
 }
 
-/* Compactar alertas */
+
 .alert {
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
 }
 
-/* Responsive mejorado para diseño compacto */
+
 @media (max-width: 992px) {
     .caja-content {
         max-width: 100%;
@@ -831,7 +831,7 @@ textarea.form-control {
     }
 }
 
-/* Botones compactos para el header de controles */
+
 .btn-compact {
     padding: 0.25rem 0.5rem !important;
     font-size: 0.75rem !important;
@@ -844,12 +844,12 @@ textarea.form-control {
     font-size: 0.8em;
 }
 
-/* Ajustar el gap entre botones compactos */
+
 .d-flex.gap-2 .btn-compact {
     margin-right: 0.25rem;
 }
 
-/* Estilos específicos para los botones del header de controles */
+
 .card-body .d-flex.gap-2 {
     gap: 0.25rem !important;
 }
@@ -859,7 +859,7 @@ textarea.form-control {
     padding: 0.25rem 0.75rem !important;
 }
 
-/* Responsive para botones compactos */
+
 @media (max-width: 768px) {
     .btn-compact {
         padding: 0.2rem 0.4rem !important;
@@ -877,13 +877,13 @@ textarea.form-control {
         font-size: 0.65rem !important;
     }
 
-    /* En móviles, apilar los botones verticalmente si es necesario */
+    
     .card-body .d-flex.gap-2 {
         flex-wrap: wrap;
     }
 }
 
-/* Inputs compactos para los controles superiores */
+
 .form-control-compact {
     padding: 0.375rem 0.75rem !important;
     font-size: 0.875rem !important;
@@ -897,7 +897,7 @@ textarea.form-control {
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-/* Labels compactos */
+
 .form-label-compact {
     font-size: 0.8rem !important;
     font-weight: 500;
@@ -905,12 +905,12 @@ textarea.form-control {
     color: #6c757d !important;
 }
 
-/* Ajustar el Form.Group para que sea más compacto */
+
 .card-body .form-group {
     margin-bottom: 1rem;
 }
 
-/* Hacer los inputs de la tabla aún más pequeños */
+
 .caja-input-page {
     height: 28px !important;
     padding: 0.2rem 0.4rem !important;
@@ -918,7 +918,7 @@ textarea.form-control {
     border-radius: 3px;
 }
 
-/* Responsive para inputs compactos */
+
 @media (max-width: 768px) {
     .form-control-compact {
         padding: 0.25rem 0.5rem !important;
@@ -949,7 +949,7 @@ textarea.form-control {
     }
 }
 
-/* Alineación consistente para todos los valores del sistema */
+
 .caja-table-page tbody td:nth-child(2) {
     text-align: right !important;
     vertical-align: middle;
@@ -960,14 +960,14 @@ textarea.form-control {
     vertical-align: middle;
 }
 
-/* Asegurar que todos los valores tengan la misma altura base */
+
 .caja-table-page tbody td:nth-child(2) .valor-sistema-destacado,
 .caja-table-page tbody td:nth-child(2) .valor-transferencia {
     vertical-align: baseline;
     line-height: 1.2;
 }
 
-/* Alineación para la columna de diferencias */
+
 .caja-table-page tbody td:nth-child(4) {
     text-align: right !important;
     vertical-align: middle;
@@ -981,7 +981,7 @@ textarea.form-control {
     line-height: 1.2;
 }
 
-/* Alineación vertical perfecta para todos los valores */
+
 .caja-table-page tbody td {
     vertical-align: middle !important;
     line-height: 1.4;
@@ -993,21 +993,21 @@ textarea.form-control {
     line-height: 1.4;
 }
 
-/* Simplificar la alineación de valores monetarios */
+
 .caja-table-page tbody td:nth-child(2) span,
 .caja-table-page tbody td:nth-child(4) span {
     display: inline;
     vertical-align: baseline;
 }
 
-/* Eliminar cualquier padding o margin extra que pueda causar desalineación */
+
 .caja-table-page tbody td:nth-child(2),
 .caja-table-page tbody td:nth-child(4) {
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
 }
 
-/* Asegurar que los inputs también estén alineados */
+
 .caja-table-page tbody td:nth-child(3) {
     vertical-align: middle !important;
     padding-top: 0.5rem !important;
@@ -1020,7 +1020,7 @@ textarea.form-control {
     margin-bottom: 0;
 }
 
-/* Alineación para la fila de totales */
+
 .caja-table-page tfoot td {
     vertical-align: middle !important;
     line-height: 1.4;
@@ -1033,7 +1033,7 @@ textarea.form-control {
     min-height: 1.4em;
 }
 
-/* Eliminar cualquier estilo que pueda estar causando desalineación */
+
 .valor-sistema-destacado,
 .valor-transferencia {
     display: inline !important;
@@ -1044,20 +1044,20 @@ textarea.form-control {
     text-align: inherit !important;
 }
 
-/* CORRECCIÓN FINAL DE ALINEACIÓN - Estilos simples y efectivos */
-/* Resetear cualquier estilo conflictivo en la tabla */
+
+
 .caja-table-page tbody td {
     vertical-align: middle !important;
     padding: 0.5rem 0.75rem !important;
 }
 
-/* Alineación específica para columnas de valores */
+
 .caja-table-page tbody td:nth-child(2),
 .caja-table-page tbody td:nth-child(4) {
     text-align: right !important;
 }
 
-/* Resetear estilos de spans para evitar desalineación */
+
 .caja-table-page tbody td span {
     display: inline !important;
     vertical-align: baseline !important;
@@ -1070,7 +1070,7 @@ textarea.form-control {
     height: auto !important;
 }
 
-/* Asegurar que los totales también estén alineados */
+
 .caja-table-page tfoot td {
     vertical-align: middle !important;
     text-align: right !important;
@@ -1089,7 +1089,7 @@ textarea.form-control {
     background: none !important;
 }
 
-/* Estilos para centrar modales correctamente */
+
 .modal-centered-custom {
     display: flex !important;
     align-items: center !important;
@@ -1110,7 +1110,7 @@ textarea.form-control {
     min-height: calc(100vh - 3.5rem) !important;
 }
 
-/* Asegurar que el modal se centre en todas las resoluciones */
+
 @media (min-width: 576px) {
     .modal-centered-custom .modal-dialog {
         max-width: 90% !important;
@@ -1124,7 +1124,7 @@ textarea.form-control {
     }
 }
 
-/* Scroll interno para el contenido del modal */
+
 .modal-centered-custom .modal-body {
     max-height: 70vh !important;
     overflow-y: auto !important;
