@@ -38,7 +38,7 @@ export const ProductosProvider = ({ children }) => {
   // Sincronizar stock desde BD
   const syncStockFromBD = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/productos/`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/productos/`);
       if (!response.ok) return;
 
       const productosFromBD = await response.json();

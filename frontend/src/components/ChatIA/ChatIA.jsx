@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, Form, Button, Alert, Spinner, Badge, Modal } from 'react-bootstrap';
 import LogoGuerrero from '../../assets/images/icono.png'; // Importar Logo
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const ChatIA = ({ onBack }) => { // Recibir onBack
     const [messages, setMessages] = useState(() => {

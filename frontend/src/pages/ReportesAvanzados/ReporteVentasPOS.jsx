@@ -12,7 +12,7 @@ const ReporteVentasPOS = ({ onVolver }) => {
     const [error, setError] = useState('');
     const [usuarioActual, setUsuarioActual] = useState('');
 
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+    const API_URL = process.env.REACT_APP_API_URL || '/api';
 
     useEffect(() => {
         // Obtener usuario logueado

@@ -30,7 +30,7 @@ export const UsuariosProvider = ({ children }) => {
                 cajeroService.getAll(),
                 sucursalService.getAll(),
                 // 🆕 Cargar vendedores de App Móvil
-                fetch('http://localhost:8000/api/vendedores/').then(r => r.json()).catch(() => [])
+                fetch('/api/vendedores/').then(r => r.json()).catch(() => [])
             ]);
             setUsuarios(usuariosData);
             setSucursales(sucursalesData);
@@ -99,7 +99,7 @@ export const UsuariosProvider = ({ children }) => {
     // 🆕 Crear vendedor de App Móvil
     const crearVendedor = async (datosVendedor) => {
         try {
-            const response = await fetch('http://localhost:8000/api/vendedores/', {
+            const response = await fetch('/api/vendedores/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(datosVendedor)
@@ -121,7 +121,7 @@ export const UsuariosProvider = ({ children }) => {
         try {
             if (esVendedorApp) {
                 // Actualizar vendedor de App
-                const response = await fetch(`http://localhost:8000/api/vendedores/${id}/`, {
+                const response = await fetch(`/api/vendedores/${id}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(datosUsuario)
@@ -147,7 +147,7 @@ export const UsuariosProvider = ({ children }) => {
     const eliminarUsuario = async (id, esVendedorApp = false) => {
         try {
             if (esVendedorApp) {
-                const response = await fetch(`http://localhost:8000/api/vendedores/${id}/`, { method: 'DELETE' });
+                const response = await fetch(`/api/vendedores/${id}/`, { method: 'DELETE' });
                 if (response.ok) {
                     setVendedores(prev => prev.filter(v => v.id !== id));
                     return { success: true };

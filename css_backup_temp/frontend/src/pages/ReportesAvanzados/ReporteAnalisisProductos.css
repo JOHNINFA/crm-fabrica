@@ -1,0 +1,32 @@
+/* Tabs personalizados */
+.custom-tabs {
+    border-bottom: 2px solid #dee2e6;
+    padding: 0 1rem;
+}
+
+.custom-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.custom-tabs .nav-link:hover {
+    color: #0c2c53;
+    border-bottom-color: #0c2c53;
+}
+
+.custom-tabs .nav-link.active {
+    color: #0c2c53;
+    background: transparent;
+    border-bottom-color: #0c2c53;
+}
+
+.badge-pill {
+    padding: 0.4rem 0.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}

@@ -1,6 +1,6 @@
 // 🚀 SERVICIO DE VENDEDORES ADAPTADO - NUEVA ESTRUCTURA SIMPLIFICADA
 import { API_URL } from './api';
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Función para manejar errores de la API
 const handleApiError = (error) => {

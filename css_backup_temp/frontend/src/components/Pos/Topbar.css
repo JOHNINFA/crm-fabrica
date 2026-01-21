@@ -1,0 +1,104 @@
+/* Topbar.css - Estilos para el topbar del POS */
+
+.topbar-bg {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Animación suave al ocultar/mostrar */
+.topbar-hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+}
+
+.topbar-visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Dropdown del topbar */
+.topbar-bg .dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e0e0e0;
+    padding: 4px 0;
+}
+
+.topbar-bg .dropdown-item {
+    padding: 6px 16px;
+    color: #333;
+    transition: background-color 0.2s ease;
+}
+
+.topbar-bg .dropdown-item:hover {
+    background-color: #f5f5f5;
+    color: #163864;
+}
+
+/* Botones del topbar */
+.topbar-bg .btn {
+    transition: all 0.2s ease;
+    padding: 5px 12px !important;
+    height: 32px !important;
+}
+
+.topbar-bg .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.topbar-bg button.btn {
+    padding: 5px 12px !important;
+    height: 32px !important;
+}
+
+.topbar-bg button.btn.border {
+    padding: 5px 12px !important;
+    height: 32px !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .topbar-bg {
+        padding-left: 55px !important;
+        padding-right: 8px !important;
+    }
+
+    .topbar-bg .btn {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+
+    .topbar-bg .btn i,
+    .topbar-bg .btn .bi {
+        font-size: 12px !important;
+        margin-right: 4px !important;
+    }
+
+    .topbar-bg .dropdown button {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+
+    .topbar-bg .dropdown button i,
+    .topbar-bg .dropdown button .bi {
+        font-size: 12px !important;
+    }
+
+    /* Ocultar wifi y notificaciones en móvil */
+    .topbar-wifi-icon {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .topbar-notification-icon {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .topbar-bg .topbar-wifi-icon,
+    .topbar-bg .topbar-notification-icon {
+        display: none !important;
+    }
+}

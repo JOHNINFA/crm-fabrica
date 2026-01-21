@@ -64,7 +64,7 @@ const ReportesAvanzadosScreen = () => {
     const [error, setError] = useState('');
     const [searched, setSearched] = useState(false);
 
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+    const API_URL = process.env.REACT_APP_API_URL || '/api';
 
     const fetchPrediccionesIA = async (fecha) => {
         setLoadingIA(true);

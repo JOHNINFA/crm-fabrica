@@ -16,7 +16,7 @@ export default function RegistroForm({
   useEffect(() => {
     async function load() {
       try {
-        const url = new URL("http://localhost:8000/api/registros/");
+        const url = new URL("/api/registros/");
         url.searchParams.append("dia", dia);
         url.searchParams.append("id_sheet", id_sheet);
         url.searchParams.append("id_usuario", id_usuario);
@@ -42,8 +42,8 @@ export default function RegistroForm({
   const saveData = async (registro) => {
     const isNew = !registro.id;
     const endpoint = isNew
-      ? "http://localhost:8000/api/registros/"
-      : `http://localhost:8000/api/registros/${registro.id}/`;
+      ? "/api/registros/"
+      : `/api/registros/${registro.id}/`;
     const method = isNew ? "POST" : "PATCH";
 
     try {

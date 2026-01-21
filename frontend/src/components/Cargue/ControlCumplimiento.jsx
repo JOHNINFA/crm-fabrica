@@ -46,7 +46,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
               idSheet === 'ID4' ? 'cargue-id4' :
                 idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-        const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+        const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
         console.log(`🔍 CUMPLIMIENTO - URL: ${url}`);
         const response = await fetch(url);
 
@@ -122,7 +122,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
             idSheet === 'ID4' ? 'cargue-id4' :
               idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-      const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+      const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
       console.log(`🔍 CUMPLIMIENTO - URL: ${url}`);
       const response = await fetch(url);
 

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { API_URL } from './api';
-// const API_URL = 'http://localhost:8000/api'; // REPLACED
+// const API_URL = '/api'; // REPLACED
 
 
 const rutasService = {

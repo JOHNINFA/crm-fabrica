@@ -1,7 +1,7 @@
 // 🚀 SERVICIO ADAPTADO - MANTIENE LA MISMA INTERFAZ CON NUEVOS ENDPOINTS
 // Migrado automáticamente para usar las nuevas tablas simplificadas
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Mapeo de IDs a endpoints nuevos
 const ENDPOINT_MAP = {

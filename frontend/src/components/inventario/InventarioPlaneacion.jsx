@@ -8,7 +8,7 @@ import '../../styles/TablaKardex.css';
 import '../../styles/BorderlessInputs.css';
 import '../../styles/ActionButtons.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const InventarioPlaneacion = () => {
   // const { productos: productosContext } = useProductos(); // No necesario

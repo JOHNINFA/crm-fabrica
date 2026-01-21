@@ -11,7 +11,7 @@ const Configuracion = ({ clienteData, setClienteData }) => {
 
   const cargarListaPrecios = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/lista-precios/?activo=true');
+      const response = await fetch('/api/lista-precios/?activo=true');
       if (response.ok) {
         const data = await response.json();
         setListaPrecios(data);
@@ -24,7 +24,7 @@ const Configuracion = ({ clienteData, setClienteData }) => {
   const cargarVendedores = async () => {
     try {
       // 🚀 CORREGIDO: Usar el endpoint correcto de vendedores
-      const response = await fetch('http://localhost:8000/api/vendedores/');
+      const response = await fetch('/api/vendedores/');
       if (response.ok) {
         const data = await response.json();
 

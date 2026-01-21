@@ -39,7 +39,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                             idSheet === 'ID4' ? 'cargue-id4' :
                                 idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-                const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+                const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
                 const response = await fetch(url);
 
                 if (response.ok) {
@@ -94,7 +94,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                                 idSheet === 'ID4' ? 'cargue-id4' :
                                     idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-                    const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+                    const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
                     const response = await fetch(url);
 
                     if (response.ok) {

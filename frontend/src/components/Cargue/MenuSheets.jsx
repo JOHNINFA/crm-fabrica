@@ -223,7 +223,7 @@ export default function MenuSheets() {
       try {
 
 
-        const response = await fetch('http://localhost:8000/api/vendedores/');
+        const response = await fetch('/api/vendedores/');
         let resultados = [];
 
         if (response.ok) {
@@ -296,7 +296,7 @@ export default function MenuSheets() {
       console.log(`🔄 Guardando responsable: ${idSeleccionado} -> ${tempNombre}`);
 
       // Llamada directa a la API
-      const response = await fetch('http://localhost:8000/api/vendedores/actualizar_responsable/', {
+      const response = await fetch('/api/vendedores/actualizar_responsable/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -409,7 +409,7 @@ export default function MenuSheets() {
                   try {
                     // 1. Obtener datos del servidor
                     const response = await fetch(
-                      `http://localhost:8000/api/obtener-cargue/?vendedor_id=${id}&dia=${dia}&fecha=${fechaAUsar}`
+                      `/api/obtener-cargue/?vendedor_id=${id}&dia=${dia}&fecha=${fechaAUsar}`
                     );
 
                     if (response.ok) {

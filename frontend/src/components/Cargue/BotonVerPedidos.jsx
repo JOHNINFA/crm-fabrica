@@ -32,7 +32,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         try {
             // Obtener todos los pedidos
             // 1. Obtener PEDIDOS
-            const responsePedidos = await fetch('http://localhost:8000/api/pedidos/');
+            const responsePedidos = await fetch('/api/pedidos/');
             let pedidosData = [];
             if (responsePedidos.ok) {
                 pedidosData = await responsePedidos.json();
@@ -240,7 +240,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     // 🆕 Función para cambiar método de pago
     const handleCambiarMetodoPago = async (pedidoId, nuevoMetodo) => {
         try {
-            const response = await fetch(`http://localhost:8000/api/pedidos/${pedidoId}/`, {
+            const response = await fetch(`/api/pedidos/${pedidoId}/`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

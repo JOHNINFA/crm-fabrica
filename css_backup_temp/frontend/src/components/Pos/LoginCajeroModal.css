@@ -1,0 +1,173 @@
+/* Estilos para el Modal de Login de Cajero */
+
+.login-cajero-modal .modal-dialog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 60px);
+    margin: 30px auto;
+}
+
+.login-cajero-modal .modal-content {
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: none;
+    overflow: hidden;
+}
+
+.login-cajero-modal .modal-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-bottom: none;
+    padding: 20px 24px;
+}
+
+.login-cajero-modal .modal-header .modal-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.login-cajero-modal .modal-header .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+    opacity: 1;
+    margin-right: -0.5rem;
+    /* Ajuste posicional si es necesario */
+}
+
+.login-cajero-modal .modal-header .btn-close:hover {
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+.login-cajero-modal .modal-body {
+    padding: 24px;
+}
+
+.login-cajero-modal .modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+}
+
+/* Estilos para el estado de cajero logueado */
+.login-cajero-modal .cajero-logueado-info {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.login-cajero-modal .cajero-logueado-info .material-icons {
+    font-size: 64px !important;
+    color: #ffc600;
+    margin-bottom: 16px;
+}
+
+.login-cajero-modal .cajero-logueado-info h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.login-cajero-modal .cajero-logueado-info .text-muted {
+    font-size: 14px;
+}
+
+/* Estilos para el formulario de login */
+.login-cajero-modal .sucursal-info {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 20px;
+}
+
+.login-cajero-modal .sucursal-info small {
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.login-cajero-modal .sucursal-info .fw-bold {
+    color: #0d47a1;
+}
+
+/* Dropdown de cajeros */
+.login-cajero-modal .dropdown-toggle {
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.login-cajero-modal .dropdown-item {
+    padding: 12px 16px;
+}
+
+.login-cajero-modal .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.login-cajero-modal .dropdown-item .material-icons {
+    color: #6c757d;
+}
+
+/* Botones */
+.login-cajero-modal .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 12px 24px;
+}
+
+.login-cajero-modal .btn-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: none;
+}
+
+.login-cajero-modal .btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.login-cajero-modal .btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+}
+
+.login-cajero-modal .btn-danger:hover {
+    background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Animaciones */
+.login-cajero-modal .modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+    .login-cajero-modal .modal-dialog {
+        margin: 15px;
+        min-height: calc(100vh - 30px);
+    }
+
+    .login-cajero-modal .modal-body {
+        padding: 20px;
+    }
+
+    .login-cajero-modal .modal-footer {
+        padding: 16px 20px;
+    }
+}

@@ -101,7 +101,7 @@ const ReporteVentasRuta = () => {
     const cargarPedidosEntregados = async (fecha, vendedorNombre) => {
         try {
             // El endpoint no filtra bien, traemos todos y filtramos en frontend
-            let url = `http://localhost:8000/api/pedidos/`;
+            let url = `/api/pedidos/`;
             const response = await fetch(url);
             if (response.ok) {
                 let pedidos = await response.json();

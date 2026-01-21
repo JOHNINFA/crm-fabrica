@@ -1,5 +1,5 @@
 // Servicio simple que funciona igual que localStorage pero guarda en PostgreSQL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Cache para evitar consultas repetitivas
 const cache = new Map();

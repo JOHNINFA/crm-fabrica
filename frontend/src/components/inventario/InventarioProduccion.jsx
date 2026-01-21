@@ -1032,7 +1032,7 @@ const InventarioProduccion = () => {
         let saldoActual;
         try {
           const response = await fetch(
-            "http://localhost:8000/api/registro-inventario/"
+            "/api/registro-inventario/"
           );
           if (response.ok) {
             const todosRegistros = await response.json();
@@ -1084,7 +1084,7 @@ const InventarioProduccion = () => {
       try {
         // Obtener el stock actual directamente de la base de datos
         const responseGet = await fetch(
-          `http://localhost:8000/api/productos/${producto.id}/`
+          `/api/productos/${producto.id}/`
         );
         if (!responseGet.ok) {
           throw new Error(`Error al obtener producto: ${responseGet.status}`);
@@ -1099,7 +1099,7 @@ const InventarioProduccion = () => {
 
         // Actualizar el stock en la base de datos
         const responsePatch = await fetch(
-          `http://localhost:8000/api/productos/${producto.id}/`,
+          `/api/productos/${producto.id}/`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -1145,7 +1145,7 @@ const InventarioProduccion = () => {
     // Forzar sincronización completa con el backend
     try {
       // Recargar datos desde el backend
-      const response = await fetch("http://localhost:8000/api/productos/");
+      const response = await fetch("/api/productos/");
       if (response.ok) {
         const productosFromBD = await response.json();
 
@@ -1247,7 +1247,7 @@ const InventarioProduccion = () => {
 
     // 🆕 Guardar en la API (BD)
     try {
-      const response = await fetch('http://localhost:8000/api/configuracion-produccion/guardar/', {
+      const response = await fetch('/api/configuracion-produccion/guardar/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

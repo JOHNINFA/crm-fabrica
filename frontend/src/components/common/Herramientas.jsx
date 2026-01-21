@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Alert, Form, Spinner, Modal } from 'react-bootstrap';
 import { cargueApiConfig } from '../../services/cargueApiService';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const Herramientas = () => {
     const [apiEnabled, setApiEnabled] = useState(cargueApiConfig.USAR_API);

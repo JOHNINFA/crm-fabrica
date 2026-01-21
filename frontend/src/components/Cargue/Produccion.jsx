@@ -321,7 +321,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
   const eliminarSolicitadasExistentes = async () => {
     try {
       // Obtener registros existentes para esta fecha
-      const response = await fetch(`http://localhost:8000/api/produccion/?fecha=${fechaSeleccionada}`);
+      const response = await fetch(`/api/produccion/?fecha=${fechaSeleccionada}`);
 
       if (response.ok) {
         const registrosExistentes = await response.json();
@@ -333,7 +333,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
 
         // Eliminar cada registro
         for (const registro of solicitadasExistentes) {
-          await fetch(`http://localhost:8000/api/produccion/${registro.id}/`, {
+          await fetch(`/api/produccion/${registro.id}/`, {
             method: 'DELETE'
           });
         }
@@ -401,7 +401,7 @@ const Produccion = ({ dia, fechaSeleccionada }) => {
 
 
 
-      const response = await fetch('http://localhost:8000/api/produccion-solicitadas/', {
+      const response = await fetch('/api/produccion-solicitadas/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

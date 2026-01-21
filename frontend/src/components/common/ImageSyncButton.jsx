@@ -29,7 +29,7 @@ const ImageSyncButton = () => {
   // Función para crear un producto en el backend
   const createProduct = async (product) => {
     try {
-      const response = await fetch('http://localhost:8000/api/productos/', {
+      const response = await fetch('/api/productos/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ const ImageSyncButton = () => {
       // Verificar si el producto existe en el backend
       let backendProduct;
       try {
-        const response = await fetch(`http://localhost:8000/api/productos/${product.id}/`);
+        const response = await fetch(`/api/productos/${product.id}/`);
         if (!response.ok) {
           console.log(`Producto ${product.id} no existe en el backend, creándolo...`);
           backendProduct = await createProduct(product);
@@ -104,7 +104,7 @@ const ImageSyncButton = () => {
       formData.append('imagen', imageFile);
       
       // Actualizar la imagen del producto
-      const response = await fetch(`http://localhost:8000/api/productos/${backendProduct.id}/`, {
+      const response = await fetch(`/api/productos/${backendProduct.id}/`, {
         method: 'PATCH',
         body: formData,
       });

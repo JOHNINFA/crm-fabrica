@@ -14,7 +14,7 @@ const FechasDisponibles = ({ dia, fechaSeleccionada }) => {
 
             for (const endpoint of endpoints) {
                 try {
-                    const response = await fetch(`http://localhost:8000/api/${endpoint}/?activo=true`);
+                    const response = await fetch(`/api/${endpoint}/?activo=true`);
 
                     if (response.ok) {
                         const data = await response.json();

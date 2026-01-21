@@ -1,0 +1,26 @@
+/* Botón DESPACHO con azul oscuro personalizado */
+.btn-despacho-custom {
+  background-color: #0d2d4e !important;
+  border-color: #0d2d4e !important;
+  color: white !important;
+}
+
+.btn-despacho-custom:hover {
+  background-color: #0a2340 !important;
+  border-color: #0a2340 !important;
+  color: white !important;
+}
+
+.btn-despacho-custom:active,
+.btn-despacho-custom:focus {
+  background-color: #071b33 !important;
+  border-color: #071b33 !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.2rem rgba(13, 45, 78, 0.5) !important;
+}
+
+.btn-despacho-custom:disabled {
+  background-color: #0d2d4e !important;
+  border-color: #0d2d4e !important;
+  opacity: 0.65;
+}

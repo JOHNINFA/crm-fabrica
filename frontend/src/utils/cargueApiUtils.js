@@ -76,7 +76,7 @@ export const migracionUtils = {
             
             if (!existente.success) {
               // Crear nuevo registro
-              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/control-cumplimiento/`, {
+              const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/control-cumplimiento/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

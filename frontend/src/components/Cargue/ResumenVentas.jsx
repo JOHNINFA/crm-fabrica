@@ -28,7 +28,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
             idSheet === 'ID4' ? 'cargue-id4' :
               idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-      const urlCargue = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+      const urlCargue = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
       const responseCargue = await fetch(urlCargue);
 
       if (responseCargue.ok) {
@@ -57,7 +57,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       console.log(`🔍 RESUMEN - ${idSheet} Iniciando carga de datos desde BD...`);
 
       // Primero intentar cargar desde cargue-pagos (tabla dedicada de pagos)
-      const urlPagos = `http://localhost:8000/api/cargue-pagos/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+      const urlPagos = `/api/cargue-pagos/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
       console.log(`🔍 RESUMEN - ${idSheet} Cargando pagos desde: ${urlPagos}`);
 
       const responsePagos = await fetch(urlPagos);
@@ -127,7 +127,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
               idSheet === 'ID4' ? 'cargue-id4' :
                 idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-        const url = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+        const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
         console.log(`🔍 RESUMEN - ${idSheet} cargando desde: ${url}`);
 
         const response = await fetch(url);
@@ -141,7 +141,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
             console.log(`🔍 RESUMEN - ${idSheet} No hay datos para ${fechaActual}, buscando en fechas cercanas...`);
 
             // Buscar sin filtro de fecha, solo por día
-            const urlSinFecha = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}`;
+            const urlSinFecha = `/api/${endpoint}/?dia=${dia.toUpperCase()}`;
             const responseSinFecha = await fetch(urlSinFecha);
 
             if (responseSinFecha.ok) {
@@ -280,7 +280,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
         try {
           // Primero intentar con el nuevo endpoint cargue-pagos
-          const urlPagos = `http://localhost:8000/api/cargue-pagos/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+          const urlPagos = `/api/cargue-pagos/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
           console.log(`🔍 RESUMEN - ${idSheet} Cargando pagos desde: ${urlPagos}`);
 
           const responsePagos = await fetch(urlPagos);
@@ -329,7 +329,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                     idSheet === 'ID4' ? 'cargue-id4' :
                       idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-              const urlCargue = `http://localhost:8000/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
+              const urlCargue = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
               const responseCargue = await fetch(urlCargue);
 
               if (responseCargue.ok) {
@@ -501,7 +501,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
     console.log(`🔄 Sincronizando ${filasConDatos.length} filas con BD...`);
     console.log(`📤 PAYLOAD: vendedor=${idSheet}, dia=${dia.toUpperCase()}, fecha=${fechaParaBD}, filas:`, filasConDatos);
 
-    fetch('http://localhost:8000/api/cargue-pagos/sync_pagos/', {
+    fetch('/api/cargue-pagos/sync_pagos/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

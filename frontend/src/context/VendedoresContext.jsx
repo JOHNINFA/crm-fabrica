@@ -35,7 +35,7 @@ export const VendedoresProvider = ({ children }) => {
   React.useEffect(() => {
     const cargarTodosResponsables = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/vendedores/obtener_responsable/`);
+        const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/vendedores/obtener_responsable/`);
         if (response.ok) {
           const data = await response.json();
           const responsablesMap = {};
@@ -72,7 +72,7 @@ export const VendedoresProvider = ({ children }) => {
     try {
       console.log(`\n🔄 ACTUALIZANDO RESPONSABLE ${idVendedor}: ${nuevoResponsable}`);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/vendedores/actualizar_responsable/`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/vendedores/actualizar_responsable/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ export const VendedoresProvider = ({ children }) => {
   const cargarResponsable = async (idVendedor) => {
     try {
       console.log(`🔍 Cargando responsable para ${idVendedor} desde BD...`);
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/vendedores/obtener_responsable/?id_vendedor=${idVendedor}`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/vendedores/obtener_responsable/?id_vendedor=${idVendedor}`);
 
       if (response.ok) {
         const data = await response.json();

@@ -24,7 +24,7 @@ const cargarDatosCargue = async (fechaAUsar, vendedorId) => {
                         vendedorId === 'ID4' ? 'cargue-id4' :
                             vendedorId === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-            const url = `http://localhost:8000/api/${endpoint}/?fecha=${fechaFormateada}&dia=${dia.toUpperCase()}`;
+            const url = `/api/${endpoint}/?fecha=${fechaFormateada}&dia=${dia.toUpperCase()}`;
             const response = await fetch(url);
             const datosDB = await response.json();
 
@@ -59,7 +59,7 @@ const cargarDatosCargue = async (fechaAUsar, vendedorId) => {
     // pero idealmente deberia pasarse como argumento. Por robustez lo pedimos si no hay cache.
     // Usaremos una variable global o llamada local ya que fetch es rapido en localhost
     try {
-        const prodRes = await fetch('http://localhost:8000/api/productos/');
+        const prodRes = await fetch('/api/productos/');
         const todosProds = await prodRes.json();
 
         for (const p of datosCargue.productos) {

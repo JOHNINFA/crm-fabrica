@@ -12,7 +12,7 @@ const DashboardEjecutivo = ({ onVolver }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+    const API_URL = process.env.REACT_APP_API_URL || '/api';
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c'];
 

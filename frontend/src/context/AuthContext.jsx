@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/auth/login/', {
+            const response = await fetch('/api/auth/login/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ codigo, password })
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     // Recuperar contraseña
     const recuperarPassword = async (contacto) => {
         try {
-            const response = await fetch('http://localhost:8000/api/auth/recuperar/', {
+            const response = await fetch('/api/auth/recuperar/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contacto })
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }) => {
     // Cambiar contraseña
     const cambiarPassword = async (usuarioId, nuevaPassword, passwordActual = null) => {
         try {
-            const response = await fetch('http://localhost:8000/api/auth/cambiar-password/', {
+            const response = await fetch('/api/auth/cambiar-password/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
