@@ -116,8 +116,9 @@ const ListaClientesScreen = () => {
                 </Button>
                 <Button
                   variant="outline-success"
+                  variant="outline-success"
                   className="me-2"
-                  onClick={() => window.open(`${API_URL}/clientes/exportar-excel/`, '_blank')}
+                  onClick={() => window.open(`${API_URL}/reportes/clientes-excel/`, '_blank')}
                   title="Descargar listado completo de clientes"
                 >
                   <i className="bi bi-file-earmark-excel me-2"></i>

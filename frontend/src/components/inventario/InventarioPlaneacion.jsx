@@ -527,6 +527,17 @@ const InventarioPlaneacion = () => {
 
         return productosFusionados;
       });
+      // 🔍 Verificar si ya existe reporte histórico (Boton Verde)
+      try {
+        const checkRep = await fetch(`${API_URL}/reportes-planeacion/?fecha=${fechaFormateada}`);
+        if (checkRep.ok) {
+          const reps = await checkRep.json();
+          setReporteGuardado(reps.length > 0);
+        }
+      } catch (e) {
+        console.error('Error verificando reporte:', e);
+      }
+
       setCargando(false);
 
       const timestamp = Date.now();
@@ -859,9 +870,7 @@ const InventarioPlaneacion = () => {
       if (response.ok) {
         setReporteGuardado(true);
         mostrarMensaje('📝 Reporte guardado exitosamente para historial', 'success');
-
-        // Volver al color azul después de 3 segundos
-        setTimeout(() => setReporteGuardado(false), 3000);
+        // No revertir color
       } else {
         mostrarMensaje('Error al guardar reporte', 'danger');
       }
@@ -893,9 +902,15 @@ const InventarioPlaneacion = () => {
             variant={reporteGuardado ? "success" : "primary"}
             size="sm"
             className="mb-2 mb-md-0 d-flex align-items-center"
-            onClick={guardarReporte}
-            disabled={cargando || reporteGuardado || productos.length === 0}
-            title="Guardar una copia de esta planeación en Reportes Avanzados"
+            onClick={() => {
+              if (reporteGuardado) {
+                mostrarMensaje('⚠️ Ya hay un reporte de planeación guardado para esta fecha.', 'warning');
+                return;
+              }
+              guardarReporte();
+            }}
+            disabled={cargando || productos.length === 0}
+            title={reporteGuardado ? "Ya existe un reporte guardado" : "Guardar una copia de esta planeación"}
           >
             {reporteGuardado ? (
               <>

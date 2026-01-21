@@ -1,10 +1,11 @@
 from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.response import Response
-from rest_framework.decorators import action, api_view, parser_classes
+from rest_framework.decorators import action, api_view, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from django.db import transaction, models  # 🆕 Agregar models para Q
 from django.utils import timezone
+from django.http import HttpResponse
 import os
 import base64
 import re
@@ -6649,7 +6650,7 @@ def ia_logs(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([permissions.AllowAny])
 def exportar_clientes_excel(request):
     """
     Genera un archivo CSV compatible con Excel con todos los clientes (Ruta y Pedidos).

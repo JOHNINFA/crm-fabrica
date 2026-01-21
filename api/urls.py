@@ -86,6 +86,7 @@ router.register(r'ventas-cajero', VentaCajeroViewSet, basename='ventas-cajero')
 
 # Snapshot Planeación
 router.register(r'registros-planeacion-dia', RegistrosPlaneacionDiaViewSet, basename='registros-planeacion-dia')
+router.register(r'planeacion', PlaneacionViewSet, basename='planeacion')
 router.register(r'ruta-orden', RutaOrdenViewSet, basename='ruta-orden')
 router.register(r'reportes-planeacion', ReportePlaneacionViewSet, basename='reportes-planeacion')
 
@@ -158,6 +159,6 @@ urlpatterns = router.urls + [
     path('auth/cambiar-password/', auth_cambiar_password, name='auth-cambiar-password'),
     
     # 📥 Exportar
-    path('clientes/exportar-excel/', exportar_clientes_excel, name='exportar-clientes-excel'),
+    path('reportes/clientes-excel/', exportar_clientes_excel, name='exportar-clientes-excel'),
 ]
 
