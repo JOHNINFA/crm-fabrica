@@ -407,8 +407,7 @@ textarea.form-control {
     }
 }
 
-/*
- Estilos adicionales para mejoras */
+/* Estilos adicionales para mejoras */
 
 /* Mejoras para el tab de reportes */
 .bg-light .border-end:last-child {
@@ -536,8 +535,7 @@ textarea.form-control {
     color: #6c757d;
 }
 
-/* 
-Estilos adicionales para el diseño limpio como la imagen */
+/* Estilos adicionales para el diseño limpio como la imagen */
 
 /* Botones del header estilo limpio */
 .card-body .btn-sm {
@@ -684,8 +682,7 @@ Estilos adicionales para el diseño limpio como la imagen */
     border-color: #1e7e34;
 }
 
-/* Estilo e
-special para diferencias negativas como en la imagen */
+/* Estilo especial para diferencias negativas como en la imagen */
 .diferencia-negativa {
     background-color: #cce5ff !important;
     color: #0066cc !important;
@@ -750,8 +747,7 @@ special para diferencias negativas como en la imagen */
     background-color: #f9f9f9;
 }
 
-/* 
-Estilos adicionales para diseño más compacto */
+/* Estilos adicionales para diseño más compacto */
 
 /* Contenedor más compacto */
 .caja-screen .container {
@@ -835,8 +831,7 @@ Estilos adicionales para diseño más compacto */
     }
 }
 
-/*
- Botones compactos para el header de controles */
+/* Botones compactos para el header de controles */
 .btn-compact {
     padding: 0.25rem 0.5rem !important;
     font-size: 0.75rem !important;
@@ -888,8 +883,7 @@ Estilos adicionales para diseño más compacto */
     }
 }
 
-/* In
-puts compactos para los controles superiores */
+/* Inputs compactos para los controles superiores */
 .form-control-compact {
     padding: 0.375rem 0.75rem !important;
     font-size: 0.875rem !important;
@@ -955,8 +949,7 @@ puts compactos para los controles superiores */
     }
 }
 
-/*
- Alineación consistente para todos los valores del sistema */
+/* Alineación consistente para todos los valores del sistema */
 .caja-table-page tbody td:nth-child(2) {
     text-align: right !important;
     vertical-align: middle;
@@ -988,8 +981,7 @@ puts compactos para los controles superiores */
     line-height: 1.2;
 }
 
-/* A
-lineación vertical perfecta para todos los valores */
+/* Alineación vertical perfecta para todos los valores */
 .caja-table-page tbody td {
     vertical-align: middle !important;
     line-height: 1.4;
@@ -1097,8 +1089,7 @@ lineación vertical perfecta para todos los valores */
     background: none !important;
 }
 
-/*
- Estilos para centrar modales correctamente */
+/* Estilos para centrar modales correctamente */
 .modal-centered-custom {
     display: flex !important;
     align-items: center !important;
