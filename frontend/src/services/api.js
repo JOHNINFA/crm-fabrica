@@ -2,7 +2,7 @@
 const searchParams = new URLSearchParams(window.location.search);
 const configServerUrl = searchParams.get('serverUrl');
 
-let FINAL_BASE_URL = 'http://localhost:8000';
+let FINAL_BASE_URL = '';
 
 // Lógica de detección inteligente de URL de API
 // Prioridad 1: Variable de entorno explícita (siempre gana)
