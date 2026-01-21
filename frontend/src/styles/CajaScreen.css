@@ -1028,7 +1028,8 @@ lineación vertical perfecta para todos los valores */
     margin-bottom: 0;
 }
 
-/ * Alineación para la fila de totales */ .caja-table-page tfoot td {
+/* Alineación para la fila de totales */
+.caja-table-page tfoot td {
     vertical-align: middle !important;
     line-height: 1.4;
 }
@@ -1051,7 +1052,7 @@ lineación vertical perfecta para todos los valores */
     text-align: inherit !important;
 }
 
-/ * CORRECCIÓN FINAL DE ALINEACIÓN - Estilos simples y efectivos */
+/* CORRECCIÓN FINAL DE ALINEACIÓN - Estilos simples y efectivos */
 /* Resetear cualquier estilo conflictivo en la tabla */
 .caja-table-page tbody td {
     vertical-align: middle !important;
