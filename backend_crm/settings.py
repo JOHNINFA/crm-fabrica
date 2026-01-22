@@ -145,6 +145,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -155,6 +156,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React en desarrollo
     "http://localhost:19006", # React Native con Expo, por ejemplo
+    "https://aglogistics.tech",  # Dominio de producción
+    "http://aglogistics.tech",   # Por si acaso HTTP
     "https://casteless-floodless-clement.ngrok-free.dev",  # ngrok
     "https://crm-frontend.loca.lt",  # localtunnel frontend
     "https://crm-backend.loca.lt",  # localtunnel backend
@@ -171,6 +174,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Headers adicionales para ngrok, localtunnel y serveo
 CSRF_TRUSTED_ORIGINS = [
+    "https://aglogistics.tech",  # Dominio de producción
+    "http://aglogistics.tech",   # Por si acaso HTTP
     "https://casteless-floodless-clement.ngrok-free.dev",
     "https://crm-backend.loca.lt",
     "https://crm-frontend.loca.lt",
