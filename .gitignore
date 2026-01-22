@@ -8,9 +8,16 @@ __pycache__/
 venv/
 env/
 
-# Archivos de base de datos
+# Archivos de base de datos y Backups (PROTECCIÓN DE DATOS)
 *.sqlite3
 db.sqlite3
+*.sql
+*.tar.gz
+
+# Archivos Multimedia (PROTECCIÓN DE FOTOS)
+media/
+frontend/public/images/
+!frontend/public/images/icono.png
 
 # Node / React
 node_modules/
@@ -20,8 +27,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Archivos de entorno
+# Archivos de entorno y logs
 .env
 .env.ai
 .env.local
 .env.*.local
+*.log
