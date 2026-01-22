@@ -656,8 +656,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                     return {
                         id: p.id || `temp_${Math.random()}`,
-                        id: p.id || `temp_${Math.random()}`,
-                        producto: (p.producto || 'Producto desconocido').trim(), // 🔧 FIX: Normalizar espacios
+                        producto: p.producto || 'Producto desconocido',
                         cantidad: p.cantidad || 0,
                         dctos: p.dctos || 0,
                         adicional: p.adicional || 0,
@@ -698,8 +697,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                     return {
                         id: p.id || `temp_${Math.random()}`,
-                        id: p.id || `temp_${Math.random()}`,
-                        producto: (p.producto || 'Producto desconocido').trim(), // 🔧 FIX: Normalizar espacios
+                        producto: p.producto || 'Producto desconocido',
                         cantidad: p.cantidad || 0,
                         dctos: p.dctos || 0,
                         adicional: p.adicional || 0,
