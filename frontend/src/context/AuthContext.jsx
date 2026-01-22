@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -34,7 +35,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
 
         try {
-            const response = await fetch('/api/auth/login/', {
+            const response = await fetch(`${API_URL}/auth/login/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ codigo, password })
@@ -68,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     // Recuperar contraseña
     const recuperarPassword = async (contacto) => {
         try {
-            const response = await fetch('/api/auth/recuperar/', {
+            const response = await fetch(`${API_URL}/auth/recuperar/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contacto })
@@ -82,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     // Cambiar contraseña
     const cambiarPassword = async (usuarioId, nuevaPassword, passwordActual = null) => {
         try {
-            const response = await fetch('/api/auth/cambiar-password/', {
+            const response = await fetch(`${API_URL}/auth/cambiar-password/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
