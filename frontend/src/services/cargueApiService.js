@@ -33,8 +33,11 @@ export const cargueApiService = {
       // El endpoint devuelve: { "AREPA TIPO OBLEA 500Gr": { quantity: "10", checked: false }, ... }
       if (data && Object.keys(data).length > 0) {
         // Convertir el formato del backend al formato del frontend
-        const productosFormateados = Object.entries(data).map(([nombreProducto, datos]) => {
-          console.log(`🔍 API: Formateando producto: ${nombreProducto}`, {
+        const productosFormateados = Object.entries(data).map(([nombreProductoRaw, datos]) => {
+          // 🔧 FIX: Normalizar nombre para evitar duplicados por espacios (ej: "Canastilla " vs "Canastilla")
+          const nombreProducto = nombreProductoRaw.trim();
+
+          console.log(`🔍 API: Formateando producto: ${nombreProducto} (Raw: "${nombreProductoRaw}")`, {
             cantidad: datos.cantidad,
             adicional: datos.adicional,
             dctos: datos.dctos,
