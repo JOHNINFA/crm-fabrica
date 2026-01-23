@@ -4673,42 +4673,25 @@ def abrir_turno(request):
                     'estado': turno_existente.estado
                 })
             else:
-                # 🆕 LÓGICA REAPERTURA: Verificar si hubo ventas reales antes de bloquear
-                from .models import VentaRuta
+                # 🆕 SIMPLIFICADO: Permitir reabrir cualquier turno cerrado
+                # Esto permite continuar vendiendo si se cerró la app accidentalmente
+                turno_existente.estado = 'ABIERTO'
+                turno_existente.hora_cierre = None
+                turno_existente.save()
                 
-                # Construir ID string (ej: ID1)
-                vendedor_str = f"ID{vendedor_id_numerico}"
+                print(f"✅ Turno reabierto: {vendedor_nombre} - {fecha}")
                 
-                tiene_ventas = VentaRuta.objects.filter(
-                    vendedor__id_vendedor=vendedor_str,
-                    fecha__date=fecha
-                ).exists()
-                
-                if tiene_ventas:
-                    # El turno ya fue cerrado Y tiene ventas
-                    return Response({
-                        'error': 'TURNO_YA_CERRADO',
-                        'mensaje': 'El turno para este día ya fue cerrado y tiene ventas registradas.'
-                    }, status=400)
-                else:
-                    # No hubo ventas, permitir reabrir
-                    turno_existente.estado = 'ABIERTO'
-                    turno_existente.hora_cierre = None
-                    turno_existente.save()
-                    
-                    print(f"✅ Turno reabierto (sin ventas previas): {vendedor_nombre} - {fecha}")
-                    
-                    return Response({
-                        'success': True,
-                        'nuevo': False,
-                        'reabierto': True,
-                        'mensaje': 'Turno reabierto (no tenía ventas)',
-                        'turno_id': turno_existente.id,
-                        'dia': turno_existente.dia,
-                        'fecha': turno_existente.fecha.isoformat(),
-                        'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
-                        'estado': 'ABIERTO'
-                    })
+                return Response({
+                    'success': True,
+                    'nuevo': False,
+                    'reabierto': True,
+                    'mensaje': 'Turno reabierto correctamente',
+                    'turno_id': turno_existente.id,
+                    'dia': turno_existente.dia,
+                    'fecha': turno_existente.fecha.isoformat(),
+                    'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
+                    'estado': 'ABIERTO'
+                })
         
         # Crear nuevo turno
         turno = TurnoVendedor.objects.create(
