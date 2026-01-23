@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Alert } from 'react-bootstrap';
+import { Table, Button, Modal, Form, Alert, Badge } from 'react-bootstrap';
 import usePageTitle from '../hooks/usePageTitle';
 import { API_URL } from '../services/api';
 
 const VendedoresScreen = () => {
   usePageTitle('Vendedores');
   const [vendedores, setVendedores] = useState([]);
+  const [rutas, setRutas] = useState([]); // 🆕 Todas las rutas
   const [showModal, setShowModal] = useState(false);
   const [editingVendedor, setEditingVendedor] = useState(null);
   const [formData, setFormData] = useState({
@@ -19,19 +20,47 @@ const VendedoresScreen = () => {
 
   useEffect(() => {
     cargarVendedores();
+    cargarRutas(); // 🆕 Cargar rutas
 
     // Escuchar cambios de responsables desde Cargue
     const handleResponsableUpdate = () => {
-
       cargarVendedores();
+      cargarRutas();
+    };
+
+    // 🆕 Escuchar cambios desde GestionUsuarios
+    const handleVendedorUpdate = () => {
+      console.log('🔄 Recargando vendedores por evento desde GestionUsuarios...');
+      cargarVendedores();
+      cargarRutas();
     };
 
     window.addEventListener('responsableActualizado', handleResponsableUpdate);
+    window.addEventListener('vendedorActualizado', handleVendedorUpdate);
 
     return () => {
       window.removeEventListener('responsableActualizado', handleResponsableUpdate);
+      window.removeEventListener('vendedorActualizado', handleVendedorUpdate);
     };
   }, []);
+
+  // 🆕 Cargar todas las rutas
+  const cargarRutas = async () => {
+    try {
+      const response = await fetch(`${API_URL}/rutas/`);
+      if (response.ok) {
+        const data = await response.json();
+        setRutas(data);
+      }
+    } catch (error) {
+      console.error('Error cargando rutas:', error);
+    }
+  };
+
+  // 🆕 Obtener rutas de un vendedor específico
+  const getRutasVendedor = (idVendedor) => {
+    return rutas.filter(r => r.vendedor === idVendedor);
+  };
 
   const cargarVendedores = async () => {
     try {
@@ -171,6 +200,12 @@ const VendedoresScreen = () => {
       if (response.ok) {
 
         await cargarVendedores(); // Recargar lista
+
+        // 🆕 Disparar evento global para sincronizar otros componentes
+        window.dispatchEvent(new CustomEvent('vendedorActualizado', {
+          detail: { id_vendedor: formData.idVendedor, nombre: formData.nombre.trim() }
+        }));
+
         cerrarModal();
       } else {
         console.error('❌ Error del servidor:', data);
@@ -277,7 +312,25 @@ const VendedoresScreen = () => {
                         {vendedor.idVendedor}
                       </span>
                     </td>
-                    <td>{vendedor.ruta}</td>
+                    <td>
+                      {/* 🆕 Mostrar todas las rutas del vendedor */}
+                      {getRutasVendedor(vendedor.idVendedor).length > 0 ? (
+                        <div className="d-flex flex-wrap gap-1">
+                          {getRutasVendedor(vendedor.idVendedor).map(ruta => (
+                            <Badge
+                              key={ruta.id}
+                              bg="info"
+                              className="me-1"
+                              style={{ fontSize: '11px' }}
+                            >
+                              {ruta.nombre}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted">{vendedor.ruta || 'Sin rutas'}</span>
+                      )}
+                    </td>
                     <td>{new Date(vendedor.fechaCreacion).toLocaleDateString()}</td>
                     <td>
                       <button

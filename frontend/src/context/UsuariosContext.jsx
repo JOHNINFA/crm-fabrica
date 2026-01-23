@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { cajeroService } from '../services/cajeroService';
 import { sucursalService } from '../services/sucursalService';
 
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
 const UsuariosContext = createContext();
 
 export const useUsuarios = () => {
@@ -15,26 +17,63 @@ export const useUsuarios = () => {
 export const UsuariosProvider = ({ children }) => {
     const [usuarios, setUsuarios] = useState([]);          // Usuarios del sistema (Cajero)
     const [vendedores, setVendedores] = useState([]);      // 🆕 Vendedores de App Móvil
+    const [rutas, setRutas] = useState([]);                // 🆕 Todas las rutas
     const [sucursales, setSucursales] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // Cargar datos iniciales
     useEffect(() => {
         cargarDatos();
+
+        // 🆕 Escuchar evento de actualización de vendedores desde otros componentes
+        const handleVendedorActualizado = () => {
+            console.log('🔄 Recargando vendedores por evento global...');
+            cargarVendedores();
+            cargarRutas();
+        };
+
+        window.addEventListener('vendedorActualizado', handleVendedorActualizado);
+
+        return () => {
+            window.removeEventListener('vendedorActualizado', handleVendedorActualizado);
+        };
     }, []);
+
+    // 🆕 Función separada para cargar solo vendedores
+    const cargarVendedores = async () => {
+        try {
+            const vendedoresData = await fetch(`${API_URL}/vendedores/`).then(r => r.json()).catch(() => []);
+            setVendedores(vendedoresData);
+        } catch (error) {
+            console.error('Error cargando vendedores:', error);
+        }
+    };
+
+    // 🆕 Función para cargar rutas
+    const cargarRutas = async () => {
+        try {
+            const rutasData = await fetch(`${API_URL}/rutas/`).then(r => r.json()).catch(() => []);
+            setRutas(rutasData);
+        } catch (error) {
+            console.error('Error cargando rutas:', error);
+        }
+    };
 
     const cargarDatos = async () => {
         setLoading(true);
         try {
-            const [usuariosData, sucursalesData, vendedoresData] = await Promise.all([
+            const [usuariosData, sucursalesData, vendedoresData, rutasData] = await Promise.all([
                 cajeroService.getAll(),
                 sucursalService.getAll(),
                 // 🆕 Cargar vendedores de App Móvil
-                fetch('/api/vendedores/').then(r => r.json()).catch(() => [])
+                fetch(`${API_URL}/vendedores/`).then(r => r.json()).catch(() => []),
+                // 🆕 Cargar rutas
+                fetch(`${API_URL}/rutas/`).then(r => r.json()).catch(() => [])
             ]);
             setUsuarios(usuariosData);
             setSucursales(sucursalesData);
             setVendedores(vendedoresData);
+            setRutas(rutasData);
         } catch (error) {
             console.error('Error cargando datos:', error);
         } finally {
@@ -42,11 +81,16 @@ export const UsuariosProvider = ({ children }) => {
         }
     };
 
+    // 🆕 Obtener rutas de un vendedor específico
+    const getRutasVendedor = (idVendedor) => {
+        return rutas.filter(r => r.vendedor === idVendedor);
+    };
+
     // 🆕 Obtener todos los usuarios unificados (sistema + vendedores)
     const getUsuariosUnificados = () => {
         // Convertir vendedores al formato unificado
         const vendedoresUnificados = vendedores.map(v => ({
-            id: v.id,
+            id: v.id_vendedor, // 🔧 Usar id_vendedor como ID (ej: "ID1", "ID2")
             codigo: v.id_vendedor, // ID1, ID2, etc.
             nombre: v.nombre,
             ruta: v.ruta, // 🆕 Mapear ruta
@@ -99,7 +143,7 @@ export const UsuariosProvider = ({ children }) => {
     // 🆕 Crear vendedor de App Móvil
     const crearVendedor = async (datosVendedor) => {
         try {
-            const response = await fetch('/api/vendedores/', {
+            const response = await fetch(`${API_URL}/vendedores/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(datosVendedor)
@@ -120,15 +164,15 @@ export const UsuariosProvider = ({ children }) => {
     const actualizarUsuario = async (id, datosUsuario, esVendedorApp = false) => {
         try {
             if (esVendedorApp) {
-                // Actualizar vendedor de App
-                const response = await fetch(`/api/vendedores/${id}/`, {
+                // Actualizar vendedor de App (id es id_vendedor, ej: "ID1")
+                const response = await fetch(`${API_URL}/vendedores/${id}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(datosUsuario)
                 });
                 if (response.ok) {
                     const vendedorActualizado = await response.json();
-                    setVendedores(prev => prev.map(v => v.id === id ? vendedorActualizado : v));
+                    setVendedores(prev => prev.map(v => v.id_vendedor === id ? vendedorActualizado : v));
                     return { success: true, usuario: vendedorActualizado };
                 }
                 return { success: false, error: 'Error actualizando vendedor' };
@@ -147,9 +191,10 @@ export const UsuariosProvider = ({ children }) => {
     const eliminarUsuario = async (id, esVendedorApp = false) => {
         try {
             if (esVendedorApp) {
-                const response = await fetch(`/api/vendedores/${id}/`, { method: 'DELETE' });
+                // id es id_vendedor para vendedores (ej: "ID1")
+                const response = await fetch(`${API_URL}/vendedores/${id}/`, { method: 'DELETE' });
                 if (response.ok) {
-                    setVendedores(prev => prev.filter(v => v.id !== id));
+                    setVendedores(prev => prev.filter(v => v.id_vendedor !== id));
                     return { success: true };
                 }
                 return { success: false, error: 'Error eliminando vendedor' };
@@ -194,6 +239,7 @@ export const UsuariosProvider = ({ children }) => {
     const value = {
         usuarios,
         vendedores,
+        rutas,  // 🆕 Exponer rutas
         sucursales,
         loading,
         cargarDatos,
@@ -203,7 +249,8 @@ export const UsuariosProvider = ({ children }) => {
         eliminarUsuario,
         crearSucursal,
         getUsuariosPorModulo,
-        getUsuariosUnificados  // 🆕 Obtener lista unificada
+        getUsuariosUnificados,  // 🆕 Obtener lista unificada
+        getRutasVendedor  // 🆕 Obtener rutas de un vendedor
     };
 
     return (

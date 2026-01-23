@@ -4,9 +4,22 @@ import { useUsuarios } from '../../context/UsuariosContext';
 import rutasService from '../../services/rutasService';
 
 const GestionUsuarios = () => {
-    // ... (contexto)
+    const {
+        usuarios,
+        vendedores,
+        rutas: rutasContext,  // 🆕 Rutas del contexto
+        sucursales,
+        loading,
+        crearUsuario,
+        crearVendedor,
+        actualizarUsuario,
+        eliminarUsuario,
+        getUsuariosPorModulo,
+        getUsuariosUnificados,
+        getRutasVendedor  // 🆕 Función para obtener rutas de un vendedor
+    } = useUsuarios();
 
-    // 🆕 Estado para rutas
+    // 🆕 Estado para rutas (para el select del formulario)
     const [rutas, setRutas] = useState([]);
 
     useEffect(() => {
@@ -21,19 +34,6 @@ const GestionUsuarios = () => {
             console.error('Error cargando rutas:', error);
         }
     };
-
-    const {
-        usuarios,
-        vendedores,
-        sucursales,
-        loading,
-        crearUsuario,
-        crearVendedor,
-        actualizarUsuario,
-        eliminarUsuario,
-        getUsuariosPorModulo,
-        getUsuariosUnificados
-    } = useUsuarios();
 
     const [filtroModulo, setFiltroModulo] = useState('TODOS');
     const [showModal, setShowModal] = useState(false);
@@ -158,6 +158,14 @@ const GestionUsuarios = () => {
                     tipo: 'success',
                     texto: `${esVendedorApp ? 'Vendedor' : 'Usuario'} ${usuarioEditando ? 'actualizado' : 'creado'} exitosamente`
                 });
+
+                // 🆕 Disparar evento global para sincronizar otros componentes (solo para vendedores)
+                if (esVendedorApp) {
+                    window.dispatchEvent(new CustomEvent('vendedorActualizado', {
+                        detail: { id_vendedor: formData.codigo, nombre: formData.nombre }
+                    }));
+                }
+
                 handleCloseModal();
             } else {
                 setMensaje({ tipo: 'danger', texto: resultado.error });
@@ -395,11 +403,21 @@ const GestionUsuarios = () => {
                                                     <div className="fw-bold">{usuario.nombre}</div>
                                                     {usuario.email && <small className="text-muted">{usuario.email}</small>}
                                                     {usuario.es_vendedor_app && <small className="text-success d-block">📱 App Móvil</small>}
-                                                    {usuario.ruta && (
-                                                        <small className="d-block text-primary">
-                                                            <i className="bi bi-geo-alt me-1"></i>
-                                                            {usuario.ruta}
-                                                        </small>
+                                                    {/* 🆕 Mostrar múltiples rutas del vendedor */}
+                                                    {usuario.es_vendedor_app && getRutasVendedor && (
+                                                        <div className="mt-1">
+                                                            {getRutasVendedor(usuario.codigo).length > 0 ? (
+                                                                <small style={{ color: '#163864' }}>
+                                                                    <i className="bi bi-geo-alt me-1"></i>
+                                                                    {getRutasVendedor(usuario.codigo).map(r => r.nombre).join(', ')}
+                                                                </small>
+                                                            ) : usuario.ruta ? (
+                                                                <small style={{ color: '#163864' }}>
+                                                                    <i className="bi bi-geo-alt me-1"></i>
+                                                                    {usuario.ruta}
+                                                                </small>
+                                                            ) : null}
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td>
@@ -508,77 +526,118 @@ const GestionUsuarios = () => {
                             </Col>
                         </Row>
 
-                        {formData.rol === 'VENDEDOR' && (
+                        {formData.rol === 'VENDEDOR' && usuarioEditando && (
                             <Row>
                                 <Col md={12}>
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Ruta Asignada</Form.Label>
-                                        <Form.Select
-                                            value={formData.ruta}
-                                            onChange={(e) => setFormData({ ...formData, ruta: e.target.value })}
-                                        >
-                                            <option value="">-- Seleccionar Ruta --</option>
-                                            {rutas.map(r => (
-                                                <option key={r.id} value={r.nombre}>{r.nombre}</option>
-                                            ))}
-                                        </Form.Select>
+                                        <Form.Label>Rutas Asignadas</Form.Label>
+                                        <div className="p-2 bg-light rounded border">
+                                            {getRutasVendedor(formData.codigo).length > 0 ? (
+                                                <span style={{ color: '#163864', fontWeight: '500' }}>
+                                                    <i className="bi bi-geo-alt me-1"></i>
+                                                    {getRutasVendedor(formData.codigo).map(r => r.nombre).join(', ')}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted">Sin rutas asignadas</span>
+                                            )}
+                                        </div>
+                                        <Form.Text className="text-muted">
+                                            Las rutas se administran desde Gestión de Rutas
+                                        </Form.Text>
                                     </Form.Group>
                                 </Col>
                             </Row>
                         )}
 
-                        <Row>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Email</Form.Label>
-                                    <Form.Control
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Teléfono</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        value={formData.telefono}
-                                        onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                                    />
-                                </Form.Group>
-                            </Col>
-                        </Row>
+                        {/* Campos para VENDEDORES App */}
+                        {formData.rol === 'VENDEDOR' && (
+                            <Row>
+                                <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Teléfono</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            value={formData.telefono}
+                                            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                                            placeholder="Ej: 3001234567"
+                                        />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Contraseña {usuarioEditando ? '(dejar vacío para mantener)' : '*'}</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            value={formData.password}
+                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            required={!usuarioEditando}
+                                            placeholder={usuarioEditando ? 'Nueva contraseña...' : 'Contraseña'}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        )}
+
+                        {/* Campos para USUARIOS del sistema (no vendedores) */}
+                        {formData.rol !== 'VENDEDOR' && (
+                            <>
+                                <Row>
+                                    <Col md={6}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Email</Form.Label>
+                                            <Form.Control
+                                                type="email"
+                                                value={formData.email}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            />
+                                        </Form.Group>
+                                    </Col>
+                                    <Col md={6}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Teléfono</Form.Label>
+                                            <Form.Control
+                                                type="text"
+                                                value={formData.telefono}
+                                                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                                            />
+                                        </Form.Group>
+                                    </Col>
+                                </Row>
+
+                                <Row>
+                                    <Col md={6}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Contraseña {usuarioEditando ? '(dejar vacío para mantener)' : '*'}</Form.Label>
+                                            <Form.Control
+                                                type="password"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                required={!usuarioEditando}
+                                            />
+                                        </Form.Group>
+                                    </Col>
+                                    <Col md={6}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Sucursal *</Form.Label>
+                                            <Form.Select
+                                                value={formData.sucursal_id}
+                                                onChange={(e) => setFormData({ ...formData, sucursal_id: e.target.value })}
+                                                required
+                                            >
+                                                <option value="">Seleccionar sucursal...</option>
+                                                {sucursales.map(sucursal => (
+                                                    <option key={sucursal.id} value={sucursal.id}>
+                                                        {sucursal.nombre}
+                                                    </option>
+                                                ))}
+                                            </Form.Select>
+                                        </Form.Group>
+                                    </Col>
+                                </Row>
+                            </>
+                        )}
 
                         <Row>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Contraseña {usuarioEditando ? '(dejar vacío para mantener)' : '*'}</Form.Label>
-                                    <Form.Control
-                                        type="password"
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        required={!usuarioEditando}
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Sucursal *</Form.Label>
-                                    <Form.Select
-                                        value={formData.sucursal_id}
-                                        onChange={(e) => setFormData({ ...formData, sucursal_id: e.target.value })}
-                                        required
-                                    >
-                                        <option value="">Seleccionar sucursal...</option>
-                                        {sucursales.map(sucursal => (
-                                            <option key={sucursal.id} value={sucursal.id}>
-                                                {sucursal.nombre}
-                                            </option>
-                                        ))}
-                                    </Form.Select>
-                                </Form.Group>
-                            </Col>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Rol *</Form.Label>
@@ -586,6 +645,7 @@ const GestionUsuarios = () => {
                                         value={formData.rol}
                                         onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                                         required
+                                        disabled={usuarioEditando} // No cambiar rol una vez creado
                                     >
                                         <option value="CAJERO">Cajero POS</option>
                                         <option value="VENDEDOR">Vendedor App Móvil</option>
