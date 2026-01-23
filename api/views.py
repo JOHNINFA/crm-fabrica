@@ -767,21 +767,18 @@ class CargueID1ViewSet(viewsets.ModelViewSet):
         import traceback
         import os
         from datetime import datetime
+        import logging
         
-        # Log a archivo
-        log_file = '/home/john/Escritorio/crm-fabrica/cargue_create.log'
-        with open(log_file, 'a') as f:
-            f.write("=" * 80 + "\n")
-            f.write(f"🆕 CREATE CargueID1 - {datetime.now()}\n")
-            f.write(f"   producto: {request.data.get('producto')}\n")
-            f.write(f"   cantidad: {request.data.get('cantidad')}\n")
-            f.write(f"   dctos: {request.data.get('dctos')}\n")
-            f.write(f"   adicional: {request.data.get('adicional')}\n")
-            f.write(f"   dia: {request.data.get('dia')}\n")
-            f.write(f"   fecha: {request.data.get('fecha')}\n")
-            f.write("STACK TRACE:\n")
-            f.write(''.join(traceback.format_stack()))
-            f.write("=" * 80 + "\n\n")
+        logger = logging.getLogger(__name__)
+        
+        # Log usando el sistema de logging de Django (más seguro)
+        try:
+            logger.info(f"🆕 CREATE CargueID1 - producto: {request.data.get('producto')}, "
+                       f"cantidad: {request.data.get('cantidad')}, dctos: {request.data.get('dctos')}, "
+                       f"adicional: {request.data.get('adicional')}, dia: {request.data.get('dia')}, "
+                       f"fecha: {request.data.get('fecha')}")
+        except Exception as e:
+            logger.warning(f"Error al loguear create: {e}")
         
         return super().create(request, *args, **kwargs)
 
