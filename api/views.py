@@ -4673,8 +4673,14 @@ def abrir_turno(request):
                     'estado': turno_existente.estado
                 })
             else:
-                # 🆕 SIMPLIFICADO: Permitir reabrir cualquier turno cerrado
-                # Esto permite continuar vendiendo si se cerró la app accidentalmente
+                # 🆕 Verificar si fue cerrado manualmente
+                if turno_existente.cerrado_manual:
+                    return Response({
+                        'error': 'TURNO_YA_CERRADO',
+                        'mensaje': 'El turno para este día ya fue cerrado manualmente. No se puede reabrir.'
+                    }, status=400)
+                
+                # Fue cerrado automáticamente, permitir reabrir
                 turno_existente.estado = 'ABIERTO'
                 turno_existente.hora_cierre = None
                 turno_existente.save()
@@ -4777,9 +4783,10 @@ def cerrar_turno_estado(request):
         # Cerrar turno
         turno.estado = 'CERRADO'
         turno.hora_cierre = timezone.now()
+        turno.cerrado_manual = True  # 🆕 Marcar como cerrado manualmente
         turno.save()
         
-        print(f"✅ Turno cerrado (estado): {turno.vendedor_nombre} - {turno.dia} {turno.fecha}")
+        print(f"✅ Turno cerrado MANUAL: {turno.vendedor_nombre} - {turno.dia} {turno.fecha}")
         
         return Response({
             'success': True,

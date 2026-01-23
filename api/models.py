@@ -2030,6 +2030,7 @@ class TurnoVendedor(models.Model):
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO')
     hora_apertura = models.DateTimeField(default=timezone.now)  # Hora de apertura
     hora_cierre = models.DateTimeField(null=True, blank=True)  # Hora de cierre
+    cerrado_manual = models.BooleanField(default=False)  # 🆕 True si fue cerrado con botón
     
     # Estadísticas del turno
     total_ventas = models.IntegerField(default=0)
