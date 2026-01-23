@@ -221,9 +221,9 @@ export default function MenuSheets() {
 
       // 🚀 CORREGIDO: Cargar todos los vendedores desde la BD
       try {
+        const API_URL = process.env.REACT_APP_API_URL || '/api';
 
-
-        const response = await fetch('/api/vendedores/');
+        const response = await fetch(`${API_URL}/vendedores/`);
         let resultados = [];
 
         if (response.ok) {
@@ -294,9 +294,10 @@ export default function MenuSheets() {
   const guardarNombre = async () => {
     try {
       console.log(`🔄 Guardando responsable: ${idSeleccionado} -> ${tempNombre}`);
+      const API_URL = process.env.REACT_APP_API_URL || '/api';
 
       // Llamada directa a la API
-      const response = await fetch('/api/vendedores/actualizar_responsable/', {
+      const response = await fetch(`${API_URL}/vendedores/actualizar_responsable/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -402,6 +403,7 @@ export default function MenuSheets() {
                 const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
                 const fechaAUsar = fechaSeleccionada || new Date().toISOString().split('T')[0];
                 let totalActualizados = 0;
+                const API_URL = process.env.REACT_APP_API_URL || '/api';
 
                 console.log(`🔄 Iniciando sincronización de checks V para ${dia} - ${fechaAUsar}`);
 
@@ -409,7 +411,7 @@ export default function MenuSheets() {
                   try {
                     // 1. Obtener datos del servidor
                     const response = await fetch(
-                      `/api/obtener-cargue/?vendedor_id=${id}&dia=${dia}&fecha=${fechaAUsar}`
+                      `${API_URL}/obtener-cargue/?vendedor_id=${id}&dia=${dia}&fecha=${fechaAUsar}`
                     );
 
                     if (response.ok) {

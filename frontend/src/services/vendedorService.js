@@ -1,6 +1,5 @@
-// 🚀 SERVICIO DE VENDEDORES ADAPTADO - NUEVA ESTRUCTURA SIMPLIFICADA
+// 🚀 SERVICIO DE VENDEDORES - CONECTADO A API REAL
 import { API_URL } from './api';
-// const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Función para manejar errores de la API
 const handleApiError = (error) => {
@@ -8,37 +7,22 @@ const handleApiError = (error) => {
   return { error: 'API_UNAVAILABLE', message: 'API no disponible' };
 };
 
-// Servicios para Vendedores (ADAPTADO A NUEVA ESTRUCTURA)
+// Servicios para Vendedores
 export const vendedorService = {
-  // Obtener todos los vendedores (SIMULADO - ya no hay tabla vendedores)
+  // Obtener todos los vendedores desde la API
   getAll: async (params = {}) => {
     try {
-
-
-      // Simular datos de vendedores basados en los IDs conocidos
-      const vendedoresSimulados = [
-        { id: 1, nombre: 'Vendedor 1', id_vendedor: 'ID1', ruta: 'Ruta 1', responsable: 'RESPONSABLE', activo: true },
-        { id: 2, nombre: 'Vendedor 2', id_vendedor: 'ID2', ruta: 'Ruta 2', responsable: 'RESPONSABLE', activo: true },
-        { id: 3, nombre: 'Vendedor 3', id_vendedor: 'ID3', ruta: 'Ruta 3', responsable: 'RESPONSABLE', activo: true },
-        { id: 4, nombre: 'Vendedor 4', id_vendedor: 'ID4', ruta: 'Ruta 4', responsable: 'RESPONSABLE', activo: true },
-        { id: 5, nombre: 'Vendedor 5', id_vendedor: 'ID5', ruta: 'Ruta 5', responsable: 'RESPONSABLE', activo: true },
-        { id: 6, nombre: 'Vendedor 6', id_vendedor: 'ID6', ruta: 'Ruta 6', responsable: 'RESPONSABLE', activo: true }
-      ];
-
-      // Aplicar filtros si existen
-      let resultado = vendedoresSimulados;
-
-      if (params.id_vendedor) {
-        resultado = resultado.filter(v => v.id_vendedor === params.id_vendedor);
+      const queryParams = new URLSearchParams(params).toString();
+      const url = queryParams ? `${API_URL}/vendedores/?${queryParams}` : `${API_URL}/vendedores/`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      if (params.activo !== undefined) {
-        const activoBoolean = params.activo === 'true' || params.activo === true;
-        resultado = resultado.filter(v => v.activo === activoBoolean);
-      }
-
-      console.log(`✅ Vendedores obtenidos: ${resultado.length}`);
-      return resultado;
+      
+      const data = await response.json();
+      console.log(`✅ Vendedores obtenidos: ${data.length}`);
+      return data;
 
     } catch (error) {
       console.error('Error en getAll vendedores:', error);
@@ -88,27 +72,22 @@ export const vendedorService = {
     }
   },
 
-  // Obtener vendedor por id_vendedor (NUEVO - MÁS ÚTIL)
+  // Obtener vendedor por id_vendedor
   getByIdVendedor: async (idVendedor) => {
     try {
-
-
-      const vendedores = await vendedorService.getAll();
-      const vendedor = vendedores.find(v => v.id_vendedor === idVendedor);
-
-      if (!vendedor) {
-        console.warn(`⚠️ Vendedor ${idVendedor} no encontrado, usando datos por defecto`);
-        return {
-          id: 1,
-          nombre: `Vendedor ${idVendedor}`,
-          id_vendedor: idVendedor,
-          ruta: `Ruta ${idVendedor}`,
-          responsable: 'RESPONSABLE',
-          activo: true
-        };
+      const response = await fetch(`${API_URL}/vendedores/?id_vendedor=${idVendedor}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.length > 0) {
+        return data[0];
       }
 
-      return vendedor;
+      console.warn(`⚠️ Vendedor ${idVendedor} no encontrado`);
+      return null;
 
     } catch (error) {
       console.error('Error en getByIdVendedor:', error);

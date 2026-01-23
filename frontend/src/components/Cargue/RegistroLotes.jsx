@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './RegistroLotes.css';
 
+// 🔧 API URL configurable para desarrollo local y producción
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
 const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
     const [loteInput, setLoteInput] = useState('');
     const [lotes, setLotes] = useState([]);
@@ -39,7 +42,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                             idSheet === 'ID4' ? 'cargue-id4' :
                                 idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-                const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+                const url = `${API_URL}/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
                 const response = await fetch(url);
 
                 if (response.ok) {
@@ -94,7 +97,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                                 idSheet === 'ID4' ? 'cargue-id4' :
                                     idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-                    const url = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
+                    const url = `${API_URL}/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaParaBD}`;
                     const response = await fetch(url);
 
                     if (response.ok) {

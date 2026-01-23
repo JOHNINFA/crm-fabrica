@@ -18,6 +18,9 @@ import { productoService } from '../../services/api'; // Para cargar precios dir
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './PlantillaOperativa.css';
 
+// URL de la API (usa variable de entorno en desarrollo, /api en producción)
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
 const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
     const { products: allProducts, getProductsByModule } = useProducts();
 
@@ -341,14 +344,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             }
 
             // 1. Cargar PEDIDOS
-            const responsePedidos = await fetch('/api/pedidos/');
+            const responsePedidos = await fetch(`${API_URL}/pedidos/`);
             let pedidos = [];
             if (responsePedidos.ok) {
                 pedidos = await responsePedidos.json();
             }
 
             // 2. Cargar VENTAS NORMALES (Ruta)
-            const responseVentas = await fetch('/api/ventas-ruta/');
+            const responseVentas = await fetch(`${API_URL}/ventas-ruta/`);
             let ventas = [];
             if (responseVentas.ok) {
                 ventas = await responseVentas.json();
@@ -498,7 +501,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 // Solo cargar si no tenemos datos
                 if (Object.keys(clientesMapRef.current).length > 0) return;
 
-                const response = await fetch('/api/clientes/');
+                const response = await fetch(`${API_URL}/clientes/`);
                 if (response.ok) {
                     const clientes = await response.json();
                     const mapa = {};
@@ -621,7 +624,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         idSheet === 'ID4' ? 'cargue-id4' :
                             idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-            const url = `/api/${endpoint}/?fecha=${fechaParaBD}&dia=${dia.toUpperCase()}`;
+            const url = `${API_URL}/${endpoint}/?fecha=${fechaParaBD}&dia=${dia.toUpperCase()}`;
             console.warn(`🔍 ${idSheet} - Consultando: ${url}`);
 
             const fetchResponse = await fetch(url);
@@ -1433,7 +1436,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             console.log(`   - Cantidad a enviar al inventario: ${cantidadFinal}`);
 
-            const response = await fetch(`/api/productos/${productoId}/actualizar_stock/`, {
+            const response = await fetch(`${API_URL}/productos/${productoId}/actualizar_stock/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -4,6 +4,9 @@ import VerificarGuardado from './VerificarGuardado';
 import { useVendedores } from '../../context/VendedoresContext';
 import './BotonLimpiar.css';
 
+// 🔧 API URL configurable para desarrollo local y producción
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
 const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpiar }) => {
   // 🔧 Helper para formatear fecha a YYYY-MM-DD (consistente con localStorage)
   const formatearFechaLS = (fecha) => {
@@ -193,7 +196,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const cargarEstadoDesdeBD = async () => {
         try {
           // Primero intentar con el endpoint de estado
-          const urlEstado = `/api/estado-cargue/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
+          const urlEstado = `${API_URL}/estado-cargue/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
           console.log(`🔍 ESTADO - Consultando: ${urlEstado}`);
 
           const responseEstado = await fetch(urlEstado);
@@ -211,7 +214,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
           // Si no hay estado guardado, inferir desde datos de productos
           console.log(`🔍 ESTADO - No hay estado en BD, infiriendo desde productos...`);
-          const url = `/api/cargue-id1/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
+          const url = `${API_URL}/cargue-id1/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
           const response = await fetch(url);
 
           if (response.ok) {
@@ -263,7 +266,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
     console.log(`🔄 Sincronizando estado con BD: ${estado}`);
 
-    fetch('/api/estado-cargue/actualizar/', {
+    fetch(`${API_URL}/estado-cargue/actualizar/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -441,7 +444,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const cantidadFinal = tipo === 'SUMAR' ? cantidad : -cantidad;
       console.log(`🔥 Enviando al backend: cantidad = ${cantidadFinal}`);
 
-      const response = await fetch(`/api/productos/${productoId}/actualizar_stock/`, {
+      const response = await fetch(`${API_URL}/productos/${productoId}/actualizar_stock/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -486,7 +489,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
 
       // 🔥 CARGAR TODOS LOS PEDIDOS y filtrar en el frontend (más seguro)
-      const response = await fetch(`/api/pedidos/`);
+      const response = await fetch(`${API_URL}/pedidos/`);
 
       if (!response.ok) {
         console.warn('⚠️ No se pudieron cargar pedidos');
@@ -569,7 +572,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       for (const pedidoId of pedidosIds) {
         try {
-          const response = await fetch(`/api/pedidos/${pedidoId}/`, {
+          const response = await fetch(`${API_URL}/pedidos/${pedidoId}/`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -614,7 +617,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
       for (const id of idsVendedores) {
-        const response = await fetch(`/api/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
+        const response = await fetch(`${API_URL}/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
         if (response.ok) {
           const cargueData = await response.json();
           cargueData.forEach(item => {
@@ -633,7 +636,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       // 📸 GUARDAR SNAPSHOT (foto del momento) - Solo si NO existe ya
       // Verificar si ya hay snapshot guardado para este día
-      const checkSnapshot = await fetch(`/api/planeacion/?fecha=${fechaFormateada}`);
+      const checkSnapshot = await fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`);
       const snapshotExistente = checkSnapshot.ok ? await checkSnapshot.json() : [];
 
       if (snapshotExistente.length > 0) {
@@ -644,7 +647,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
 
       // Obtener existencias actuales desde api_stock
-      const stockResponse = await fetch('/api/stock/');
+      const stockResponse = await fetch(`${API_URL}/stock/`);
       const stocks = stockResponse.ok ? await stockResponse.json() : [];
       const stockMap = {};
       stocks.forEach(s => {
@@ -652,7 +655,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       });
 
       // Obtener pedidos del día
-      const pedidosResponse = await fetch(`/api/pedidos/`);
+      const pedidosResponse = await fetch(`${API_URL}/pedidos/`);
       const todosPedidos = pedidosResponse.ok ? await pedidosResponse.json() : [];
       const pedidosFecha = todosPedidos.filter(p =>
         p.fecha_entrega && p.fecha_entrega.split('T')[0] === fechaFormateada && p.estado !== 'ANULADA'
@@ -693,7 +696,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             usuario: 'Sistema'
           };
 
-          const response = await fetch(`/api/planeacion/`, {
+          const response = await fetch(`${API_URL}/planeacion/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(snapshot)
@@ -725,7 +728,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const fechaFormateada = `${year}-${month}-${day}`;
 
       // Obtener pedidos actuales de la BD
-      const response = await fetch(`/api/pedidos/`);
+      const response = await fetch(`${API_URL}/pedidos/`);
       if (!response.ok) {
         console.warn('⚠️ No se pudieron cargar pedidos para congelar');
         return;
@@ -761,7 +764,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         if (cantidadPedidos > 0) {
           // Verificar si ya existe un registro de planeación para este producto y fecha
           const planeacionResponse = await fetch(
-            `/api/planeacion/?fecha=${fechaFormateada}&producto_nombre=${encodeURIComponent(nombreProducto)}`
+            `${API_URL}/planeacion/?fecha=${fechaFormateada}&producto_nombre=${encodeURIComponent(nombreProducto)}`
           );
 
           let datosPlaneacion = {
@@ -790,7 +793,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           }
 
           // Guardar en BD
-          await fetch(`/api/planeacion/`, {
+          await fetch(`${API_URL}/planeacion/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(datosPlaneacion)
@@ -825,7 +828,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log(`📸 SNAPSHOT - Fecha: ${fechaFormateada}`);
 
       // 1. Obtener existencias actuales desde api_stock
-      const stockResponse = await fetch('/api/stock/');
+      const stockResponse = await fetch(`${API_URL}/stock/`);
       const stocks = stockResponse.ok ? await stockResponse.json() : [];
       const stockMap = {};
       stocks.forEach(s => {
@@ -840,7 +843,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // Primero intentar desde BD
       let datosEncontradosEnBD = false;
       for (const id of idsVendedores) {
-        const response = await fetch(`/api/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
+        const response = await fetch(`${API_URL}/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
         if (response.ok) {
           const cargueData = await response.json();
           if (cargueData.length > 0) datosEncontradosEnBD = true;
@@ -887,7 +890,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       // 3. Obtener pedidos del día
-      const pedidosResponse = await fetch(`/api/pedidos/`);
+      const pedidosResponse = await fetch(`${API_URL}/pedidos/`);
       const todosPedidos = pedidosResponse.ok ? await pedidosResponse.json() : [];
       const pedidosFecha = todosPedidos.filter(p =>
         p.fecha_entrega && p.fecha_entrega.split('T')[0] === fechaFormateada && p.estado !== 'ANULADA'
@@ -905,7 +908,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       });
 
       // 4. Obtener orden e IA desde api_planeacion (si existe)
-      const planeacionResponse = await fetch(`/api/planeacion/?fecha=${fechaFormateada}`);
+      const planeacionResponse = await fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`);
       const planeacionData = planeacionResponse.ok ? await planeacionResponse.json() : [];
       const planeacionMap = {};
       planeacionData.forEach(p => {
@@ -948,7 +951,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log(`📊 Registros a guardar: ${registros.length}`);
 
       // 6. Enviar al endpoint de snapshot
-      const response = await fetch('/api/registros-planeacion-dia/guardar_snapshot/', {
+      const response = await fetch(`${API_URL}/registros-planeacion-dia/guardar_snapshot/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1760,7 +1763,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               vendedorId === 'ID4' ? 'cargue-id4' :
                 vendedorId === 'ID5' ? 'cargue-id5' : 'cargue-id6';
 
-        const url = `/api/${endpoint}/?fecha=${fechaFormateada}&dia=${dia.toUpperCase()}`;
+        const url = `${API_URL}/${endpoint}/?fecha=${fechaFormateada}&dia=${dia.toUpperCase()}`;
         const response = await fetch(url);
         const datosDB = await response.json();
 
@@ -1792,7 +1795,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
     // Necesitamos mapa de productos para IDs reales
     try {
-      const prodRes = await fetch('/api/productos/');
+      const prodRes = await fetch(`${API_URL}/productos/`);
       const todosProds = await prodRes.json();
 
       for (const p of datosCargue.productos) {
@@ -1898,7 +1901,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const productosPedidos = Object.values(pedidosAgrupados);
 
       if (productosPedidos.length > 0) {
-        const productosResponse = await fetch('/api/productos/');
+        const productosResponse = await fetch(`${API_URL}/productos/`);
         const todosLosProductosAPI = await productosResponse.json();
 
         for (const pedido of productosPedidos) {
@@ -1952,7 +1955,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
           for (const vendedorId of IDS_VENDEDORES) {
             try {
-              await fetch('/api/estado-cargue/actualizar/', {
+              await fetch(`${API_URL}/estado-cargue/actualizar/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2220,7 +2223,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const productosPedidos = Object.values(pedidosAgrupados);
 
       if (productosPedidos.length > 0) {
-        const productosResponse = await fetch('/api/productos/');
+        const productosResponse = await fetch(`${API_URL}/productos/`);
         const todosLosProductos = await productosResponse.json();
 
         for (const pedido of productosPedidos) {
@@ -2326,7 +2329,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           // Si no hay en localStorage, cargar desde BD
           try {
             const endpoint = endpointMapValidacion[id];
-            const url = `/api/${endpoint}/?fecha=${fechaAUsar}&dia=${dia.toUpperCase()}`;
+            const url = `${API_URL}/${endpoint}/?fecha=${fechaAUsar}&dia=${dia.toUpperCase()}`;
             const response = await fetch(url);
             if (response.ok) {
               const datosDB = await response.json();
@@ -2405,7 +2408,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const productosPedidos = Object.values(pedidosAgrupados);
 
       if (productosPedidos.length > 0) {
-        const productosResponse = await fetch('/api/productos/');
+        const productosResponse = await fetch(`${API_URL}/productos/`);
         const todosLosProductos = await productosResponse.json();
 
         for (const pedido of productosPedidos) {
@@ -2454,7 +2457,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           console.log(`📦 ${id} - localStorage vacío, leyendo desde BD...`);
           try {
             const endpoint = endpointMap[id];
-            const url = `/api/${endpoint}/?fecha=${fechaAUsar}&dia=${dia.toUpperCase()}`;
+            const url = `${API_URL}/${endpoint}/?fecha=${fechaAUsar}&dia=${dia.toUpperCase()}`;
             const response = await fetch(url);
             if (response.ok) {
               const datosDB = await response.json();
@@ -2480,7 +2483,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           if (!productoId && producto.producto) {
             // Buscar ID en la lista de productos
             try {
-              const prodResponse = await fetch(`/api/productos/?search=${encodeURIComponent(producto.producto)}`);
+              const prodResponse = await fetch(`${API_URL}/productos/?search=${encodeURIComponent(producto.producto)}`);
               const prods = await prodResponse.json();
               const prodEncontrado = prods.find(p => p.nombre.toUpperCase() === producto.producto.toUpperCase());
               if (prodEncontrado) {
@@ -2993,10 +2996,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         </div>
       )}
 
-      {/* Botón de verificar guardado solo en ID1 y después de COMPLETADO */}
+      {/* Botón de verificar guardado - OCULTO (no se está usando)
       {idSheet === 'ID1' && estado === 'COMPLETADO' && (
         <VerificarGuardado dia={dia} fechaSeleccionada={fechaSeleccionada} />
       )}
+      */}
     </div>
   );
 };

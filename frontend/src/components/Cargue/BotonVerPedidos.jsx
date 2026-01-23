@@ -3,6 +3,9 @@ import { Button, Modal, Table, Nav, Tab } from 'react-bootstrap';
 import { responsableStorage } from '../../utils/responsableStorage';
 import { pedidoService } from '../../services/api';
 
+// 🔧 API URL configurable para desarrollo local y producción
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
 const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     const [showModal, setShowModal] = useState(false);
     const [pedidos, setPedidos] = useState([]); // Productos agrupados
@@ -32,7 +35,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         try {
             // Obtener todos los pedidos
             // 1. Obtener PEDIDOS
-            const responsePedidos = await fetch('/api/pedidos/');
+            const responsePedidos = await fetch(`${API_URL}/pedidos/`);
             let pedidosData = [];
             if (responsePedidos.ok) {
                 pedidosData = await responsePedidos.json();
@@ -240,7 +243,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     // 🆕 Función para cambiar método de pago
     const handleCambiarMetodoPago = async (pedidoId, nuevoMetodo) => {
         try {
-            const response = await fetch(`/api/pedidos/${pedidoId}/`, {
+            const response = await fetch(`${API_URL}/pedidos/${pedidoId}/`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

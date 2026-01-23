@@ -301,40 +301,60 @@ export const detalleCargueService = {
 // SERVICIO DE VENDEDORES (NUEVO)
 // ========================================
 
-export const vendedorService = {
-  // Obtener información de vendedor por ID (simulado)
+export const vendedorServiceCargue = {
+  // Obtener información de vendedor por ID desde la API
   getByIdVendedor: async (idVendedor) => {
     try {
-      // Simular datos de vendedor basados en el ID
-      const vendedorData = {
-        'ID1': { id: 1, nombre: 'Vendedor 1', id_vendedor: 'ID1', ruta: 'Ruta 1', responsable: 'RESPONSABLE' },
-        'ID2': { id: 2, nombre: 'Vendedor 2', id_vendedor: 'ID2', ruta: 'Ruta 2', responsable: 'RESPONSABLE' },
-        'ID3': { id: 3, nombre: 'Vendedor 3', id_vendedor: 'ID3', ruta: 'Ruta 3', responsable: 'RESPONSABLE' },
-        'ID4': { id: 4, nombre: 'Vendedor 4', id_vendedor: 'ID4', ruta: 'Ruta 4', responsable: 'RESPONSABLE' },
-        'ID5': { id: 5, nombre: 'Vendedor 5', id_vendedor: 'ID5', ruta: 'Ruta 5', responsable: 'RESPONSABLE' },
-        'ID6': { id: 6, nombre: 'Vendedor 6', id_vendedor: 'ID6', ruta: 'Ruta 6', responsable: 'RESPONSABLE' }
-      };
+      const response = await fetch(`${API_URL}/vendedores/?id_vendedor=${idVendedor}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
-      return vendedorData[idVendedor] || vendedorData['ID1'];
+      const data = await response.json();
+      
+      if (data.length > 0) {
+        return data[0];
+      }
+
+      console.warn(`⚠️ Vendedor ${idVendedor} no encontrado`);
+      return null;
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  // Actualizar responsable (simulado - usa localStorage)
+  // Actualizar responsable
   actualizarResponsable: async (idVendedor, nuevoResponsable) => {
     try {
-      // En la nueva estructura, esto se maneja via localStorage
-      // Mantener compatibilidad con la interfaz existente
       console.log(`📝 Actualizando responsable ${idVendedor}: ${nuevoResponsable}`);
       
+      // Buscar el vendedor primero
+      const response = await fetch(`${API_URL}/vendedores/?id_vendedor=${idVendedor}`);
+      const vendedores = await response.json();
+      
+      if (vendedores.length > 0) {
+        const vendedor = vendedores[0];
+        // Actualizar el vendedor
+        const updateResponse = await fetch(`${API_URL}/vendedores/${vendedor.id_vendedor}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ nombre: nuevoResponsable })
+        });
+        
+        if (updateResponse.ok) {
+          return {
+            success: true,
+            vendedor: await updateResponse.json(),
+            message: 'Responsable actualizado exitosamente'
+          };
+        }
+      }
+      
       return {
-        success: true,
-        vendedor: {
-          id_vendedor: idVendedor,
-          responsable: nuevoResponsable
-        },
-        message: 'Responsable actualizado exitosamente'
+        success: false,
+        message: 'No se pudo actualizar el responsable'
       };
     } catch (error) {
       return handleApiError(error);
