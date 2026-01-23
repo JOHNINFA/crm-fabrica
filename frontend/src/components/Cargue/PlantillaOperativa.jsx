@@ -1190,6 +1190,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         const handleVisibilityChange = () => {
             isVisible = !document.hidden;
             if (isVisible) {
+                // 🛡️ PROTECCIÓN: No recargar si hubo cambio manual reciente
+                if (cambioManualRef.current) {
+                    console.log(`🛡️ ${idSheet} - Cambio manual pendiente, omitiendo recarga por visibilidad`);
+                    return;
+                }
                 console.log(`👁️ ${idSheet} - Pestaña visible, recargando datos...`);
                 const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
                 if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
@@ -1205,6 +1210,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         // Intervalo de polling
         const pollingInterval = setInterval(() => {
             if (isVisible) {
+                // 🛡️ PROTECCIÓN: No recargar si hubo cambio manual reciente
+                if (cambioManualRef.current) {
+                    console.log(`🛡️ ${idSheet} - Cambio manual pendiente, omitiendo polling`);
+                    return;
+                }
+
                 console.log(`🔄 ${idSheet} - Polling automático (pestaña visible)`);
                 const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
 
