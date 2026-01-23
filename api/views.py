@@ -4505,12 +4505,14 @@ def verificar_turno_activo(request):
     Verificar si hay un turno abierto para un vendedor.
     Permite sincronización entre dispositivos.
     
+    🆕 MEJORA: Si el turno no tiene cargue asociado, se cierra automáticamente.
+    
     Query params:
     - vendedor_id: ID del vendedor (numérico o cadena ID1, ID2, etc.)
     - fecha: Fecha opcional (default: hoy)
     """
     try:
-        from .models import TurnoVendedor
+        from .models import TurnoVendedor, CargueProductos
         from datetime import date
         
         vendedor_id = request.query_params.get('vendedor_id')
@@ -4521,11 +4523,13 @@ def verificar_turno_activo(request):
                 'error': 'vendedor_id es requerido'
             }, status=400)
         
-        # Convertir ID de vendedor a numérico
+        # Convertir ID de vendedor a numérico y string
         if vendedor_id.upper().startswith('ID'):
             vendedor_id_numerico = int(vendedor_id[2:])
+            vendedor_id_str = vendedor_id.upper()
         else:
             vendedor_id_numerico = int(vendedor_id)
+            vendedor_id_str = f"ID{vendedor_id_numerico}"
         
         # Fecha (hoy por defecto)
         if fecha_param:
@@ -4534,32 +4538,16 @@ def verificar_turno_activo(request):
         else:
             fecha = date.today()
         
-        # 🆕 CORRECCIÓN (DESACTIVADO TEMPORALMENTE PARA PRUEBAS): 
-        # Cerrar automáticamente turnos viejos antes de buscar
-        # Buscar turnos abiertos que NO sean de hoy y cerrarlos
-        # turnos_viejos = TurnoVendedor.objects.filter(
-        #     vendedor_id=vendedor_id_numerico,
-        #     estado='ABIERTO'
-        # ).exclude(fecha=fecha)
-        
-        # if turnos_viejos.exists():
-        #     count = turnos_viejos.count()
-        #     for turno_viejo in turnos_viejos:
-        #         turno_viejo.estado = 'CERRADO'
-        #         turno_viejo.save()
-        #     print(f"⚠️ Se cerraron automáticamente {count} turnos viejos del vendedor {vendedor_id_numerico}")
-        
         # Buscar turno activo
         if not fecha_param:
             # Si no se especifica fecha, buscar CUALQUIER turno abierto (el más reciente)
-            # Esto permite recuperar la sesión si se cerró la app sin cerrar el turno, incluso de días pasados
             turno = TurnoVendedor.objects.filter(
                 vendedor_id=vendedor_id_numerico,
                 estado='ABIERTO'
             ).order_by('-fecha').first()
             
             if turno:
-                print(f"✅ Turno activo recuperado: {turno.fecha} (Hoy es {date.today()})")
+                print(f"✅ Turno activo encontrado: {turno.fecha} (Hoy es {date.today()})")
         else:
             # Si se especifica fecha, buscar estrictamente esa fecha
             turno = TurnoVendedor.objects.filter(
@@ -4569,13 +4557,32 @@ def verificar_turno_activo(request):
             ).first()
         
         if turno:
+            # 🆕 VALIDACIÓN: Verificar si el turno tiene cargue asociado
+            tiene_cargue = CargueProductos.objects.filter(
+                vendedor_id=vendedor_id_str,
+                fecha=turno.fecha,
+                cantidad__gt=0  # Al menos un producto con cantidad > 0
+            ).exists()
+            
+            if not tiene_cargue:
+                # No tiene cargue, cerrar turno automáticamente
+                turno.estado = 'CERRADO'
+                turno.save()
+                print(f"⚠️ Turno {turno.id} cerrado automáticamente (sin cargue): {vendedor_id_str} - {turno.fecha}")
+                
+                return Response({
+                    'turno_activo': False,
+                    'mensaje': 'Turno cerrado automáticamente (no tenía cargue asociado)',
+                    'turno_cerrado_auto': True
+                })
+            
+            # Tiene cargue, retornar turno activo
             return Response({
                 'turno_activo': True,
                 'turno_id': turno.id,
                 'dia': turno.dia,
                 'fecha': turno.fecha.isoformat(),
                 'hora_apertura': turno.hora_apertura.isoformat() if turno.hora_apertura else None,
-                # ... resto de campos
                 'vendedor_nombre': turno.vendedor_nombre,
                 'total_ventas': turno.total_ventas,
                 'total_dinero': float(turno.total_dinero)
