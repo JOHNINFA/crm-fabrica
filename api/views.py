@@ -4512,7 +4512,7 @@ def verificar_turno_activo(request):
     - fecha: Fecha opcional (default: hoy)
     """
     try:
-        from .models import TurnoVendedor, CargueProductos
+        from .models import TurnoVendedor, CargueProductos, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         from datetime import date
         
         vendedor_id = request.query_params.get('vendedor_id')
@@ -4558,14 +4558,31 @@ def verificar_turno_activo(request):
         
         if turno:
             # 🆕 VALIDACIÓN: Verificar si el turno tiene cargue asociado
+            # Buscar en CargueProductos (modelo nuevo)
             tiene_cargue = CargueProductos.objects.filter(
                 vendedor_id=vendedor_id_str,
                 fecha=turno.fecha,
-                cantidad__gt=0  # Al menos un producto con cantidad > 0
+                cantidad__gt=0
             ).exists()
             
+            # Si no hay en CargueProductos, buscar en CargueIDx (modelo viejo)
             if not tiene_cargue:
-                # No tiene cargue, cerrar turno automáticamente
+                modelo_map = {
+                    'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+                    'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6
+                }
+                ModeloCargue = modelo_map.get(vendedor_id_str)
+                if ModeloCargue:
+                    tiene_cargue = ModeloCargue.objects.filter(
+                        fecha=turno.fecha,
+                        activo=True,
+                        cantidad__gt=0
+                    ).exists()
+                    if tiene_cargue:
+                        print(f"✅ Cargue encontrado en {vendedor_id_str} (modelo viejo)")
+            
+            if not tiene_cargue:
+                # No tiene cargue en ningún modelo, cerrar turno automáticamente
                 turno.estado = 'CERRADO'
                 turno.save()
                 print(f"⚠️ Turno {turno.id} cerrado automáticamente (sin cargue): {vendedor_id_str} - {turno.fecha}")
