@@ -137,7 +137,12 @@ export const UsuariosProvider = ({ children }) => {
     // Crear usuario
     const crearUsuario = async (datosUsuario) => {
         try {
-            const nuevoUsuario = await cajeroService.create(datosUsuario);
+            // 🔧 No enviar código vacío, dejar que el backend lo genere
+            const datosParaEnviar = { ...datosUsuario };
+            if (!datosParaEnviar.codigo || datosParaEnviar.codigo.trim() === '') {
+                delete datosParaEnviar.codigo; // El backend generará POS1, POS2, etc.
+            }
+            const nuevoUsuario = await cajeroService.create(datosParaEnviar);
             setUsuarios(prev => [...prev, nuevoUsuario]);
             return { success: true, usuario: nuevoUsuario };
         } catch (error) {

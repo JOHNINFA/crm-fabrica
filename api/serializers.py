@@ -411,13 +411,18 @@ class CajeroSerializer(serializers.ModelSerializer):
         read_only_fields = ('password_plano', 'fecha_creacion', 'fecha_actualizacion', 'ultimo_login')
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
-            'sucursal': {'required': False, 'allow_null': True}
+            'sucursal': {'required': False, 'allow_null': True},
+            'codigo': {'required': False, 'allow_blank': True, 'allow_null': True}
         }
     
     def create(self, validated_data):
         """Crear usuario con contraseña hasheada y plana"""
         import hashlib
         password = validated_data.pop('password', '1234')  # Default password
+        
+        # 🔧 Si el código viene vacío, dejarlo como None para que el modelo lo genere
+        if 'codigo' in validated_data and (not validated_data['codigo'] or validated_data['codigo'].strip() == ''):
+            validated_data.pop('codigo')
         
         # 🆕 Guardar copia visible
         validated_data['password_plano'] = password
