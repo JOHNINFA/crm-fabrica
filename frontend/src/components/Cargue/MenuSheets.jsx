@@ -284,6 +284,23 @@ export default function MenuSheets() {
     };
 
     cargarResponsables();
+
+    // 🆕 Escuchar evento de actualización de vendedores desde GestionUsuarios
+    const handleVendedorActualizado = (event) => {
+      console.log('🔄 Cargue: Recibido evento vendedorActualizado', event.detail);
+      // Invalidar caché
+      const cacheKey = `responsables_cache_${dia}`;
+      localStorage.removeItem(cacheKey);
+      localStorage.removeItem(`${cacheKey}_timestamp`);
+      // Recargar responsables
+      cargarResponsables();
+    };
+
+    window.addEventListener('vendedorActualizado', handleVendedorActualizado);
+
+    return () => {
+      window.removeEventListener('vendedorActualizado', handleVendedorActualizado);
+    };
   }, [dia]); // Solo depende del día
 
   const abrirModal = () => {
