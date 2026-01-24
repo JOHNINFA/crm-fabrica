@@ -119,11 +119,17 @@ export const UsuariosProvider = ({ children }) => {
             password_visible: u.password_plano // 🆕 Ahora usamos la copia visible
         }));
 
-        // Combinar y ordenar: usuarios sistema primero, vendedores app al final
+        // Combinar y ordenar: usuarios sistema primero, vendedores app ordenados por ID
         return [...usuariosSistema, ...vendedoresUnificados].sort((a, b) => {
             // Primero usuarios sistema, luego vendedores de app
             if (!a.es_vendedor_app && b.es_vendedor_app) return -1;
             if (a.es_vendedor_app && !b.es_vendedor_app) return 1;
+            // Si ambos son vendedores, ordenar por ID numérico (ID1, ID2, ID3...)
+            if (a.es_vendedor_app && b.es_vendedor_app) {
+                const numA = parseInt(a.codigo.replace('ID', '')) || 0;
+                const numB = parseInt(b.codigo.replace('ID', '')) || 0;
+                return numA - numB;
+            }
             return a.nombre.localeCompare(b.nombre);
         });
     };
