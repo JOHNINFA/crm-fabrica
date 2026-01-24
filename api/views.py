@@ -1351,8 +1351,14 @@ class CajeroViewSet(viewsets.ModelViewSet):
         sucursal_id = self.request.query_params.get('sucursal_id', None)
         activo = self.request.query_params.get('activo', None)
         
-        if sucursal_id:
-            queryset = queryset.filter(sucursal_id=sucursal_id)
+        # 🔧 Validar que sucursal_id sea un número válido
+        if sucursal_id and sucursal_id not in ['undefined', 'null', '']:
+            try:
+                sucursal_id_int = int(sucursal_id)
+                queryset = queryset.filter(sucursal_id=sucursal_id_int)
+            except (ValueError, TypeError):
+                pass  # Ignorar si no es un número válido
+                
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
             
