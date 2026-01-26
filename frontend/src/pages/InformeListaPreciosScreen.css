@@ -99,6 +99,25 @@
     color: #000000 !important;
 }
 
+/* ==================== SCROLL HORIZONTAL EN TABLA ==================== */
+.table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+
+.productos-table {
+    min-width: 1200px;
+    /* Ancho mínimo para forzar scroll */
+    white-space: nowrap;
+}
+
+.productos-table th,
+.productos-table td {
+    white-space: nowrap;
+    padding: 0.5rem;
+}
+
 
 /* ==================== CHECKBOXES Y SWITCHES ==================== */
 

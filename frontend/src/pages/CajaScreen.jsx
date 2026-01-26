@@ -1370,7 +1370,30 @@ const CajaScreenContent = () => {
 
     // Imprimir reporte
     const handleImprimir = () => {
-        window.print();
+        // Construir objeto arqueo con los datos actuales
+        const arqueoActual = {
+            fecha: fechaConsulta,
+            cajero: cajero,
+            banco: banco,
+            valores_sistema: valoresSistema,
+            valores_caja: valoresCaja,
+            diferencias: {
+                efectivo: valoresCaja.efectivo - valoresSistema.efectivo,
+                tarjetas: valoresCaja.tarjetas - valoresSistema.tarjetas,
+                transferencia: valoresCaja.transferencia - valoresSistema.transferencia,
+                consignacion: valoresCaja.consignacion - valoresSistema.consignacion,
+                qr: valoresCaja.qr - valoresSistema.qr,
+                rappipay: valoresCaja.rappipay - valoresSistema.rappipay,
+                bonos: valoresCaja.bonos - valoresSistema.bonos
+            },
+            total_sistema: totalSistema,
+            total_caja: totalCaja,
+            total_diferencia: totalDiferencia,
+            observaciones: observaciones
+        };
+
+        // Llamar a la función de impresión existente
+        imprimirArqueo(arqueoActual);
     };
 
     // Cargar datos al montar el componente

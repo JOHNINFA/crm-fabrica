@@ -6,13 +6,6 @@ import EditarProductoModal from '../components/modals/EditarProductoModal';
 import usePageTitle from '../hooks/usePageTitle';
 import './InformeListaPreciosScreen.css';
 
-const listasAjuste = [
-    { id: 'pv', nombre: 'Precio Venta' },
-    { id: 'pvo', nombre: 'Precio Venta Online' },
-    { id: 'cli', nombre: 'CLIENTES' },
-    { id: 'dom', nombre: 'DOMICILIOS' },
-];
-
 const InformeListaPreciosScreen = () => {
     usePageTitle('Informe Lista de Precios');
     const navigate = useNavigate();
@@ -30,7 +23,7 @@ const InformeListaPreciosScreen = () => {
     // Estado para controlar qué listas están visibles en POS
     const [listasVisiblesPos, setListasVisiblesPos] = useState(() => {
         const saved = localStorage.getItem('listasVisiblesPos');
-        return saved ? JSON.parse(saved) : { 'CLIENTES': true };
+        return saved ? JSON.parse(saved) : {};
     });
 
     // 🆕 Estado para controlar los checkboxes de aumento
@@ -206,7 +199,7 @@ const InformeListaPreciosScreen = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {listasAjuste.map(lista => (
+                                        {listasPrecios.map(lista => (
                                             <tr key={lista.id}>
                                                 <td className="text-start align-middle">{lista.nombre}</td>
                                                 <td className="align-middle">
@@ -273,7 +266,7 @@ const InformeListaPreciosScreen = () => {
                                     <table className="table table-striped table-hover productos-table">
                                         <thead>
                                             <tr>
-                                                <th colSpan="7">
+                                                <th colSpan={4 + listasPrecios.length}>
                                                     <input
                                                         type="text"
                                                         className="form-control form-control-sm"
@@ -288,19 +281,19 @@ const InformeListaPreciosScreen = () => {
                                                 <th>Nombre</th>
                                                 <th>Categoría</th>
                                                 <th>Precio Compra</th>
-                                                <th>COMERZIALIZADORA</th>
-                                                <th>CLIENTES</th>
-                                                <th>DOMICILIOS</th>
+                                                {listasPrecios.map(lista => (
+                                                    <th key={lista.id}>{lista.nombre}</th>
+                                                ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {loading ? (
                                                 <tr>
-                                                    <td colSpan="7" className="text-center">Cargando productos...</td>
+                                                    <td colSpan={4 + listasPrecios.length} className="text-center">Cargando productos...</td>
                                                 </tr>
                                             ) : productosFiltrados.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="7" className="text-center">No hay productos</td>
+                                                    <td colSpan={4 + listasPrecios.length} className="text-center">No hay productos</td>
                                                 </tr>
                                             ) : (
                                                 productosFiltrados.map(p => (
@@ -317,9 +310,11 @@ const InformeListaPreciosScreen = () => {
                                                         <td className="align-middle">{p.nombre}</td>
                                                         <td className="align-middle">{p.categoria_nombre || 'Sin categoría'}</td>
                                                         <td className="align-middle">$ {Math.round(p.precio_compra || 0)}</td>
-                                                        <td className="align-middle">{getPrecioProductoLista(p.id, 'COMERZIALIZADORA')}</td>
-                                                        <td className="align-middle">{getPrecioProductoLista(p.id, 'CLIENTES')}</td>
-                                                        <td className="align-middle">{getPrecioProductoLista(p.id, 'DOMICILIOS')}</td>
+                                                        {listasPrecios.map(lista => (
+                                                            <td key={lista.id} className="align-middle">
+                                                                {getPrecioProductoLista(p.id, lista.nombre)}
+                                                            </td>
+                                                        ))}
                                                     </tr>
                                                 ))
                                             )}

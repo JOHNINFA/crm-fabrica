@@ -19,6 +19,7 @@ const LoginCajeroModal = ({ show, onHide }) => {
     // Estados del formulario
     const [cajeroSeleccionado, setCajeroSeleccionado] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false); // 🆕 Estado para mostrar/ocultar contraseña
     const [saldoInicialCaja, setSaldoInicialCaja] = useState('');
     const [cajerosDisponibles, setCajerosDisponibles] = useState([]);
     const [sucursalesDisponibles, setSucursalesDisponibles] = useState([]); // Nuevo estado
@@ -365,13 +366,38 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
                     <Form.Group className="mb-3">
                         <Form.Label>Contraseña</Form.Label>
-                        <Form.Control
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Ingrese su contraseña"
-                            disabled={loading}
-                        />
+                        <div className="position-relative">
+                            <Form.Control
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Ingrese su contraseña"
+                                disabled={loading}
+                                style={{ paddingRight: '40px' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '10px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    color: '#6c757d'
+                                }}
+                                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            >
+                                <span className="material-icons" style={{ fontSize: '20px' }}>
+                                    {showPassword ? 'visibility_off' : 'visibility'}
+                                </span>
+                            </button>
+                        </div>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -382,12 +408,14 @@ const LoginCajeroModal = ({ show, onHide }) => {
                             Saldo Inicial de Caja
                         </Form.Label>
                         <Form.Control
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={saldoInicialCaja}
-                            onChange={(e) => setSaldoInicialCaja(e.target.value)}
-                            placeholder="Ej: 50000"
+                            type="text"
+                            value={saldoInicialCaja ? `$ ${parseFloat(saldoInicialCaja.replace(/[^0-9]/g, '')).toLocaleString('es-CO')}` : ''}
+                            onChange={(e) => {
+                                // Extraer solo números
+                                const numeros = e.target.value.replace(/[^0-9]/g, '');
+                                setSaldoInicialCaja(numeros);
+                            }}
+                            placeholder="Ej: $ 50.000"
                             disabled={loading}
                         />
                         <Form.Text className="text-muted">

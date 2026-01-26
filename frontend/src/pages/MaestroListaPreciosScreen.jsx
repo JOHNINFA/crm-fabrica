@@ -25,7 +25,9 @@ const MaestroListaPreciosScreen = () => {
             setLoading(true);
             const activo = activeTab === 'activos';
             const data = await listaPrecioService.getAll({ activo });
-            setListas(data);
+            // Ordenar por ID ascendente (del más antiguo al más reciente)
+            const listasOrdenadas = data.sort((a, b) => a.id - b.id);
+            setListas(listasOrdenadas);
         } catch (error) {
             console.error('Error cargando listas:', error);
         } finally {
