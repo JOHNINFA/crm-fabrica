@@ -1,28 +1,46 @@
 import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
 import { listaPrecioService, precioProductoService } from "../../services/listaPrecioService";
+import { useUnifiedProducts } from "../../context/UnifiedProductContext";
 import "./ProductCard.css";
 
 export default function ProductCard({ product, onClick, priceList }) {
-    const [imageSource, setImageSource] = useState(product.image || null);
+    // 🚀 Obtener caché de imágenes del contexto
+    const { productImages } = useUnifiedProducts();
+
+    // 🚀 PRIORIDAD: Usar imagen del producto PRIMERO (más rápido)
+    const cachedImage = productImages?.[product.id];
+    const [imageSource, setImageSource] = useState(product.image || cachedImage || null);
     const [precioEspecifico, setPrecioEspecifico] = useState(null);
     const [isClicked, setIsClicked] = useState(false);
 
-    // Cargar imagen local si no está disponible - EXACTAMENTE IGUAL QUE POS
+    // Cargar imagen local si no está disponible
     useEffect(() => {
-        if (imageSource) return;
+        // Prioridad: 1) imagen del producto (más rápido), 2) caché en memoria, 3) IndexedDB
+        if (product.image) {
+            setImageSource(product.image);
+            return;
+        }
 
+        if (cachedImage) {
+            setImageSource(cachedImage);
+            return;
+        }
+
+        // Solo como último recurso, intentar cargar desde IndexedDB
         const loadLocalImage = async () => {
             try {
                 const localImage = await localImageService.getImage(product.id);
-                if (localImage) setImageSource(localImage);
+                if (localImage) {
+                    setImageSource(localImage);
+                }
             } catch (error) {
                 console.error('Error loading local image:', error);
             }
         };
 
         loadLocalImage();
-    }, [product.id, imageSource]);
+    }, [product.id, product.image, cachedImage]);
 
     // Debug: verificar precio del producto
     useEffect(() => {
@@ -114,6 +132,7 @@ export default function ProductCard({ product, onClick, priceList }) {
                             src={imageSource}
                             alt={product.name || 'Producto'}
                             loading="eager"
+                            fetchpriority="high"
                             decoding="sync"
                             style={{
                                 height: '100%',
@@ -121,9 +140,13 @@ export default function ProductCard({ product, onClick, priceList }) {
                                 maxWidth: '100%',
                                 objectFit: 'contain'
                             }}
+                            onError={(e) => {
+                                // Si falla la carga, mostrar ícono
+                                e.target.style.display = 'none';
+                            }}
                         />
                     ) : (
-                        <span style={{ fontSize: 22 }} className="material-icons">
+                        <span style={{ fontSize: 22, color: '#dee2e6' }} className="material-icons">
                             paid
                         </span>
                     )}

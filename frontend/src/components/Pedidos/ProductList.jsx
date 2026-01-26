@@ -199,7 +199,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList }
                 {/* Lista de productos */}
                 <div className="row g-2">
                     {filteredProducts.map((p) => (
-                        <div className="col-6 col-md-6 col-xl-3" key={p.id}>
+                        <div className="col-6 col-sm-4 col-md-3 col-lg-3 col-xl-3" key={p.id}>
                             <ProductCard product={p} onClick={(product, currentPrice) => addProduct(product, currentPrice)} priceList={priceList} />
                         </div>
                     ))}

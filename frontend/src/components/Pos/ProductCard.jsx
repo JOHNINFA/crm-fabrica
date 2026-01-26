@@ -6,9 +6,9 @@ export default function ProductCard({ product, onClick }) {
   // Obtener caché de imágenes del contexto (evita rebote)
   const { productImages } = useUnifiedProducts();
 
-  // Usar imagen del caché primero, luego del producto
+  // 🚀 PRIORIDAD: Usar imagen del producto PRIMERO (más rápido)
   const cachedImage = productImages?.[product.id];
-  const [imageSource, setImageSource] = useState(cachedImage || null);
+  const [imageSource, setImageSource] = useState(product.image || cachedImage || null);
   const [isClicked, setIsClicked] = useState(false);
 
   // Siempre mostrar el precio base del producto en la tarjeta
@@ -16,28 +16,26 @@ export default function ProductCard({ product, onClick }) {
 
   // Sincronizar imagen cuando cambie el producto o el caché
   useEffect(() => {
-    // Prioridad: 1) caché en memoria, 2) IndexedDB, 3) imagen del producto
+    // Prioridad: 1) imagen del producto (más rápido), 2) caché en memoria, 3) IndexedDB
+    if (product.image) {
+      setImageSource(product.image);
+      return;
+    }
+
     if (cachedImage) {
       setImageSource(cachedImage);
       return;
     }
 
-    // Intentar cargar desde IndexedDB
+    // Solo como último recurso, intentar cargar desde IndexedDB
     const loadLocalImage = async () => {
       try {
         const localImage = await localImageService.getImage(product.id);
         if (localImage) {
           setImageSource(localImage);
-        } else if (product.image) {
-          // Solo usar product.image si no está en IndexedDB
-          setImageSource(product.image);
         }
       } catch (error) {
         console.error('Error loading local image:', error);
-        // Fallback a imagen del producto si falla IndexedDB
-        if (product.image) {
-          setImageSource(product.image);
-        }
       }
     };
 
@@ -77,7 +75,7 @@ export default function ProductCard({ product, onClick }) {
         borderRadius: 6,
         cursor: "pointer",
         transition: "transform 0.2s, box-shadow 0.1s",
-        maxWidth: "150px",
+        width: "100%",
         margin: "0 auto",
         transform: isClicked ? 'scale(1.05)' : 'scale(1)'
       }}
@@ -104,6 +102,7 @@ export default function ProductCard({ product, onClick }) {
               src={imageSource}
               alt={product.name || 'Producto'}
               loading="eager"
+              fetchpriority="high"
               decoding="sync"
               style={{
                 height: '100%',
@@ -111,9 +110,13 @@ export default function ProductCard({ product, onClick }) {
                 maxWidth: '100%',
                 objectFit: 'contain'
               }}
+              onError={(e) => {
+                // Si falla la carga, mostrar ícono
+                e.target.style.display = 'none';
+              }}
             />
           ) : (
-            <span style={{ fontSize: 22 }} className="material-icons">
+            <span style={{ fontSize: 22, color: '#dee2e6' }} className="material-icons">
               paid
             </span>
           )}

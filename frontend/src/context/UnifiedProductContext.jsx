@@ -167,26 +167,33 @@ export const UnifiedProductProvider = ({ children }) => {
                 // 🆕 PRE-CARGAR IMÁGENES: Descargar imágenes en segundo plano para evitar flash al renderizar
                 const imagesToPreload = formattedProducts
                     .filter(p => p.image && typeof p.image === 'string')
-                    .map(p => p.image);
+                    .map(p => ({ id: p.id, url: p.image }));
 
                 if (imagesToPreload.length > 0) {
-                    // Precargar en paralelo (máximo 5 a la vez)
-                    const preloadImage = (src) => {
+                    // Precargar en paralelo (máximo 10 a la vez para ser más rápido)
+                    const preloadImage = (imageData) => {
                         return new Promise((resolve) => {
                             const img = new Image();
-                            img.onload = () => resolve(true);
+                            img.onload = () => {
+                                // Guardar en caché de memoria inmediatamente
+                                setProductImages(prev => ({
+                                    ...prev,
+                                    [imageData.id]: imageData.url
+                                }));
+                                resolve(true);
+                            };
                             img.onerror = () => resolve(false);
-                            img.src = src;
+                            img.src = imageData.url;
                         });
                     };
 
-                    // Precargar en lotes de 5 para no saturar
-                    const batchSize = 5;
+                    // Precargar en lotes de 10 para ser más rápido
+                    const batchSize = 10;
                     for (let i = 0; i < imagesToPreload.length; i += batchSize) {
                         const batch = imagesToPreload.slice(i, i + batchSize);
                         await Promise.all(batch.map(preloadImage));
                     }
-                    console.log(`✅ ${imagesToPreload.length} imágenes precargadas en caché`);
+                    console.log(`✅ ${imagesToPreload.length} imágenes precargadas en caché del navegador`);
                 }
             }
 
