@@ -203,3 +203,58 @@
         font-size: 10px !important;
     }
 }
+
+
+/* Responsive - Tablets 1024x768 - Reducir input para que se vean los botones */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .pedidos-screen .consumer-form-title-input {
+        width: 240px !important;
+        max-width: 240px !important;
+    }
+
+    .pedidos-screen .cliente-suggestions {
+        width: 240px !important;
+    }
+
+    /* Forzar anchos fijos en los campos del formulario */
+    .pedidos-screen .consumer-form-row {
+        display: flex !important;
+        gap: 10px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .pedidos-screen .consumer-form-row .consumer-form-group {
+        flex: 0 0 120px !important;
+        max-width: 120px !important;
+        min-width: 120px !important;
+    }
+
+    .pedidos-screen .consumer-form-row .consumer-form-group:first-child {
+        flex: 0 0 105px !important;
+        max-width: 105px !important;
+        min-width: 105px !important;
+    }
+}
+
+
+/* Ajuste de campos en 1024x768 - Distribuir en todo el ancho */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+    /* Gap entre campos */
+    .pedidos-screen .consumer-form-row {
+        gap: 10px !important;
+        display: flex !important;
+    }
+
+    /* Todos los campos con flex: 1 para distribuir equitativamente */
+    .pedidos-screen .consumer-form-row .consumer-form-group {
+        flex: 1 !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
+
+    .pedidos-screen .consumer-form-row .consumer-form-group input,
+    .pedidos-screen .consumer-form-row .consumer-form-group select {
+        width: 100% !important;
+    }
+}

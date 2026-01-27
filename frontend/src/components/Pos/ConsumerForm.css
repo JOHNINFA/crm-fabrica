@@ -150,3 +150,36 @@
   border-radius: 4px;
   background-color: white;
 }
+
+/* 
+Responsive - Tablets 1024x768 */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  /* Reducir input de cliente */
+  .consumer-form-title-input {
+    width: 220px !important;
+  }
+
+  .cliente-suggestions {
+    width: 220px !important;
+  }
+
+  /* Gap entre campos */
+  .consumer-form-row {
+    display: flex !important;
+    gap: 10px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* Todos los campos con flex: 1 para distribuir equitativamente */
+  .consumer-form-row .consumer-form-group {
+    flex: 1 !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  .consumer-form-row .consumer-form-group input,
+  .consumer-form-row .consumer-form-group select {
+    width: 100% !important;
+  }
+}

@@ -192,17 +192,17 @@
 
     /* SIN ZOOM - Mismo enfoque que POS */
 
-    /* Ajustar proporción catálogo/carrito para tablets - IGUAL QUE POS (58% / 42%) */
+    /* Ajustar proporción catálogo/carrito para tablets - Dar más espacio al carrito */
     .pedidos-screen .col-lg-7 {
-        width: 58% !important;
-        flex: 0 0 58% !important;
-        max-width: 58% !important;
+        width: 55% !important;
+        flex: 0 0 55% !important;
+        max-width: 55% !important;
     }
 
     .pedidos-screen .col-lg-5 {
-        width: 42% !important;
-        flex: 0 0 42% !important;
-        max-width: 42% !important;
+        width: 45% !important;
+        flex: 0 0 45% !important;
+        max-width: 45% !important;
         padding-left: 8px !important;
     }
 

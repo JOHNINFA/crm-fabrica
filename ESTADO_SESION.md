@@ -10,14 +10,16 @@
 | POS - Saldo Inicial (Formato $) | ✅ Completado | Baja | Formato moneda visual |
 | POS - Impresión Reporte Caja | ✅ Completado | Media | Abre ventana con formato |
 | POS - Altura catálogo 1024x768 | ✅ Completado | Media | Mejor visualización última fila |
-| POS - Campos formulario 17" | 🔧 En progreso | Media | Ajuste de espaciado |
+| POS - Campos formulario 17" | ✅ Completado | Media | flex:1 + gap:10px |
+| POS - Tarjetas 1920x1080 | ✅ Completado | Media | Imágenes más grandes |
 | POS - Impresión Ticket | 🔧 Pendiente | Alta | Tinta suave, texto pequeño |
 | Pedidos - Grid Responsivo | ✅ Completado | Alta | Mismo fix que POS |
 | Pedidos - Carga de Imágenes | ✅ Completado | Alta | Mismo fix que POS |
 | Pedidos - UI/UX Mejorada | ✅ Completado | Alta | 27 Enero 2026 |
 | Pedidos - Sidebar Colapsable | ✅ Completado | Media | Logo flotante como POS |
 | Pedidos - Altura catálogo 1024x768 | ✅ Completado | Media | Mejor visualización última fila |
-| Pedidos - Campos formulario 17" | 🔧 En progreso | Media | Ajuste de espaciado |
+| Pedidos - Campos formulario 17" | ✅ Completado | Media | flex:1 + gap:10px |
+| Pedidos - Tarjetas 1920x1080 | ✅ Completado | Media | Imágenes más grandes |
 | Informe Lista Precios - Scroll | ✅ Completado | Media | Scroll horizontal funcional |
 | Informe Lista Precios - Dinámico | ✅ Completado | Media | Columnas desde BD |
 | Maestro Lista Precios - Orden | ✅ Completado | Baja | Orden ascendente por ID |
@@ -59,6 +61,51 @@
 
 ### 🎯 Objetivo
 Mejorar la visualización y usabilidad del sistema en diferentes resoluciones de pantalla, especialmente en tablets (1024x768) y pantallas grandes (1600px+).
+
+### 🐛 Problema encontrado: CSS no se aplicaba en campos del formulario
+
+**Síntoma**: Los campos "Fecha Documento", "Lista de Precios" y "Vendedor/Atendido por" se veían pegados y no respondían a los cambios de CSS en la resolución 1024x768.
+
+**Intentos fallidos**:
+1. Media queries con selectores genéricos (`.consumer-form-group`) - No funcionaban
+2. Estilos inline en JSX con `style={{ flex: '0 0 120px' }}` - Sobrescritos por CSS base
+3. Estilos inline con `!important` - React ignora `!important` en estilos inline
+4. Selectores como `.consumer-form-row .consumer-form-group` - No tenían suficiente especificidad
+
+**Diagnóstico**: 
+- El CSS base tenía `flex: 1` en `.consumer-form-group` que sobrescribía todo
+- Los selectores no eran lo suficientemente específicos para ganar la cascada CSS
+
+**Solución encontrada**:
+Usar selectores ultra-específicos con pseudo-clases (`:first-child`, `:nth-child(2)`, `:last-child`) que apuntan directamente a cada campo:
+
+```css
+/* Solución que SÍ funciona */
+@media (min-width: 769px) and (max-width: 1024px) {
+    /* Gap entre campos */
+    .pedidos-screen .consumer-form-row {
+        gap: 10px !important;
+        display: flex !important;
+    }
+
+    /* Todos los campos con flex: 1 para distribuir equitativamente */
+    .pedidos-screen .consumer-form-row .consumer-form-group {
+        flex: 1 !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
+
+    .pedidos-screen .consumer-form-row .consumer-form-group input,
+    .pedidos-screen .consumer-form-row .consumer-form-group select {
+        width: 100% !important;
+    }
+}
+```
+
+**Lección aprendida**: 
+- Para sobrescribir estilos de Bootstrap/CSS base, usar selectores muy específicos
+- Los pseudo-selectores (`:first-child`, `:nth-child()`, `:last-child`) tienen alta especificidad
+- Probar con colores de fondo ayuda a verificar si el CSS se está aplicando
 
 ### Cambios realizados:
 
@@ -698,30 +745,157 @@ Ctrl + F5
 
 ---
 
-## 🎯 PRÓXIMOS PASOS
+## 📱 PENDIENTE: Mejoras en Impresión de Tickets
 
-### Prioridad Alta:
-1. **Mejorar impresión de tickets POS (Web)**
-   - Aumentar peso de fuente (font-weight: bold)
-   - Aumentar tamaño de fuente (13-14px)
-   - Agregar espaciado entre productos
-   - Usar color negro sólido (#000)
-   - Archivo: `frontend/src/components/Print/TicketPrint.jsx`
+### 1. **Ticket POS (Web) - Problemas de Formato**
 
-2. **Mejorar tickets App Móvil**
-   - Cambiar ID del ticket (usar consecutivo simple)
-   - Agregar columna de valor unitario
-   - Reorganizar layout (cambios realizados arriba)
-   - Archivos: `AP GUERRERO/components/Ventas/`
+**Archivos involucrados:**
+- `frontend/src/components/Print/TicketPrint.jsx` - Componente React del ticket
+- `frontend/src/components/Print/TicketPrint.css` - Estilos CSS del ticket
 
-### Prioridad Media:
-3. **Testing completo en pantalla táctil 14"**
+**Cómo funciona actualmente:**
+- Usa el componente `TicketPrint` que recibe datos de la venta/pedido
+- Carga configuración desde `configuracionImpresionService.getActiva()`
+- Genera HTML con información del negocio, productos, totales y pie de página
+- Soporta dos tipos: `'venta'` (POS) y `'pedido'` (Pedidos)
+- Ancho fijo: 80mm (papel térmico estándar)
+- Fuente: 'Courier New', monospace
+
+**Problemas identificados:**
+1. **Tinta muy suave** - Font-weight actual: normal/regular
+2. **Texto muy pequeño** - Tamaños actuales:
+   - Nombre negocio: 16px
+   - Info general: 11px
+   - Tabla productos: 10px
+   - Totales: 11px
+3. **Productos muy pegados** - Padding actual: 3px 2px
+
+**Solución propuesta:**
+```css
+/* Aumentar peso de fuente */
+.ticket-table td {
+    font-weight: 600; /* Antes: normal */
+}
+
+/* Aumentar tamaños */
+.ticket-business-name { font-size: 18px; } /* Antes: 16px */
+.ticket-info { font-size: 12px; } /* Antes: 11px */
+.ticket-table { font-size: 11px; } /* Antes: 10px */
+.ticket-totals { font-size: 12px; } /* Antes: 11px */
+
+/* Aumentar espaciado */
+.ticket-table td {
+    padding: 5px 3px; /* Antes: 3px 2px */
+}
+
+/* Color negro sólido */
+body, .ticket-content {
+    color: #000 !important;
+}
+```
+
+---
+
+### 2. **Tickets App Móvil - Mejoras Pendientes**
+
+**Archivos involucrados:**
+- `AP GUERRERO/services/printerService.js` - Servicio de impresión
+- Usa `expo-print` para generar PDF
+- Usa `expo-sharing` para compartir/imprimir
+
+**Cómo funciona actualmente:**
+- Genera HTML del ticket con `generarTicketHTML()`
+- Carga configuración desde backend (logo, nombre, etc.)
+- Convierte HTML a PDF con `Print.printToFileAsync()`
+- Comparte PDF con `Sharing.shareAsync()`
+- Soporta compartir por WhatsApp
+
+**Estructura actual del ticket:**
+```
+- Logo (si está configurado)
+- Nombre del negocio
+- NIT, Teléfono, Dirección
+- Ticket ID: #${id}  ← PROBLEMA: Muestra ID del dispositivo
+- Fecha
+- Cliente
+- Vendedor
+- Tabla de productos:
+  - Cant | Producto | Total  ← FALTA: Valor Unitario
+- Totales
+- CAMBIOS REALIZADOS (abajo)  ← PROBLEMA: Debería estar arriba
+```
+
+**Problemas identificados:**
+1. **Ticket ID muy largo** 
+   - Actual: Muestra info del dispositivo (ej: `MOTOROLA/ALI/ALI:9/...`)
+   - Debería: Consecutivo simple (ej: `#ID1-001`)
+   - Ubicación en código: Línea 158 `<b>Ticket:</b> #${id}`
+
+2. **Falta valor unitario**
+   - Tabla actual: `Cant | Producto | Total`
+   - Debería: `Cant | Producto | V.Unit | Total`
+   - Ubicación en código: Líneas 165-175 (tabla HTML)
+
+3. **"Cambios realizados" muy abajo**
+   - Actual: Después de totales
+   - Debería: Antes de la tabla de productos
+   - Ubicación en código: Líneas 48-62 (variable `vencidasHTML`)
+
+**Solución propuesta:**
+
+```javascript
+// 1. Cambiar ID del ticket (línea 158)
+// Antes:
+<b>Ticket:</b> #${id}
+
+// Después:
+<b>Ticket:</b> #${vendedor}-${consecutivo}
+// Donde consecutivo se obtiene del backend o se genera localmente
+
+// 2. Agregar columna de valor unitario (línea 165-175)
+// Antes:
+<tr>
+  <td>${p.cantidad}</td>
+  <td>${p.nombre}</td>
+  <td style="text-align: right;">${formatearMoneda(p.subtotal)}</td>
+</tr>
+
+// Después:
+<tr>
+  <td>${p.cantidad}</td>
+  <td>${p.nombre}</td>
+  <td style="text-align: right;">${formatearMoneda(p.precio_unitario)}</td>
+  <td style="text-align: right;">${formatearMoneda(p.subtotal)}</td>
+</tr>
+
+// 3. Mover "Cambios realizados" arriba (línea 48-62)
+// Mover el bloque vencidasHTML antes de la tabla de productos
+```
+
+---
+
+### 3. **Comparación POS vs Pedidos vs App Móvil**
+
+| Característica | POS (Web) | Pedidos (Web) | App Móvil |
+|----------------|-----------|---------------|-----------|
+| Componente | TicketPrint.jsx | TicketPrint.jsx (mismo) | printerService.js |
+| Formato | HTML + CSS | HTML + CSS | HTML → PDF |
+| Ancho papel | 80mm | 80mm | 300px (PDF) |
+| Fuente | Courier New | Courier New | Lucida Console |
+| Tamaño fuente | 10-16px | 10-16px | 8-11px |
+| Configuración | Backend API | Backend API | Backend API |
+| Logo | Base64 | Base64 | Base64 |
+| Impresión | window.print() | window.print() | expo-print |
+| Compartir | No | No | WhatsApp/Email |
+
+---
+4. **Testing completo en pantalla táctil 14"**
    - Verificar todas las funcionalidades nuevas
    - Probar impresión de tickets
    - Validar login de cajero
 
 ### Prioridad Baja:
-4. **Optimizaciones adicionales**
+5. **Optimizaciones adicionales**
    - Lazy loading de imágenes en viewport
    - Compresión de imágenes en backend
    - Service Worker para caché offline
@@ -772,6 +946,27 @@ Para cualquier duda o problema con los cambios realizados, revisar:
 
 ---
 
-**Última actualización**: 26 Enero 2026 - 21:50 UTC  
+**Última actualización**: 27 Enero 2026 - Tarjetas más grandes en 1920x1080  
 **Estado del sistema**: ✅ Operativo  
-**Próxima sesión**: Trabajar en impresión de tickets POS y App Móvil
+**Cambios desplegados en VPS**: 🔧 Pendiente (tarjetas 1920x1080)  
+**Próxima sesión**: Probar en computador real y ajustes finales
+
+
+## 🎯 PRÓXIMOS PASOS
+
+### Prioridad Alta:
+1. **Revisar botón para eliminar rutas**
+   - Verificar funcionalidad del botón de eliminar en gestión de rutas
+   - Asegurar que elimina correctamente sin errores
+
+### Prioridad Media:
+2. **Testing completo en pantalla táctil 14"**
+   - Verificar todas las funcionalidades nuevas
+   - Probar impresión de tickets
+   - Validar login de cajero
+
+### Prioridad Baja:
+3. **Optimizaciones adicionales**
+   - Lazy loading de imágenes en viewport
+   - Compresión de imágenes en backend
+   - Service Worker para caché offline
