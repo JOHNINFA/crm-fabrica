@@ -437,9 +437,9 @@
 /* Responsive para pantallas grandes */
 @media (min-width: 1600px) {
   .pos-screen .cart-body {
-    height: 260px !important;
-    min-height: 260px !important;
-    max-height: 260px !important;
+    height: 380px !important;
+    min-height: 380px !important;
+    max-height: 380px !important;
   }
 
   .cart-item-name {
@@ -458,9 +458,9 @@
 
 @media (min-width: 2560px) {
   .pos-screen .cart-body {
-    height: 320px !important;
-    min-height: 320px !important;
-    max-height: 320px !important;
+    height: 480px !important;
+    min-height: 480px !important;
+    max-height: 480px !important;
   }
 
   .cart-item {

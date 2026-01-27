@@ -25,14 +25,14 @@ export default function Topbar({ onOpenCategoryManager }) {
         <>
             <nav className="topbar-bg d-flex align-items-center justify-content-between px-3 py-2">
                 {/* Espacio para el botón hamburguesa y logo */}
-                <div style={{ width: '50px' }} className="d-none d-md-block"></div>
+                <div style={{ width: '60px' }}></div>
 
-                {/* Botones de navegación - Centro/Izquierda - Ocultos en móvil */}
-                <div className="d-none d-md-flex align-items-center gap-4">
+                {/* Botones de navegación - Centrados */}
+                <div className="d-flex align-items-center gap-4 mx-auto">
                     {/* Botón Informes de Pedidos - Directo */}
                     <button
                         className="btn btn-light border"
-                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
                         type="button"
                         onClick={() => navigate('/informes/pedidos')}
                     >
@@ -43,7 +43,7 @@ export default function Topbar({ onOpenCategoryManager }) {
                     {/* Botón Historial */}
                     <button
                         className="btn btn-light border"
-                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
                         type="button"
                         onClick={() => navigate('/pedidos/historial')}
                         title="Historial de Pedidos"
@@ -55,7 +55,7 @@ export default function Topbar({ onOpenCategoryManager }) {
                     {/* Botón Gestionar */}
                     <button
                         className="btn btn-light border"
-                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px' }}
+                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
                         type="button"
                         onClick={onOpenCategoryManager}
                         title="Gestionar Categorías"
@@ -66,15 +66,16 @@ export default function Topbar({ onOpenCategoryManager }) {
                 </div>
 
                 {/* Controles del topbar - Derecha */}
-                <div className="d-flex align-items-center gap-2 ms-auto">
+                <div className="d-flex align-items-center gap-2">
                     <SyncButton />
 
-                    {/* Wifi y notificaciones - Solo desktop */}
-                    <span className="material-icons mx-2 d-none d-md-flex align-items-center text-success">
+                    {/* Wifi - Siempre visible */}
+                    <span className="material-icons mx-2 d-flex align-items-center text-success">
                         wifi
                     </span>
 
-                    <span className="position-relative mx-2 d-none d-md-flex align-items-center">
+                    {/* Notificaciones - Siempre visible */}
+                    <span className="position-relative mx-2 d-flex align-items-center">
                         <span className="material-icons">notifications</span>
                         <span className="badge bg-warning position-absolute top-0 start-100 translate-middle p-1 rounded-circle" style={{ fontSize: 10 }}>
                             0
@@ -92,19 +93,19 @@ export default function Topbar({ onOpenCategoryManager }) {
                         <span className="material-icons me-1" style={{ fontSize: 16 }}>
                             {isAuthenticated ? 'logout' : 'login'}
                         </span>
-                        <span className="d-none d-md-inline">{isAuthenticated ? 'Logout' : 'Login'}</span>
+                        {isAuthenticated ? 'Logout' : 'Login'}
                     </Button>
 
-                    {/* Información del cajero - Solo desktop */}
+                    {/* Información del cajero - Siempre visible */}
                     {isAuthenticated && cajeroLogueado ? (
-                        <div className="mx-2 d-none d-md-flex align-items-center" style={{ fontSize: 15 }}>
+                        <div className="mx-2 d-flex align-items-center" style={{ fontSize: 15 }}>
                             <span className="material-icons me-2 text-success" style={{ fontSize: 24 }}>
                                 account_circle
                             </span>
                             <span className="fw-bold">{cajeroLogueado.nombre}</span>
                         </div>
                     ) : (
-                        <div className="mx-2 d-none d-md-flex align-items-center" style={{ fontSize: 15 }}>
+                        <div className="mx-2 d-flex align-items-center" style={{ fontSize: 15 }}>
                             <span className="material-icons me-2 text-muted" style={{ fontSize: 24 }}>
                                 person_outline
                             </span>

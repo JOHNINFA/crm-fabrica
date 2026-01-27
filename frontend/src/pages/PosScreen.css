@@ -9,3 +9,13 @@
     overflow-y: auto;
     height: auto;
 }
+
+/* Responsive - Tablets (1024x768) y pantallas pequeñas de hasta 15" */
+@media (min-width: 769px) and (max-width: 1366px) {
+
+    /* Ajustar altura del catálogo para ver mejor la última fila */
+    .pos-screen .card-bg.mb-3.p-3 {
+        max-height: calc(100vh - 220px) !important;
+        margin-bottom: 20px !important;
+    }
+}

@@ -122,7 +122,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
             style={{
               fontSize: '12px',
               fontWeight: 'bold',
-              width: '370px',
+              width: '320px',
               backgroundColor: '#ffffff',
               color: '#6c757d',
               height: '28px',
@@ -175,7 +175,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
                 alert(`⚠️ ${resultado.message}`);
               }
             }}
-            style={{ backgroundColor: '#28a745', color: 'white' }}
+            style={{ backgroundColor: '#28a745', color: 'white', display: 'none' }}
           >
             <span className="material-icons" style={{ fontSize: '16px' }}>point_of_sale</span>
           </button>

@@ -4,6 +4,22 @@
     background-color: #ffffff;
     border-bottom: 1px solid #e0e0e0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    min-height: 50px;
+    max-height: 50px;
+    display: flex;
+    align-items: center;
+}
+
+/* Centrar verticalmente los elementos del lado derecho */
+.topbar-bg .d-flex.align-items-center.gap-2 {
+    height: 100%;
+    align-items: center !important;
+    margin-top: 0px;
+}
+
+.topbar-bg .d-flex.align-items-center.gap-2>* {
+    display: flex !important;
+    align-items: center !important;
 }
 
 /* Animación suave al ocultar/mostrar */
@@ -46,6 +62,12 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Forzar altura compacta en botones */
+.topbar-bg button {
+    min-height: 32px !important;
+    max-height: 32px !important;
+}
+
 /* Responsive para móvil */
 @media (max-width: 768px) {
     .topbar-bg {
@@ -65,7 +87,66 @@
     }
 
     /* Ajustar gap entre elementos */
-    .topbar-bg .d-flex.align-items-center.gap-2 {
+    .pedidos-screen .topbar-bg .d-flex.align-items-center.gap-2 {
         gap: 6px !important;
+    }
+}
+
+/* Responsive para tablets (1024x768) y pantallas pequeñas de hasta 15" */
+/* SOLO AFECTA A PEDIDOS - No interfiere con POS */
+@media (min-width: 769px) and (max-width: 1366px) {
+
+    /* SIN ZOOM - Dejar que Bootstrap maneje los breakpoints normalmente */
+
+    /* Compactar botones de navegación */
+    .pedidos-screen .topbar-bg .btn {
+        font-size: 15px !important;
+        /* Aumentado a 15px (Igual que POS) */
+        padding: 8px 16px !important;
+        /* Aumentado padding (Igual que POS) */
+    }
+
+    /* Reducir gap entre botones de navegación */
+    .pedidos-screen .topbar-bg .d-flex.align-items-center.gap-4 {
+        gap: 8px !important;
+    }
+
+    /* Reducir gap en el lado derecho */
+    .pedidos-screen .topbar-bg .d-flex.align-items-center.gap-2 {
+        gap: 6px !important;
+    }
+
+    /* CRÍTICO: Forzar visibilidad de elementos específicos del lado derecho */
+    /* Usar selectores más específicos para mayor prioridad */
+
+    /* Wifi icon */
+    .pedidos-screen .topbar-bg span.material-icons.d-none.d-md-flex {
+        display: flex !important;
+    }
+
+    /* Notificaciones */
+    .pedidos-screen .topbar-bg span.position-relative.d-none.d-md-flex {
+        display: flex !important;
+    }
+
+    /* Texto de Login/Logout */
+    .pedidos-screen .topbar-bg .btn span.d-none.d-md-inline {
+        display: inline !important;
+    }
+
+    /* Información del cajero */
+    .pedidos-screen .topbar-bg div.d-none.d-md-flex {
+        display: flex !important;
+    }
+
+    /* Compactar elementos del lado derecho para que quepan */
+    .pedidos-screen .topbar-bg .mx-2 {
+        margin-left: 4px !important;
+        margin-right: 4px !important;
+        font-size: 12px !important;
+    }
+
+    .pedidos-screen .topbar-bg .material-icons {
+        font-size: 18px !important;
     }
 }

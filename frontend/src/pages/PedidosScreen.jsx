@@ -195,16 +195,15 @@ function PedidosMainContent() {
             <div className="d-flex pedidos-screen">
                 <Sidebar onWidthChange={setSidebarWidth} />
                 <div
-                    className="flex-grow-1 offset pedidos-screen"
+                    className="flex-grow-1 pedidos-screen"
                     style={{
-                        marginLeft: sidebarWidth,
                         minHeight: "100vh",
                         background: "#f7f7fa",
-                        transition: 'margin-left 0.3s ease'
+                        overflowX: 'hidden'
                     }}
                 >
                     <Topbar onOpenCategoryManager={() => setShowCategoryManager(true)} />
-                    <main style={{ padding: "20px 24px 0px 24px" }}>
+                    <main>
                         <div className="row">
                             <div className="col-lg-7 mb-4">
                                 <ProductList

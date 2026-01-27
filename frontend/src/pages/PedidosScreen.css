@@ -8,7 +8,7 @@
 }
 
 .pedidos-screen main {
-    padding: 1.5rem;
+    padding: 20px 24px 0px 24px;
     max-width: 100%;
 }
 
@@ -23,6 +23,25 @@
     overflow-y: auto;
     border-radius: var(--border-radius, 12px);
     box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
+}
+
+/* Scrollbar del catálogo de productos - Igual que POS */
+.pedidos-screen .card-bg.mb-3.p-3::-webkit-scrollbar {
+    width: 10px;
+}
+
+.pedidos-screen .card-bg.mb-3.p-3::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 5px;
+}
+
+.pedidos-screen .card-bg.mb-3.p-3::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.pedidos-screen .card-bg.mb-3.p-3::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 5px;
 }
 
 /* Barra de Búsqueda */
@@ -165,5 +184,61 @@
     .pedidos-screen .btn {
         padding: 0.6rem 1rem;
         font-size: 0.95rem;
+    }
+}
+
+/* Responsive - Tablets (1024x768) y pantallas pequeñas de hasta 15" */
+@media (min-width: 769px) and (max-width: 1366px) {
+
+    /* SIN ZOOM - Mismo enfoque que POS */
+
+    /* Ajustar proporción catálogo/carrito para tablets - IGUAL QUE POS (58% / 42%) */
+    .pedidos-screen .col-lg-7 {
+        width: 58% !important;
+        flex: 0 0 58% !important;
+        max-width: 58% !important;
+    }
+
+    .pedidos-screen .col-lg-5 {
+        width: 42% !important;
+        flex: 0 0 42% !important;
+        max-width: 42% !important;
+        padding-left: 8px !important;
+    }
+
+    /* Compactar altura del catálogo - Igual que POS */
+    .pedidos-screen .card-bg.mb-3.p-3 {
+        max-height: calc(100vh - 220px) !important;
+        /* Reducir altura para dejar espacio abajo igual que POS */
+        margin-bottom: 20px !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
+        border: 1px solid #e0e0e0 !important;
+        /* Borde sutil como POS */
+        border-radius: 12px !important;
+        padding-right: 4px !important;
+        /* Espacio para scrollbar */
+    }
+
+    /* Reducir padding entre productos */
+    .pedidos-screen .col-6.col-sm-4.col-md-3.col-lg-3.col-xl-3 {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+
+    /* Compactar productos */
+    .pedidos-screen .product-card-item .card-body {
+        padding: 4px !important;
+    }
+
+    /* Productos más grandes (Igual que POS) */
+    .pedidos-screen .product-price {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+    }
+
+    .pedidos-screen .product-name {
+        font-size: 11px !important;
+        line-height: 1.2 !important;
+        font-weight: 600 !important;
     }
 }

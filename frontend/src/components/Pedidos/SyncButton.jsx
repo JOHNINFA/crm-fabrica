@@ -82,7 +82,7 @@ const SyncButton = () => {
                 variant="outline-success"
                 onClick={handleSync}
                 disabled={isSyncing}
-                style={{ minWidth: 40, minHeight: 40 }}
+                style={{ minWidth: 32, minHeight: 32 }}
             >
                 {isSyncing ? (
                     <Spinner
@@ -93,7 +93,7 @@ const SyncButton = () => {
                         aria-hidden="true"
                     />
                 ) : (
-                    <span className="material-icons">sync</span>
+                    <span className="material-icons" style={{ fontSize: '18px' }}>sync</span>
                 )}
             </Button>
         </OverlayTrigger>

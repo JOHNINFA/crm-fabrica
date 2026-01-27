@@ -47,3 +47,11 @@ sponsive para móvil */
         font-size: 20px !important;
     }
 }
+
+/* Responsive para tablets (1024x768) - Solo Pedidos */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .pedidos-screen .hamburger-logo {
+        height: 55px !important;
+        width: auto !important;
+    }
+}
