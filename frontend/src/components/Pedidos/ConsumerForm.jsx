@@ -32,8 +32,8 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
             const listas = await listaPrecioService.getAll({ activo: true });
             setPriceLists(listas);
             if (listas.length > 0 && !priceList) {
-                const clienteLista = listas.find(l => l.nombre === 'CLIENTES');
-                setPriceList(clienteLista ? 'CLIENTES' : listas[0].nombre);
+                const vendedoresLista = listas.find(l => l.nombre === 'VENDEDORES');
+                setPriceList(vendedoresLista ? 'VENDEDORES' : listas[0].nombre);
             }
         } catch (error) {
             console.error('Error cargando listas:', error);
@@ -278,7 +278,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                     <div className="position-relative">
                         <select
                             className="form-control consumer-form-title-input"
-                            value={priceList}
+                            value={priceList || 'VENDEDORES'}
                             onChange={e => setPriceList(e.target.value)}
                             style={{
                                 fontSize: '12px',
@@ -288,9 +288,13 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                                 appearance: 'none'
                             }}
                         >
-                            {priceLists.map(pl => (
-                                <option key={pl.id} value={pl.nombre}>{pl.nombre}</option>
-                            ))}
+                            {priceLists.length === 0 ? (
+                                <option value={priceList || 'VENDEDORES'}>{priceList || 'VENDEDORES'}</option>
+                            ) : (
+                                priceLists.map(pl => (
+                                    <option key={pl.id} value={pl.nombre}>{pl.nombre}</option>
+                                ))
+                            )}
                         </select>
                         <span className="material-icons position-absolute" style={{
                             right: '5px',

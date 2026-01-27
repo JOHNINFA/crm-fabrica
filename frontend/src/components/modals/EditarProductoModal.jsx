@@ -51,6 +51,9 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
                 await precioProductoService.createOrUpdate(data);
             }
 
+            // Limpiar caché de precios para que POS y Pedidos reflejen el cambio
+            clearPriceCache();
+
             cargarDatos();
         } catch (error) {
             console.error('Error guardando precio:', error);

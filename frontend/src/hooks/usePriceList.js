@@ -1,19 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { listaPrecioService, precioProductoService } from '../services/listaPrecioService';
 
 // Caché global de precios con timestamp
 const preciosCache = {};
-const CACHE_DURATION = 5000; // 5 segundos (reducido para reflejar cambios más rápido)
+const CACHE_DURATION = 2000; // 2 segundos para reflejar cambios más rápido
 
 // Función para limpiar toda la caché
 export const clearPriceCache = () => {
   Object.keys(preciosCache).forEach(key => delete preciosCache[key]);
-
+  console.log('🗑️ Caché de precios limpiado');
 };
 
 export const usePriceList = (priceListName, products) => {
   const [precios, setPrecios] = useState({});
   const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Forzar recarga cuando la ventana recupera el foco
+  useEffect(() => {
+    const handleFocus = () => {
+      clearPriceCache();
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   useEffect(() => {
     if (!priceListName || !products || products.length === 0) {
@@ -23,7 +35,7 @@ export const usePriceList = (priceListName, products) => {
     const cacheKey = `lista_${priceListName}`;
     const now = Date.now();
 
-    // Verificar si hay caché válida (menos de 30 segundos)
+    // Verificar si hay caché válida
     if (preciosCache[cacheKey] && (now - preciosCache[cacheKey].timestamp) < CACHE_DURATION) {
       setPrecios(preciosCache[cacheKey].data);
       return;
@@ -63,7 +75,7 @@ export const usePriceList = (priceListName, products) => {
     };
 
     cargarPrecios();
-  }, [priceListName, products]);
+  }, [priceListName, products, refreshKey]);
 
   return { precios, loading };
 };

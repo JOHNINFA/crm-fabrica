@@ -22,7 +22,13 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
       const listas = await listaPrecioService.getAll({ activo: true });
 
       // Obtener configuración de listas visibles en POS desde localStorage
-      const listasVisiblesPos = JSON.parse(localStorage.getItem('listasVisiblesPos') || '{"CLIENTES": true}');
+      let listasVisiblesPos = JSON.parse(localStorage.getItem('listasVisiblesPos') || '{}');
+
+      // Asegurar que PRECIOS CAJA esté activada por defecto si no existe en la configuración
+      if (listasVisiblesPos['PRECIOS CAJA'] === undefined) {
+        listasVisiblesPos['PRECIOS CAJA'] = true;
+        localStorage.setItem('listasVisiblesPos', JSON.stringify(listasVisiblesPos));
+      }
 
       // Filtrar solo las listas que están marcadas como visibles en POS
       const listasVisibles = listas.filter(lista => listasVisiblesPos[lista.nombre] === true);
@@ -208,7 +214,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
           <div className="position-relative">
             <select
               className="form-control consumer-form-title-input"
-              value={priceList}
+              value={priceList || 'CLIENTES'}
               onChange={e => setPriceList(e.target.value)}
               style={{
                 fontSize: '12px',
@@ -218,9 +224,13 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
                 appearance: 'none'
               }}
             >
-              {priceLists.map(pl => (
-                <option key={pl.id} value={pl.nombre}>{pl.nombre}</option>
-              ))}
+              {priceLists.length === 0 ? (
+                <option value={priceList || 'CLIENTES'}>{priceList || 'CLIENTES'}</option>
+              ) : (
+                priceLists.map(pl => (
+                  <option key={pl.id} value={pl.nombre}>{pl.nombre}</option>
+                ))
+              )}
             </select>
             <span className="material-icons position-absolute" style={{
               right: '5px',

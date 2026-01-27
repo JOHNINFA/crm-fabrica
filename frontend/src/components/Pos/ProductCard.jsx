@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
 import { useUnifiedProducts } from "../../context/UnifiedProductContext";
 
-export default function ProductCard({ product, onClick }) {
+export default function ProductCard({ product, onClick, precioLista }) {
   // Obtener caché de imágenes del contexto (evita rebote)
   const { productImages } = useUnifiedProducts();
 
@@ -11,8 +11,8 @@ export default function ProductCard({ product, onClick }) {
   const [imageSource, setImageSource] = useState(product.image || cachedImage || null);
   const [isClicked, setIsClicked] = useState(false);
 
-  // Siempre mostrar el precio base del producto en la tarjeta
-  const precioMostrar = product.price;
+  // Usar precio de la lista si existe, sino usar precio base del producto
+  const precioMostrar = precioLista !== undefined && precioLista !== null ? precioLista : product.price;
 
   // Sincronizar imagen cuando cambie el producto o el caché
   useEffect(() => {

@@ -57,7 +57,7 @@ function PedidosMainContent() {
     const [sellers, setSellers] = useState(["PEDIDOS"]);
     const [seller, setSeller] = useState("PEDIDOS");
     const [client, setClient] = useState("DESTINATARIO GENERAL");
-    const [priceList, setPriceList] = useState("CLIENTES");
+    const [priceList, setPriceList] = useState("VENDEDORES");
     const [clientData, setClientData] = useState(null);
 
     // Configurar vendedores simples

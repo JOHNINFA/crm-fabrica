@@ -226,6 +226,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
             <div className="col-6 col-sm-4 col-md-3 col-lg-3 col-xl-3" key={p.id}>
               <ProductCard
                 product={p}
+                precioLista={precios[p.id]}
                 onClick={(product) => {
                   // Usar precio especial si existe, sino usar precio base
                   const precioFinal = precios[p.id] !== undefined && precios[p.id] !== null
