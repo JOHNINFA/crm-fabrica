@@ -150,3 +150,34 @@
         font-size: 18px !important;
     }
 }
+
+/* Responsive para pantallas grandes (1920x1080 y superiores) */
+@media (min-width: 1600px) {
+    .pedidos-screen .topbar-bg {
+        min-height: 60px;
+        max-height: 60px;
+    }
+
+    .pedidos-screen .topbar-bg .btn {
+        font-size: 16px !important;
+        padding: 10px 20px !important;
+    }
+
+    .pedidos-screen .topbar-bg .btn .material-icons,
+    .pedidos-screen .topbar-bg .btn i {
+        font-size: 18px !important;
+    }
+
+    .pedidos-screen .topbar-bg .material-icons {
+        font-size: 24px !important;
+    }
+
+    .pedidos-screen .topbar-bg .mx-2 {
+        font-size: 16px !important;
+    }
+
+    .pedidos-screen .topbar-bg button {
+        min-height: 40px !important;
+        max-height: 40px !important;
+    }
+}

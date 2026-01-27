@@ -116,17 +116,7 @@ export default function ProductCard({ product, onClick, priceList }) {
         >
             <div className="card-body d-flex flex-column align-items-center text-center">
                 {/* Imagen o icono por defecto - Sin animaciones para carga instantánea */}
-                <div style={{
-                    height: '50px',
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '3px',
-                    overflow: 'hidden',
-                    backgroundColor: imageSource ? 'transparent' : '#f8f9fa',
-                    borderRadius: '4px'
-                }}>
+                <div className="product-image-container">
                     {imageSource ? (
                         <img
                             src={imageSource}
@@ -134,19 +124,14 @@ export default function ProductCard({ product, onClick, priceList }) {
                             loading="eager"
                             fetchpriority="high"
                             decoding="sync"
-                            style={{
-                                height: '100%',
-                                width: 'auto',
-                                maxWidth: '100%',
-                                objectFit: 'contain'
-                            }}
+                            className="product-image"
                             onError={(e) => {
                                 // Si falla la carga, mostrar ícono
                                 e.target.style.display = 'none';
                             }}
                         />
                     ) : (
-                        <span style={{ fontSize: 22, color: '#dee2e6' }} className="material-icons">
+                        <span className="product-icon material-icons">
                             paid
                         </span>
                     )}

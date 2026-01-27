@@ -156,6 +156,70 @@
     color: #28a745 !important;
 }
 
+/* Responsive para pantallas grandes (1920x1080 y superiores) */
+@media (min-width: 1441px) {
+
+    /* Hacer las columnas más anchas para que las tarjetas puedan crecer */
+    .row.g-2>.col-xl-3 {
+        flex: 0 0 auto;
+        width: 20% !important;
+        /* 5 columnas en lugar de 4 */
+    }
+
+    /* Aumentar gap entre productos */
+    .row.g-2 {
+        --bs-gutter-x: 1rem !important;
+        --bs-gutter-y: 1rem !important;
+    }
+
+    /* Agrandar barra de búsqueda */
+    .pedidos-screen .search-input {
+        font-size: 17px !important;
+        height: 50px !important;
+        padding: 12px 20px !important;
+    }
+
+    .pedidos-screen .btn.btn-light {
+        padding: 12px 16px !important;
+        border-radius: 14px !important;
+    }
+
+    .pedidos-screen .btn.btn-light .material-icons {
+        font-size: 26px !important;
+    }
+
+    /* Agrandar botones de categorías */
+    .pedidos-screen .category-button {
+        width: 110px !important;
+        min-width: 110px !important;
+        height: 75px !important;
+        border-radius: 10px !important;
+        padding: 6px !important;
+    }
+
+    .pedidos-screen .category-button .material-icons {
+        font-size: 42px !important;
+        margin-bottom: 4px !important;
+    }
+
+    .pedidos-screen .category-button span.category-name {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+    }
+
+    /* Agrandar contenedor de categorías */
+    .pedidos-screen .card-bg {
+        padding: 12px 12px 0.1px 12px !important;
+        margin-bottom: 4px !important;
+    }
+
+    /* Ajustar gap entre categorías */
+    .pedidos-screen .category-buttons {
+        gap: 18px !important;
+        padding: 6px 0px 6px 0px !important;
+    }
+}
+
 /* Responsive para móvil */
 @media (max-width: 768px) {
     .category-button {

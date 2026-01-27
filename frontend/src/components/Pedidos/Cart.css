@@ -515,62 +515,85 @@
     }
 
     .pedidos-screen .cart-item {
-        margin-bottom: 6px !important;
-        padding-bottom: 6px !important;
+        margin-bottom: 8px !important;
+        padding-bottom: 8px !important;
     }
 
     .pedidos-screen .cart-item-name {
-        font-size: 13px !important;
+        font-size: 16px !important;
+    }
+
+    .pedidos-screen .cart-item-name i {
+        font-size: 14px !important;
+        margin-right: 8px !important;
     }
 
     .pedidos-screen .product-badge {
-        font-size: 11px !important;
-        padding: 3px 7px !important;
+        font-size: 13px !important;
+        padding: 4px 9px !important;
     }
 
     .pedidos-screen .qty-btn {
-        width: 36px !important;
-        height: 28px !important;
-        min-width: 36px !important;
-        min-height: 28px !important;
-        max-width: 36px !important;
-        max-height: 28px !important;
-        font-size: 13px !important;
+        width: 42px !important;
+        height: 34px !important;
+        min-width: 42px !important;
+        min-height: 34px !important;
+        max-width: 42px !important;
+        max-height: 34px !important;
+        font-size: 16px !important;
     }
 
     .pedidos-screen .qty-input {
-        width: 70px !important;
-        height: 28px !important;
-        min-height: 28px !important;
-        max-height: 28px !important;
-        font-size: 14px !important;
+        width: 85px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        max-height: 34px !important;
+        font-size: 17px !important;
     }
 
     .pedidos-screen .cart-item-calculation {
-        font-size: 13px !important;
-        line-height: 1.3 !important;
+        font-size: 16px !important;
+        line-height: 1.4 !important;
     }
 
     .pedidos-screen .cart-item-row {
-        margin-bottom: 4px !important;
+        margin-bottom: 5px !important;
     }
 
     .pedidos-screen .summary-item {
-        font-size: 13px !important;
+        font-size: 16px !important;
     }
 
     .pedidos-screen .summary-value-inline {
-        font-size: 15px !important;
+        font-size: 18px !important;
+    }
+
+    .pedidos-screen .summary-input-inline {
+        font-size: 16px !important;
+        padding: 6px 8px !important;
+        width: 80px !important;
     }
 
     .pedidos-screen .checkout-button {
-        font-size: 18px !important;
-        padding: 14px !important;
+        font-size: 20px !important;
+        padding: 16px !important;
     }
 
     .pedidos-screen .cart-note input {
-        font-size: 15px !important;
-        padding: 8px 12px !important;
+        font-size: 16px !important;
+        padding: 10px 14px !important;
+    }
+
+    .pedidos-screen .cart-header h5 {
+        font-size: 18px !important;
+    }
+
+    .pedidos-screen .cart-header-actions button {
+        padding: 8px !important;
+    }
+
+    .pedidos-screen .cart-header-actions button i {
+        font-size: 20px !important;
     }
 }
 

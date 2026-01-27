@@ -47,6 +47,19 @@
     text-align: center;
 }
 
+/* Contenedor de imagen */
+.product-image-container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 3px;
+    overflow: hidden;
+    background-color: transparent;
+    border-radius: 4px;
+    min-height: 45px;
+}
+
 /* Imagen del producto */
 .product-image {
     max-height: 45px;
@@ -121,32 +134,55 @@
 /* Responsive para pantallas grandes (1920x1080 y superiores) */
 @media (min-width: 1600px) {
     .product-card-item {
-        max-width: 210px;
-        min-height: 165px;
+        max-width: 220px;
+        min-height: 240px;
     }
 
     .product-card-item .card-body {
-        padding: 6px;
+        padding: 6px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .product-image-container {
+        min-height: 160px !important;
+        max-height: 160px !important;
+        margin-bottom: 2px !important;
+        background-color: transparent !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     .product-image {
-        max-height: 90px;
-        margin-bottom: 6px;
+        height: 140px !important;
+        width: 140px !important;
+        max-height: 140px !important;
+        max-width: 140px !important;
+        margin-bottom: 0 !important;
+        object-fit: contain !important;
     }
 
     .product-icon {
-        font-size: 42px;
-        margin-bottom: 6px;
+        font-size: 80px !important;
+        margin-bottom: 0 !important;
     }
 
     .product-price {
-        font-size: 19px;
-        margin-bottom: 4px;
+        font-size: 19px !important;
+        margin-bottom: 2px !important;
+        font-weight: 700 !important;
+        color: #2c3e50 !important;
     }
 
     .product-name {
-        font-size: 13.5px;
-        line-height: 1.3;
+        font-size: 14px !important;
+        line-height: 1.3 !important;
+        font-weight: 500 !important;
+        text-align: center !important;
+        color: #34495e !important;
     }
 }
 
