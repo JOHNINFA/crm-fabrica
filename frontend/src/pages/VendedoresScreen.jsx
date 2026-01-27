@@ -268,10 +268,27 @@ const VendedoresScreen = () => {
             border: 'none',
             cursor: 'pointer',
             fontWeight: '500',
-            fontSize: '14px'
+            fontSize: '14px',
+            marginRight: '10px'
           }}
         >
           + Nuevo Vendedor
+        </button>
+        <button
+          type="button"
+          onClick={() => window.location.href = '/#/remisiones'}
+          style={{
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: '#28a745',
+            padding: '10px 20px',
+            cursor: 'pointer',
+            fontWeight: '500',
+            fontSize: '14px',
+            textDecoration: 'none'
+          }}
+        >
+          Regresar a Pedidos
         </button>
       </div>
 

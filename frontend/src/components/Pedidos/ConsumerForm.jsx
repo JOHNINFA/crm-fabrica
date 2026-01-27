@@ -21,7 +21,11 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
         isAuthenticated = false;
     }
 
-    const [priceLists, setPriceLists] = useState([]);
+    const [priceLists, setPriceLists] = useState([
+        { id: 'temp-1', nombre: 'VENDEDORES' },
+        { id: 'temp-2', nombre: 'DOMICILIOS' },
+        { id: 'temp-3', nombre: 'PRECIOS CAJA' }
+    ]);
 
     useEffect(() => {
         cargarListasPrecios();
@@ -30,7 +34,7 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
     const cargarListasPrecios = async () => {
         try {
             const listas = await listaPrecioService.getAll({ activo: true });
-            setPriceLists(listas);
+            setPriceLists(listas); // Reemplaza las temporales con las reales
             if (listas.length > 0 && !priceList) {
                 const vendedoresLista = listas.find(l => l.nombre === 'VENDEDORES');
                 setPriceList(vendedoresLista ? 'VENDEDORES' : listas[0].nombre);

@@ -21,6 +21,10 @@ const GestionRutas = () => {
     const [selectedRuta, setSelectedRuta] = useState(null);
     const [clientes, setClientes] = useState([]);
     const [showClienteModal, setShowClienteModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [rutaToDelete, setRutaToDelete] = useState(null);
+    const [showDeleteButton, setShowDeleteButton] = useState(null); // ID de la ruta que muestra el botón
+    const [clickTimeout, setClickTimeout] = useState(null);
     const [clienteForm, setClienteForm] = useState({
         nombre_negocio: '',
         nombre_contacto: '',
@@ -79,6 +83,29 @@ const GestionRutas = () => {
         }
     };
 
+    const confirmarEliminarRuta = (ruta) => {
+        setRutaToDelete(ruta);
+        setShowDeleteModal(true);
+    };
+
+    const handleEliminarRuta = async () => {
+        if (!rutaToDelete) return;
+
+        try {
+            await rutasService.eliminarRuta(rutaToDelete.id);
+            if (selectedRuta?.id === rutaToDelete.id) {
+                setSelectedRuta(null);
+                setClientes([]);
+            }
+            setShowDeleteModal(false);
+            setRutaToDelete(null);
+            setShowDeleteButton(null);
+            cargarDatos();
+        } catch (err) {
+            alert('Error al eliminar ruta: ' + (err.message || 'Error desconocido'));
+        }
+    };
+
     const handleSelectRuta = async (ruta, dia = diaSeleccionado) => {
         setSelectedRuta(ruta);
         try {
@@ -86,6 +113,27 @@ const GestionRutas = () => {
             setClientes(clientesData);
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const handleRutaClick = (ruta) => {
+        // Limpiar timeout anterior
+        if (clickTimeout) {
+            clearTimeout(clickTimeout);
+        }
+
+        // Si ya está seleccionada, es el segundo clic - mostrar botón de eliminar
+        if (selectedRuta?.id === ruta.id) {
+            setShowDeleteButton(ruta.id);
+            // Ocultar el botón después de 5 segundos
+            const timeout = setTimeout(() => {
+                setShowDeleteButton(null);
+            }, 5000);
+            setClickTimeout(timeout);
+        } else {
+            // Primer clic - seleccionar ruta
+            setShowDeleteButton(null);
+            handleSelectRuta(ruta);
         }
     };
 
@@ -254,11 +302,12 @@ const GestionRutas = () => {
                             <div className="list-group list-group-flush">
                                 {rutas.map(ruta => {
                                     const isActive = selectedRuta?.id === ruta.id;
+                                    const showDelete = showDeleteButton === ruta.id;
                                     return (
                                         <button
                                             key={ruta.id}
                                             className="list-group-item list-group-item-action"
-                                            onClick={() => handleSelectRuta(ruta)}
+                                            onClick={() => handleRutaClick(ruta)}
                                             style={isActive ? {
                                                 backgroundColor: '#dbeafe',
                                                 borderLeft: '4px solid #0f3460',
@@ -279,7 +328,7 @@ const GestionRutas = () => {
                                             }}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                                                <div>
+                                                <div style={{ flex: 1 }}>
                                                     <div style={{ fontWeight: '700', color: isActive ? '#0f3460' : '#374151', marginBottom: '4px' }}>
                                                         {ruta.nombre}
                                                     </div>
@@ -293,20 +342,54 @@ const GestionRutas = () => {
                                                         {ruta.vendedor_nombre || 'Sin vendedor'}
                                                     </small>
                                                 </div>
-                                                {isActive && (
-                                                    <span style={{
-                                                        backgroundColor: 'rgba(15, 52, 96, 0.1)',
-                                                        color: '#0f3460',
-                                                        fontSize: '0.625rem',
-                                                        padding: '2px 8px',
-                                                        borderRadius: '9999px',
-                                                        fontWeight: 'bold',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.1em'
-                                                    }}>
-                                                        Activa
-                                                    </span>
-                                                )}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    {isActive && (
+                                                        <>
+                                                            <span style={{
+                                                                backgroundColor: 'rgba(15, 52, 96, 0.1)',
+                                                                color: '#0f3460',
+                                                                fontSize: '0.625rem',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '9999px',
+                                                                fontWeight: 'bold',
+                                                                textTransform: 'uppercase',
+                                                                letterSpacing: '0.1em'
+                                                            }}>
+                                                                Activa
+                                                            </span>
+                                                            {showDelete && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        confirmarEliminarRuta(ruta);
+                                                                    }}
+                                                                    style={{
+                                                                        background: '#0f3460',
+                                                                        border: 'none',
+                                                                        color: 'white',
+                                                                        cursor: 'pointer',
+                                                                        padding: '6px 8px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        borderRadius: '6px',
+                                                                        transition: 'all 0.2s',
+                                                                        animation: 'fadeIn 0.3s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        e.currentTarget.style.backgroundColor = '#dc3545';
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        e.currentTarget.style.backgroundColor = '#0f3460';
+                                                                    }}
+                                                                    title="Eliminar ruta"
+                                                                >
+                                                                    <span className="material-icons" style={{ fontSize: '16px' }}>delete</span>
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </button>
                                     );
@@ -933,6 +1016,32 @@ const GestionRutas = () => {
                         <Button variant="primary" type="submit">Guardar</Button>
                     </Modal.Footer>
                 </Form>
+            </Modal>
+
+            {/* Modal de confirmación para eliminar ruta */}
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+                <Modal.Header closeButton style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                    <Modal.Title style={{ color: '#dc3545', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className="material-icons" style={{ fontSize: '32px' }}>warning</span>
+                        Eliminar Ruta
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ paddingTop: '10px' }}>
+                    <p style={{ fontSize: '16px', marginBottom: '10px' }}>
+                        ¿Estás seguro de que deseas eliminar la ruta <strong>"{rutaToDelete?.nombre}"</strong>?
+                    </p>
+                    <Alert variant="warning" style={{ fontSize: '14px', marginBottom: 0 }}>
+                        <strong>⚠️ Advertencia:</strong> Esta acción no se puede deshacer y eliminará todos los clientes asociados a esta ruta.
+                    </Alert>
+                </Modal.Body>
+                <Modal.Footer style={{ borderTop: 'none' }}>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+                        Cancelar
+                    </Button>
+                    <Button variant="danger" onClick={handleEliminarRuta}>
+                        Eliminar Ruta
+                    </Button>
+                </Modal.Footer>
             </Modal>
         </Container>
     );
