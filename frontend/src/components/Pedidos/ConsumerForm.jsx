@@ -242,7 +242,10 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                     <button
                         className="btn-primary"
                         title="Agregar destinatario"
-                        onClick={() => window.location.href = '/clientes/nuevo'}
+                        onClick={() => {
+                            sessionStorage.setItem('origenModulo', 'pedidos');
+                            window.location.href = '/#/clientes/nuevo';
+                        }}
                     >
                         <span className="material-icons" style={{ fontSize: '16px' }}>person_add</span>
                     </button>

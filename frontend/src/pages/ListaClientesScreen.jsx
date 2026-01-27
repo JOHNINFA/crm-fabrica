@@ -17,6 +17,9 @@ const ListaClientesScreen = () => {
     return localStorage.getItem('chat_visible_clientes') === 'true';
   });
 
+  // Detectar de dónde viene el usuario
+  const origenModulo = sessionStorage.getItem('origenModulo') || 'pedidos';
+
   // Persistir estado del chat
   useEffect(() => {
     localStorage.setItem('chat_visible_clientes', showChat);
@@ -134,9 +137,9 @@ const ListaClientesScreen = () => {
                 </Button>
                 <Button
                   variant="outline-secondary"
-                  onClick={() => navigate('/remisiones')}
+                  onClick={() => navigate(origenModulo === 'pos' ? '/pos' : '/remisiones')}
                 >
-                  Regresar a Pedidos
+                  {origenModulo === 'pos' ? 'Regresar a POS' : 'Regresar a Pedidos'}
                 </Button>
               </div>
             </div>

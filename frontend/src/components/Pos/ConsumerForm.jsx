@@ -4,14 +4,12 @@ import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
 import { useCajero } from "../../context/CajeroContext";
 import { useScrollVisibility } from "../../hooks/useScrollVisibility";
-import AddClientePOSModal from "./AddClientePOSModal";
-import { cajonService } from "../../services/cajonService"; // 🆕
+import { cajonService } from "../../services/cajonService";
 
 export default function ConsumerForm({ date, seller, client, setDate, setClient, priceList, setPriceList }) {
   const { cajeroLogueado, sucursalActiva, isAuthenticated } = useCajero();
   const [priceLists, setPriceLists] = useState([]);
   const isVisible = useScrollVisibility(false);
-  const [showAddClienteModal, setShowAddClienteModal] = useState(false);
 
   useEffect(() => {
     cargarListasPrecios();
@@ -97,12 +95,6 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
     setIsSearching(false);
   };
 
-  // Manejar cuando se crea un cliente desde el modal
-  const handleClienteCreado = (cliente) => {
-    // Seleccionar automáticamente el cliente recién creado
-    setClient(cliente.alias || cliente.nombre_completo);
-  };
-
 
 
   return (
@@ -169,7 +161,10 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
           <button
             className="btn-primary"
             title="Agregar cliente POS"
-            onClick={() => setShowAddClienteModal(true)}
+            onClick={() => {
+              sessionStorage.setItem('origenModulo', 'pos');
+              window.location.href = '/#/clientes/nuevo';
+            }}
           >
             <span className="material-icons" style={{ fontSize: '16px' }}>person_add</span>
           </button>
@@ -273,14 +268,6 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
           )}
         </div>
       </div >
-
-      {/* Modal para agregar cliente POS */}
-      < AddClientePOSModal
-        show={showAddClienteModal}
-        onHide={() => setShowAddClienteModal(false)
-        }
-        onClienteCreado={handleClienteCreado}
-      />
     </div >
   );
 }
