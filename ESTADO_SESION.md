@@ -12,6 +12,7 @@
 | POS - Altura catálogo 1024x768 | ✅ Completado | Media | Mejor visualización última fila |
 | POS - Campos formulario 17" | ✅ Completado | Media | flex:1 + gap:10px |
 | POS - Tarjetas 1920x1080 | ✅ Completado | Media | Imágenes más grandes, bordes 16px |
+| POS - UI Completa 1920x1080 | ✅ Completado | Alta | Todo proporcional y grande |
 | POS - Precios por Lista | ✅ Completado | Alta | Muestra precio de lista seleccionada |
 | POS - Lista PRECIOS CAJA | ✅ Completado | Media | Activada por defecto |
 | POS - Impresión Ticket | 🔧 Pendiente | Alta | Tinta suave, texto pequeño |
@@ -22,6 +23,7 @@
 | Pedidos - Altura catálogo 1024x768 | ✅ Completado | Media | Mejor visualización última fila |
 | Pedidos - Campos formulario 17" | ✅ Completado | Media | flex:1 + gap:10px |
 | Pedidos - Tarjetas 1920x1080 | ✅ Completado | Media | Imágenes más grandes, bordes 12px |
+| Pedidos - UI Completa 1920x1080 | ✅ Completado | Alta | Todo proporcional y grande |
 | Pedidos - Lista por defecto | ✅ Completado | Media | VENDEDORES por defecto |
 | Pedidos - Select precargado | ✅ Completado | Baja | Sin efecto de carga vacío |
 | Informe Lista Precios - Scroll | ✅ Completado | Media | Scroll horizontal funcional |
@@ -29,6 +31,177 @@
 | Maestro Lista Precios - Orden | ✅ Completado | Baja | Orden ascendente por ID |
 | App Móvil - Tickets | 🔧 Pendiente | Media | Ver sección abajo |
 | Vendedores/Rutas | ✅ Completado | Alta | 23 Enero 2026 |
+
+---
+
+## ✅ COMPLETADO HOY: Optimización UI para 1920x1080 (27 Enero 2026)
+
+### 🎯 Objetivo
+Hacer que todos los elementos de POS y Pedidos se vean proporcionalmente grandes en pantallas Full HD (1920x1080), mejorando la legibilidad y usabilidad en monitores de 23" y superiores.
+
+### ⚠️ Problema encontrado: Estilos inline vs CSS en POS
+
+**Síntoma**: Las tarjetas de productos en POS no se agrandaban en 1920x1080 a pesar de tener media queries correctos en el CSS.
+
+**Causa raíz**: El componente `ProductCard.jsx` de POS usaba estilos inline (style={{...}}) que tienen mayor especificidad que los estilos CSS, por lo que los media queries no podían sobrescribirlos.
+
+**Intentos fallidos**:
+1. Selectores CSS con `!important` - No funcionaron porque los inline tienen más prioridad
+2. Selectores de atributo `[style]` - No funcionaron correctamente
+3. Selectores ultra-específicos con pseudo-clases - Parcialmente funcionales pero inconsistentes
+
+**Solución final**:
+Refactorizar el componente para eliminar estilos inline y usar clases CSS:
+
+1. **Eliminados estilos inline** del JSX
+2. **Agregadas clases CSS**: `product-image-container`, `product-image`, `product-icon`, `product-price`, `product-name`
+3. **Media query funcional** desde 1441px que agranda todo en 1920x1080
+
+**Archivos modificados**:
+- `frontend/src/components/Pos/ProductCard.jsx` - Eliminados estilos inline, agregadas clases
+- `frontend/src/components/Pos/ProductCard.css` - Agregados estilos base + media query 1920x1080
+
+**Lección aprendida**: Los estilos inline tienen la mayor especificidad en CSS y no pueden ser sobrescritos por media queries. Para hacer componentes responsive, siempre usar clases CSS en lugar de estilos inline.
+
+### 📐 Cambios aplicados en PEDIDOS (1920x1080)
+
+#### 1. **Carrito - Elementos agrandados**
+- Nombres de productos: **17px** (antes 13px)
+- Badge de cantidad: **14px** (antes 11px)
+- Botones +/-: **42x34px** (antes 36x28px)
+- Input cantidad: **85px ancho, 17px texto** (antes 70px, 14px)
+- Cálculos (precio x cantidad): **17px** (antes 13px)
+- Resumen (Subtotal, Descuento): **16px/18px** (antes 13px/15px)
+- Botón "Generar Pedido": **20px** (antes 18px)
+- Nota del pedido: **16px** (antes 15px)
+- Header del carrito: **18px** (antes 16px)
+- Altura del carrito: **480px** (muestra más productos)
+
+**Archivo modificado**: `frontend/src/components/Pedidos/Cart.css`
+
+#### 1.1 **Carrito en 1240x768 - Mayor capacidad**
+- Altura del carrito: **280px** (antes 190px)
+- Permite ver 5-6 productos en lugar de 3-4
+
+**Archivo modificado**: `frontend/src/components/Pedidos/Cart.css`
+
+#### 2. **Formulario - Campos más grandes**
+- Input de cliente: **16px** (antes 13px)
+- Labels: **14px** (antes 12px)
+- Campos (fecha, lista, vendedor): **15px** (antes 13px)
+- Botones de acción: **36x36px** (antes 28x28px)
+- Íconos de botones: **20px** (antes 16px)
+- Sugerencias de clientes: **420px ancho** (antes 370px)
+- Texto sugerencias: **15px/13px** (antes 13px/11px)
+
+**Archivo modificado**: `frontend/src/components/Pedidos/ConsumerForm.css`
+
+#### 3. **Barra de búsqueda - Más visible**
+- Input de búsqueda: **17px texto, 50px altura** (antes 13px, 40px)
+- Botón lupa: **26px ícono** (antes 20px)
+- Padding: **12px 20px** (antes 8px 16px)
+
+**Archivo modificado**: `frontend/src/components/Pedidos/ProductList.css`
+
+#### 4. **Categorías - Botones más grandes**
+- Tamaño botones: **110x75px** (antes 85x58px)
+- Íconos: **42px** (antes 32px)
+- Texto: **14px bold** (antes 11px)
+- Gap entre botones: **18px** (antes 15px)
+- Padding contenedor: **12px** (antes 8px)
+
+**Archivo modificado**: `frontend/src/components/Pedidos/ProductList.css`
+
+#### 5. **Tarjetas de productos - Imágenes grandes**
+- Tamaño tarjeta: **220x240px** (antes 150x180px)
+- Imagen: **140x140px** (antes 45px)
+- Precio: **19px bold** (antes 14px)
+- Nombre: **14px** (antes 10.5px)
+- Ícono placeholder: **80px** (antes 22px)
+
+**Archivo modificado**: `frontend/src/components/Pedidos/ProductCard.css`
+
+---
+
+### 📐 Cambios aplicados en POS (1920x1080)
+
+Se aplicaron **exactamente los mismos tamaños** que en Pedidos para mantener consistencia visual:
+
+#### 1. **Carrito**
+- Nombres de productos: **16px** (antes 13px)
+- Badge de cantidad: **13px** (antes 11px)
+- Botones +/-: **42x34px** (antes 36x28px)
+- Input cantidad: **85px ancho, 17px texto** (antes 70px, 14px)
+- Cálculos: **16px** (antes 13px)
+- Resumen: **16px/18px** (antes 13px/15px)
+- Total: **1.6rem** (antes 1.5rem)
+- Botón "Procesar Venta": **20px** (antes 18px)
+- Altura carrito: **480px** (muestra más productos)
+
+**Archivo modificado**: `frontend/src/components/Pos/Cart.css`
+
+#### 1.1 **Carrito en 1240x768 - Mayor capacidad**
+- Altura del carrito: **280px** (antes 190px)
+- Permite ver 5-6 productos en lugar de 3-4
+
+**Archivo modificado**: `frontend/src/components/Pos/Cart.css`
+
+#### 2. **Formulario**
+- Mismos tamaños que Pedidos (14-16px textos, 36x36px botones)
+
+**Archivo modificado**: `frontend/src/components/Pos/ConsumerForm.css`
+
+#### 3. **Barra de búsqueda y Categorías**
+- Mismos tamaños que Pedidos (50px altura input, 110x75px categorías)
+
+**Archivo modificado**: `frontend/src/components/Pos/ProductList.css`
+
+#### 4. **Tarjetas de productos**
+- Mismos tamaños que Pedidos (220x240px, imagen 140px, precio 19px)
+- **Refactorización importante**: Se eliminaron estilos inline y se migró a clases CSS para mejor mantenibilidad
+
+**Archivos modificados**: 
+- `frontend/src/components/Pos/ProductCard.css`
+- `frontend/src/components/Pos/ProductCard.jsx` (estructura JSX actualizada)
+
+---
+
+### 🎨 Resultado final
+
+**Antes (1920x1080)**:
+- Elementos muy pequeños y difíciles de leer
+- Tarjetas de productos diminutas (150px)
+- Textos de 11-13px
+- Botones pequeños (28x28px)
+
+**Después (1920x1080)**:
+- ✅ Todo proporcional y fácil de leer
+- ✅ Tarjetas grandes (220x240px) con imágenes de 140px
+- ✅ Textos legibles (14-20px)
+- ✅ Botones cómodos (36-42px)
+- ✅ Mejor aprovechamiento del espacio en pantallas grandes
+- ✅ Consistencia visual entre POS y Pedidos
+
+---
+
+### 📝 Archivos modificados (resumen)
+
+**Pedidos:**
+```
+frontend/src/components/Pedidos/Cart.css
+frontend/src/components/Pedidos/ConsumerForm.css
+frontend/src/components/Pedidos/ProductList.css
+frontend/src/components/Pedidos/ProductCard.css
+```
+
+**POS:**
+```
+frontend/src/components/Pos/Cart.css
+frontend/src/components/Pos/ConsumerForm.css
+frontend/src/components/Pos/ProductList.css
+frontend/src/components/Pos/ProductCard.css
+frontend/src/components/Pos/ProductCard.jsx
+```
 
 ---
 
@@ -125,6 +298,18 @@
 
 **Archivo modificado**:
 - `frontend/src/components/Pedidos/ConsumerForm.jsx`
+
+---
+
+### 📝 Nota sobre tamaños de texto en carrito (1920x1080)
+
+**Diferencia entre POS y Pedidos:**
+- **POS**: Nombre del producto **16px**
+- **Pedidos**: Nombre del producto **17px** (1px más grande)
+
+Esta pequeña diferencia se mantiene intencionalmente. Si en el futuro se requiere igualar los tamaños:
+- Para igualar a 17px: Modificar `frontend/src/components/Pos/Cart.css` línea del media query 1441px
+- Para igualar a 16px: Modificar `frontend/src/components/Pedidos/Cart.css` línea del media query 1441px
 
 ---
 

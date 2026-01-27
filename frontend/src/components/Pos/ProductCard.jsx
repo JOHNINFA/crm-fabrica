@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
 import { useUnifiedProducts } from "../../context/UnifiedProductContext";
+import "./ProductCard.css";
 
 export default function ProductCard({ product, onClick, precioLista }) {
   // Obtener caché de imágenes del contexto (evita rebote)
@@ -47,7 +48,7 @@ export default function ProductCard({ product, onClick, precioLista }) {
   // Formatear precio
   const formatPrice = (price) => {
     const validPrice = (price !== null && price !== undefined && !isNaN(price)) ? Number(price) : 0;
-    return `$${validPrice.toLocaleString('es-CO', {
+    return `${validPrice.toLocaleString('es-CO', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     })}`;
@@ -71,12 +72,6 @@ export default function ProductCard({ product, onClick, precioLista }) {
     <div
       className={`card h-100 product-card-item ${isClicked ? 'product-clicked' : ''}`}
       style={{
-        border: "1px solid #e5e9f2",
-        borderRadius: 6,
-        cursor: "pointer",
-        transition: "transform 0.2s, box-shadow 0.1s",
-        width: "100%",
-        margin: "0 auto",
         transform: isClicked ? 'scale(1.05)' : 'scale(1)'
       }}
       onClick={handleClick}
@@ -84,19 +79,9 @@ export default function ProductCard({ product, onClick, precioLista }) {
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <div className="card-body d-flex flex-column align-items-center text-center" style={{ padding: '4px' }}>
+      <div className="card-body d-flex flex-column align-items-center text-center">
         {/* Imagen o icono por defecto - Carga urgente sin delays */}
-        <div style={{
-          height: '50px',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: '3px',
-          overflow: 'hidden',
-          backgroundColor: imageSource ? 'transparent' : '#f8f9fa',
-          borderRadius: '4px'
-        }}>
+        <div className="product-image-container">
           {imageSource ? (
             <img
               src={imageSource}
@@ -104,31 +89,26 @@ export default function ProductCard({ product, onClick, precioLista }) {
               loading="eager"
               fetchpriority="high"
               decoding="sync"
-              style={{
-                height: '100%',
-                width: 'auto',
-                maxWidth: '100%',
-                objectFit: 'contain'
-              }}
+              className="product-image"
               onError={(e) => {
                 // Si falla la carga, mostrar ícono
                 e.target.style.display = 'none';
               }}
             />
           ) : (
-            <span style={{ fontSize: 22, color: '#dee2e6' }} className="material-icons">
+            <span className="product-icon material-icons">
               paid
             </span>
           )}
         </div>
 
         {/* Precio */}
-        <div style={{ fontSize: '14px', color: '#495057', fontWeight: '700', marginBottom: '2px' }}>
+        <div className="product-price">
           <strong>{formatPrice(precioMostrar || 0)}</strong>
         </div>
 
         {/* Nombre del producto */}
-        <div style={{ fontSize: 10.5, color: '#495057', fontWeight: '500', lineHeight: '1.2' }}>
+        <div className="product-name">
           {product.name || 'Producto sin nombre'}
         </div>
       </div>

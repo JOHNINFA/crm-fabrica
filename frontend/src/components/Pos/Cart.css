@@ -435,24 +435,92 @@
 }
 
 /* Responsive para pantallas grandes */
-@media (min-width: 1600px) {
+@media (min-width: 1441px) {
   .pos-screen .cart-body {
-    height: 380px !important;
-    min-height: 380px !important;
-    max-height: 380px !important;
+    height: 480px !important;
+    min-height: 480px !important;
+    max-height: 480px !important;
   }
 
-  .cart-item-name {
-    font-size: 1rem;
+  .pos-screen .cart-item {
+    margin-bottom: 8px !important;
+    padding: 8px !important;
   }
 
-  .summary-row.total {
-    font-size: 1.5rem;
+  .pos-screen .cart-item-name {
+    font-size: 16px !important;
+  }
+
+  .pos-screen .cart-item-name i {
+    font-size: 14px !important;
+    margin-right: 8px !important;
+  }
+
+  .pos-screen .product-badge {
+    font-size: 13px !important;
+    padding: 4px 9px !important;
+  }
+
+  .pos-screen .qty-btn {
+    width: 42px !important;
+    height: 34px !important;
+    min-width: 42px !important;
+    font-size: 16px !important;
+  }
+
+  .pos-screen .qty-input {
+    width: 85px !important;
+    height: 34px !important;
+    font-size: 17px !important;
+  }
+
+  .pos-screen .cart-item-calculation {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+
+  .pos-screen .cart-item-row {
+    margin-bottom: 5px !important;
+  }
+
+  .pos-screen .summary-item {
+    font-size: 16px !important;
+  }
+
+  .pos-screen .summary-value-inline {
+    font-size: 18px !important;
+  }
+
+  .pos-screen .summary-input-inline {
+    font-size: 16px !important;
+    padding: 6px 8px !important;
+    width: 80px !important;
+  }
+
+  .pos-screen .summary-row.total {
+    font-size: 1.6rem !important;
   }
 
   .pos-screen .checkout-button {
-    font-size: 1.2rem;
-    padding: 1.2rem;
+    font-size: 20px !important;
+    padding: 16px !important;
+  }
+
+  .pos-screen .cart-note input {
+    font-size: 16px !important;
+    padding: 10px 14px !important;
+  }
+
+  .pos-screen .cart-header h5 {
+    font-size: 18px !important;
+  }
+
+  .pos-screen .cart-header-actions button {
+    padding: 8px !important;
+  }
+
+  .pos-screen .cart-header-actions button i {
+    font-size: 20px !important;
   }
 }
 
@@ -515,6 +583,15 @@
     height: 200px !important;
     min-height: 200px !important;
     max-height: 200px !important;
+  }
+}
+
+/* Responsive para tablets 1240x768 - Aumentar altura del carrito */
+@media (min-width: 769px) and (max-width: 1440px) {
+  .pos-screen .cart-body {
+    height: 280px !important;
+    min-height: 280px !important;
+    max-height: 280px !important;
   }
 }
 

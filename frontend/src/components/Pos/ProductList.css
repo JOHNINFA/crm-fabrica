@@ -156,3 +156,54 @@ ilos específicos para POS - Tema Azul */
 .pos-screen .category-button.active span.category-name {
   color: #007bff !important;
 }
+
+/* Responsive para pantallas grandes (1920x1080 y superiores) */
+@media (min-width: 1441px) {
+
+  /* Agrandar barra de búsqueda */
+  .pos-screen .search-input {
+    font-size: 17px !important;
+    height: 50px !important;
+    padding: 12px 20px !important;
+  }
+
+  .pos-screen .btn.btn-light {
+    padding: 12px 16px !important;
+    border-radius: 14px !important;
+  }
+
+  .pos-screen .btn.btn-light .material-icons {
+    font-size: 26px !important;
+  }
+
+  /* Agrandar botones de categorías */
+  .pos-screen .category-button {
+    width: 110px !important;
+    min-width: 110px !important;
+    height: 75px !important;
+    border-radius: 10px !important;
+    padding: 6px !important;
+  }
+
+  .pos-screen .category-button .material-icons {
+    font-size: 42px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .pos-screen .category-button span.category-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Agrandar contenedor de categorías */
+  .pos-screen .card-bg {
+    padding: 12px 12px 0.1px 12px !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* Ajustar gap entre categorías */
+  .pos-screen .category-buttons {
+    gap: 18px !important;
+    padding: 6px 0px 6px 0px !important;
+  }
+}

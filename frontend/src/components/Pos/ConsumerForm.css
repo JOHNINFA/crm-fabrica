@@ -183,3 +183,52 @@ Responsive - Tablets 1024x768 */
     width: 100% !important;
   }
 }
+
+/* Pantallas grandes 1920x1080 - Agrandar formulario */
+@media (min-width: 1441px) {
+  .pos-screen .consumer-form {
+    padding: 18px !important;
+  }
+
+  .pos-screen .consumer-form-title-input {
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+    height: auto !important;
+  }
+
+  .pos-screen .consumer-form-label {
+    font-size: 14px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .pos-screen .consumer-form-control,
+  .pos-screen .consumer-form-select {
+    font-size: 15px !important;
+    padding: 9px 11px !important;
+  }
+
+  .pos-screen .consumer-form-actions button {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .pos-screen .consumer-form-actions button .material-icons {
+    font-size: 20px !important;
+  }
+
+  .pos-screen .cliente-suggestions {
+    width: 420px !important;
+  }
+
+  .pos-screen .cliente-name {
+    font-size: 15px !important;
+  }
+
+  .pos-screen .cliente-id {
+    font-size: 13px !important;
+  }
+
+  .pos-screen .cliente-suggestion-item {
+    padding: 9px 12px !important;
+  }
+}

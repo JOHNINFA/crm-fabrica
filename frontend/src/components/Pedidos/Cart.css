@@ -462,9 +462,9 @@
 /* Responsive para pantallas de 14 pulgadas - SOLO PEDIDOS */
 @media (min-width: 769px) and (max-width: 1440px) {
     .pedidos-screen .cart-body {
-        height: 190px !important;
-        min-height: 190px !important;
-        max-height: 190px !important;
+        height: 280px !important;
+        min-height: 280px !important;
+        max-height: 280px !important;
     }
 
     .pedidos-screen .cart-item {
@@ -520,17 +520,17 @@
     }
 
     .pedidos-screen .cart-item-name {
-        font-size: 16px !important;
+        font-size: 17px !important;
     }
 
     .pedidos-screen .cart-item-name i {
-        font-size: 14px !important;
+        font-size: 15px !important;
         margin-right: 8px !important;
     }
 
     .pedidos-screen .product-badge {
-        font-size: 13px !important;
-        padding: 4px 9px !important;
+        font-size: 14px !important;
+        padding: 4px 10px !important;
     }
 
     .pedidos-screen .qty-btn {
@@ -552,7 +552,7 @@
     }
 
     .pedidos-screen .cart-item-calculation {
-        font-size: 16px !important;
+        font-size: 17px !important;
         line-height: 1.4 !important;
     }
 
