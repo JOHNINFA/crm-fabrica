@@ -14,7 +14,10 @@ const PaymentModal = ({
   const [banco, setBanco] = useState("Caja General");
   const [bancos, setBancos] = useState([]);
   const [centroCosto, setCentroCosto] = useState("");
-  const [impresion, setImpresion] = useState("Ninguna");
+  const [impresion, setImpresion] = useState(() => {
+    // Cargar preferencia guardada o usar "Ninguna" por defecto
+    return localStorage.getItem('preferencia_impresion_pos') || "Ninguna";
+  });
   const [bodega, setBodega] = useState("Principal");
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [processing, setProcessing] = useState(false);
@@ -337,8 +340,8 @@ const PaymentModal = ({
     const mostrarLogo = configImpresion?.mostrar_logo !== false;
     const logoSrc = configImpresion?.logo_base64 || null;
     // Fuente del ticket (configurable desde Configuración de Impresión)
-    // Usamos Lucida Console por defecto para texto más compacto y oscuro (como el ejemplo)
-    const fuenteTicket = configImpresion?.fuente_ticket || 'Lucida Console, Monaco, Consolas';
+    // Usamos Courier New por defecto para texto más compacto y oscuro (como el ejemplo)
+    const fuenteTicket = configImpresion?.fuente_ticket || 'Courier New, monospace';
 
     // 🆕 Tamaños y espaciados configurables
     const tamanioGeneral = configImpresion?.tamanio_fuente_general || 9;
@@ -370,10 +373,10 @@ const PaymentModal = ({
           
           body {
             margin: 0;
-            padding: 15px;
-            font-family: ${fuenteTicket}, 'Lucida Console', 'Monaco', 'Consolas', monospace;
+            padding: 5px;
+            font-family: 'Roboto Mono', monospace;
             font-size: ${tamanioGeneral}px;
-            font-weight: bold;
+            font-weight: normal;
             background: white;
             color: #000;
             letter-spacing: ${letraSpaciado}px;
@@ -381,11 +384,15 @@ const PaymentModal = ({
             print-color-adjust: exact;
           }
           
+          strong {
+            font-weight: bold;
+          }
+          
           .ticket-container {
             width: ${anchoPapel};
             max-width: ${anchoPapel};
             margin: 0 auto;
-            padding: 5mm;
+            padding: 2mm;
             background: white;
             color: black;
           }
@@ -430,6 +437,10 @@ const PaymentModal = ({
             margin: 4px 0;
             font-size: ${tamanioInfo}px;
             line-height: 1.5;
+            font-weight: normal;
+          }
+          
+          .ticket-info p strong {
             font-weight: bold;
           }
           
@@ -444,34 +455,61 @@ const PaymentModal = ({
           .ticket-table th {
             text-align: left;
             border-bottom: 1px dotted #000;
-            padding: 3px 1px;
+            padding: 4px 2px;
             font-weight: 900;
-            font-size: ${tamanioTabla}px;
+            font-size: ${tamanioTabla + 1}px;
             color: #000;
           }
           
           .ticket-table td {
-            padding: 3px 1px;
+            padding: 4px 2px;
             vertical-align: top;
             font-weight: normal;
-            font-size: ${tamanioTabla - 1}px;
+            font-size: ${tamanioTabla}px;
+            line-height: 1.4;
           }
           
           .ticket-table th:first-child,
           .ticket-table td:first-child {
-            width: 30px;
+            width: 25px;
+            text-align: left;
+            padding-left: 0;
+          }
+          
+          /* Columna de descripción - letra más pequeña, máximo 2 líneas */
+          .ticket-table th:nth-child(2) {
             text-align: center;
+          }
+          .ticket-table td:nth-child(2) {
+            max-width: 95px;
+            font-size: ${tamanioTabla - 1}px;
+            word-wrap: break-word;
+            overflow: hidden;
+            line-height: 1.2;
+          }
+          
+          /* Columnas de precio y total */
+          .ticket-table th:nth-child(3),
+          .ticket-table td:nth-child(3),
+          .ticket-table th:nth-child(4),
+          .ticket-table td:nth-child(4) {
+            white-space: nowrap;
           }
           
           .ticket-table th:last-child,
           .ticket-table td:last-child {
-            width: 60px;
+            width: 50px;
             text-align: right;
+            padding-right: 0;
           }
           
           .ticket-totals {
             margin: 12px 0;
             font-size: ${tamanioTotales}px;
+            font-weight: normal;
+          }
+          
+          .ticket-totals strong {
             font-weight: bold;
           }
           
@@ -479,6 +517,10 @@ const PaymentModal = ({
             display: flex;
             justify-content: space-between;
             margin: 5px 0;
+          }
+          
+          .total-row span:first-child {
+            font-weight: bold;
           }
           
           .total-final {
@@ -492,6 +534,14 @@ const PaymentModal = ({
           .ticket-payment {
             margin: 12px 0;
             font-size: ${tamanioTotales}px;
+            font-weight: normal;
+          }
+          
+          .ticket-payment p {
+            margin: 4px 0;
+          }
+          
+          .ticket-payment strong {
             font-weight: bold;
           }
           
@@ -524,10 +574,10 @@ const PaymentModal = ({
           <div class="ticket-divider">................................................</div>
           
           <div class="ticket-info">
-            <p><strong>FACTURA:</strong> ${data.numero}</p>
-            <p><strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-CO')}</p>
-            <p><strong>Cliente:</strong> ${data.cliente}</p>
-            <p><strong>Atendido por:</strong> ${data.vendedor}</p>
+            <p><strong>CUENTA DE COBRO: ${data.numero}</strong></p>
+            <p><strong>Fecha: ${new Date(data.fecha).toLocaleString('es-CO')}</strong></p>
+            <p>Cliente: <strong>${data.cliente}</strong></p>
+            <p>Atendido por: <strong>${data.vendedor}</strong></p>
           </div>
           
           <div class="ticket-divider">................................................</div>
@@ -565,8 +615,8 @@ const PaymentModal = ({
               <span>${data.items.reduce((sum, item) => sum + item.qty, 0)}</span>
             </div>
             <div class="total-row">
-              <span>Subtotal:</span>
-              <span>${formatCurrency(data.subtotal)}</span>
+              <span><strong>Subtotal:</strong></span>
+              <span><strong>${formatCurrency(data.subtotal)}</strong></span>
             </div>
             ${data.impuestos > 0 ? `
               <div class="total-row">
@@ -589,10 +639,10 @@ const PaymentModal = ({
           <div class="ticket-divider">........................................</div>
           
           <div class="ticket-payment">
-            <p><strong>Método de Pago:</strong> ${data.metodoPago}</p>
+            <p>Método de Pago: <strong>${data.metodoPago}</strong></p>
             ${data.dineroEntregado > 0 ? `
-              <p><strong>Efectivo Recibido:</strong> ${formatCurrency(data.dineroEntregado)}</p>
-              <p><strong>Cambio:</strong> ${formatCurrency(data.devuelta)}</p>
+              <p>Efectivo Recibido: <strong>${formatCurrency(data.dineroEntregado)}</strong></p>
+              <p>Cambio: <strong>${formatCurrency(data.devuelta)}</strong></p>
             ` : ''}
           </div>
           
@@ -805,7 +855,12 @@ const PaymentModal = ({
                 <select
                   className="form-select compact-select"
                   value={impresion}
-                  onChange={(e) => setImpresion(e.target.value)}
+                  onChange={(e) => {
+                    const nuevoValor = e.target.value;
+                    setImpresion(nuevoValor);
+                    // Guardar preferencia en localStorage
+                    localStorage.setItem('preferencia_impresion_pos', nuevoValor);
+                  }}
                 >
                   <option>Ninguna</option>
                   <option>Tirilla</option>

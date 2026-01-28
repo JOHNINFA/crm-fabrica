@@ -34,7 +34,10 @@ const PaymentModal = ({
     const [banco, setBanco] = useState("Caja General");
     const [bancos, setBancos] = useState([]);
     const [centroCosto, setCentroCosto] = useState("");
-    const [impresion, setImpresion] = useState("Ninguna");
+    const [impresion, setImpresion] = useState(() => {
+        // Cargar preferencia guardada o usar "Ninguna" por defecto
+        return localStorage.getItem('preferencia_impresion_pedidos') || "Ninguna";
+    });
     const [bodega, setBodega] = useState("Principal");
     const [pedidoCreado, setPedidoCreado] = useState(null);
     const [showTicketModal, setShowTicketModal] = useState(false);
@@ -427,7 +430,12 @@ const PaymentModal = ({
                                 <select
                                     className="form-select compact-select"
                                     value={impresion}
-                                    onChange={(e) => setImpresion(e.target.value)}
+                                    onChange={(e) => {
+                                        const nuevoValor = e.target.value;
+                                        setImpresion(nuevoValor);
+                                        // Guardar preferencia en localStorage
+                                        localStorage.setItem('preferencia_impresion_pedidos', nuevoValor);
+                                    }}
                                 >
                                     <option>Ninguna</option>
                                     <option>Tirilla</option>

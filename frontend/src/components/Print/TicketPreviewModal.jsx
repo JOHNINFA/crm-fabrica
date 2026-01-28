@@ -125,7 +125,7 @@ export default function TicketPreviewModal({
             clienteZona // 🆕 Zona/Barrio del cliente
         } = ticketData;
 
-        const fuenteTicket = config.fuente_ticket || 'Lucida Console, Monaco, Consolas';
+        const fuenteTicket = 'Roboto Mono';
         const anchoPapel = config.ancho_papel || '80mm';
         const nombreNegocio = config.nombre_negocio || 'MI NEGOCIO';
         const nitNegocio = config.nit_negocio || '';
@@ -167,8 +167,8 @@ export default function TicketPreviewModal({
                     
                     body {
                         margin: 0;
-                        padding: 15px;
-                        font-family: ${fuenteTicket}, 'Lucida Console', 'Monaco', 'Consolas', monospace;
+                        padding: 5px;
+                        font-family: ${fuenteTicket}, monospace;
                         font-size: ${tamanioGeneral}px;
                         font-weight: bold;
                         background: white;
@@ -182,7 +182,7 @@ export default function TicketPreviewModal({
                         width: ${anchoPapel};
                         max-width: ${anchoPapel};
                         margin: 0 auto;
-                        padding: 5mm;
+                        padding: 2mm;
                         background: white;
                         color: black;
                     }
@@ -205,6 +205,7 @@ export default function TicketPreviewModal({
                         font-weight: bold;
                         margin: 8px 0;
                         text-transform: uppercase;
+                        text-align: center;
                     }
                     
                     .ticket-business-info {
@@ -212,11 +213,12 @@ export default function TicketPreviewModal({
                         margin-bottom: 5px;
                         font-weight: 900;
                         color: #000;
+                        text-align: center;
                     }
 
                     .ticket-divider {
                         text-align: center;
-                        margin: 5px 0;
+                        margin: 8px 0;
                         font-size: 10px;
                         font-weight: normal;
                         letter-spacing: ${letraSpaciadoDivider}px;
@@ -224,10 +226,31 @@ export default function TicketPreviewModal({
                     }
                     
                     .ticket-info p {
-                        margin: 4px 0;
+                        margin: 5px 0;
                         font-size: ${tamanioInfo}px;
-                        line-height: 1.5;
+                        line-height: 1.6;
+                        font-weight: normal;
+                        text-align: left;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    
+                    .ticket-info p strong {
+                        flex: 0 0 auto;
+                        margin-right: 10px;
                         font-weight: bold;
+                    }
+                    
+                    .ticket-info p span {
+                        flex: 1;
+                        text-align: right;
+                    }
+                    
+                    .ticket-info-center {
+                        text-align: center;
+                        font-weight: bold;
+                        font-size: ${tamanioInfo + 1}px;
+                        margin: 8px 0;
                     }
                     
                     .ticket-table {
@@ -241,29 +264,46 @@ export default function TicketPreviewModal({
                     .ticket-table th {
                         text-align: left;
                         border-bottom: 1px dotted #000;
-                        padding: 2px 1px;
+                        padding: 4px 2px;
                         font-weight: 900;
                         font-size: ${tamanioTabla}px;
                         color: #000;
                     }
                     
                     .ticket-table td {
-                        padding: 2px 1px;
+                        padding: 5px 2px;
                         vertical-align: top;
                         font-weight: normal;
-                        font-size: ${tamanioTabla - 1}px;
+                        font-size: ${tamanioTabla}px;
+                        line-height: 1.4;
                     }
                     
                     .ticket-table th:first-child,
                     .ticket-table td:first-child {
-                        width: 30px;
+                        width: 25px;
+                        text-align: left;
+                        padding-left: 0;
+                    }
+                    
+                    .ticket-table th:nth-child(2) {
                         text-align: center;
+                    }
+                    .ticket-table td:nth-child(2) {
+                        text-align: left;
+                        padding-right: 8px;
+                    }
+                    
+                    .ticket-table th:nth-child(3),
+                    .ticket-table td:nth-child(3) {
+                        width: 55px;
+                        text-align: right;
                     }
                     
                     .ticket-table th:last-child,
                     .ticket-table td:last-child {
-                        width: 60px;
+                        width: 50px;
                         text-align: right;
+                        padding-right: 0;
                     }
                     
                     .ticket-totals {
@@ -320,15 +360,8 @@ export default function TicketPreviewModal({
                     <div class="ticket-divider">................................................</div>
                     
                     <div class="ticket-info">
-                        <p><strong>${tipo === 'venta' ? 'FACTURA' : 'CUENTA DE COBRO'}:</strong> ${numero}</p>
-                        <p><strong>Fecha:</strong> ${formatFecha(fecha)}</p>
-                        <p><strong>Cliente:</strong> ${cliente}</p>
-                        ${clienteTelefono ? `<p><strong>Teléfono:</strong> ${clienteTelefono}</p>` : ''}
-                        <p><strong>Vendedor:</strong> ${vendedor}</p>
-                        ${tipo === 'pedido' && direccionEntrega ? `<p><strong>Dirección:</strong> ${direccionEntrega}</p>` : ''}
-                        ${tipo === 'pedido' && clienteZona ? `<p><strong>Barrio/Zona:</strong> ${clienteZona}</p>` : ''}
-                        ${tipo === 'pedido' && fechaEntrega ? `<p><strong>Fecha Entrega:</strong> ${fechaEntrega}</p>` : ''}
-                        ${tipo === 'pedido' && generadoPor ? `<p><strong>Atendido por:</strong> ${generadoPor}</p>` : ''}
+                        <p><strong>${tipo === 'venta' ? 'FACTURA' : 'CUENTA DE COBRO'}: ${numero}</strong></p>
+                        <p><strong>Fecha: ${formatFecha(fecha)}</strong></p>
                     </div>
                     
                     <div class="ticket-divider">................................................</div>
@@ -381,10 +414,13 @@ export default function TicketPreviewModal({
                                 <span>${formatCurrency(descuentos)}</span>
                             </div>
                         ` : ''}
-                        <div class="total-row total-final">
-                            <span><strong>TOTAL:</strong></span>
-                            <span><strong>${formatCurrency(total)}</strong></span>
-                        </div>
+                    </div>
+                    
+                    <div class="ticket-divider">................................................</div>
+                    
+                    <div class="total-row total-final" style="font-size: ${tamanioTotales + 2}px; margin: 8px 0;">
+                        <span><strong>TOTAL:</strong></span>
+                        <span><strong>${formatCurrency(total)}</strong></span>
                     </div>
                     
                     ${tipo === 'venta' && metodoPago ? `
@@ -397,6 +433,18 @@ export default function TicketPreviewModal({
                             ` : ''}
                         </div>
                     ` : ''}
+                    
+                    <div class="ticket-divider">................................................</div>
+                    
+                    <div class="ticket-info">
+                        <p>Cliente:<span><strong>${cliente}</strong></span></p>
+                        ${clienteTelefono ? `<p>Teléfono:<span><strong>${clienteTelefono}</strong></span></p>` : ''}
+                        <p>Vendedor:<span><strong>${vendedor}</strong></span></p>
+                        ${tipo === 'pedido' && direccionEntrega ? `<p>Dirección:<span><strong>${direccionEntrega}</strong></span></p>` : ''}
+                        ${tipo === 'pedido' && clienteZona ? `<p>Barrio/Zona:<span><strong>${clienteZona}</strong></span></p>` : ''}
+                        ${tipo === 'pedido' && fechaEntrega ? `<p>Fecha Entrega:<span><strong>${fechaEntrega}</strong></span></p>` : ''}
+                        ${tipo === 'pedido' && generadoPor ? `<p>Atendido por:<span><strong>${generadoPor}</strong></span></p>` : ''}
+                    </div>
                     
                     ${tipo === 'pedido' && nota ? `
                         <div class="ticket-divider">........................................</div>
