@@ -125,7 +125,7 @@ export default function TicketPreviewModal({
             clienteZona // 🆕 Zona/Barrio del cliente
         } = ticketData;
 
-        const fuenteTicket = 'Roboto Mono';
+        const fuenteTicket = config.fuente_ticket || 'Courier New, Courier, monospace';
         const anchoPapel = config.ancho_papel || '80mm';
         const nombreNegocio = config.nombre_negocio || 'MI NEGOCIO';
         const nitNegocio = config.nit_negocio || '';
@@ -137,12 +137,12 @@ export default function TicketPreviewModal({
         const mostrarLogo = config.mostrar_logo !== false;
         const logoSrc = config.logo_base64 || null;
 
-        // 🆕 Tamaños y espaciados configurables
-        const tamanioGeneral = config.tamanio_fuente_general || 9;
-        const tamanioNombreNegocio = config.tamanio_fuente_nombre_negocio || 11;
-        const tamanioInfo = config.tamanio_fuente_info || 8;
-        const tamanioTabla = config.tamanio_fuente_tabla || 8;
-        const tamanioTotales = config.tamanio_fuente_totales || 9;
+        // 🆕 Tamaños y espaciados configurables (aumentados para Epson TM-T20II)
+        const tamanioGeneral = config.tamanio_fuente_general || 14;
+        const tamanioNombreNegocio = config.tamanio_fuente_nombre_negocio || 18;
+        const tamanioInfo = config.tamanio_fuente_info || 13;
+        const tamanioTabla = config.tamanio_fuente_tabla || 13;
+        const tamanioTotales = config.tamanio_fuente_totales || 14;
         const letraSpaciado = config.letter_spacing || -0.2;
         const letraSpaciadoDivider = config.letter_spacing_divider || -0.8;
         const fontWeightTabla = config.font_weight_tabla || 'normal';

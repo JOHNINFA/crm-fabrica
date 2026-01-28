@@ -339,16 +339,15 @@ const PaymentModal = ({
     const mensajeGracias = configImpresion?.mensaje_agradecimiento || '¡Gracias por su compra!';
     const mostrarLogo = configImpresion?.mostrar_logo !== false;
     const logoSrc = configImpresion?.logo_base64 || null;
-    // Fuente del ticket (configurable desde Configuración de Impresión)
-    // Usamos Courier New por defecto para texto más compacto y oscuro (como el ejemplo)
-    const fuenteTicket = configImpresion?.fuente_ticket || 'Courier New, monospace';
+    // Fuente del ticket - FORZADA a Courier New para tickets térmicos
+    const fuenteTicket = 'Courier New, Courier, monospace';
 
-    // 🆕 Tamaños y espaciados configurables
-    const tamanioGeneral = configImpresion?.tamanio_fuente_general || 9;
-    const tamanioNombreNegocio = configImpresion?.tamanio_fuente_nombre_negocio || 11;
-    const tamanioInfo = configImpresion?.tamanio_fuente_info || 8;
-    const tamanioTabla = configImpresion?.tamanio_fuente_tabla || 8;
-    const tamanioTotales = configImpresion?.tamanio_fuente_totales || 9;
+    // 🆕 Tamaños y espaciados configurables (aumentados para Epson TM-T20II)
+    const tamanioGeneral = configImpresion?.tamanio_fuente_general || 14;
+    const tamanioNombreNegocio = configImpresion?.tamanio_fuente_nombre_negocio || 18;
+    const tamanioInfo = configImpresion?.tamanio_fuente_info || 13;
+    const tamanioTabla = configImpresion?.tamanio_fuente_tabla || 13;
+    const tamanioTotales = configImpresion?.tamanio_fuente_totales || 14;
     const letraSpaciado = configImpresion?.letter_spacing || -0.2;
     const letraSpaciadoDivider = configImpresion?.letter_spacing_divider || -0.8;
     const fontWeightTabla = configImpresion?.font_weight_tabla || 'normal';
@@ -374,9 +373,9 @@ const PaymentModal = ({
           body {
             margin: 0;
             padding: 5px;
-            font-family: 'Roboto Mono', monospace;
+            font-family: ${fuenteTicket};
             font-size: ${tamanioGeneral}px;
-            font-weight: normal;
+            font-weight: bold;
             background: white;
             color: #000;
             letter-spacing: ${letraSpaciado}px;
@@ -434,14 +433,31 @@ const PaymentModal = ({
           }
           
           .ticket-info p {
-            margin: 4px 0;
+            margin: 5px 0;
             font-size: ${tamanioInfo}px;
-            line-height: 1.5;
+            line-height: 1.6;
             font-weight: normal;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
           }
           
           .ticket-info p strong {
+            flex: 0 0 auto;
+            margin-right: 10px;
             font-weight: bold;
+          }
+          
+          .ticket-info p span {
+            flex: 1;
+            text-align: right;
+          }
+          
+          .ticket-info-center {
+            text-align: center;
+            font-weight: bold;
+            font-size: ${tamanioInfo + 1}px;
+            margin: 8px 0;
           }
           
           .ticket-table {
@@ -457,12 +473,12 @@ const PaymentModal = ({
             border-bottom: 1px dotted #000;
             padding: 4px 2px;
             font-weight: 900;
-            font-size: ${tamanioTabla + 1}px;
+            font-size: ${tamanioTabla}px;
             color: #000;
           }
           
           .ticket-table td {
-            padding: 4px 2px;
+            padding: 5px 2px;
             vertical-align: top;
             font-weight: normal;
             font-size: ${tamanioTabla}px;
@@ -476,24 +492,18 @@ const PaymentModal = ({
             padding-left: 0;
           }
           
-          /* Columna de descripción - letra más pequeña, máximo 2 líneas */
           .ticket-table th:nth-child(2) {
             text-align: center;
           }
           .ticket-table td:nth-child(2) {
-            max-width: 95px;
-            font-size: ${tamanioTabla - 1}px;
-            word-wrap: break-word;
-            overflow: hidden;
-            line-height: 1.2;
+            text-align: left;
+            padding-right: 8px;
           }
           
-          /* Columnas de precio y total */
           .ticket-table th:nth-child(3),
-          .ticket-table td:nth-child(3),
-          .ticket-table th:nth-child(4),
-          .ticket-table td:nth-child(4) {
-            white-space: nowrap;
+          .ticket-table td:nth-child(3) {
+            width: 55px;
+            text-align: right;
           }
           
           .ticket-table th:last-child,
@@ -506,21 +516,13 @@ const PaymentModal = ({
           .ticket-totals {
             margin: 12px 0;
             font-size: ${tamanioTotales}px;
-            font-weight: normal;
-          }
-          
-          .ticket-totals strong {
             font-weight: bold;
           }
           
           .total-row {
             display: flex;
             justify-content: space-between;
-            margin: 5px 0;
-          }
-          
-          .total-row span:first-child {
-            font-weight: bold;
+            margin: 3px 0;
           }
           
           .total-final {
@@ -532,22 +534,14 @@ const PaymentModal = ({
           }
           
           .ticket-payment {
-            margin: 12px 0;
+            margin: 8px 0;
             font-size: ${tamanioTotales}px;
-            font-weight: normal;
-          }
-          
-          .ticket-payment p {
-            margin: 4px 0;
-          }
-          
-          .ticket-payment strong {
             font-weight: bold;
           }
           
           .ticket-footer {
             text-align: center;
-            margin-top: 12px;
+            margin-top: 8px;
             font-size: ${tamanioTotales}px;
             font-weight: bold;
           }
@@ -576,8 +570,6 @@ const PaymentModal = ({
           <div class="ticket-info">
             <p><strong>CUENTA DE COBRO: ${data.numero}</strong></p>
             <p><strong>Fecha: ${new Date(data.fecha).toLocaleString('es-CO')}</strong></p>
-            <p>Cliente: <strong>${data.cliente}</strong></p>
-            <p>Atendido por: <strong>${data.vendedor}</strong></p>
           </div>
           
           <div class="ticket-divider">................................................</div>
@@ -615,8 +607,8 @@ const PaymentModal = ({
               <span>${data.items.reduce((sum, item) => sum + item.qty, 0)}</span>
             </div>
             <div class="total-row">
-              <span><strong>Subtotal:</strong></span>
-              <span><strong>${formatCurrency(data.subtotal)}</strong></span>
+              <span>Subtotal:</span>
+              <span>${formatCurrency(data.subtotal)}</span>
             </div>
             ${data.impuestos > 0 ? `
               <div class="total-row">
@@ -630,27 +622,38 @@ const PaymentModal = ({
                 <span>${formatCurrency(data.descuentos)}</span>
               </div>
             ` : ''}
-            <div class="total-row total-final">
-              <span><strong>TOTAL:</strong></span>
-              <span><strong>${formatCurrency(data.total)}</strong></span>
-            </div>
           </div>
           
-          <div class="ticket-divider">........................................</div>
+          <div class="ticket-divider">................................................</div>
           
-          <div class="ticket-payment">
-            <p>Método de Pago: <strong>${data.metodoPago}</strong></p>
-            ${data.dineroEntregado > 0 ? `
-              <p>Efectivo Recibido: <strong>${formatCurrency(data.dineroEntregado)}</strong></p>
-              <p>Cambio: <strong>${formatCurrency(data.devuelta)}</strong></p>
-            ` : ''}
+          <div class="total-row total-final" style="font-size: ${tamanioTotales + 2}px; margin: 8px 0;">
+            <span><strong>TOTAL:</strong></span>
+            <span><strong>${formatCurrency(data.total)}</strong></span>
+          </div>
+          
+          ${data.metodoPago ? `
+            <div class="ticket-divider">................................................</div>
+            <div class="ticket-payment">
+              <p><strong>Método de Pago:</strong> ${data.metodoPago}</p>
+              ${data.dineroEntregado > 0 ? `
+                <p><strong>Efectivo Recibido:</strong> ${formatCurrency(data.dineroEntregado)}</p>
+                <p><strong>Cambio:</strong> ${formatCurrency(data.devuelta)}</p>
+              ` : ''}
+            </div>
+          ` : ''}
+          
+          <div class="ticket-divider">................................................</div>
+          
+          <div class="ticket-info">
+            <p>Cliente:<span><strong>${data.cliente}</strong></span></p>
+            <p>Atendido por:<span><strong>${data.vendedor}</strong></span></p>
           </div>
           
           <div class="ticket-divider">........................................</div>
           
           <div class="ticket-footer">
             <p><strong>${mensajeGracias}</strong></p>
-            ${piePagina ? `<p style="margin-top:5px; font-size:10px;">${piePagina}</p>` : ''}
+            <p style="font-size: 7px; margin-top: 8px; color: #666;">Elaborado por Software Guerrero</p>
           </div>
         </div>
       </body>
