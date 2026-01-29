@@ -190,12 +190,14 @@ export default function TicketPreviewModal({
                     .ticket-business-info,
                     .ticket-divider,
                     .ticket-info,
-                    .ticket-table,
                     .ticket-totals,
                     .ticket-payment,
-                    .ticket-footer {
+                    .ticket-footer,
+                    .total-row {
                         -webkit-filter: contrast(3);
                         filter: contrast(3);
+                        text-shadow: 0 0 0.3px #000, 0 0 0.3px #000;
+                        -webkit-text-stroke: 0.3px #000;
                     }
                     
                     .ticket-container {
