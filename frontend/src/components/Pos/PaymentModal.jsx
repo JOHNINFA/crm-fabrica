@@ -384,11 +384,11 @@ const PaymentModal = ({
           }
           
           .ticket-logo {
-            max-width: 135px;
-            max-height: 115px;
+            max-width: 150px;
+            max-height: 130px;
             margin-bottom: 8px;
-            filter: grayscale(100%) contrast(1.2);
-            -webkit-filter: grayscale(100%) contrast(1.2);
+            filter: grayscale(100%) contrast(1);
+            -webkit-filter: grayscale(100%) contrast(1);
           }
           
           .ticket-business-name,

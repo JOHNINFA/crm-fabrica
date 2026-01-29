@@ -311,47 +311,64 @@ const [ticketData, setTicketData] = useState(null);
 
 ---
 
-## 🔄 EN PROGRESO: Mejorar oscuridad de encabezados de tabla en tickets (29 Enero 2026)
+## 🔄 EN PROGRESO: Mejorar oscuridad y tamaño de texto en tickets (29 Enero 2026)
 
 ### Problema identificado:
-- Los encabezados de la tabla (Cant, Producto, P.Unit, Total) se ven muy claros en la impresora térmica
-- El filtro `contrast(3)` no es suficiente para hacer el texto más oscuro
-- Necesitan destacar más del resto del contenido (como en la imagen de referencia)
+- Los encabezados de la tabla (Cant, Producto, P.Unit, Total) se veían muy claros en la impresora térmica
+- El filtro `contrast(3)` no era suficiente para hacer el texto más oscuro
+- Todo el texto del ticket necesitaba ser más oscuro y un poco más grande
 
-### Intentos realizados:
+### Solución implementada:
 
-**1. Aumentar tamaño de fuente (+2px, luego +4px):**
-- Resultado: El tamaño más grande no hace que se vea más oscuro
-
-**2. Agregar text-stroke y text-shadow:**
-- `text-stroke: 0.5px` - No se notó diferencia
-- `text-stroke: 1px` + `text-shadow` x3 - Se notó más oscuro
-- `text-stroke: 1.2px` + `text-shadow` x3 - Muy oscuro pero letras muy gruesas
-- `text-stroke: 0.5px` + `text-shadow: 0.5px` x2 - Balance entre oscuridad y grosor (probando)
-
-### Estilos actuales de los encabezados:
+**1. Encabezados de tabla (Cant, Producto, P.Unit, Total):**
 ```css
 .ticket-table th {
-  text-align: left;
-  border-bottom: none;
-  padding: 4px 2px 2px 2px;
   font-weight: 900;
-  font-size: ${tamanioTabla + 1}px;
-  color: #000;
-  text-shadow: 0 0 0.5px #000, 0 0 0.5px #000;
-  -webkit-text-stroke: 0.5px #000;
+  font-size: ${tamanioTabla + 2}px;
+  text-shadow: 0 0 0.3px #000, 0 0 0.3px #000;
+  -webkit-text-stroke: 0.3px #000;
 }
 ```
 
-### Objetivo:
-- Que los títulos (Cant, Producto, P.Unit, Total) se vean oscuros como en la imagen de referencia
-- Pero sin que las letras se vean demasiado gruesas/gordas
+**2. Resto del ticket (excepto contenido de tabla de productos):**
+```css
+.ticket-business-name,
+.ticket-business-info,
+.ticket-divider,
+.ticket-info,
+.ticket-totals,
+.ticket-payment,
+.ticket-footer,
+.total-row {
+  -webkit-filter: contrast(3);
+  filter: contrast(3);
+  text-shadow: 0 0 0.3px #000, 0 0 0.3px #000;
+  -webkit-text-stroke: 0.3px #000;
+  font-size: ${tamanioGeneral + 2}px;
+}
+```
+
+**3. Contenido de tabla de productos (td):**
+- Se mantiene con el tamaño y estilo original (más claro/delgado)
+- Esto crea contraste visual entre títulos/totales y los productos
+
+### Proceso de ajuste:
+- `text-stroke: 1.2px` → Muy grueso
+- `text-stroke: 0.5px` → Bien pero un poco grueso
+- `text-stroke: 0.3px` → Balance perfecto entre oscuridad y grosor ✅
+
+### Resultado:
+- ✅ Títulos de tabla oscuros y legibles
+- ✅ Todo el texto del ticket (excepto productos) más oscuro
+- ✅ Tamaño de fuente aumentado +2px para mejor legibilidad
+- ✅ Contenido de productos se mantiene más claro para crear contraste
+- ✅ Similar a la imagen de referencia del ticket de Cuenti
 
 **Archivos modificados:**
 - `frontend/src/components/Pos/PaymentModal.jsx`
 - `frontend/src/components/Print/TicketPreviewModal.jsx`
 
-**Estado:** Probando balance entre oscuridad y grosor de letras
+**Estado:** Probando resultado final
 
 ---
 
