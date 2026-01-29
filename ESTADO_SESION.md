@@ -1,4 +1,82 @@
-# Estado de la Sesión - 28 Enero 2026
+# Estado de la Sesión - 29 Enero 2026
+
+## ✅ COMPLETADO: Sistema de Login y Turnos Unificado (29 Enero 2026)
+
+### Cambios realizados:
+
+**1. Sincronización automática de login POS con sistema general:**
+- El POS ahora usa automáticamente el usuario del sistema general (AuthContext)
+- No es necesario hacer login separado en el POS
+- El cajero se sincroniza automáticamente entre equipos
+- Un solo login para todo el sistema
+
+**2. Modal automático para abrir turno:**
+- Cuando entras al POS sin turno activo, aparece modal pidiendo solo la **base inicial**
+- El modal aparece solo UNA VEZ por sesión (usa sessionStorage)
+- No pide usuario ni contraseña (ya estás logueado en el sistema)
+- El modal se cierra automáticamente después de 2 segundos si ya tienes turno
+
+**3. Validación de turno para ventas:**
+- NO puedes realizar ventas sin turno activo
+- Al intentar vender sin turno, muestra alerta: "Turno No Iniciado"
+- Esto asegura que todas las ventas estén asociadas a un turno
+
+**4. Indicador visual de estado en Topbar:**
+- Botón "Logout" cambia a **verde** cuando tienes turno activo
+- Fácil identificar visualmente si hay turno abierto
+- Color verde = Turno activo ✓
+
+**5. Módulo de Caja mejorado:**
+- Si NO hay turno activo, muestra mensaje: "No hay turno activo"
+- NO muestra tarjetas de ventas/totales sin turno activo
+- Evita confusión con datos incorrectos
+
+**6. Fix de fecha en arqueos de caja:**
+- Corregido problema de zona horaria en fechas de arqueos
+- Antes: Los arqueos se guardaban con fecha del día anterior (28/1 en lugar de 29/1)
+- Ahora: La fecha se envía con hora del mediodía (12:00:00) para evitar conversión UTC
+- Los arqueos ahora se guardan con la fecha correcta del día actual
+
+**Archivos modificados:**
+- `frontend/src/context/CajeroContext.jsx` - Sincronización con AuthContext
+- `frontend/src/services/cajeroService.js` - Método getTurnoActivo agregado
+- `frontend/src/components/Pos/LoginCajeroModal.jsx` - Modal simplificado
+- `frontend/src/components/Pos/Topbar.jsx` - Indicador visual y control de modal
+- `frontend/src/components/Pos/Cart.jsx` - Validación de turno para ventas
+- `frontend/src/pages/CajaScreen.jsx` - Validación de turno activo
+- `frontend/src/pages/PosScreen.jsx` - Integración de modal
+
+**Flujo completo:**
+1. Login en el sistema (una sola vez)
+2. Entras al POS → Modal pide base inicial
+3. Ingresas base → Turno abierto (botón verde)
+4. Puedes vender normalmente
+5. Vas a Caja → Ves el corte del turno actual
+6. Cierras turno → Haces corte de caja
+7. Vuelves al POS → Modal pide nueva base para nuevo turno
+
+---
+
+## ✅ COMPLETADO: Ajustes de Impresión de Tickets POS (29 Enero 2026)
+
+### Cambios realizados en `PaymentModal.jsx` (POS):
+
+**1. Unificación de estilos con Pedidos:**
+- Centrado del nombre del negocio
+- Centrado de la información del negocio (NIT, teléfono, ciudad, dirección)
+- Cambio de "CUENTA DE COBRO" a "FACTURA" para POS
+- Eliminado encabezado personalizado para mayor limpieza
+- Agregado `, monospace` a la fuente para asegurar fuente monoespaciada
+
+**Resultado:**
+- La impresión de POS ahora se ve pareja, sin letras muy gruesas y otras muy claras
+- Todos los estilos están unificados con Pedidos
+- La impresión es consistente entre ambos módulos
+
+**Archivos modificados:**
+- `frontend/src/components/Pos/PaymentModal.jsx`
+
+---
 
 ## 🔄 EN PROGRESO: Ajustes de Impresión de Tickets POS y Pedidos (28 Enero 2026)
 
@@ -213,7 +291,26 @@ Todos usan `configuracionImpresionService.getActiva()` del backend con campos:
 
 ## 📋 TAREAS PENDIENTES (Próximas sesiones)
 
-### 1. 🔄 Sincronización en tiempo real (WebSockets)
+### 1. 🔧 Fix de zona horaria en fechas de arqueos (Backend)
+
+**Descripción**: Los arqueos se guardan con fecha del día anterior debido a conversión UTC.
+
+**Problema actual:**
+- Frontend envía fecha en formato YYYY-MM-DD (ej: 2026-01-29)
+- Backend interpreta como UTC medianoche (2026-01-29T00:00:00Z)
+- Al convertir a hora local Colombia (UTC-5), queda como día anterior (2026-01-28T19:00:00)
+- En el historial aparece con fecha incorrecta
+
+**Solución requerida:**
+- Ajustar el backend para que interprete la fecha como hora local, no UTC
+- O modificar el modelo para usar DateField en lugar de DateTimeField
+- Archivo backend a modificar: modelo de ArqueoCaja
+
+**Prioridad**: MEDIA (no afecta funcionalidad, solo visualización)
+
+---
+
+### 2. 🔄 Sincronización en tiempo real (WebSockets)
 
 **Descripción**: Implementar actualización automática entre múltiples equipos sin necesidad de recargar.
 

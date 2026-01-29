@@ -535,6 +535,35 @@ export const cajeroService = {
         }
     },
 
+    // Obtener turno activo de un cajero
+    getTurnoActivo: async (cajeroId) => {
+        try {
+            // Intentar obtener desde API
+            try {
+                const response = await fetch(`${API_URL}/turnos/?cajero=${cajeroId}&estado=ACTIVO`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.length > 0) {
+                        return data[0]; // Retornar el primer turno activo
+                    }
+                }
+            } catch (apiError) {
+                console.warn('API no disponible para obtener turno activo:', apiError);
+            }
+
+            // Fallback: buscar en localStorage
+            const turnos = JSON.parse(localStorage.getItem('turnos') || '[]');
+            const turnoActivo = turnos.find(t => 
+                t.cajero === cajeroId && t.estado === 'ACTIVO'
+            );
+
+            return turnoActivo || null;
+        } catch (error) {
+            console.error('Error obteniendo turno activo:', error);
+            return null;
+        }
+    },
+
     // Función para autenticación solo local (sin API) - Para Remisiones
     authenticateLocal: async (nombre, password, sucursalId = null) => {
         try {

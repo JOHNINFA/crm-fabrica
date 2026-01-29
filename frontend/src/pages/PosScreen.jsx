@@ -28,7 +28,7 @@ import usePageTitle from '../hooks/usePageTitle';
 import usePreloadImages from '../hooks/usePreloadImages';
 import "./PosScreen.css";
 
-// 🆕 Importar servicio de sincron ización offline
+// 🆕 Importar servicio de sincronización offline
 import { offlineSyncService } from "../services/offlineSyncService";
 
 // Componente que usa ProductContext (debe estar dentro de ProductProvider)
@@ -43,13 +43,8 @@ function PosMainContent() {
   // 🆕 Precargar imágenes de productos
   usePreloadImages(products);
 
-
-
-
-
-
-
   const { cajeroLogueado, isAuthenticated } = useCajero();
+
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [showCategoryManager, setShowCategoryManager] = useState(false);

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { cajeroService } from '../services/cajeroService';
 import { sucursalService } from '../services/sucursalService';
+import { useAuth } from './AuthContext';
 
 const CajeroContext = createContext();
 
@@ -13,6 +14,9 @@ export const useCajero = () => {
 };
 
 export const CajeroProvider = ({ children }) => {
+    // 🆕 Obtener usuario del sistema general
+    const { usuario: usuarioSistema, isAuthenticated: isAuthenticatedSistema } = useAuth();
+
     // Estados principales
     const [cajeroLogueado, setCajeroLogueado] = useState(null);
     const [sucursalActiva, setSucursalActiva] = useState(null);
@@ -20,57 +24,82 @@ export const CajeroProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // Cargar datos persistidos al iniciar
+    // 🆕 Sincronizar con el usuario del sistema general
     useEffect(() => {
-        const cargarDatosPersistidos = async () => {
-            try {
-                // Cargar cajero logueado
-                const cajeroGuardado = localStorage.getItem('cajero_logueado');
-                if (cajeroGuardado) {
-                    const cajero = JSON.parse(cajeroGuardado);
-                    setCajeroLogueado(cajero);
+        const sincronizarConSistema = async () => {
+            // Si hay usuario del sistema autenticado
+            if (isAuthenticatedSistema && usuarioSistema) {
+                try {
+                    // Verificar si el usuario del sistema es un cajero
+                    const cajeroData = {
+                        id: usuarioSistema.id,
+                        nombre: usuarioSistema.nombre,
+                        codigo: usuarioSistema.codigo,
+                        rol: usuarioSistema.rol,
+                        sucursal_id: usuarioSistema.sucursal_id || 1
+                    };
+
+                    setCajeroLogueado(cajeroData);
                     setIsAuthenticated(true);
 
-                    // Cargar sucursal del cajero
-                    const sucursal = await sucursalService.getById(cajero.sucursal_id);
+                    // Cargar sucursal
+                    const sucursal = await sucursalService.getById(cajeroData.sucursal_id);
                     if (sucursal) {
                         setSucursalActiva(sucursal);
                     }
-                }
 
-                // Cargar turno activo
-                const turnoGuardado = localStorage.getItem('turno_activo');
-                if (turnoGuardado) {
-                    const turno = JSON.parse(turnoGuardado);
-                    setTurnoActivo(turno);
-                }
-
-                // Si no hay cajero, intentar recuperar sucursal activa guardada o cargar defecto
-                if (!cajeroGuardado) {
-                    const sucursalGuardada = localStorage.getItem('sucursal_activa');
-                    if (sucursalGuardada) {
-                        try {
-                            const sucursal = JSON.parse(sucursalGuardada);
-                            setSucursalActiva(sucursal);
-                        } catch (e) {
-                            console.error('Error parseando sucursal guardada', e);
-                            const sucursalDefault = await sucursalService.getDefault();
-                            if (sucursalDefault) setSucursalActiva(sucursalDefault);
-                        }
-                    } else {
-                        const sucursalDefault = await sucursalService.getDefault();
-                        if (sucursalDefault) {
-                            setSucursalActiva(sucursalDefault);
-                        }
+                    // Verificar si hay turno activo para este cajero
+                    const turnoActivo = await cajeroService.getTurnoActivo(cajeroData.id);
+                    if (turnoActivo && !turnoActivo.error) {
+                        setTurnoActivo(turnoActivo);
+                        localStorage.setItem('turno_activo', JSON.stringify(turnoActivo));
                     }
+                } catch (error) {
+                    console.error('Error sincronizando con sistema:', error);
                 }
-            } catch (error) {
-                console.error('Error cargando datos persistidos:', error);
+            } else {
+                // Si no hay usuario del sistema, limpiar estados
+                setCajeroLogueado(null);
+                setIsAuthenticated(false);
+                setTurnoActivo(null);
+                localStorage.removeItem('turno_activo');
             }
         };
 
-        cargarDatosPersistidos();
-    }, []);
+        sincronizarConSistema();
+    }, [isAuthenticatedSistema, usuarioSistema]);
+
+    // 🆕 Función para abrir turno (sin login)
+    const abrirTurno = async (saldoInicial = 0) => {
+        if (!cajeroLogueado) {
+            return { success: false, message: 'No hay cajero logueado' };
+        }
+
+        setLoading(true);
+        try {
+            const turno = await cajeroService.iniciarTurno(
+                cajeroLogueado.id,
+                cajeroLogueado.sucursal_id,
+                saldoInicial
+            );
+
+            if (turno && !turno.error) {
+                setTurnoActivo(turno);
+                localStorage.setItem('turno_activo', JSON.stringify(turno));
+                localStorage.setItem('saldo_inicial_turno', saldoInicial.toString());
+                localStorage.setItem('ultimo_login', new Date().toISOString());
+
+                return { success: true, message: 'Turno iniciado exitosamente' };
+            } else {
+                return { success: false, message: 'Error al iniciar turno' };
+            }
+        } catch (error) {
+            console.error('Error abriendo turno:', error);
+            return { success: false, message: 'Error al iniciar turno' };
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Función de login
     const login = async (nombre, password, saldoInicial = 0) => {
@@ -260,6 +289,7 @@ export const CajeroProvider = ({ children }) => {
         // Funciones
         login,
         logout,
+        abrirTurno,
         cambiarSucursal,
         getCajerosDisponibles,
         hayTurnoActivo,

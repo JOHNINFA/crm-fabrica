@@ -18,7 +18,7 @@ export default function Cart({
   client = 'CONSUMIDOR FINAL',
   clearCart = () => { }
 }) {
-  const { cajeroLogueado, isAuthenticated, openLoginModal } = useCajero();
+  const { cajeroLogueado, isAuthenticated, turnoActivo, openLoginModal } = useCajero();
   const [nota, setNota] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
@@ -58,7 +58,7 @@ export default function Cart({
     cartBodyRef.current.scrollTop = scrollTop - walk;
   };
 
-  // 🆕 Manejar click en checkout - validar cajero logueado
+  // 🆕 Manejar click en checkout - validar cajero logueado Y turno activo
   const handleCheckout = () => {
     if (!isAuthenticated || !cajeroLogueado) {
       Swal.fire({
@@ -83,7 +83,25 @@ export default function Cart({
       return;
     }
 
-    // Si está logueado, abrir modal de pago
+    // 🆕 Validar que haya turno activo
+    if (!turnoActivo) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Turno No Iniciado',
+        html: `
+          <p>Para realizar una venta debes <strong>abrir un turno</strong> primero.</p>
+          <p style="font-size: 14px; color: #6c757d; margin-top: 10px;">
+            <i class="bi bi-info-circle"></i> 
+            Haz clic en el botón <strong>"Login"</strong> en la barra superior para abrir turno.
+          </p>
+        `,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#f39c12'
+      });
+      return;
+    }
+
+    // Si está logueado y tiene turno, abrir modal de pago
     setShowPaymentModal(true);
   };
 

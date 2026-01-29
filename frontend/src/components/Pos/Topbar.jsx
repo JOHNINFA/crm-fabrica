@@ -7,13 +7,34 @@ import LoginCajeroModal from "./LoginCajeroModal";
 import "./Topbar.css";
 
 export default function Topbar({ onOpenCategoryManager }) {
-  const { getTopbarInfo, isAuthenticated, cajeroLogueado } = useCajero();
+  const { getTopbarInfo, isAuthenticated, cajeroLogueado, turnoActivo } = useCajero();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showReportMenu, setShowReportMenu] = useState(false);
   const reportMenuRef = useRef(null);
   const navigate = useNavigate();
 
   const topbarInfo = getTopbarInfo();
+
+  // 🆕 Mostrar modal automáticamente solo la primera vez si está logueado pero sin turno
+  const [modalMostrado, setModalMostrado] = useState(() => {
+    // Verificar si ya se mostró el modal en esta sesión
+    return sessionStorage.getItem('modalTurnoMostrado') === 'true';
+  });
+
+  useEffect(() => {
+    if (isAuthenticated && cajeroLogueado && !turnoActivo && !modalMostrado) {
+      setShowLoginModal(true);
+      setModalMostrado(true);
+      sessionStorage.setItem('modalTurnoMostrado', 'true');
+    }
+  }, [isAuthenticated, cajeroLogueado, turnoActivo, modalMostrado]);
+
+  // Limpiar flag cuando se abre turno
+  useEffect(() => {
+    if (turnoActivo) {
+      sessionStorage.removeItem('modalTurnoMostrado');
+    }
+  }, [turnoActivo]);
 
   const handleLoginClick = () => {
     setShowLoginModal(true);
@@ -122,7 +143,11 @@ export default function Topbar({ onOpenCategoryManager }) {
             size="sm"
             onClick={handleLoginClick}
             className="d-flex align-items-center"
-            style={{ fontSize: 12 }}
+            style={{
+              fontSize: 12,
+              color: isAuthenticated && turnoActivo ? '#28a745' : undefined,
+              borderColor: isAuthenticated && turnoActivo ? '#28a745' : undefined
+            }}
           >
             <span className="material-icons me-1" style={{ fontSize: 16 }}>
               {isAuthenticated ? 'logout' : 'login'}
@@ -150,10 +175,11 @@ export default function Topbar({ onOpenCategoryManager }) {
         </div>
       </nav>
 
-      {/* Modal de Login */}
+      {/* Modal de Login/Abrir Turno */}
       <LoginCajeroModal
         show={showLoginModal}
         onHide={handleCloseModal}
+        modoAbrirTurno={isAuthenticated && cajeroLogueado && !turnoActivo}
       />
     </>
   );

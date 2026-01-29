@@ -15,6 +15,7 @@ const CajaScreenContent = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva } = useCajero();
+
     const [cajero, setCajero] = useState('jose');
     const [banco, setBanco] = useState('Todos');
     const [fechaActual] = useState(new Date().toLocaleString('es-ES'));
@@ -1616,8 +1617,8 @@ const CajaScreenContent = () => {
                     </Card.Body>
                 </Card>
 
-                {/* Resumen del día */}
-                {resumenVentas && (
+                {/* Resumen del día - Solo mostrar si hay turno activo */}
+                {turnoActivo && resumenVentas && (
                     <Card className="mb-4">
                         <Card.Body>
                             {/* Indicador de turno */}
@@ -1659,6 +1660,14 @@ const CajaScreenContent = () => {
                             </Row>
                         </Card.Body>
                     </Card>
+                )}
+
+                {/* Mensaje cuando no hay turno activo */}
+                {!turnoActivo && (
+                    <Alert variant="warning" className="mb-4">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        <strong>No hay turno activo.</strong> Para realizar un arqueo de caja, primero debes abrir un turno desde el POS.
+                    </Alert>
                 )}
 
                 {/* Tabs principales */}

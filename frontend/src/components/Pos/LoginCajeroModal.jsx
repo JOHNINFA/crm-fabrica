@@ -4,16 +4,18 @@ import Swal from 'sweetalert2';
 import { useCajero } from '../../context/CajeroContext';
 import './LoginCajeroModal.css';
 
-const LoginCajeroModal = ({ show, onHide }) => {
+const LoginCajeroModal = ({ show, onHide, modoAbrirTurno = false }) => {
     const {
         login,
         logout,
+        abrirTurno,
         getCajerosDisponibles,
         isAuthenticated,
         cajeroLogueado,
         sucursalActiva,
         cambiarSucursal,
-        loading
+        loading,
+        turnoActivo
     } = useCajero();
 
     // Estados del formulario
@@ -108,6 +110,41 @@ const LoginCajeroModal = ({ show, onHide }) => {
 
     // Manejar login... (resto igual)
 
+    // 🆕 Manejar apertura de turno (sin login)
+    const handleAbrirTurno = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        if (!saldoInicialCaja) {
+            setError('Debe ingresar el saldo inicial de caja');
+            return;
+        }
+
+        const saldoNumerico = parseFloat(saldoInicialCaja);
+        if (isNaN(saldoNumerico) || saldoNumerico < 0) {
+            setError('El saldo inicial debe ser un número válido mayor o igual a 0');
+            return;
+        }
+
+        try {
+            const resultado = await abrirTurno(saldoNumerico);
+
+            if (resultado.success) {
+                setSuccess('Turno iniciado exitosamente');
+                setTimeout(() => {
+                    onHide();
+                    window.location.reload(); // Recargar para actualizar el estado
+                }, 1000);
+            } else {
+                setError(resultado.message || 'Error al iniciar turno');
+            }
+        } catch (error) {
+            console.error('Error abriendo turno:', error);
+            setError('Error al iniciar turno');
+        }
+    };
+
     // Manejar login
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -198,8 +235,83 @@ const LoginCajeroModal = ({ show, onHide }) => {
         }
     };
 
-    // Si ya está autenticado, mostrar opción de logout
-    if (isAuthenticated && cajeroLogueado) {
+    // 🆕 Si está autenticado pero no tiene turno activo, mostrar modal para abrir turno
+    if (isAuthenticated && cajeroLogueado && !turnoActivo && modoAbrirTurno) {
+        return (
+            <Modal show={show} onHide={onHide} centered size="md" backdrop="static" className="login-cajero-modal">
+                <Modal.Header closeButton>
+                    <Modal.Title>
+                        <span className="material-icons me-2" style={{ verticalAlign: 'middle', fontSize: '1.2rem' }}>
+                            schedule
+                        </span>
+                        Abrir Turno
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div className="cajero-logueado-info mb-3">
+                        <div className="mb-2">
+                            <span className="material-icons">account_circle</span>
+                        </div>
+                        <h5>{cajeroLogueado.nombre}</h5>
+                        <p className="text-muted mb-0">{sucursalActiva?.nombre}</p>
+                    </div>
+
+                    {error && <Alert variant="danger">{error}</Alert>}
+                    {success && <Alert variant="success">{success}</Alert>}
+
+                    <Form onSubmit={handleAbrirTurno}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>
+                                <span className="material-icons me-2" style={{ fontSize: 18, verticalAlign: 'middle' }}>
+                                    account_balance_wallet
+                                </span>
+                                Saldo Inicial de Caja
+                            </Form.Label>
+                            <Form.Control
+                                type="text"
+                                value={saldoInicialCaja ? `$ ${parseFloat(saldoInicialCaja.replace(/[^0-9]/g, '')).toLocaleString('es-CO')}` : ''}
+                                onChange={(e) => {
+                                    const numeros = e.target.value.replace(/[^0-9]/g, '');
+                                    setSaldoInicialCaja(numeros);
+                                }}
+                                placeholder="Ej: $ 50.000"
+                                disabled={loading}
+                                autoFocus
+                            />
+                            <Form.Text className="text-muted">
+                                Ingrese el dinero en efectivo con el que inicia el turno
+                            </Form.Text>
+                        </Form.Group>
+
+                        <div className="d-grid gap-2">
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                disabled={loading || !saldoInicialCaja}
+                            >
+                                {loading ? (
+                                    <>
+                                        <Spinner size="sm" className="me-2" />
+                                        Iniciando turno...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-icons me-2" style={{ fontSize: 18 }}>
+                                            play_arrow
+                                        </span>
+                                        Iniciar Turno
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </Form>
+                </Modal.Body>
+            </Modal>
+        );
+    }
+
+    // Si ya está autenticado y tiene turno, mostrar opción de logout
+    if (isAuthenticated && cajeroLogueado && turnoActivo) {
         return (
             <Modal show={show} onHide={onHide} centered size="md" backdrop="static" className="login-cajero-modal">
                 <Modal.Header closeButton>

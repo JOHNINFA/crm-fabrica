@@ -375,7 +375,7 @@ const PaymentModal = ({
             padding: 5px;
             font-family: ${fuenteTicket}, monospace;
             font-size: ${tamanioGeneral}px;
-            font-weight: bold;
+            font-weight: normal;
             background: white;
             color: #000;
             letter-spacing: ${letraSpaciado}px;
