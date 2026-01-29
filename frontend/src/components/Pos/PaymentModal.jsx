@@ -375,7 +375,7 @@ const PaymentModal = ({
             padding: 5px;
             font-family: ${fuenteTicket}, monospace;
             font-size: ${tamanioGeneral}px;
-            font-weight: normal;
+            font-weight: bold;
             background: white;
             color: #000;
             letter-spacing: ${letraSpaciado}px;
@@ -420,7 +420,7 @@ const PaymentModal = ({
           .ticket-business-info {
             font-size: 12px;
             margin-bottom: 5px;
-            font-weight: 900;
+            font-weight: bold;
             color: #000;
             text-align: center;
           }
@@ -474,7 +474,7 @@ const PaymentModal = ({
             text-align: left;
             border-bottom: 1px dotted #000;
             padding: 4px 2px;
-            font-weight: 900;
+            font-weight: bold;
             font-size: ${tamanioTabla}px;
             color: #000;
           }
