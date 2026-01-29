@@ -15,27 +15,6 @@ export default function Topbar({ onOpenCategoryManager }) {
 
   const topbarInfo = getTopbarInfo();
 
-  // 🆕 Mostrar modal automáticamente solo la primera vez si está logueado pero sin turno
-  const [modalMostrado, setModalMostrado] = useState(() => {
-    // Verificar si ya se mostró el modal en esta sesión
-    return sessionStorage.getItem('modalTurnoMostrado') === 'true';
-  });
-
-  useEffect(() => {
-    if (isAuthenticated && cajeroLogueado && !turnoActivo && !modalMostrado) {
-      setShowLoginModal(true);
-      setModalMostrado(true);
-      sessionStorage.setItem('modalTurnoMostrado', 'true');
-    }
-  }, [isAuthenticated, cajeroLogueado, turnoActivo, modalMostrado]);
-
-  // Limpiar flag cuando se abre turno
-  useEffect(() => {
-    if (turnoActivo) {
-      sessionStorage.removeItem('modalTurnoMostrado');
-    }
-  }, [turnoActivo]);
-
   const handleLoginClick = () => {
     setShowLoginModal(true);
   };
