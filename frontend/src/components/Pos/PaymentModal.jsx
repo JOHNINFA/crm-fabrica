@@ -502,7 +502,7 @@ const PaymentModal = ({
             padding: 5px 2px;
             vertical-align: top;
             font-weight: bold;
-            font-size: ${tamanioTabla + 1}px;
+            font-size: ${tamanioTabla}px;
             line-height: 1.4;
           }
           
