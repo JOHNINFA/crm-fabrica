@@ -373,7 +373,7 @@ const PaymentModal = ({
           body {
             margin: 0;
             padding: 5px;
-            font-family: ${fuenteTicket};
+            font-family: ${fuenteTicket}, monospace;
             font-size: ${tamanioGeneral}px;
             font-weight: bold;
             background: white;
@@ -414,6 +414,7 @@ const PaymentModal = ({
             font-weight: bold;
             margin: 8px 0;
             text-transform: uppercase;
+            text-align: center;
           }
           
           .ticket-business-info {
@@ -421,6 +422,7 @@ const PaymentModal = ({
             margin-bottom: 5px;
             font-weight: 900;
             color: #000;
+            text-align: center;
           }
 
           .ticket-divider {
@@ -562,13 +564,12 @@ const PaymentModal = ({
             ${telefonoNegocio ? `<div class="ticket-business-info">Tel: ${telefonoNegocio}</div>` : ''}
             ${paisNegocio || ciudadNegocio ? `<div class="ticket-business-info">${paisNegocio}${paisNegocio && ciudadNegocio ? '- ' : ''}${ciudadNegocio}</div>` : ''}
             ${direccionNegocio ? `<div class="ticket-business-info">${direccionNegocio}</div>` : ''}
-            ${encabezado ? `<div class="ticket-business-info" style="margin-top:5px; font-style:italic;">${encabezado}</div>` : ''}
           </div>
           
           <div class="ticket-divider">................................................</div>
           
           <div class="ticket-info">
-            <p><strong>CUENTA DE COBRO: ${data.numero}</strong></p>
+            <p><strong>FACTURA: ${data.numero}</strong></p>
             <p><strong>Fecha: ${new Date(data.fecha).toLocaleString('es-CO')}</strong></p>
           </div>
           

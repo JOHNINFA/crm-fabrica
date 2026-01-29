@@ -1,6 +1,54 @@
 # Estado de la Sesión - 28 Enero 2026
 
-## ✅ COMPLETADO: Mejoras de Impresión de Tickets POS y Pedidos (28 Enero 2026)
+## 🔄 EN PROGRESO: Ajustes de Impresión de Tickets POS y Pedidos (28 Enero 2026)
+
+### Cambios realizados hoy:
+
+**1. Aumento de tamaño de fuente para Epson TM-T20II:**
+- Tamaño general: de 9px a **14px**
+- Nombre del negocio: de 11px a **18px**
+- Info (cliente, fecha, etc.): de 8px a **13px**
+- Tabla de productos: de 8px a **13px**
+- Totales: de 9px a **14px**
+
+**2. Cambio de fuente:**
+- De `Roboto Mono` a `Courier New, Courier, monospace`
+- Font-weight del body cambiado a `bold` para mejor contraste
+- Fuente forzada directamente (no depende de configuración del backend)
+
+**3. Unificación de estilos entre POS y Pedidos:**
+- Ambos archivos ahora tienen los mismos estilos CSS
+- Mismo formato de información del cliente (con flex y alineación)
+- Mismo espaciado entre elementos
+- Misma estructura de HTML
+
+**Archivos modificados:**
+- `frontend/src/components/Pos/PaymentModal.jsx`
+- `frontend/src/components/Print/TicketPreviewModal.jsx`
+
+### ⚠️ PENDIENTE PARA MAÑANA: Continuar ajustes de tickets
+
+**Estado actual:**
+- ✅ **Pedidos**: La impresión está perfecta, no requiere cambios
+- ❌ **POS**: Requiere ajustes para que se vea igual que Pedidos
+
+**Problemas detectados en POS:**
+- Se encontraron errores en la impresión (detalles pendientes de documentar)
+- El formato no se ve igual que el de Pedidos
+
+**Tareas para la próxima sesión:**
+- Usar el ticket de **Pedidos como referencia** (ese está bien)
+- Ajustar el ticket de **POS** para que se vea idéntico al de Pedidos
+- Identificar y corregir los errores específicos encontrados
+- Probar impresión en Epson TM-T20II hasta que quede igual
+
+**Archivos a revisar:**
+- ✅ `frontend/src/components/Print/TicketPreviewModal.jsx` - NO TOCAR (está perfecto)
+- ❌ `frontend/src/components/Pos/PaymentModal.jsx` - AJUSTAR mañana
+
+---
+
+## ✅ COMPLETADO: Mejoras de Impresión de Tickets POS y Pedidos (28 Enero 2026 - Sesión anterior)
 
 ### Cambios realizados en `PaymentModal.jsx` (POS):
 
@@ -165,7 +213,25 @@ Todos usan `configuracionImpresionService.getActiva()` del backend con campos:
 
 ## 📋 TAREAS PENDIENTES (Próximas sesiones)
 
-### 1. 📤 Carga masiva de clientes por Excel
+### 1. 🔄 Sincronización en tiempo real (WebSockets)
+
+**Descripción**: Implementar actualización automática entre múltiples equipos sin necesidad de recargar.
+
+**Funcionalidades deseadas**:
+- Notificar cuando otro usuario hace una venta
+- Actualizar lista de pedidos en tiempo real
+- Actualizar inventario automáticamente
+- Opcional: Restringir un usuario a una sola sesión activa
+
+**Tecnología sugerida**:
+- Django Channels (WebSockets)
+- Redis para mensajería
+
+**Prioridad**: MEDIA (revisar más adelante)
+
+---
+
+### 2. 📤 Carga masiva de clientes por Excel
 
 **Descripción**: Crear opción para importar lista de clientes desde archivo Excel.
 
@@ -180,7 +246,7 @@ Todos usan `configuracionImpresionService.getActiva()` del backend con campos:
 
 ---
 
-### 2. 💾 Sistema de Backup automático
+### 3. 💾 Sistema de Backup automático
 
 **Descripción**: Crear opción para realizar backup de toda la información.
 
@@ -198,7 +264,7 @@ Todos usan `configuracionImpresionService.getActiva()` del backend con campos:
 
 ---
 
-### 3. 🔧 Optimización de Base de Datos
+### 4. 🔧 Optimización de Base de Datos
 
 **Descripción**: Revisar y optimizar tablas para evitar fallos en consultas.
 
