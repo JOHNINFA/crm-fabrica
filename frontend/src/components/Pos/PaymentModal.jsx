@@ -482,7 +482,7 @@ const PaymentModal = ({
           .ticket-table td {
             padding: 5px 2px;
             vertical-align: top;
-            font-weight: normal;
+            font-weight: bold;
             font-size: ${tamanioTabla}px;
             line-height: 1.4;
           }
