@@ -263,8 +263,8 @@ export default function TicketPreviewModal({
                     
                     .ticket-table th {
                         text-align: left;
-                        border-bottom: 1px dotted #000;
-                        padding: 4px 2px;
+                        border-bottom: none;
+                        padding: 4px 2px 2px 2px;
                         font-weight: 900;
                         font-size: ${tamanioTabla}px;
                         color: #000;
@@ -373,6 +373,9 @@ export default function TicketPreviewModal({
                                 <th>Producto</th>
                                 <th>P.Unit</th>
                                 <th>Total</th>
+                            </tr>
+                            <tr>
+                                <td colspan="4" style="padding: 0; font-size: 10px; font-weight: normal; text-align: center; letter-spacing: -0.8px; line-height: 1;">................................................</td>
                             </tr>
                         </thead>
                         <tbody>
