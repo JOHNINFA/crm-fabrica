@@ -176,8 +176,19 @@ export default function TicketPreviewModal({
                         letter-spacing: ${letraSpaciado}px;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
-                        -webkit-filter: contrast(1.5);
-                        filter: contrast(1.5);
+                    }
+                    
+                    .ticket-logo {
+                        max-width: 135px;
+                        max-height: 115px;
+                        margin-bottom: 8px;
+                        filter: grayscale(100%) contrast(1.2);
+                        -webkit-filter: grayscale(100%) contrast(1.2);
+                    }
+                    
+                    .ticket-container > *:not(.ticket-header) {
+                        -webkit-filter: contrast(2);
+                        filter: contrast(2);
                     }
                     
                     .ticket-container {
@@ -194,13 +205,7 @@ export default function TicketPreviewModal({
                         margin-bottom: 15px;
                     }
                     
-                    .ticket-logo {
-                        max-width: 135px;
-                        max-height: 115px;
-                        margin-bottom: 8px;
-                        filter: grayscale(100%);
-                        -webkit-filter: grayscale(100%);
-                    }
+
 
                     .ticket-business-name {
                         font-size: ${tamanioNombreNegocio}px;
