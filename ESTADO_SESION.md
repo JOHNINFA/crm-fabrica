@@ -316,7 +316,7 @@ const [ticketData, setTicketData] = useState(null);
 ### Problema identificado:
 - Los encabezados de la tabla (Cant, Producto, P.Unit, Total) se ven muy claros en la impresora térmica
 - El filtro `contrast(3)` no es suficiente para hacer el texto más oscuro
-- Necesitan destacar más del resto del contenido
+- Necesitan destacar más del resto del contenido (como en la imagen de referencia)
 
 ### Intentos realizados:
 
@@ -324,8 +324,10 @@ const [ticketData, setTicketData] = useState(null);
 - Resultado: El tamaño más grande no hace que se vea más oscuro
 
 **2. Agregar text-stroke y text-shadow:**
-- Primer intento: `text-stroke: 0.5px` - No se notó diferencia
-- Segundo intento: `text-stroke: 1px` + `text-shadow: 0 0 1px #000` x3 - Probando...
+- `text-stroke: 0.5px` - No se notó diferencia
+- `text-stroke: 1px` + `text-shadow` x3 - Se notó más oscuro
+- `text-stroke: 1.2px` + `text-shadow` x3 - Muy oscuro pero letras muy gruesas
+- `text-stroke: 0.5px` + `text-shadow: 0.5px` x2 - Balance entre oscuridad y grosor (probando)
 
 ### Estilos actuales de los encabezados:
 ```css
@@ -334,18 +336,22 @@ const [ticketData, setTicketData] = useState(null);
   border-bottom: none;
   padding: 4px 2px 2px 2px;
   font-weight: 900;
-  font-size: ${tamanioTabla + 4}px;
+  font-size: ${tamanioTabla + 1}px;
   color: #000;
-  text-shadow: 0 0 1px #000, 0 0 1px #000, 0 0 1px #000;
-  -webkit-text-stroke: 1px #000;
+  text-shadow: 0 0 0.5px #000, 0 0 0.5px #000;
+  -webkit-text-stroke: 0.5px #000;
 }
 ```
+
+### Objetivo:
+- Que los títulos (Cant, Producto, P.Unit, Total) se vean oscuros como en la imagen de referencia
+- Pero sin que las letras se vean demasiado gruesas/gordas
 
 **Archivos modificados:**
 - `frontend/src/components/Pos/PaymentModal.jsx`
 - `frontend/src/components/Print/TicketPreviewModal.jsx`
 
-**Estado:** Probando si el text-stroke de 1px hace diferencia visible
+**Estado:** Probando balance entre oscuridad y grosor de letras
 
 ---
 

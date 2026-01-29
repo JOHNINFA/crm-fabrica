@@ -282,8 +282,8 @@ export default function TicketPreviewModal({
                         font-weight: 900;
                         font-size: ${tamanioTabla + 1}px;
                         color: #000;
-                        text-shadow: 0 0 0.5px #000, 0 0 0.5px #000;
-                        -webkit-text-stroke: 0.5px #000;
+                        text-shadow: 0 0 0.3px #000, 0 0 0.3px #000;
+                        -webkit-text-stroke: 0.3px #000;
                     }
                     
                     .ticket-table td {
