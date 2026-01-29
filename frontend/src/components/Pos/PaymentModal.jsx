@@ -584,7 +584,7 @@ const PaymentModal = ({
                 <th>Total</th>
               </tr>
               <tr>
-                <td colspan="4" style="padding: 0; font-size: 10px; font-weight: normal; text-align: center; letter-spacing: -0.8px; line-height: 1;">................................................................</td>
+                <td colspan="4" style="padding: 0; font-size: 10px; font-weight: normal; text-align: center; letter-spacing: -0.8px; line-height: 1; overflow: hidden;">................................................</td>
               </tr>
             </thead>
             <tbody>
