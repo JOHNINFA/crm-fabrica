@@ -489,8 +489,10 @@ const PaymentModal = ({
             border-bottom: none;
             padding: 4px 2px 2px 2px;
             font-weight: 900;
-            font-size: ${tamanioTabla + 2}px;
+            font-size: ${tamanioTabla + 4}px;
             color: #000;
+            text-shadow: 0 0 0 #000, 0 0 0 #000;
+            -webkit-text-stroke: 0.5px #000;
           }
           
           .ticket-table td {
