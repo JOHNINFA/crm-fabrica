@@ -280,7 +280,7 @@ export default function TicketPreviewModal({
                         border-bottom: none;
                         padding: 4px 2px 2px 2px;
                         font-weight: 900;
-                        font-size: ${tamanioTabla + 1}px;
+                        font-size: ${tamanioTabla + 2}px;
                         color: #000;
                         text-shadow: 0 0 0.3px #000, 0 0 0.3px #000;
                         -webkit-text-stroke: 0.3px #000;
