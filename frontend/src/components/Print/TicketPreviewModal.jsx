@@ -198,6 +198,7 @@ export default function TicketPreviewModal({
                         filter: contrast(3);
                         text-shadow: 0 0 0.3px #000, 0 0 0.3px #000;
                         -webkit-text-stroke: 0.3px #000;
+                        font-size: ${tamanioGeneral + 2}px;
                     }
                     
                     .ticket-container {
