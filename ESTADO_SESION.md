@@ -311,16 +311,28 @@ const [ticketData, setTicketData] = useState(null);
 
 ---
 
-## 🔄 EN PROGRESO: Mejorar oscuridad y tamaño de texto en tickets (29 Enero 2026)
+## ✅ COMPLETADO: Mejorar oscuridad y tamaño de texto en tickets (29 Enero 2026)
 
 ### Problema identificado:
 - Los encabezados de la tabla (Cant, Producto, P.Unit, Total) se veían muy claros en la impresora térmica
 - El filtro `contrast(3)` no era suficiente para hacer el texto más oscuro
 - Todo el texto del ticket necesitaba ser más oscuro y un poco más grande
+- El logo necesitaba ser un poco más grande
 
 ### Solución implementada:
 
-**1. Encabezados de tabla (Cant, Producto, P.Unit, Total):**
+**1. Logo del negocio:**
+```css
+.ticket-logo {
+  max-width: 150px;
+  max-height: 130px;
+  filter: grayscale(100%) contrast(1);
+}
+```
+- Tamaño aumentado de 135x115 a 150x130
+- Contraste reducido de 1.2 a 1 (más natural)
+
+**2. Encabezados de tabla (Cant, Producto, P.Unit, Total):**
 ```css
 .ticket-table th {
   font-weight: 900;
@@ -330,7 +342,7 @@ const [ticketData, setTicketData] = useState(null);
 }
 ```
 
-**2. Resto del ticket (excepto contenido de tabla de productos):**
+**3. Resto del ticket (excepto contenido de tabla de productos):**
 ```css
 .ticket-business-name,
 .ticket-business-info,
@@ -348,16 +360,17 @@ const [ticketData, setTicketData] = useState(null);
 }
 ```
 
-**3. Contenido de tabla de productos (td):**
+**4. Contenido de tabla de productos (td):**
 - Se mantiene con el tamaño y estilo original (más claro/delgado)
 - Esto crea contraste visual entre títulos/totales y los productos
 
-### Proceso de ajuste:
+### Proceso de ajuste del text-stroke:
 - `text-stroke: 1.2px` → Muy grueso
 - `text-stroke: 0.5px` → Bien pero un poco grueso
 - `text-stroke: 0.3px` → Balance perfecto entre oscuridad y grosor ✅
 
 ### Resultado:
+- ✅ Logo más grande y con contraste natural
 - ✅ Títulos de tabla oscuros y legibles
 - ✅ Todo el texto del ticket (excepto productos) más oscuro
 - ✅ Tamaño de fuente aumentado +2px para mejor legibilidad
@@ -367,8 +380,6 @@ const [ticketData, setTicketData] = useState(null);
 **Archivos modificados:**
 - `frontend/src/components/Pos/PaymentModal.jsx`
 - `frontend/src/components/Print/TicketPreviewModal.jsx`
-
-**Estado:** Probando resultado final
 
 ---
 

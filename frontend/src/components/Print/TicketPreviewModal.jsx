@@ -293,7 +293,7 @@ export default function TicketPreviewModal({
                         padding: 5px 2px;
                         vertical-align: top;
                         font-weight: normal;
-                        font-size: ${tamanioTabla}px;
+                        font-size: ${tamanioTabla + 1}px;
                         line-height: 1.4;
                     }
                     
