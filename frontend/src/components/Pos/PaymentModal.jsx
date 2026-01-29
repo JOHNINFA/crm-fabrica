@@ -381,8 +381,8 @@ const PaymentModal = ({
             letter-spacing: ${letraSpaciado}px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            -webkit-filter: contrast(1.8);
-            filter: contrast(1.8);
+            -webkit-filter: contrast(1.5);
+            filter: contrast(1.5);
           }
           
           strong {
