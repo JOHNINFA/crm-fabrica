@@ -391,9 +391,16 @@ const PaymentModal = ({
             -webkit-filter: grayscale(100%) contrast(1.2);
           }
           
-          .ticket-container > *:not(.ticket-header) {
-            -webkit-filter: contrast(2);
-            filter: contrast(2);
+          .ticket-business-name,
+          .ticket-business-info,
+          .ticket-divider,
+          .ticket-info,
+          .ticket-table,
+          .ticket-totals,
+          .ticket-payment,
+          .ticket-footer {
+            -webkit-filter: contrast(2.5);
+            filter: contrast(2.5);
           }
           
           strong {
