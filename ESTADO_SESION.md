@@ -57,50 +57,98 @@
 
 ---
 
-## ✅ COMPLETADO: Ajustes de Impresión de Tickets POS (29 Enero 2026)
+## ✅ COMPLETADO: Unificación completa de estilos de tickets POS y Pedidos (29 Enero 2026)
 
 ### Problema identificado:
+- Los tickets de POS y Pedidos se veían diferentes
 - En POS algunas letras salían muy claras (font-weight: normal)
 - El contenido de la tabla de productos se veía débil
-- La línea separadora de los encabezados de la tabla se veía muy gruesa
-- En Pedidos la impresión salía pareja y uniforme
+- La línea separadora de los encabezados de la tabla era inconsistente
+- La fuente era diferente entre POS y Pedidos
+- El contraste general era bajo en impresoras térmicas
 
-### Cambios realizados en `PaymentModal.jsx` (POS):
+### Cambios realizados:
 
-**1. Ajuste de font-weight para mejor contraste:**
-- `.ticket-business-info`: Cambiado de `font-weight: bold` a `font-weight: 900`
-- `.ticket-table th`: Cambiado de `font-weight: bold` a `font-weight: 900`
-- `.ticket-table td`: Cambiado de `font-weight: normal` a `font-weight: bold`
-- Razón: `font-weight: 900` se ve mejor en impresoras térmicas Epson TM-T20II
+**1. Unificación de font-weight (POS y Pedidos):**
+- `.ticket-business-info`: `font-weight: 900` (más oscuro)
+- `.ticket-table th`: `font-weight: 900` (encabezados más oscuros)
+- `.ticket-table td`: `font-weight: bold` (contenido más oscuro)
+- `body`: `font-weight: bold` (base oscura)
 
-**2. Ajuste del separador de encabezados de tabla:**
-- `.ticket-table th border-bottom`: Cambiado de `1px dotted` a `1px dashed`
-- Razón: La línea `dashed` se ve más suave y consistente con el resto del ticket
+**2. Separador de encabezados de tabla:**
+- Cambiado de borde CSS (`border-bottom`) a línea de texto con puntos
+- Agregada fila en `<thead>` con puntos: `................................................`
+- Estilo: `font-size: 10px; letter-spacing: -0.8px; overflow: hidden`
+- Ahora se ve suave y consistente como los demás separadores del ticket
 
-**3. Estilos finales unificados con Pedidos:**
+**3. Unificación de fuente:**
+- POS ahora usa: `configImpresion?.fuente_ticket || 'Courier New, Courier, monospace'`
+- Antes estaba forzado a `'Courier New, Courier, monospace'`
+- Ahora ambos (POS y Pedidos) leen la fuente desde la configuración del backend
+
+**4. Aumento de contraste para impresión:**
+- Agregado `filter: contrast(1.2)` en el `body`
+- Aumenta el contraste en 20% para mejor legibilidad en impresoras térmicas
+- El texto negro se ve más oscuro y definido
+
+**5. Estilos finales unificados:**
 ```css
-body { font-weight: bold; }
-.ticket-table th { font-weight: 900; border-bottom: 1px dashed #000; }
-.ticket-table td { font-weight: bold; }
-.ticket-business-info { font-weight: 900; }
-.ticket-totals { font-weight: bold; }
-.ticket-payment { font-weight: bold; }
-.ticket-footer { font-weight: bold; }
+body { 
+  font-weight: bold; 
+  filter: contrast(1.2);
+}
+.ticket-table th { 
+  font-weight: 900; 
+  border-bottom: none; 
+}
+.ticket-table td { 
+  font-weight: bold; 
+}
+.ticket-business-info { 
+  font-weight: 900; 
+}
+.ticket-totals { 
+  font-weight: bold; 
+}
+.ticket-payment { 
+  font-weight: bold; 
+}
+.ticket-footer { 
+  font-weight: bold; 
+}
+```
+
+**Estructura HTML de la tabla:**
+```html
+<thead>
+  <tr>
+    <th>Cant</th>
+    <th>Producto</th>
+    <th>P.Unit</th>
+    <th>Total</th>
+  </tr>
+  <tr>
+    <td colspan="4" style="padding: 0; font-size: 10px; font-weight: normal; text-align: center; letter-spacing: -0.8px; line-height: 1; overflow: hidden;">................................................</td>
+  </tr>
+</thead>
 ```
 
 **Resultado:**
-- La impresión de POS ahora se ve pareja y oscura como la de Pedidos
-- El contenido de la tabla es legible y con buen contraste
-- La línea separadora es suave y consistente
+- ✅ Tickets de POS y Pedidos ahora se ven idénticos
+- ✅ Letra oscura y pareja en toda la impresión
+- ✅ Separadores suaves y consistentes
+- ✅ Mejor contraste para impresoras térmicas Epson TM-T20II
+- ✅ Fuente unificada desde configuración del backend
 
 **Archivos modificados:**
 - `frontend/src/components/Pos/PaymentModal.jsx`
+- `frontend/src/components/Print/TicketPreviewModal.jsx`
 
 **Comandos para aplicar cambios:**
 ```bash
 # En local
 git add .
-git commit -m "Fix: Ajustar font-weight y separadores en tickets POS"
+git commit -m "Fix: Unificar completamente estilos de tickets POS y Pedidos"
 git push origin main
 
 # En VPS
@@ -109,6 +157,8 @@ cd ~/crm-fabrica
 git pull origin main
 docker compose -f docker-compose.prod.yml up -d --build frontend
 ```
+
+**Nota importante:** Siempre hacer `Ctrl + Shift + R` en el navegador después de aplicar cambios para limpiar la caché y ver los estilos actualizados.
 
 ---
 

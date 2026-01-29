@@ -176,8 +176,8 @@ export default function TicketPreviewModal({
                         letter-spacing: ${letraSpaciado}px;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
-                        -webkit-filter: contrast(1.2);
-                        filter: contrast(1.2);
+                        -webkit-filter: contrast(1.8);
+                        filter: contrast(1.8);
                     }
                     
                     .ticket-container {
