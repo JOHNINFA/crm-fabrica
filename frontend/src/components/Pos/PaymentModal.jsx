@@ -339,8 +339,8 @@ const PaymentModal = ({
     const mensajeGracias = configImpresion?.mensaje_agradecimiento || '¡Gracias por su compra!';
     const mostrarLogo = configImpresion?.mostrar_logo !== false;
     const logoSrc = configImpresion?.logo_base64 || null;
-    // Fuente del ticket - FORZADA a Courier New para tickets térmicos
-    const fuenteTicket = 'Courier New, Courier, monospace';
+    // Fuente del ticket
+    const fuenteTicket = configImpresion?.fuente_ticket || 'Courier New, Courier, monospace';
 
     // 🆕 Tamaños y espaciados configurables (aumentados para Epson TM-T20II)
     const tamanioGeneral = configImpresion?.tamanio_fuente_general || 14;
