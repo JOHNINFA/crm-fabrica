@@ -263,7 +263,7 @@ export default function TicketPreviewModal({
                     
                     .ticket-table th {
                         text-align: left;
-                        border-bottom: 1px dotted #000;
+                        border-bottom: 1px dashed #000;
                         padding: 4px 2px;
                         font-weight: 900;
                         font-size: ${tamanioTabla}px;
