@@ -59,6 +59,11 @@
 
 ## ✅ COMPLETADO: Ajustes de Impresión de Tickets POS (29 Enero 2026)
 
+### Problema identificado:
+- En POS algunas letras salen muy gruesas (negrita) y otras muy claras (normal)
+- En Pedidos la impresión sale pareja y uniforme
+- El ticket de POS no se ve igual que el de Pedidos
+
 ### Cambios realizados en `PaymentModal.jsx` (POS):
 
 **1. Unificación de estilos con Pedidos:**
@@ -68,13 +73,45 @@
 - Eliminado encabezado personalizado para mayor limpieza
 - Agregado `, monospace` a la fuente para asegurar fuente monoespaciada
 
-**Resultado:**
-- La impresión de POS ahora se ve pareja, sin letras muy gruesas y otras muy claras
-- Todos los estilos están unificados con Pedidos
-- La impresión es consistente entre ambos módulos
+**2. Ajustes de font-weight para letra pareja:**
+- `body`: Mantener en `font-weight: bold` (igual que Pedidos)
+- `.ticket-table th`: Cambiado de `font-weight: 900` a `font-weight: bold`
+- `.ticket-business-info`: Cambiado de `font-weight: 900` a `font-weight: bold`
+- Razón: `font-weight: 900` (extra-bold) se ve muy grueso en impresoras térmicas
+
+**3. Estilos que deben ser iguales en ambos archivos:**
+```css
+body { font-weight: bold; }
+.ticket-table th { font-weight: bold; }
+.ticket-table td { font-weight: normal; }
+.ticket-business-info { font-weight: bold; }
+.ticket-totals { font-weight: bold; }
+.ticket-payment { font-weight: bold; }
+.ticket-footer { font-weight: bold; }
+```
+
+**Resultado esperado:**
+- La impresión de POS debe verse pareja, sin contraste entre letras gruesas y claras
+- Todos los estilos unificados con Pedidos
+- La impresión debe ser consistente entre ambos módulos
 
 **Archivos modificados:**
 - `frontend/src/components/Pos/PaymentModal.jsx`
+
+**Para aplicar cambios en VPS:**
+```bash
+# En local
+git add .
+git commit -m "Fix: Ajustar font-weight en tickets POS para impresión pareja"
+git push origin main
+
+# En VPS
+cd /ruta/del/proyecto
+git pull origin main
+cd frontend
+npm run build
+sudo systemctl restart nginx  # o docker-compose restart
+```
 
 ---
 
