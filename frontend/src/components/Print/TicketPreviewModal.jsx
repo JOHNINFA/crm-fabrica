@@ -194,8 +194,8 @@ export default function TicketPreviewModal({
                     .ticket-totals,
                     .ticket-payment,
                     .ticket-footer {
-                        -webkit-filter: contrast(2.5);
-                        filter: contrast(2.5);
+                        -webkit-filter: contrast(3);
+                        filter: contrast(3);
                     }
                     
                     .ticket-container {

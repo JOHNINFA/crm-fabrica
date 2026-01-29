@@ -102,3 +102,17 @@
         display: none !important;
     }
 }
+
+/* Quitar hover rojo del botón Logout */
+.topbar-bg .btn-outline-danger:hover {
+    background-color: transparent !important;
+    border-color: #dc3545 !important;
+    color: #dc3545 !important;
+}
+
+/* Cuando tiene turno activo (verde) */
+.topbar-bg .btn-outline-danger:hover[style*="color: rgb(40, 167, 69)"] {
+    background-color: transparent !important;
+    border-color: #28a745 !important;
+    color: #28a745 !important;
+}
