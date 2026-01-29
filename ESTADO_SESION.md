@@ -311,6 +311,44 @@ const [ticketData, setTicketData] = useState(null);
 
 ---
 
+## 🔄 EN PROGRESO: Mejorar oscuridad de encabezados de tabla en tickets (29 Enero 2026)
+
+### Problema identificado:
+- Los encabezados de la tabla (Cant, Producto, P.Unit, Total) se ven muy claros en la impresora térmica
+- El filtro `contrast(3)` no es suficiente para hacer el texto más oscuro
+- Necesitan destacar más del resto del contenido
+
+### Intentos realizados:
+
+**1. Aumentar tamaño de fuente (+2px, luego +4px):**
+- Resultado: El tamaño más grande no hace que se vea más oscuro
+
+**2. Agregar text-stroke y text-shadow:**
+- Primer intento: `text-stroke: 0.5px` - No se notó diferencia
+- Segundo intento: `text-stroke: 1px` + `text-shadow: 0 0 1px #000` x3 - Probando...
+
+### Estilos actuales de los encabezados:
+```css
+.ticket-table th {
+  text-align: left;
+  border-bottom: none;
+  padding: 4px 2px 2px 2px;
+  font-weight: 900;
+  font-size: ${tamanioTabla + 4}px;
+  color: #000;
+  text-shadow: 0 0 1px #000, 0 0 1px #000, 0 0 1px #000;
+  -webkit-text-stroke: 1px #000;
+}
+```
+
+**Archivos modificados:**
+- `frontend/src/components/Pos/PaymentModal.jsx`
+- `frontend/src/components/Print/TicketPreviewModal.jsx`
+
+**Estado:** Probando si el text-stroke de 1px hace diferencia visible
+
+---
+
 ---
 
 ## 🔄 EN PROGRESO: Ajustes de Impresión de Tickets POS y Pedidos (28 Enero 2026)
