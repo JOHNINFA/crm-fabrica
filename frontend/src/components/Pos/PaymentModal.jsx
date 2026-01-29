@@ -472,11 +472,18 @@ const PaymentModal = ({
           
           .ticket-table th {
             text-align: left;
-            border-bottom: 1px dashed #000;
+            border-bottom: none;
             padding: 4px 2px;
             font-weight: 900;
             font-size: ${tamanioTabla}px;
             color: #000;
+          }
+          
+          .ticket-table thead::after {
+            content: '';
+            display: block;
+            border-bottom: 1px dotted #000;
+            margin: 2px 0;
           }
           
           .ticket-table td {
