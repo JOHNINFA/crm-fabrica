@@ -66,6 +66,7 @@
 - La línea separadora de los encabezados de la tabla era inconsistente
 - La fuente era diferente entre POS y Pedidos
 - El contraste general era bajo en impresoras térmicas
+- El logo se veía muy oscuro con el filtro de contraste aplicado a todo
 
 ### Cambios realizados:
 
@@ -86,16 +87,18 @@
 - Antes estaba forzado a `'Courier New, Courier, monospace'`
 - Ahora ambos (POS y Pedidos) leen la fuente desde la configuración del backend
 
-**4. Aumento de contraste para impresión:**
-- Agregado `filter: contrast(1.2)` en el `body`
-- Aumenta el contraste en 20% para mejor legibilidad en impresoras térmicas
-- El texto negro se ve más oscuro y definido
+**4. Contraste diferenciado para logo y texto:**
+- **Logo**: `filter: grayscale(100%) contrast(1.2)` - Se ve suave con detalles visibles
+- **Texto**: `filter: contrast(3)` - Letra muy oscura y definida para impresoras térmicas
+- Aplicado selectivamente a cada sección: `.ticket-business-name`, `.ticket-business-info`, `.ticket-divider`, `.ticket-info`, `.ticket-table`, `.ticket-totals`, `.ticket-payment`, `.ticket-footer`
 
 **5. Estilos finales unificados:**
 ```css
 body { 
   font-weight: bold; 
-  filter: contrast(1.2);
+}
+.ticket-logo {
+  filter: grayscale(100%) contrast(1.2);
 }
 .ticket-table th { 
   font-weight: 900; 
@@ -116,6 +119,17 @@ body {
 .ticket-footer { 
   font-weight: bold; 
 }
+/* Contraste selectivo para texto */
+.ticket-business-name,
+.ticket-business-info,
+.ticket-divider,
+.ticket-info,
+.ticket-table,
+.ticket-totals,
+.ticket-payment,
+.ticket-footer {
+  filter: contrast(3);
+}
 ```
 
 **Estructura HTML de la tabla:**
@@ -135,20 +149,96 @@ body {
 
 **Resultado:**
 - ✅ Tickets de POS y Pedidos ahora se ven idénticos
-- ✅ Letra oscura y pareja en toda la impresión
+- ✅ Letra muy oscura y pareja en toda la impresión (contraste 3.0)
+- ✅ Logo suave con detalles visibles (contraste 1.2)
 - ✅ Separadores suaves y consistentes
-- ✅ Mejor contraste para impresoras térmicas Epson TM-T20II
+- ✅ Excelente contraste para impresoras térmicas Epson TM-T20II
 - ✅ Fuente unificada desde configuración del backend
 
 **Archivos modificados:**
 - `frontend/src/components/Pos/PaymentModal.jsx`
 - `frontend/src/components/Print/TicketPreviewModal.jsx`
 
-**Comandos para aplicar cambios:**
+---
+
+## ✅ COMPLETADO: Fix modal de cajero en recarga de página (29 Enero 2026)
+
+### Problema identificado:
+- Al recargar la página en POS, aparecía automáticamente el modal "Cajero Logueado"
+- Este modal solo debería aparecer cuando el usuario hace clic en el botón "Logout"
+
+### Solución implementada:
+- Eliminado el `useEffect` automático que mostraba el modal al detectar cajero logueado sin turno
+- Eliminado el estado `modalMostrado` y el uso de `sessionStorage` para controlar la visualización
+- Ahora el modal solo se abre cuando el usuario hace clic explícitamente en el botón "Logout"
+
+**Código eliminado:**
+```javascript
+// ❌ ANTES: Modal se abría automáticamente
+const [modalMostrado, setModalMostrado] = useState(() => {
+  return sessionStorage.getItem('modalTurnoMostrado') === 'true';
+});
+
+useEffect(() => {
+  if (isAuthenticated && cajeroLogueado && !turnoActivo && !modalMostrado) {
+    setShowLoginModal(true);
+    setModalMostrado(true);
+    sessionStorage.setItem('modalTurnoMostrado', 'true');
+  }
+}, [isAuthenticated, cajeroLogueado, turnoActivo, modalMostrado]);
+```
+
+**Código actual:**
+```javascript
+// ✅ AHORA: Modal solo se abre con clic en botón
+const handleLoginClick = () => {
+  setShowLoginModal(true);
+};
+```
+
+**Archivos modificados:**
+- `frontend/src/components/Pos/Topbar.jsx`
+
+---
+
+## ✅ COMPLETADO: Quitar hover rojo del botón Logout (29 Enero 2026)
+
+### Problema identificado:
+- Al pasar el mouse sobre el botón "Logout", se mostraba un fondo rojo (comportamiento por defecto de Bootstrap)
+- Esto no era deseado, se prefiere mantener el botón transparente en hover
+
+### Solución implementada:
+- Agregados estilos CSS para sobrescribir el hover por defecto de `.btn-outline-danger`
+- El botón mantiene su color de borde y texto en hover, sin fondo
+- Funciona tanto para el estado rojo (sin turno) como verde (con turno activo)
+
+**Estilos agregados:**
+```css
+/* Quitar hover rojo del botón Logout */
+.topbar-bg .btn-outline-danger:hover {
+    background-color: transparent !important;
+    border-color: #dc3545 !important;
+    color: #dc3545 !important;
+}
+
+/* Cuando tiene turno activo (verde) */
+.topbar-bg .btn-outline-danger:hover[style*="color: rgb(40, 167, 69)"] {
+    background-color: transparent !important;
+    border-color: #28a745 !important;
+    color: #28a745 !important;
+}
+```
+
+**Archivos modificados:**
+- `frontend/src/components/Pos/Topbar.css`
+
+---
+
+**Comandos para aplicar todos los cambios:**
 ```bash
 # En local
 git add .
-git commit -m "Fix: Unificar completamente estilos de tickets POS y Pedidos"
+git commit -m "Fix: Unificar tickets, contraste diferenciado logo/texto, modal cajero y hover logout"
 git push origin main
 
 # En VPS
@@ -159,6 +249,67 @@ docker compose -f docker-compose.prod.yml up -d --build frontend
 ```
 
 **Nota importante:** Siempre hacer `Ctrl + Shift + R` en el navegador después de aplicar cambios para limpiar la caché y ver los estilos actualizados.
+
+---
+
+## ✅ COMPLETADO: Fix de reimpresión de tickets desde historial (29 Enero 2026)
+
+### Problema identificado:
+- Al reimprimir un ticket desde "Informes de Ventas", el ticket se veía muy básico
+- No mostraba el logo del negocio
+- No usaba la configuración del backend (fuente, tamaños, etc.)
+- No tenía los estilos unificados con POS (contraste, separadores, etc.)
+- Se veía como texto plano sin formato
+
+### Solución implementada:
+- En lugar de usar una función `generarHTMLTicket` propia, ahora usa el componente `TicketPreviewModal`
+- Este es el mismo componente que usa Pedidos, que ya tiene todos los estilos actualizados
+- El componente lee la configuración del backend y aplica logo, fuente, contraste, etc.
+
+### Cambios realizados:
+
+**1. Import del componente:**
+```javascript
+import TicketPreviewModal from '../components/Print/TicketPreviewModal';
+```
+
+**2. Estados agregados:**
+```javascript
+const [showTicketModal, setShowTicketModal] = useState(false);
+const [ticketData, setTicketData] = useState(null);
+```
+
+**3. Botón de imprimir modificado:**
+- Antes: Llamaba a `imprimirTicket(ticketData)`
+- Ahora: Prepara los datos y abre el modal con `setTicketData(data); setShowTicketModal(true);`
+- Los datos se mapean con `tipo: 'venta'` para que el modal sepa que es una venta POS
+
+**4. Componente agregado al JSX:**
+```jsx
+{ticketData && (
+  <TicketPreviewModal
+    show={showTicketModal}
+    onClose={() => setShowTicketModal(false)}
+    ticketData={ticketData}
+    autoPrint={true}
+  />
+)}
+```
+
+**Resultado:**
+- ✅ La reimpresión desde historial ahora se ve igual que la impresión original de POS
+- ✅ Muestra el logo del negocio
+- ✅ Usa la configuración del backend (fuente, tamaños, etc.)
+- ✅ Tiene contraste diferenciado (logo 1.2, texto 3.0)
+- ✅ Separadores de puntos suaves
+- ✅ Código más limpio y mantenible (reutiliza componente existente)
+
+**Archivos modificados:**
+- `frontend/src/pages/InformeVentasGeneral.jsx`
+
+**Nota:** Las funciones `imprimirTicket` y `generarHTMLTicket` todavía existen en el archivo pero ya no se usan. Se pueden eliminar en una limpieza futura.
+
+---
 
 ---
 

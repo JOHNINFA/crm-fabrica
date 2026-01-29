@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ventaService } from '../services/api';
 import { cajaService } from '../services/cajaService';
 import usePageTitle from '../hooks/usePageTitle';
+import TicketPreviewModal from '../components/Print/TicketPreviewModal';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
@@ -16,6 +17,8 @@ const InformeVentasGeneral = () => {
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [showAnularModal, setShowAnularModal] = useState(false);
   const [confirmacionAnular, setConfirmacionAnular] = useState('');
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [ticketData, setTicketData] = useState(null);
 
   // Estados para los calendarios
   const [fechaInicial, setFechaInicial] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -1060,15 +1063,16 @@ const InformeVentasGeneral = () => {
                 variant="primary"
                 onClick={() => {
                   if (ventaSeleccionada) {
-                    const ticketData = {
+                    const data = {
+                      tipo: 'venta',
                       numero: ventaSeleccionada.numero_factura || ventaSeleccionada.id,
                       fecha: ventaSeleccionada.fecha,
                       cliente: ventaSeleccionada.cliente || 'CONSUMIDOR FINAL',
                       vendedor: ventaSeleccionada.vendedor || 'Sistema',
                       items: ventaSeleccionada.detalles ? ventaSeleccionada.detalles.map(d => ({
-                        qty: d.cantidad,
-                        name: d.producto_nombre,
-                        price: d.precio_unitario
+                        cantidad: d.cantidad,
+                        producto_nombre: d.producto_nombre,
+                        precio_unitario: d.precio_unitario
                       })) : [],
                       subtotal: ventaSeleccionada.subtotal,
                       impuestos: ventaSeleccionada.impuestos,
@@ -1078,7 +1082,8 @@ const InformeVentasGeneral = () => {
                       dineroEntregado: ventaSeleccionada.dinero_entregado,
                       devuelta: ventaSeleccionada.devuelta
                     };
-                    imprimirTicket(ticketData);
+                    setTicketData(data);
+                    setShowTicketModal(true);
                   }
                 }}
                 style={{ backgroundColor: '#0c2c53', borderColor: '#0c2c53' }}
@@ -1143,6 +1148,16 @@ const InformeVentasGeneral = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Modal de impresión de ticket */}
+      {ticketData && (
+        <TicketPreviewModal
+          show={showTicketModal}
+          onClose={() => setShowTicketModal(false)}
+          ticketData={ticketData}
+          autoPrint={true}
+        />
+      )}
     </div>
   );
 };
