@@ -3,7 +3,7 @@ import { listaPrecioService, precioProductoService } from '../services/listaPrec
 
 // Caché global de precios con timestamp - ahora guarda TODAS las listas
 const preciosCache = {};
-const CACHE_DURATION = 60000; // 60 segundos
+const CACHE_DURATION = 300000; // 5 minutos (antes 60 segundos)
 let isPreloading = false;
 let preloadPromise = null;
 
@@ -30,6 +30,13 @@ const preloadAllPriceLists = async () => {
       // Cargar precios de todas las listas en paralelo
       const promises = listas.map(async (lista) => {
         const cacheKey = `lista_${lista.nombre}`;
+        
+        // Si ya está en caché y no ha expirado, no recargar
+        const now = Date.now();
+        if (preciosCache[cacheKey] && (now - preciosCache[cacheKey].timestamp) < CACHE_DURATION) {
+          return;
+        }
+        
         const todosPrecios = await precioProductoService.getAll({ lista_precio: lista.id });
         
         // Crear mapa de precios por producto
@@ -89,9 +96,19 @@ export const usePriceList = (priceListName, products) => {
     const cacheKey = `lista_${priceListName}`;
     const now = Date.now();
 
-    // Verificar si hay caché válida
+    // Verificar si hay caché válida - aplicar inmediatamente
     if (preciosCache[cacheKey] && (now - preciosCache[cacheKey].timestamp) < CACHE_DURATION) {
       setPrecios(preciosCache[cacheKey].data);
+      return;
+    }
+
+    // Si está pre-cargando, esperar y luego usar caché
+    if (isPreloading && preloadPromise) {
+      preloadPromise.then(() => {
+        if (preciosCache[cacheKey]) {
+          setPrecios(preciosCache[cacheKey].data);
+        }
+      });
       return;
     }
 

@@ -361,20 +361,15 @@ const [ticketData, setTicketData] = useState(null);
 ```
 
 **4. Contenido de tabla de productos (td):**
-- Se mantiene con el tamaño y estilo original (más claro/delgado)
+- Se mantiene con el tamaño original `${tamanioTabla}px`
 - Esto crea contraste visual entre títulos/totales y los productos
 
-### Proceso de ajuste del text-stroke:
-- `text-stroke: 1.2px` → Muy grueso
-- `text-stroke: 0.5px` → Bien pero un poco grueso
-- `text-stroke: 0.3px` → Balance perfecto entre oscuridad y grosor ✅
-
-### Resultado:
-- ✅ Logo más grande y con contraste natural
-- ✅ Títulos de tabla oscuros y legibles
+### Resultado final:
+- ✅ Logo más grande (150x130) y con contraste natural (1)
+- ✅ Títulos de tabla oscuros y legibles con text-stroke: 0.3px
 - ✅ Todo el texto del ticket (excepto productos) más oscuro
 - ✅ Tamaño de fuente aumentado +2px para mejor legibilidad
-- ✅ Contenido de productos se mantiene más claro para crear contraste
+- ✅ Contenido de productos se mantiene con tamaño original
 - ✅ Similar a la imagen de referencia del ticket de Cuenti
 
 **Archivos modificados:**

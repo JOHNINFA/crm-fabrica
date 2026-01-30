@@ -48,6 +48,8 @@ const InformeListaPreciosScreen = () => {
                 precioProductoService.getAll()
             ]);
 
+            console.log('📊 Precios cargados:', preciosData.length, 'registros');
+
             setProductos(productosData);
             setListasPrecios(listasData);
             setPreciosProductos(preciosData);
@@ -62,7 +64,12 @@ const InformeListaPreciosScreen = () => {
         const lista = listasPrecios.find(l => l.nombre === listaNombre);
         if (!lista) return '$ 0';
 
-        const precio = preciosProductos.find(p => p.producto === productoId && p.lista_precio === lista.id);
+        // Convertir a número para comparación segura
+        const precio = preciosProductos.find(p =>
+            Number(p.producto) === Number(productoId) &&
+            Number(p.lista_precio) === Number(lista.id)
+        );
+
         return precio ? `$ ${Math.round(precio.precio)}` : '$ 0';
     };
 
