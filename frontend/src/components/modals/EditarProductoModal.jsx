@@ -190,10 +190,7 @@ const EditarProductoModal = ({ show, handleClose, producto }) => {
                                                         type="text"
                                                         value={`$ ${valoresInput[lista.id] || 0}`}
                                                         onChange={(e) => handlePrecioInputChange(lista.id, e.target.value)}
-                                                        onBlur={(e) => {
-                                                            const precio = e.target.value.replace(/[$,\s]/g, '');
-                                                            guardarPrecioIndividual(lista.id, precio, 100);
-                                                        }}
+                                                        onFocus={(e) => e.target.select()}
                                                     />
                                                 </td>
                                             </tr>

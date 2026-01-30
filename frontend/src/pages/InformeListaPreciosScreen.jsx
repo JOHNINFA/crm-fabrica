@@ -273,7 +273,7 @@ const InformeListaPreciosScreen = () => {
                                     <table className="table table-striped table-hover productos-table">
                                         <thead>
                                             <tr>
-                                                <th colSpan={4 + listasPrecios.length}>
+                                                <th colSpan={3 + listasPrecios.length}>
                                                     <input
                                                         type="text"
                                                         className="form-control form-control-sm"
@@ -287,7 +287,6 @@ const InformeListaPreciosScreen = () => {
                                                 <th>Acciones</th>
                                                 <th>Nombre</th>
                                                 <th>Categoría</th>
-                                                <th>Precio Compra</th>
                                                 {listasPrecios.map(lista => (
                                                     <th key={lista.id}>{lista.nombre}</th>
                                                 ))}
@@ -296,11 +295,11 @@ const InformeListaPreciosScreen = () => {
                                         <tbody>
                                             {loading ? (
                                                 <tr>
-                                                    <td colSpan={4 + listasPrecios.length} className="text-center">Cargando productos...</td>
+                                                    <td colSpan={3 + listasPrecios.length} className="text-center">Cargando productos...</td>
                                                 </tr>
                                             ) : productosFiltrados.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={4 + listasPrecios.length} className="text-center">No hay productos</td>
+                                                    <td colSpan={3 + listasPrecios.length} className="text-center">No hay productos</td>
                                                 </tr>
                                             ) : (
                                                 productosFiltrados.map(p => (
@@ -316,7 +315,6 @@ const InformeListaPreciosScreen = () => {
                                                         </td>
                                                         <td className="align-middle">{p.nombre}</td>
                                                         <td className="align-middle">{p.categoria_nombre || 'Sin categoría'}</td>
-                                                        <td className="align-middle">$ {Math.round(p.precio_compra || 0)}</td>
                                                         {listasPrecios.map(lista => (
                                                             <td key={lista.id} className="align-middle">
                                                                 {getPrecioProductoLista(p.id, lista.nombre)}

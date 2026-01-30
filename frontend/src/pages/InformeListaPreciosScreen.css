@@ -104,18 +104,41 @@
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #002149 #e9ecef;
+}
+
+/* Scrollbar personalizado para Chrome/Safari */
+.table-responsive::-webkit-scrollbar {
+    height: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #e9ecef;
+    border-radius: 5px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #002149;
+    border-radius: 5px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #001a3a;
 }
 
 .productos-table {
-    min-width: 1200px;
-    /* Ancho mínimo para forzar scroll */
+    min-width: max-content;
+    /* Se ajusta al contenido */
     white-space: nowrap;
 }
 
 .productos-table th,
 .productos-table td {
     white-space: nowrap;
-    padding: 0.5rem;
+    padding: 0.5rem 1rem;
+    min-width: 120px;
+    /* Ancho mínimo por columna */
 }
 
 
