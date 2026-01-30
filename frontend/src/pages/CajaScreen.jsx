@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Form, Table, Spinner, Alert, Badge, Tabs, Tab, Modal } from 'react-bootstrap';
+import Swal from 'sweetalert2';
 import { cajaService } from '../services/cajaService';
 import { ventaService, productoService } from '../services/api';
 import { cajaValidaciones } from '../components/Pos/CajaValidaciones';
@@ -1316,10 +1317,18 @@ const CajaScreenContent = () => {
             // Validar horario
             const validacionHorario = cajaValidaciones.validarHorarioArqueo();
             if (validacionHorario.advertencia) {
-                const confirmar = window.confirm(
-                    `${validacionHorario.advertencia}\n\n¿Desea continuar con el arqueo?`
-                );
-                if (!confirmar) return;
+                const resultadoHorario = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Horario Inusual',
+                    text: validacionHorario.advertencia,
+                    footer: '¿Desea continuar con el arqueo?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, continuar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#f39c12',
+                    cancelButtonColor: '#6c757d'
+                });
+                if (!resultadoHorario.isConfirmed) return;
             }
 
             await cajaService.guardarArqueoCaja(datosArqueo);
@@ -1354,14 +1363,30 @@ const CajaScreenContent = () => {
 
             // ✅ CIERRE AUTOMÁTICO DE TURNO Y LOGOUT
             // Después del arqueo exitoso, cerrar turno y redirigir al POS
-            const confirmarCierre = window.confirm(
-                '✅ Arqueo guardado exitosamente.\n\n' +
-                '🔒 Se cerrará el turno automáticamente.\n\n' +
-                'Será redirigido al POS para abrir un nuevo turno.\n\n' +
-                '¿Desea continuar?'
-            );
+            const resultado = await Swal.fire({
+                icon: 'success',
+                title: '¡Arqueo Guardado!',
+                html: `
+                    <div style="text-align: left; padding: 10px;">
+                        <p style="margin-bottom: 15px;"><strong>📊 Resumen del arqueo:</strong></p>
+                        <p>• Total Sistema: <strong>${formatCurrency(totalSistemaActual)}</strong></p>
+                        <p>• Total Caja: <strong>${formatCurrency(totalCajaActual)}</strong></p>
+                        <p style="color: ${totalDiferenciaActual < 0 ? '#dc3545' : totalDiferenciaActual > 0 ? '#28a745' : '#6c757d'}">
+                            • Diferencia: <strong>${formatCurrency(totalDiferenciaActual)}</strong>
+                        </p>
+                        <hr style="margin: 15px 0;">
+                        <p style="color: #6c757d;">🔒 Se cerrará el turno y será redirigido al POS para abrir uno nuevo.</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '✓ Cerrar Turno',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                allowOutsideClick: false
+            });
 
-            if (confirmarCierre) {
+            if (resultado.isConfirmed) {
                 try {
                     // Cerrar turno y hacer logout
                     await logout();

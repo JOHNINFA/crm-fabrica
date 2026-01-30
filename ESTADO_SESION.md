@@ -1,5 +1,20 @@
 # Estado de la Sesión - 30 Enero 2026
 
+## ✅ COMPLETADO: Método de pago vuelve a Efectivo después de cada venta (30 Enero 2026)
+
+### Problema identificado:
+- Después de hacer una venta con Transferencia u otro método, al abrir el modal de pago nuevamente quedaba seleccionado el método anterior
+- Debería volver a "Efectivo" por defecto después de cada venta
+
+### Solución implementada:
+- Agregado `setMetodoPago("Efectivo")` después de completar la venta exitosamente
+- El método de pago se resetea automáticamente a Efectivo
+
+**Archivo modificado:**
+- `frontend/src/components/Pos/PaymentModal.jsx`
+
+---
+
 ## ✅ COMPLETADO: Eliminación de salto de precios en POS y Pedidos (30 Enero 2026)
 
 ### Problema identificado:
