@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { localImageService } from "../../services/localImageService";
-import { listaPrecioService, precioProductoService } from "../../services/listaPrecioService";
 import { useUnifiedProducts } from "../../context/UnifiedProductContext";
+import { usePriceList } from "../../hooks/usePriceList";
 import "./ProductCard.css";
 
 export default function ProductCard({ product, onClick, priceList }) {
     // 🚀 Obtener caché de imágenes del contexto
     const { productImages } = useUnifiedProducts();
 
+    // 🚀 Usar hook de precios con caché (compartido entre todas las tarjetas)
+    const { getPrecio } = usePriceList(priceList);
+
     // 🚀 PRIORIDAD: Usar imagen del producto PRIMERO (más rápido)
     const cachedImage = productImages?.[product.id];
     const [imageSource, setImageSource] = useState(product.image || cachedImage || null);
-    const [precioEspecifico, setPrecioEspecifico] = useState(null);
     const [isClicked, setIsClicked] = useState(false);
+
+    // Obtener precio del producto desde la caché
+    const precioEspecifico = getPrecio(product.id);
 
     // Cargar imagen local si no está disponible
     useEffect(() => {
@@ -48,37 +53,6 @@ export default function ProductCard({ product, onClick, priceList }) {
 
         }
     }, [product]);
-
-    // Cargar precio específico según lista seleccionada (solo para obtener el precio al agregar al carrito)
-    useEffect(() => {
-        if (!priceList) {
-            setPrecioEspecifico(null);
-            return;
-        }
-
-        const cargarPrecioEspecifico = async () => {
-            try {
-                const listas = await listaPrecioService.getAll({ activo: true });
-                const lista = listas.find(l => l.nombre === priceList);
-                if (!lista) {
-                    setPrecioEspecifico(null);
-                    return;
-                }
-
-                const precios = await precioProductoService.getAll({ producto: product.id, lista_precio: lista.id });
-                if (precios.length > 0) {
-                    setPrecioEspecifico(precios[0].precio);
-                } else {
-                    setPrecioEspecifico(null);
-                }
-            } catch (error) {
-                console.error('Error cargando precio específico:', error);
-                setPrecioEspecifico(null);
-            }
-        };
-
-        cargarPrecioEspecifico();
-    }, [product.id, priceList]);
 
     // Formatear precio
     const formatPrice = (price) => {

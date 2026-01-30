@@ -69,23 +69,10 @@ const preloadAllPriceLists = async () => {
 export const usePriceList = (priceListName, products) => {
   const [precios, setPrecios] = useState({});
   const [loading, setLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Pre-cargar todas las listas al montar el hook por primera vez
   useEffect(() => {
     preloadAllPriceLists();
-  }, []);
-
-  // Forzar recarga cuando la ventana recupera el foco
-  useEffect(() => {
-    const handleFocus = () => {
-      clearPriceCache();
-      setRefreshKey(prev => prev + 1);
-      preloadAllPriceLists();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   useEffect(() => {
@@ -147,7 +134,17 @@ export const usePriceList = (priceListName, products) => {
     };
 
     cargarPrecios();
-  }, [priceListName, products, refreshKey]);
+  }, [priceListName, products]);
 
-  return { precios, loading };
+  // Función para obtener precio de un producto específico
+  const getPrecio = useCallback((productId) => {
+    const cacheKey = `lista_${priceListName}`;
+    if (preciosCache[cacheKey]?.data) {
+      const precio = preciosCache[cacheKey].data[productId];
+      return precio !== undefined ? precio : null;
+    }
+    return precios[productId] !== undefined ? precios[productId] : null;
+  }, [priceListName, precios]);
+
+  return { precios, loading, getPrecio };
 };

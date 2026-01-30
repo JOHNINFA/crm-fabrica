@@ -355,8 +355,11 @@ const CajaScreenContent = () => {
     // Cargar último arqueo
     const cargarUltimoArqueo = async () => {
         try {
+            // Si es administrador, no filtrar por cajero
+            const esAdmin = cajeroLogueado?.rol === 'ADMINISTRADOR' || cajeroLogueado?.rol === 'ADMIN';
+            const cajeroFiltro = esAdmin ? null : cajero;
 
-            const ultimo = await cajaService.getUltimoArqueo(cajero);
+            const ultimo = await cajaService.getUltimoArqueo(cajeroFiltro);
 
             if (ultimo) {
 
@@ -730,8 +733,11 @@ const CajaScreenContent = () => {
     // Cargar movimientos de caja desde BD
     const cargarMovimientosCaja = async () => {
         try {
+            // Si es administrador, no filtrar por cajero (ver todos los movimientos)
+            const esAdmin = cajeroLogueado?.rol === 'ADMINISTRADOR' || cajeroLogueado?.rol === 'ADMIN';
+            const cajeroFiltro = esAdmin ? null : cajero;
 
-            const movimientos = await cajaService.getMovimientosCaja(fechaConsulta, cajero);
+            const movimientos = await cajaService.getMovimientosCaja(fechaConsulta, cajeroFiltro);
             setMovimientosCaja(movimientos);
 
         } catch (error) {
@@ -771,8 +777,11 @@ const CajaScreenContent = () => {
     const cargarHistorialArqueos = async (fechaInicio = fechaHistorialInicio, fechaFin = fechaHistorialFin) => {
         setLoadingHistorial(true);
         try {
+            // Si es administrador, no filtrar por cajero (ver todos los arqueos)
+            const esAdmin = cajeroLogueado?.rol === 'ADMINISTRADOR' || cajeroLogueado?.rol === 'ADMIN';
+            const cajeroFiltro = esAdmin ? null : cajero;
 
-            const arqueos = await cajaService.getArqueosPorRango(fechaInicio, fechaFin, cajero);
+            const arqueos = await cajaService.getArqueosPorRango(fechaInicio, fechaFin, cajeroFiltro);
 
             setHistorialArqueos(arqueos);
 

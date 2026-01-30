@@ -217,8 +217,19 @@ export default function ConsumerForm({ date, seller, client, setDate, setSeller,
                     <button
                         title="Limpiar"
                         onClick={() => {
-                            setClient("");
+                            // Resetear todo a valores por defecto
+                            setClient("DESTINATARIO GENERAL");
                             if (setClientData) setClientData(null);
+                            setPriceList("VENDEDORES");
+                            setSeller("PEDIDOS");
+                            // Resetear fecha a hoy
+                            const hoy = new Date();
+                            const year = hoy.getFullYear();
+                            const month = String(hoy.getMonth() + 1).padStart(2, '0');
+                            const day = String(hoy.getDate()).padStart(2, '0');
+                            setDate(`${year}-${month}-${day}`);
+                            // Limpiar URL para que al recargar no vuelva a cargar el cliente
+                            window.history.replaceState({}, '', '/#/remisiones');
                         }}
                     >
                         <span className="material-icons" style={{ fontSize: '16px' }}>clear</span>

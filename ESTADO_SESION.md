@@ -1,4 +1,154 @@
-# Estado de la Sesión - 29 Enero 2026
+# Estado de la Sesión - 30 Enero 2026
+
+## ✅ COMPLETADO: Botón X resetea formulario y limpia URL en Pedidos (30 Enero 2026)
+
+### Problema identificado:
+- Al presionar la X para quitar un cliente seleccionado, solo se limpiaba el nombre del cliente
+- Los demás campos (lista de precios, vendedor, fecha) quedaban con los valores del cliente anterior
+- Al recargar la página, volvía a cargar el cliente porque la URL todavía tenía el parámetro `?cliente=...`
+
+### Solución implementada:
+- Modificado el botón X en ConsumerForm.jsx para resetear todos los campos
+- Agregado `window.history.replaceState({}, '', '/#/remisiones')` para limpiar la URL
+
+**Valores por defecto al presionar X:**
+- Cliente: "DESTINATARIO GENERAL"
+- Lista de Precios: "VENDEDORES"
+- Vendedor: "PEDIDOS"
+- Fecha: Fecha de hoy
+- URL: Limpia sin parámetros
+
+**Archivo modificado:**
+- `frontend/src/components/Pedidos/ConsumerForm.jsx`
+
+---
+
+## ✅ COMPLETADO: Fix del "salto" de precios al cambiar pestañas (30 Enero 2026)
+
+### Problema identificado:
+- Al cambiar de pestaña o salir y volver a Pedidos, los precios del catálogo "saltaban"
+- Esto ocurría porque el hook usePriceList tenía un listener de `focus` que limpiaba la caché
+
+### Solución implementada:
+- Eliminado el listener de `focus` que limpiaba la caché automáticamente
+- La caché ahora se mantiene por 5 minutos sin interrupciones
+- Solo se recarga cuando: expira el tiempo, cambias lista manualmente, o guardas nuevos precios
+
+**Archivo modificado:**
+- `frontend/src/hooks/usePriceList.js`
+
+---
+
+## ✅ COMPLETADO: Optimización de cambio de lista de precios en Pedidos (29 Enero 2026)
+
+### Problema identificado:
+- Al cambiar la lista de precios en Pedidos, el carrito se actualizaba rápido pero el catálogo de productos se demoraba mucho
+- Cada tarjeta de producto hacía su propia llamada al API para obtener el precio (35 productos = 35 llamadas)
+- Esto causaba lentitud visible al cambiar entre listas de precios
+
+### Solución implementada:
+
+**1. Refactorización de ProductCard.jsx:**
+- Eliminadas las llamadas individuales al API (`listaPrecioService.getAll`, `precioProductoService.getAll`)
+- Ahora usa el hook `usePriceList` que tiene caché compartida entre todas las tarjetas
+- El precio se obtiene instantáneamente desde la caché con `getPrecio(product.id)`
+
+**2. Nueva función `getPrecio` en usePriceList.js:**
+- Agregada función `getPrecio(productId)` que busca el precio en la caché
+- Usa `useCallback` para optimizar rendimiento
+- Primero busca en la caché global, luego en el estado local
+
+**Archivos modificados:**
+- `frontend/src/components/Pedidos/ProductCard.jsx`
+- `frontend/src/hooks/usePriceList.js`
+
+**Resultado:**
+- El cambio de lista de precios ahora es instantáneo en el catálogo
+- Se eliminaron ~35 llamadas al API por cada cambio de lista
+- Mejor experiencia de usuario
+
+---
+
+## ✅ COMPLETADO: Administrador puede ver todos los arqueos y movimientos (29 Enero 2026)
+
+### Problema identificado:
+- El usuario ADMINISTRADOR no podía ver los cortes de caja ni arqueos de otros cajeros
+- El sistema filtraba por cajero específico, excluyendo al administrador
+
+### Solución implementada:
+- Modificadas las funciones de carga para detectar si el usuario es ADMINISTRADOR
+- Si es admin, no se aplica filtro por cajero (ve todos los registros)
+- Si es cajero normal, solo ve sus propios registros
+
+**Funciones modificadas en CajaScreen.jsx:**
+1. `cargarHistorialArqueos` - Ver todos los arqueos
+2. `cargarMovimientosCaja` - Ver todos los movimientos
+3. `cargarUltimoArqueo` - Ver último arqueo de cualquier cajero
+
+**Código agregado:**
+```javascript
+const esAdmin = cajeroLogueado?.rol === 'ADMINISTRADOR' || cajeroLogueado?.rol === 'ADMIN';
+const cajeroFiltro = esAdmin ? null : cajero;
+```
+
+**Archivos modificados:**
+- `frontend/src/pages/CajaScreen.jsx`
+
+---
+
+## ✅ COMPLETADO: Sistema de Lista de Precios - Modal y Tabla (29 Enero 2026)
+
+### Problema identificado:
+- El modal de edición de precios no guardaba correctamente al hacer clic en "Guardar"
+- Los precios se mostraban en $0 en el modal aunque existían en la base de datos
+- Al cambiar de un input a otro, el modal "saltaba" y sacaba del input
+- La columna "Precio Compra" no se usaba y ocupaba espacio innecesario
+
+### Cambios realizados:
+
+**1. Fix del botón "Guardar" en modal de precios:**
+- Antes: El botón solo cerraba el modal sin guardar los precios pendientes
+- Ahora: Guarda todos los precios editados antes de cerrar
+- Se creó función `guardarPrecioSinRecargar` para guardado masivo sin recargar datos
+- Se creó función `guardarTodosLosPrecios` que guarda en paralelo y cierra el modal
+
+**2. Fix de carga de precios existentes en modal:**
+- Problema: Comparación de tipos (string vs number) fallaba al buscar precios
+- Solución: Usar `Number()` para comparar IDs de lista_precio
+- Agregado console.log para debug: `📦 Precios del producto:` y `💰 Valores input calculados:`
+
+**3. Fix del "salto" al cambiar entre inputs:**
+- Problema: El `onBlur` llamaba a `cargarDatos()` que recargaba toda la tabla
+- Solución: Eliminado el `onBlur` que guardaba automáticamente
+- Ahora los precios solo se guardan al hacer clic en "Guardar"
+
+**4. Selección automática de texto en inputs:**
+- Agregado `onFocus={(e) => e.target.select()}` a los inputs de precio
+- Al hacer clic en un input, se selecciona todo el texto para escribir directamente
+
+**5. Eliminada columna "Precio Compra":**
+- Quitada la columna de la tabla del informe de lista de precios
+- No se estaba usando y ocupaba espacio innecesario
+- Ajustado el colspan de las filas de carga y vacío
+
+**Archivos modificados:**
+- `frontend/src/components/modals/EditarProductoModal.jsx`
+- `frontend/src/pages/InformeListaPreciosScreen.jsx`
+
+**Estructura de datos:**
+- **Listas de precios** → tabla `api_listaprecio` (nombre, tipo, sucursal, activo)
+- **Precios por producto** → tabla `api_precioproducto` (producto_id, lista_precio_id, precio)
+- Relación: Un producto puede tener un precio diferente para cada lista
+
+**Flujo de uso:**
+1. Ir a Informe Lista de Precios
+2. Hacer clic en el botón $ de un producto
+3. Se abre el modal con las listas de precios disponibles
+4. Editar los precios (clic selecciona todo el texto)
+5. Hacer clic en "Guardar" → guarda todos los cambios y cierra
+6. La tabla se actualiza automáticamente con los nuevos precios
+
+---
 
 ## ✅ COMPLETADO: Sistema de Login y Turnos Unificado (29 Enero 2026)
 
