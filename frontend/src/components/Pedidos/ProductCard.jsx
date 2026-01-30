@@ -19,6 +19,9 @@ export default function ProductCard({ product, onClick, priceList }) {
     // Obtener precio del producto desde la caché
     const precioEspecifico = getPrecio(product.id);
 
+    // Precio a mostrar: solo si está disponible de la lista, sino null para ocultar
+    const precioMostrar = precioEspecifico !== null ? precioEspecifico : null;
+
     // Cargar imagen local si no está disponible
     useEffect(() => {
         // Prioridad: 1) imagen del producto (más rápido), 2) caché en memoria, 3) IndexedDB
@@ -111,10 +114,16 @@ export default function ProductCard({ product, onClick, priceList }) {
                     )}
                 </div>
 
-                {/* Precio */}
-                <div className="product-price">
-                    <strong>{formatPrice(precioEspecifico !== null ? precioEspecifico : (product.price || 0))}</strong>
-                </div>
+                {/* Precio - mostrar solo si está disponible */}
+                {precioMostrar !== null ? (
+                    <div className="product-price">
+                        <strong>{formatPrice(precioMostrar)}</strong>
+                    </div>
+                ) : (
+                    <div className="product-price" style={{ visibility: 'hidden' }}>
+                        <strong>0</strong>
+                    </div>
+                )}
 
                 {/* Nombre del producto */}
                 <div className="product-name">

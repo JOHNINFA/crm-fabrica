@@ -12,7 +12,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
     return getProductsByModule ? getProductsByModule('pos') : allProducts;
   }, [allProducts, getProductsByModule]);
 
-  const { precios } = usePriceList(priceList, products);
+  const { precios, loading: loadingPrecios } = usePriceList(priceList, products);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
 
   // Estado para drag scroll de categorías
@@ -99,7 +99,7 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
 
 
 
-  // Mostrar loading mientras se cargan los productos iniciales
+  // Mostrar loading solo mientras se cargan los productos iniciales
   if (isInitialLoading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>

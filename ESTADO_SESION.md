@@ -1,5 +1,62 @@
 # Estado de la Sesión - 30 Enero 2026
 
+## ✅ COMPLETADO: Eliminación de salto de precios en POS y Pedidos (30 Enero 2026)
+
+### Problema identificado:
+- Al recargar POS o Pedidos, los precios mostraban primero el precio base del producto
+- Luego "saltaban" al precio correcto de la lista de precios (ej: 1.700 → 2.100)
+- Esto causaba una mala experiencia visual
+
+### Solución implementada:
+- Modificado ProductCard en POS y Pedidos para ocultar el precio hasta que esté cargado
+- El precio queda invisible (`visibility: hidden`) mientras carga
+- Cuando llega el precio de la lista, aparece directamente el precio correcto
+- No hay salto visual
+
+**Archivos modificados:**
+- `frontend/src/components/Pos/ProductCard.jsx`
+- `frontend/src/components/Pedidos/ProductCard.jsx`
+- `frontend/src/hooks/usePriceList.js` - Inicialización de loading y caché
+- `frontend/src/pages/PosScreen.jsx` - Priorizar PRECIOS CAJA en inicialización
+
+---
+
+## ✅ COMPLETADO: Spinner de carga en Arqueo de Caja (30 Enero 2026)
+
+### Problema identificado:
+- La sección "Ventas del Turno / Monto Total / Diferencia" tardaba en cargar
+- No había indicador visual de que estaba cargando
+
+### Solución implementada:
+- Agregado spinner mientras carga los datos del turno
+- Muestra "Cargando datos del turno..." con spinner bonito
+- Cuando termina, muestra los datos o mensaje de "No hay datos disponibles"
+
+**Archivo modificado:**
+- `frontend/src/pages/CajaScreen.jsx`
+
+---
+
+## ✅ COMPLETADO: Cierre Automático de Turno después del Arqueo (30 Enero 2026)
+
+### Problema identificado:
+- Después de hacer el arqueo de caja, el usuario podía seguir operando sin cerrar el turno
+- No había control de que el turno se cerrara correctamente después del corte
+- El usuario debería hacer logout y volver a loguearse para abrir nuevo turno
+
+### Solución implementada:
+- Modificado `handleGuardarArqueo` en CajaScreen.jsx
+- Después de guardar el arqueo exitosamente:
+  1. Se muestra confirmación al usuario
+  2. Se ejecuta `logout()` que cierra el turno automáticamente
+  3. Se redirige al POS (`/pos`) para abrir nuevo turno
+- Para operar de nuevo, el usuario debe abrir nuevo turno
+
+**Archivos modificados:**
+- `frontend/src/pages/CajaScreen.jsx` - Agregado logout al destructuring del contexto y lógica de cierre automático
+
+---
+
 ## ✅ COMPLETADO: Botón X resetea formulario y limpia URL en Pedidos (30 Enero 2026)
 
 ### Problema identificado:

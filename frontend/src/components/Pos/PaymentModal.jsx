@@ -204,6 +204,7 @@ const PaymentModal = ({
 
         // Limpiar y cerrar
         clearCart();
+        setMetodoPago("Efectivo"); // Resetear método de pago a Efectivo
         onClose();
       } else {
         console.error('❌ Error al crear venta:', result);

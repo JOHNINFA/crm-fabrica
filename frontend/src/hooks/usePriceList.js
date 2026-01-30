@@ -67,8 +67,19 @@ const preloadAllPriceLists = async () => {
 };
 
 export const usePriceList = (priceListName, products) => {
-  const [precios, setPrecios] = useState({});
-  const [loading, setLoading] = useState(false);
+  // Inicializar loading en true si no hay caché para esta lista
+  const [precios, setPrecios] = useState(() => {
+    const cacheKey = `lista_${priceListName}`;
+    if (preciosCache[cacheKey]) {
+      return preciosCache[cacheKey].data;
+    }
+    return {};
+  });
+  const [loading, setLoading] = useState(() => {
+    const cacheKey = `lista_${priceListName}`;
+    // Si no hay caché, estamos cargando
+    return !preciosCache[cacheKey];
+  });
 
   // Pre-cargar todas las listas al montar el hook por primera vez
   useEffect(() => {

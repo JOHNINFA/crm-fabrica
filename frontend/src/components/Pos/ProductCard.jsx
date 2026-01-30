@@ -12,8 +12,9 @@ export default function ProductCard({ product, onClick, precioLista }) {
   const [imageSource, setImageSource] = useState(product.image || cachedImage || null);
   const [isClicked, setIsClicked] = useState(false);
 
-  // Usar precio de la lista si existe, sino usar precio base del producto
-  const precioMostrar = precioLista !== undefined && precioLista !== null ? precioLista : product.price;
+  // Usar precio de la lista si existe, sino mostrar null mientras carga
+  // Esto evita el "salto" de precios mostrando precio base primero
+  const precioMostrar = precioLista !== undefined && precioLista !== null ? precioLista : null;
 
   // Sincronizar imagen cuando cambie el producto o el caché
   useEffect(() => {
@@ -102,10 +103,16 @@ export default function ProductCard({ product, onClick, precioLista }) {
           )}
         </div>
 
-        {/* Precio */}
-        <div className="product-price">
-          <strong>{formatPrice(precioMostrar || 0)}</strong>
-        </div>
+        {/* Precio - mostrar solo si está disponible */}
+        {precioMostrar !== null ? (
+          <div className="product-price">
+            <strong>{formatPrice(precioMostrar)}</strong>
+          </div>
+        ) : (
+          <div className="product-price" style={{ visibility: 'hidden' }}>
+            <strong>0</strong>
+          </div>
+        )}
 
         {/* Nombre del producto */}
         <div className="product-name">

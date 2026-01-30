@@ -14,7 +14,7 @@ const CajaScreenContent = () => {
     usePageTitle('Caja');
     const navigate = useNavigate();
     const location = useLocation();
-    const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva } = useCajero();
+    const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva, logout } = useCajero();
 
     const [cajero, setCajero] = useState('jose');
     const [banco, setBanco] = useState('Todos');
@@ -1273,6 +1273,7 @@ const CajaScreenContent = () => {
             const sucursalIdValida = sucursalActiva?.id && sucursalActiva.id < 1000000 ? sucursalActiva.id : null;
 
             const datosArqueo = {
+                // Enviar fecha como string YYYY-MM-DD (Django DateField lo interpreta correctamente)
                 fecha: fechaConsulta,
                 cajero,
                 banco,
@@ -1351,11 +1352,28 @@ const CajaScreenContent = () => {
             localStorage.setItem(corteKey, 'true');
 
 
-            // Limpiar después de 5 segundos
-            setTimeout(() => {
-                setValidacion(null);
-                setRecomendaciones([]);
-            }, 5000);
+            // ✅ CIERRE AUTOMÁTICO DE TURNO Y LOGOUT
+            // Después del arqueo exitoso, cerrar turno y redirigir al POS
+            const confirmarCierre = window.confirm(
+                '✅ Arqueo guardado exitosamente.\n\n' +
+                '🔒 Se cerrará el turno automáticamente.\n\n' +
+                'Será redirigido al POS para abrir un nuevo turno.\n\n' +
+                '¿Desea continuar?'
+            );
+
+            if (confirmarCierre) {
+                try {
+                    // Cerrar turno y hacer logout
+                    await logout();
+
+                    // Redirigir al POS para abrir nuevo turno
+                    navigate('/pos');
+                } catch (logoutError) {
+                    console.error('❌ Error en logout automático:', logoutError);
+                    // Aún así redirigir al POS
+                    navigate('/pos');
+                }
+            }
 
         } catch (error) {
             console.error('❌ Error guardando arqueo:', error);
@@ -1627,7 +1645,7 @@ const CajaScreenContent = () => {
                 </Card>
 
                 {/* Resumen del día - Solo mostrar si hay turno activo */}
-                {turnoActivo && resumenVentas && (
+                {turnoActivo && (
                     <Card className="mb-4">
                         <Card.Body>
                             {/* Indicador de turno */}
@@ -1641,32 +1659,45 @@ const CajaScreenContent = () => {
                                 </Alert>
                             )}
 
-                            <Row className="text-center">
-                                <Col md={4}>
-                                    <div className="stat-card">
-                                        <div className="stat-value text-primary">
-                                            {resumenVentas.totalVentas}
+                            {/* Mostrar spinner mientras carga, o los datos cuando estén listos */}
+                            {loading ? (
+                                <div className="text-center py-4">
+                                    <Spinner animation="border" variant="primary" style={{ width: '3rem', height: '3rem' }} />
+                                    <p className="mt-3 text-muted mb-0">Cargando datos del turno...</p>
+                                </div>
+                            ) : resumenVentas ? (
+                                <Row className="text-center">
+                                    <Col md={4}>
+                                        <div className="stat-card">
+                                            <div className="stat-value text-primary">
+                                                {resumenVentas.totalVentas}
+                                            </div>
+                                            <div className="stat-label">Ventas del Turno</div>
                                         </div>
-                                        <div className="stat-label">Ventas del Turno</div>
-                                    </div>
-                                </Col>
-                                <Col md={4}>
-                                    <div className="stat-card">
-                                        <div className="stat-value text-success">
-                                            {formatCurrency(resumenVentas.totalGeneral)}
+                                    </Col>
+                                    <Col md={4}>
+                                        <div className="stat-card">
+                                            <div className="stat-value text-success">
+                                                {formatCurrency(resumenVentas.totalGeneral)}
+                                            </div>
+                                            <div className="stat-label">Monto Total</div>
                                         </div>
-                                        <div className="stat-label">Monto Total</div>
-                                    </div>
-                                </Col>
-                                <Col md={4}>
-                                    <div className="stat-card">
-                                        <div className={`stat-value ${totalDiferencia < 0 ? 'text-danger' : totalDiferencia > 0 ? 'text-success' : 'text-secondary'}`}>
-                                            {formatCurrency(totalDiferencia)}
+                                    </Col>
+                                    <Col md={4}>
+                                        <div className="stat-card">
+                                            <div className={`stat-value ${totalDiferencia < 0 ? 'text-danger' : totalDiferencia > 0 ? 'text-success' : 'text-secondary'}`}>
+                                                {formatCurrency(totalDiferencia)}
+                                            </div>
+                                            <div className="stat-label">Diferencia Total</div>
                                         </div>
-                                        <div className="stat-label">Diferencia Total</div>
-                                    </div>
-                                </Col>
-                            </Row>
+                                    </Col>
+                                </Row>
+                            ) : (
+                                <div className="text-center py-4 text-muted">
+                                    <i className="bi bi-inbox" style={{ fontSize: '2rem' }}></i>
+                                    <p className="mt-2 mb-0">No hay datos de ventas disponibles</p>
+                                </div>
+                            )}
                         </Card.Body>
                     </Card>
                 )}
@@ -2137,184 +2168,186 @@ const CajaScreenContent = () => {
                     </Tab>
 
 
-                    {/* Tab Historial */}
-                    <Tab eventKey="historial" title="📅 Historial">
-                        <Card>
-                            <Card.Header>
-                                <h5 className="mb-0">
-                                    <i className="bi bi-clock-history me-2"></i>
-                                    Historial de Arqueos
-                                </h5>
-                            </Card.Header>
-                            <Card.Body>
-                                <Row className="mb-4">
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Fecha Desde:</Form.Label>
-                                            <Form.Control
-                                                type="date"
-                                                value={fechaHistorialInicio}
-                                                onChange={(e) => setFechaHistorialInicio(e.target.value)}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Fecha Hasta:</Form.Label>
-                                            <Form.Control
-                                                type="date"
-                                                value={fechaHistorialFin}
-                                                onChange={(e) => setFechaHistorialFin(e.target.value)}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                    {/* Tab Historial - Solo visible para ADMINISTRADOR */}
+                    {cajeroLogueado?.rol === 'ADMINISTRADOR' && (
+                        <Tab eventKey="historial" title="📅 Historial">
+                            <Card>
+                                <Card.Header>
+                                    <h5 className="mb-0">
+                                        <i className="bi bi-clock-history me-2"></i>
+                                        Historial de Arqueos
+                                    </h5>
+                                </Card.Header>
+                                <Card.Body>
+                                    <Row className="mb-4">
+                                        <Col md={6}>
+                                            <Form.Group className="mb-3">
+                                                <Form.Label>Fecha Desde:</Form.Label>
+                                                <Form.Control
+                                                    type="date"
+                                                    value={fechaHistorialInicio}
+                                                    onChange={(e) => setFechaHistorialInicio(e.target.value)}
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                        <Col md={6}>
+                                            <Form.Group className="mb-3">
+                                                <Form.Label>Fecha Hasta:</Form.Label>
+                                                <Form.Control
+                                                    type="date"
+                                                    value={fechaHistorialFin}
+                                                    onChange={(e) => setFechaHistorialFin(e.target.value)}
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
 
-                                <div className="d-flex gap-2 mb-4">
-                                    <Button
-                                        variant="info"
-                                        onClick={() => cargarHistorialArqueos(fechaHistorialInicio, fechaHistorialFin)}
-                                        disabled={loadingHistorial}
-                                    >
-                                        <i className="bi bi-search me-2"></i>
-                                        {loadingHistorial ? 'Cargando...' : 'Consultar Historial'}
-                                    </Button>
-                                    <Button
-                                        variant="outline-primary"
-                                        onClick={() => {
-                                            const hace7Dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                                            setFechaHistorialInicio(hace7Dias);
-                                            setFechaHistorialFin(getFechaLocal());
-                                            cargarHistorialArqueos(hace7Dias, getFechaLocal());
-                                        }}
-                                    >
-                                        <i className="bi bi-calendar-week me-2"></i>
-                                        Última Semana
-                                    </Button>
-                                    <Button
-                                        variant="outline-success"
-                                        onClick={() => {
-                                            const hace30Dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                                            setFechaHistorialInicio(hace30Dias);
-                                            setFechaHistorialFin(getFechaLocal());
-                                            cargarHistorialArqueos(hace30Dias, getFechaLocal());
-                                        }}
-                                    >
-                                        <i className="bi bi-calendar-month me-2"></i>
-                                        Último Mes
-                                    </Button>
-                                </div>
-
-                                {loadingHistorial ? (
-                                    <div className="text-center py-5">
-                                        <Spinner animation="border" variant="primary" />
-                                        <p className="mt-2">Cargando historial...</p>
+                                    <div className="d-flex gap-2 mb-4">
+                                        <Button
+                                            variant="info"
+                                            onClick={() => cargarHistorialArqueos(fechaHistorialInicio, fechaHistorialFin)}
+                                            disabled={loadingHistorial}
+                                        >
+                                            <i className="bi bi-search me-2"></i>
+                                            {loadingHistorial ? 'Cargando...' : 'Consultar Historial'}
+                                        </Button>
+                                        <Button
+                                            variant="outline-primary"
+                                            onClick={() => {
+                                                const hace7Dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                                                setFechaHistorialInicio(hace7Dias);
+                                                setFechaHistorialFin(getFechaLocal());
+                                                cargarHistorialArqueos(hace7Dias, getFechaLocal());
+                                            }}
+                                        >
+                                            <i className="bi bi-calendar-week me-2"></i>
+                                            Última Semana
+                                        </Button>
+                                        <Button
+                                            variant="outline-success"
+                                            onClick={() => {
+                                                const hace30Dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                                                setFechaHistorialInicio(hace30Dias);
+                                                setFechaHistorialFin(getFechaLocal());
+                                                cargarHistorialArqueos(hace30Dias, getFechaLocal());
+                                            }}
+                                        >
+                                            <i className="bi bi-calendar-month me-2"></i>
+                                            Último Mes
+                                        </Button>
                                     </div>
-                                ) : (
-                                    <>
-                                        {/* Tabla de historial */}
-                                        <Table striped bordered hover responsive>
-                                            <thead>
-                                                <tr>
-                                                    <th>Fecha</th>
-                                                    <th>Cajero</th>
-                                                    <th className="text-end">Total Sistema</th>
-                                                    <th className="text-end">Total Caja</th>
-                                                    <th className="text-end">Diferencia</th>
-                                                    <th className="text-center">Estado</th>
-                                                    <th className="text-center">Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {historialArqueos.length === 0 ? (
+
+                                    {loadingHistorial ? (
+                                        <div className="text-center py-5">
+                                            <Spinner animation="border" variant="primary" />
+                                            <p className="mt-2">Cargando historial...</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Tabla de historial */}
+                                            <Table striped bordered hover responsive>
+                                                <thead>
                                                     <tr>
-                                                        <td colSpan="7" className="text-center text-muted py-4">
-                                                            No se encontraron arqueos en el período seleccionado
-                                                        </td>
+                                                        <th>Fecha</th>
+                                                        <th>Cajero</th>
+                                                        <th className="text-end">Total Sistema</th>
+                                                        <th className="text-end">Total Caja</th>
+                                                        <th className="text-end">Diferencia</th>
+                                                        <th className="text-center">Estado</th>
+                                                        <th className="text-center">Acciones</th>
                                                     </tr>
-                                                ) : (
-                                                    historialArqueos.map((arqueo) => {
-                                                        const diferencia = parseFloat(arqueo.total_diferencia || 0);
-                                                        const tieneDiferencia = Math.abs(diferencia) >= 0.01;
+                                                </thead>
+                                                <tbody>
+                                                    {historialArqueos.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan="7" className="text-center text-muted py-4">
+                                                                No se encontraron arqueos en el período seleccionado
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        historialArqueos.map((arqueo) => {
+                                                            const diferencia = parseFloat(arqueo.total_diferencia || 0);
+                                                            const tieneDiferencia = Math.abs(diferencia) >= 0.01;
 
-                                                        return (
-                                                            <tr key={arqueo.id}>
-                                                                <td>{new Date(arqueo.fecha).toLocaleDateString('es-ES')}</td>
-                                                                <td>{arqueo.cajero}</td>
-                                                                <td className="text-end">{formatCurrency(arqueo.total_sistema)}</td>
-                                                                <td className="text-end">{formatCurrency(arqueo.total_caja)}</td>
-                                                                <td className={`text-end ${tieneDiferencia ? (diferencia > 0 ? 'text-success' : 'text-danger') : 'text-muted'}`}>
-                                                                    {formatCurrency(diferencia)}
-                                                                </td>
-                                                                <td className="text-center">
-                                                                    <Badge bg={
-                                                                        arqueo.estado === 'COMPLETADO' ? 'success' :
-                                                                            arqueo.estado === 'REVISADO' ? 'info' :
-                                                                                'warning'
-                                                                    }>
-                                                                        {arqueo.estado}
-                                                                    </Badge>
-                                                                </td>
-                                                                <td className="text-center">
-                                                                    <Button
-                                                                        variant="outline-primary"
-                                                                        size="sm"
-                                                                        className="me-1"
-                                                                        onClick={() => verDetalleArqueo(arqueo)}
-                                                                        title="Ver detalle"
-                                                                    >
-                                                                        <i className="bi bi-eye"></i>
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="outline-secondary"
-                                                                        size="sm"
-                                                                        onClick={() => imprimirArqueo(arqueo)}
-                                                                        title="Imprimir"
-                                                                    >
-                                                                        <i className="bi bi-printer"></i>
-                                                                    </Button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })
-                                                )}
-                                            </tbody>
-                                        </Table>
+                                                            return (
+                                                                <tr key={arqueo.id}>
+                                                                    <td>{new Date(arqueo.fecha + 'T12:00:00').toLocaleDateString('es-ES')}</td>
+                                                                    <td>{arqueo.cajero}</td>
+                                                                    <td className="text-end">{formatCurrency(arqueo.total_sistema)}</td>
+                                                                    <td className="text-end">{formatCurrency(arqueo.total_caja)}</td>
+                                                                    <td className={`text-end ${tieneDiferencia ? (diferencia > 0 ? 'text-success' : 'text-danger') : 'text-muted'}`}>
+                                                                        {formatCurrency(diferencia)}
+                                                                    </td>
+                                                                    <td className="text-center">
+                                                                        <Badge bg={
+                                                                            arqueo.estado === 'COMPLETADO' ? 'success' :
+                                                                                arqueo.estado === 'REVISADO' ? 'info' :
+                                                                                    'warning'
+                                                                        }>
+                                                                            {arqueo.estado}
+                                                                        </Badge>
+                                                                    </td>
+                                                                    <td className="text-center">
+                                                                        <Button
+                                                                            variant="outline-primary"
+                                                                            size="sm"
+                                                                            className="me-1"
+                                                                            onClick={() => verDetalleArqueo(arqueo)}
+                                                                            title="Ver detalle"
+                                                                        >
+                                                                            <i className="bi bi-eye"></i>
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="outline-secondary"
+                                                                            size="sm"
+                                                                            onClick={() => imprimirArqueo(arqueo)}
+                                                                            title="Imprimir"
+                                                                        >
+                                                                            <i className="bi bi-printer"></i>
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </Table>
 
-                                        {/* Estadísticas del período */}
-                                        <Card className="bg-light mt-4">
-                                            <Card.Body>
-                                                <h6 className="mb-3">
-                                                    <i className="bi bi-graph-up me-2"></i>
-                                                    Estadísticas del Período
-                                                </h6>
-                                                <Row className="text-center">
-                                                    <Col md={3}>
-                                                        <div className="h5 text-primary mb-1">{estadisticasHistorial.totalArqueos}</div>
-                                                        <small className="text-muted">Arqueos Realizados</small>
-                                                    </Col>
-                                                    <Col md={3}>
-                                                        <div className="h5 text-success mb-1">{estadisticasHistorial.sinDiferencias}</div>
-                                                        <small className="text-muted">Sin Diferencias</small>
-                                                    </Col>
-                                                    <Col md={3}>
-                                                        <div className="h5 text-warning mb-1">{estadisticasHistorial.conDiferencias}</div>
-                                                        <small className="text-muted">Con Diferencias</small>
-                                                    </Col>
-                                                    <Col md={3}>
-                                                        <div className={`h5 mb-1 ${estadisticasHistorial.totalDiferencia < 0 ? 'text-danger' : estadisticasHistorial.totalDiferencia > 0 ? 'text-success' : 'text-muted'}`}>
-                                                            {formatCurrency(estadisticasHistorial.totalDiferencia)}
-                                                        </div>
-                                                        <small className="text-muted">Diferencia Total</small>
-                                                    </Col>
-                                                </Row>
-                                            </Card.Body>
-                                        </Card>
-                                    </>
-                                )}
-                            </Card.Body>
-                        </Card>
-                    </Tab>
+                                            {/* Estadísticas del período */}
+                                            <Card className="bg-light mt-4">
+                                                <Card.Body>
+                                                    <h6 className="mb-3">
+                                                        <i className="bi bi-graph-up me-2"></i>
+                                                        Estadísticas del Período
+                                                    </h6>
+                                                    <Row className="text-center">
+                                                        <Col md={3}>
+                                                            <div className="h5 text-primary mb-1">{estadisticasHistorial.totalArqueos}</div>
+                                                            <small className="text-muted">Arqueos Realizados</small>
+                                                        </Col>
+                                                        <Col md={3}>
+                                                            <div className="h5 text-success mb-1">{estadisticasHistorial.sinDiferencias}</div>
+                                                            <small className="text-muted">Sin Diferencias</small>
+                                                        </Col>
+                                                        <Col md={3}>
+                                                            <div className="h5 text-warning mb-1">{estadisticasHistorial.conDiferencias}</div>
+                                                            <small className="text-muted">Con Diferencias</small>
+                                                        </Col>
+                                                        <Col md={3}>
+                                                            <div className={`h5 mb-1 ${estadisticasHistorial.totalDiferencia < 0 ? 'text-danger' : estadisticasHistorial.totalDiferencia > 0 ? 'text-success' : 'text-muted'}`}>
+                                                                {formatCurrency(estadisticasHistorial.totalDiferencia)}
+                                                            </div>
+                                                            <small className="text-muted">Diferencia Total</small>
+                                                        </Col>
+                                                    </Row>
+                                                </Card.Body>
+                                            </Card>
+                                        </>
+                                    )}
+                                </Card.Body>
+                            </Card>
+                        </Tab>
+                    )}
 
 
                 </Tabs>
@@ -2332,7 +2365,7 @@ const CajaScreenContent = () => {
                             <>
                                 <Row className="mb-4">
                                     <Col md={6}>
-                                        <p><strong>Fecha:</strong> {new Date(arqueoDetalle.fecha).toLocaleDateString('es-ES')}</p>
+                                        <p><strong>Fecha:</strong> {new Date(arqueoDetalle.fecha + 'T12:00:00').toLocaleDateString('es-ES')}</p>
                                         <p><strong>Cajero:</strong> {arqueoDetalle.cajero}</p>
                                     </Col>
                                     <Col md={6}>

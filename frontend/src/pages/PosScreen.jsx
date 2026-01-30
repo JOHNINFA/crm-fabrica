@@ -68,21 +68,28 @@ function PosMainContent() {
   // 🆕 Determinar qué lista de precios usar según configuración de visibilidad
   const [priceList, setPriceList] = useState(() => {
     try {
-      const listasVisiblesPos = localStorage.getItem('listasVisiblesPos');
-      if (listasVisiblesPos) {
-        const listas = JSON.parse(listasVisiblesPos);
-        // Buscar la primera lista activa
-        const listaActiva = Object.keys(listas).find(nombre => listas[nombre] === true);
-        if (listaActiva) {
-          return listaActiva;
-        }
+      let listasVisiblesPos = JSON.parse(localStorage.getItem('listasVisiblesPos') || '{}');
+
+      // Asegurar que PRECIOS CAJA esté activada por defecto si no existe
+      if (listasVisiblesPos['PRECIOS CAJA'] === undefined) {
+        listasVisiblesPos['PRECIOS CAJA'] = true;
+        localStorage.setItem('listasVisiblesPos', JSON.stringify(listasVisiblesPos));
+      }
+
+      // Buscar la primera lista activa (priorizar PRECIOS CAJA)
+      if (listasVisiblesPos['PRECIOS CAJA'] === true) {
+        return 'PRECIOS CAJA';
+      }
+
+      const listaActiva = Object.keys(listasVisiblesPos).find(nombre => listasVisiblesPos[nombre] === true);
+      if (listaActiva) {
+        return listaActiva;
       }
     } catch (error) {
       console.error('Error leyendo listasVisiblesPos:', error);
     }
-    // Fallback a CLIENTES si no hay configuración
-
-    return "CLIENTES";
+    // Fallback a PRECIOS CAJA
+    return "PRECIOS CAJA";
   });
 
   const [imp, setImp] = useState(0);
