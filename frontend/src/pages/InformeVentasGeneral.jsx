@@ -7,6 +7,7 @@ import usePageTitle from '../hooks/usePageTitle';
 import TicketPreviewModal from '../components/Print/TicketPreviewModal';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import Swal from 'sweetalert2';
 
 const InformeVentasGeneral = () => {
   usePageTitle('Informe de Ventas');
@@ -177,22 +178,35 @@ const InformeVentasGeneral = () => {
         const arqueoExistente = await cajaService.getArqueosPorRango(fechaVenta, fechaVenta);
 
         if (arqueoExistente && arqueoExistente.length > 0) {
-          const cajeros = arqueoExistente.map(a => a.cajero).join(', ');
+          // 🆕 VALIDACIÓN INTELIGENTE: Solo bloquear si el arqueo es POSTERIOR a la venta
+          const fechaHoraVenta = new Date(ventaSeleccionada.fecha);
 
-          alert('❌ NO SE PUEDE ANULAR ESTA VENTA\n\n' +
-            '🔒 Ya existe un arqueo de caja guardado para este día.\n\n' +
-            '📋 Fecha del arqueo: ' + fechaVenta + '\n' +
-            '👤 Cajero(s): ' + cajeros + '\n\n' +
-            '⚠️ Anular esta venta descuadraría el arqueo ya realizado.\n\n' +
-            '💡 Si necesita anular esta venta:\n' +
-            '   1. Contacte al supervisor/administrador\n' +
-            '   2. Vaya a Arqueo de Caja → Historial\n' +
-            '   3. Elimine el arqueo del día ' + fechaVenta + '\n' +
-            '   4. Anule la venta\n' +
-            '   5. Realice un nuevo arqueo con los valores correctos');
+          // Buscar si existe algún arqueo creado DESPUÉS de esta venta
+          const arqueoPosterior = arqueoExistente.find(arqueo => {
+            const fechaHoraArqueo = new Date(arqueo.fecha_creacion || arqueo.fecha); // Usar fecha_creacion si existe, sino fecha base
+            return fechaHoraArqueo > fechaHoraVenta;
+          });
 
-          setShowAnularModal(false);
-          return;
+          if (arqueoPosterior) {
+            const cajeros = arqueoExistente.map(a => a.cajero).join(', ');
+            const fechaArqueoStr = new Date(arqueoPosterior.fecha_creacion || arqueoPosterior.fecha).toLocaleString();
+
+            alert('❌ NO SE PUEDE ANULAR ESTA VENTA\n\n' +
+              '🔒 Ya existe un Cierre de Turno posterior a esta venta.\n\n' +
+              '📋 Cierre realizado: ' + fechaArqueoStr + '\n' +
+              '👤 Cajero: ' + arqueoPosterior.cajero + '\n\n' +
+              '⚠️ Esta venta pertenece a un turno ya cerrado.\n\n' +
+              '💡 Si necesita anularla obligatoriamente:\n' +
+              '   1. Vaya a Arqueo de Caja → Historial\n' +
+              '   2. Elimine el último arqueo (' + fechaArqueoStr + ')\n' +
+              '   3. Anule la venta\n' +
+              '   4. Vuelva a realizar el cierre de turno');
+
+            setShowAnularModal(false);
+            return;
+          }
+          // Si el arqueo es ANTERIOR a la venta (ej: turno mañana cerrado, venta turno tarde),
+          // el código sigue y PERMITE anular. ¡Correcto! ✅
         }
       } catch (error) {
         console.warn('⚠️ Error verificando arqueo:', error);
@@ -258,14 +272,32 @@ const InformeVentasGeneral = () => {
         const mensaje = resultado.message || 'Venta anulada exitosamente';
 
         if (mensaje.includes('base de datos')) {
-          alert('✅ Venta anulada exitosamente.\n\n' +
-            '💾 Estado guardado en base de datos.\n' +
-            '📦 Los productos han sido devueltos al inventario.\n' +
-            '📊 Cambios visibles en todos los módulos.');
+          Swal.fire({
+            icon: 'success',
+            title: 'Venta Anulada',
+            html: `
+              <div style="text-align: left;">
+                <p>✅ <b>Estado guardado en base de datos.</b></p>
+                <p>📦 Los productos han sido devueltos al inventario.</p>
+                <p>📊 Cambios visibles en todos los módulos.</p>
+              </div>
+            `,
+            confirmButtonColor: '#28a745'
+          });
         } else {
-          alert('✅ Venta anulada exitosamente.\n\n' +
-            '📦 Los productos han sido devueltos al inventario.\n' +
-            '⚠️ Estado guardado localmente (se sincronizará cuando la API esté disponible).');
+          Swal.fire({
+            icon: 'warning',
+            title: 'Venta Anulada (Offline)',
+            html: `
+              <div style="text-align: left;">
+                <p>✅ <b>Venta anulada exitosamente.</b></p>
+                <p>📦 Los productos han sido devueltos al inventario.</p>
+                <p>⚠️ Estado guardado localmente (se sincronizará cuando la API esté disponible).</p>
+              </div>
+            `,
+            confirmButtonColor: '#ffc107',
+            confirmButtonText: 'Entendido'
+          });
         }
 
         setShowAnularModal(false);
