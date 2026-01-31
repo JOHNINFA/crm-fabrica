@@ -196,13 +196,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
     // ✅ ELIMINADO: Ya no necesitamos sincronización adicional porque cargamos directo desde BD
 
-    // Actualizar desde prop solo si no hay valor en localStorage ni BD
+    // Actualizar desde prop siempre que sea válida y diferente al estado actual
     useEffect(() => {
-        const responsableGuardado = responsableStorage.get(idSheet);
-
-        if (!responsableGuardado && responsable && responsable !== 'RESPONSABLE' && responsable !== nombreResponsable) {
-            console.log(`🔄 PROP UPDATE - Responsable desde prop para ${idSheet}: "${responsable}"`);
+        // Si el padre nos manda un responsable válido (diferente a "RESPONSABLE" default), lo usamos
+        if (responsable && responsable !== 'RESPONSABLE' && responsable !== nombreResponsable) {
+            console.log(`🔄 PROP UPDATE - Actualizando responsable desde API para ${idSheet}: "${responsable}"`);
             setNombreResponsable(responsable);
+            // También actualizamos el storage para que futuras cargas sean rápidas
+            responsableStorage.set(idSheet, responsable);
         }
     }, [idSheet, responsable, nombreResponsable]);
 
