@@ -221,7 +221,7 @@ function PedidosMainContent() {
         setClient("DESTINATARIO GENERAL");
         setSeller("PEDIDOS");
         setPriceList("VENDEDORES"); // Corregido: VENDEDORES es el default correcto
-        // setDate(getFechaLocal()); // Mantener fecha seleccionada
+        setDate(getFechaLocal()); // 🆕 Reiniciar fecha a hoy (Solicitud Usuario)
 
         setClientData(null);
         clearCart();
