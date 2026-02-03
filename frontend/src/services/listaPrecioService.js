@@ -5,7 +5,7 @@ export const listaPrecioService = {
     getAll: async (params = {}) => {
         const queryParams = new URLSearchParams(params).toString();
         const url = queryParams ? `${API_BASE_URL}/lista-precios/?${queryParams}` : `${API_BASE_URL}/lista-precios/`;
-        
+
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error('Error al obtener listas de precios');
@@ -22,7 +22,7 @@ export const listaPrecioService = {
             },
             body: JSON.stringify(data),
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al crear lista de precios');
         }
@@ -38,9 +38,25 @@ export const listaPrecioService = {
             },
             body: JSON.stringify(data),
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al actualizar lista de precios');
+        }
+        return response.json();
+    },
+
+    // Actualización parcial (PATCH)
+    patch: async (id, data) => {
+        const response = await fetch(`${API_BASE_URL}/lista-precios/${id}/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al actualizar lista de precios (PATCH)');
         }
         return response.json();
     },
@@ -50,7 +66,7 @@ export const listaPrecioService = {
         const response = await fetch(`${API_BASE_URL}/lista-precios/${id}/`, {
             method: 'DELETE',
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al eliminar lista de precios');
         }
@@ -71,7 +87,7 @@ export const precioProductoService = {
     getAll: async (params = {}) => {
         const queryParams = new URLSearchParams(params).toString();
         const url = queryParams ? `${API_BASE_URL}/precio-productos/?${queryParams}` : `${API_BASE_URL}/precio-productos/`;
-        
+
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error('Error al obtener precios de productos');
@@ -88,7 +104,7 @@ export const precioProductoService = {
             },
             body: JSON.stringify(data),
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al guardar precio de producto');
         }
@@ -104,7 +120,7 @@ export const precioProductoService = {
             },
             body: JSON.stringify(data),
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al actualizar precio de producto');
         }

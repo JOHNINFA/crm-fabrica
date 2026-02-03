@@ -89,38 +89,63 @@ const ReporteVentasRuta = () => {
             setVentas(data);
 
             // 🆕 Cargar pedidos entregados del día
-            const vendedorNombre = filtros.vendedor_id
-                ? vendedores.find(v => v.id_vendedor === filtros.vendedor_id)?.nombre
+            // 🆕 Cargar pedidos entregados del día
+            const vendedorObj = filtros.vendedor_id
+                ? vendedores.find(v => v.id_vendedor === filtros.vendedor_id)
                 : null;
-            await cargarPedidosEntregados(filtros.fecha, vendedorNombre);
+            await cargarPedidosEntregados(filtros.fecha, vendedorObj);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
     };
 
-    // 🆕 Cargar pedidos entregados del día
-    const cargarPedidosEntregados = async (fecha, vendedorNombre) => {
+    // 🆕 Cargar pedidos entregados del día (Lógica Robusta v3)
+    const cargarPedidosEntregados = async (fecha, vendedorObj) => {
         try {
-            // El endpoint no filtra bien, traemos todos y filtramos en frontend
-            let url = `/api/pedidos/`;
-            const response = await fetch(url);
+            const API_URL = process.env.REACT_APP_API_URL || '/api';
+            // Traer todos los pedidos
+            const response = await fetch(`${API_URL}/pedidos/`);
+
             if (response.ok) {
                 let pedidos = await response.json();
+                console.log(`📡 Total Pedidos API: ${pedidos.length}`);
 
-                // 1. Filtrar por fecha de entrega exacta
-                pedidos = pedidos.filter(p => p.fecha_entrega === fecha);
+                // Helper de normalización
+                const norm = t => t ? t.toString().trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
 
-                // 2. Filtrar SOLO estado ENTREGADA (no pendientes ni anulados)
-                pedidos = pedidos.filter(p => p.estado === 'ENTREGADA');
+                // 1. Filtrar por fecha de entrega (Usar includes para mayor seguridad con ISO strings)
+                pedidos = pedidos.filter(p => {
+                    const f = p.fecha_entrega || p.fecha || '';
+                    return f.includes(fecha);
+                });
+
+                // 2. Filtrar estado: SOLO ENTREGADOS (Petición estricta)
+                // Aceptamos variaciones comunes
+                const estadosValidos = ['ENTREGADO', 'ENTREGADA', 'DESPACHADO'];
+                pedidos = pedidos.filter(p => {
+                    const estado = (p.estado || '').toUpperCase();
+                    return estadosValidos.includes(estado);
+                });
 
                 // 3. Filtrar por vendedor si aplica
-                if (vendedorNombre) {
-                    pedidos = pedidos.filter(p =>
-                        p.vendedor?.toUpperCase() === vendedorNombre.toUpperCase()
-                    );
+                if (vendedorObj) {
+                    const buscadoId = norm(vendedorObj.id_vendedor);
+                    const buscadoNombre = norm(vendedorObj.nombre);
+
+                    pedidos = pedidos.filter(p => {
+                        const pVend = norm(p.vendedor || p.vendedor_id);
+
+                        if (pVend === buscadoId) return true;
+                        if (pVend === buscadoNombre) return true;
+                        if (buscadoNombre.length > 3 && pVend.includes(buscadoNombre)) return true;
+                        if (pVend.length > 3 && buscadoNombre.includes(pVend)) return true;
+                        if (pVend.includes(`(${buscadoId})`)) return true;
+
+                        return false;
+                    });
                 }
 
                 setPedidosEntregados(pedidos);
-                console.log(`📦 Pedidos ENTREGADOS para ${fecha}:`, pedidos.length, pedidos.map(p => p.numero_pedido));
+                console.log(`📦 Pedidos Entregados Final para ${fecha}:`, pedidos.length);
             }
         } catch (err) {
             console.error('Error cargando pedidos:', err);
@@ -495,7 +520,12 @@ ${productosHTML}
                             </div>
                             <div className="d-flex flex-column gap-1">
                                 <label className="text-secondary fw-bold text-uppercase" style={{ fontSize: '0.65rem', letterSpacing: '0.05em' }}>Vendedor</label>
-                                <Form.Select value={filtros.vendedor_id} onChange={e => setFiltros({ ...filtros, vendedor_id: e.target.value })} className="filter-select h-auto bg-white border-0 shadow-sm">
+                                <Form.Select
+                                    value={filtros.vendedor_id}
+                                    onChange={e => setFiltros({ ...filtros, vendedor_id: e.target.value })}
+                                    className="filter-select h-auto bg-white border-0 shadow-sm"
+                                    style={{ paddingRight: '2.5rem', textOverflow: 'ellipsis' }}
+                                >
                                     <option value="">Todos los vendedores</option>
                                     {vendedores.map(v => <option key={v.id_vendedor} value={v.id_vendedor}>{v.nombre}</option>)}
                                 </Form.Select>
@@ -591,7 +621,7 @@ ${productosHTML}
                                 <span className="kpi-icon-wrapper bg-light text-primary me-2 border" style={{ width: '2.5rem', height: '2.5rem' }}><i className="bi bi-truck"></i></span>
                                 Pedidos Entregados
                             </div>
-                            <span className="badge-modern badge-neutral-modern border">{pedidosEntregados.length} pedidos hoy</span>
+                            <span className="badge-modern badge-neutral-modern border">{pedidosEntregados.length} Entregas</span>
                         </div>
                         <div className="table-responsive">
                             <Table className="modern-table" hover>
@@ -603,7 +633,7 @@ ${productosHTML}
                                             <td className="fw-medium">{pedido.destinatario || '-'}</td>
                                             <td className="text-muted small text-truncate" style={{ maxWidth: '200px' }}>{pedido.direccion_entrega || '-'}</td>
                                             <td>
-                                                <span className={`badge-modern ${pedido.estado === 'ENTREGADA' ? 'badge-success-modern' : 'badge-warning-modern'}`}>
+                                                <span className={`badge-modern ${['ENTREGADO', 'ENTREGADA', 'DESPACHADO'].includes(pedido.estado) ? 'badge-success-modern' : 'badge-warning-modern'}`}>
                                                     {pedido.estado}
                                                 </span>
                                             </td>

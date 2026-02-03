@@ -161,9 +161,18 @@ function InformePedidosContent() {
                 <Container fluid className="p-3">
                     <Row className="mb-3">
                         <Col className="d-flex justify-content-between align-items-center">
-                            <h6 className="mb-0" style={{ fontSize: '16px', fontWeight: 'normal' }}>
-                                Informe de Pedidos General
-                            </h6>
+                            <div className="d-flex align-items-center">
+                                <h6 className="mb-0 me-2" style={{ fontSize: '16px', fontWeight: 'normal' }}>
+                                    Informe de Pedidos General
+                                </h6>
+                                <button
+                                    className="btn btn-light btn-sm border me-2"
+                                    onClick={cargarPedidos}
+                                    title="Actualizar lista"
+                                >
+                                    <i className={`bi bi-arrow-clockwise ${loading ? 'spin' : ''}`}></i>
+                                </button>
+                            </div>
                             <button
                                 className="btn btn-outline-secondary btn-sm"
                                 onClick={() => navigate('/remisiones')}
@@ -281,10 +290,11 @@ function InformePedidosContent() {
                         </Col>
                     </Row>
                 </Container>
-            </div>
+            </div >
 
             {/* Modal de Detalle de Pedido */}
-            <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg" centered>
+            < Modal show={showDetailModal} onHide={() => setShowDetailModal(false)
+            } size="lg" centered >
                 <Modal.Header closeButton>
                     <Modal.Title>
                         <i className="bi bi-receipt me-2"></i>
@@ -459,17 +469,19 @@ function InformePedidosContent() {
                         </div>
                     </div>
                 </Modal.Footer>
-            </Modal>
+            </Modal >
 
             {/* Modal de impresión (invisible pero funcional) */}
-            {ticketData && (
-                <TicketPreviewModal
-                    show={showTicketModal}
-                    onClose={() => setShowTicketModal(false)}
-                    ticketData={ticketData}
-                    autoPrint={true}
-                />
-            )}
+            {
+                ticketData && (
+                    <TicketPreviewModal
+                        show={showTicketModal}
+                        onClose={() => setShowTicketModal(false)}
+                        ticketData={ticketData}
+                        autoPrint={true}
+                    />
+                )
+            }
 
             {/* Modal de Confirmación de Anulación */}
             <Modal
@@ -546,7 +558,7 @@ function InformePedidosContent() {
                     </Button>
                 </Modal.Footer>
             </Modal>
-        </div>
+        </div >
     );
 }
 

@@ -15,9 +15,32 @@ const ReporteVentasPOS = ({ onVolver }) => {
     const API_URL = process.env.REACT_APP_API_URL || '/api';
 
     useEffect(() => {
-        // Obtener usuario logueado
-        const user = localStorage.getItem('usuario') || 'Usuario';
-        setUsuarioActual(user);
+        // Obtener usuario logueado con múltiples fallbacks
+        let nombre = 'Usuario';
+
+        try {
+            // 1. Intentar cajero POS
+            const cajero = localStorage.getItem('cajero_logueado');
+            if (cajero) {
+                const c = JSON.parse(cajero);
+                if (c.nombre) nombre = c.nombre;
+            } else {
+                // 2. Intentar usuario CRM
+                const usuario = localStorage.getItem('crm_usuario');
+                if (usuario) {
+                    const u = JSON.parse(usuario);
+                    if (u.nombre) nombre = u.nombre;
+                } else {
+                    // 3. Fallback legacy
+                    const legacy = localStorage.getItem('usuario');
+                    if (legacy) nombre = legacy;
+                }
+            }
+        } catch (e) {
+            console.error('Error leyendo usuario:', e);
+        }
+
+        setUsuarioActual(nombre);
     }, []);
 
     const handleConsultar = async () => {
@@ -30,8 +53,21 @@ const ReporteVentasPOS = ({ onVolver }) => {
         setError('');
 
         try {
+            let queryParams = `periodo=${periodo}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+
+            // Si NO es admin, filtrar por el usuario actual. Si es admin, mostrar todo.
+            const esAdmin = usuarioActual && (
+                usuarioActual.toUpperCase().includes('ADMIN') ||
+                usuarioActual.toUpperCase().includes('GERENTE') ||
+                usuarioActual.toUpperCase().includes('SUPER')
+            );
+
+            if (!esAdmin && usuarioActual) {
+                queryParams += `&cajero=${usuarioActual}`;
+            }
+
             const response = await fetch(
-                `${API_URL}/reportes/ventas-pos/?periodo=${periodo}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`
+                `${API_URL}/reportes/ventas-pos/?${queryParams}`
             );
 
             if (!response.ok) throw new Error('Error al consultar');
@@ -105,7 +141,7 @@ const ReporteVentasPOS = ({ onVolver }) => {
                     <>
                         {/* Métricas */}
                         <Row className="g-3 mb-4">
-                            <Col md={3}>
+                            <Col md={4}>
                                 <Card className="text-center border-primary shadow-sm">
                                     <Card.Body>
                                         <i className="bi bi-cart-check text-primary" style={{ fontSize: '2rem' }}></i>
@@ -115,7 +151,7 @@ const ReporteVentasPOS = ({ onVolver }) => {
                                     </Card.Body>
                                 </Card>
                             </Col>
-                            <Col md={3}>
+                            <Col md={4}>
                                 <Card className="text-center border-success shadow-sm">
                                     <Card.Body>
                                         <i className="bi bi-currency-dollar text-success" style={{ fontSize: '2rem' }}></i>
@@ -125,7 +161,7 @@ const ReporteVentasPOS = ({ onVolver }) => {
                                     </Card.Body>
                                 </Card>
                             </Col>
-                            <Col md={3}>
+                            <Col md={4}>
                                 <Card className="text-center border-info shadow-sm">
                                     <Card.Body>
                                         <i className="bi bi-box text-info" style={{ fontSize: '2rem' }}></i>
@@ -135,42 +171,9 @@ const ReporteVentasPOS = ({ onVolver }) => {
                                     </Card.Body>
                                 </Card>
                             </Col>
-                            <Col md={3}>
-                                <Card className="text-center border-warning shadow-sm">
-                                    <Card.Body>
-                                        <i className="bi bi-graph-up text-warning" style={{ fontSize: '2rem' }}></i>
-                                        <h6 className="text-muted mt-2 mb-1">Ticket Promedio</h6>
-                                        <h3 className="mb-0 text-warning">
-                                            {formatMoney(data.total_ventas > 0 ? data.monto_total / data.total_ventas : 0)}
-                                        </h3>
-                                        <small className="text-muted">Por venta</small>
-                                    </Card.Body>
-                                </Card>
-                            </Col>
                         </Row>
 
-                        {/* Gráfico por día */}
-                        {data.por_dia && data.por_dia.length > 0 && (
-                            <Card className="mb-4 shadow-sm">
-                                <Card.Header className="bg-primary text-white">
-                                    <strong><i className="bi bi-calendar3 me-2"></i>Ventas por {periodo.charAt(0).toUpperCase() + periodo.slice(1)}</strong>
-                                </Card.Header>
-                                <Card.Body>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={data.por_dia}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="fecha" />
-                                            <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                                            <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                                            <Tooltip formatter={(value) => typeof value === 'number' ? (value > 1000 ? formatMoney(value) : value) : value} />
-                                            <Legend />
-                                            <Bar yAxisId="left" dataKey="ventas" fill="#8884d8" name="Cant. Ventas" />
-                                            <Bar yAxisId="right" dataKey="monto" fill="#82ca9d" name="Monto ($)" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </Card.Body>
-                            </Card>
-                        )}
+
 
                         {/* Tabla de ventas */}
                         {data.ventas && data.ventas.length > 0 && (

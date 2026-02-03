@@ -4,7 +4,7 @@ from django.urls import path
 from .views import (
     RegistroViewSet, ProductoViewSet, CategoriaViewSet, StockViewSet,
     LoteViewSet, MovimientoInventarioViewSet, RegistroInventarioViewSet,
-    VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
+    VentaViewSet, DetalleVentaViewSet, ClienteViewSet, ProductosFrecuentesViewSet, ListaPrecioViewSet, PrecioProductoViewSet,
     CargueID1ViewSet, CargueID2ViewSet, CargueID3ViewSet, CargueID4ViewSet, CargueID5ViewSet, CargueID6ViewSet, ProduccionViewSet,
     VendedorViewSet, DomiciliarioViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
@@ -38,7 +38,8 @@ from .views import (
     # 🧠 Configuración IA
     ia_config, ia_retrain, ia_logs,
     # 🆕 Exportar
-    exportar_clientes_excel
+    exportar_clientes_excel,
+    abrir_turno_manual
 )
 
 router = DefaultRouter()
@@ -54,6 +55,7 @@ router.register(r'stock', StockViewSet, basename='stock')
 router.register(r'ventas', VentaViewSet, basename='ventas')
 router.register(r'pedidos', PedidoViewSet, basename='pedidos')
 router.register(r'clientes', ClienteViewSet, basename='clientes')
+router.register(r'productos-frecuentes', ProductosFrecuentesViewSet, basename='productos-frecuentes')
 router.register(r'lista-precios', ListaPrecioViewSet, basename='lista-precios')
 router.register(r'precio-productos', PrecioProductoViewSet, basename='precio-productos')
 router.register(r'cargue-id1', CargueID1ViewSet, basename='cargue-id1')
@@ -160,5 +162,8 @@ urlpatterns = router.urls + [
     
     # 📥 Exportar
     path('reportes/clientes-excel/', exportar_clientes_excel, name='exportar-clientes-excel'),
+
+    # 🛠️ Herramientas Manuales
+    path('turno/abrir-manual/', abrir_turno_manual, name='abrir-turno-manual'),
 ]
 

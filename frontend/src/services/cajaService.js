@@ -356,11 +356,14 @@ export const cajaService = {
   /**
    * Obtener movimientos de caja por fecha y cajero
    */
-  getMovimientosCaja: async (fecha, cajero = null) => {
+  getMovimientosCaja: async (fecha, cajero = null, turnoId = null) => {
     try {
       let url = `${API_URL}/movimientos-caja/?fecha=${fecha}`;
       if (cajero) {
         url += `&cajero=${cajero}`;
+      }
+      if (turnoId) {
+        url += `&turno=${turnoId}`;
       }
 
       const response = await fetch(url, { headers: getHeaders() });

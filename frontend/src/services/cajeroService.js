@@ -427,8 +427,12 @@ export const cajeroService = {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        cajero: cajeroId,        // API espera 'cajero' no 'cajero_id'
-                        sucursal: sucursalId,    // API espera 'sucursal' no 'sucursal_id'
+                        // Corregido: backend espera xxx_id
+                        cajero_id: cajeroId,
+                        sucursal_id: sucursalId,
+                        // Mantenemos los antiguos por compatibilidad si fuera necesario
+                        cajero: cajeroId,
+                        sucursal: sucursalId,
                         base_inicial: saldoInicial,
                         notas_apertura: `Turno iniciado desde POS con saldo inicial: ${saldoInicial}`
                     })
@@ -545,15 +549,18 @@ export const cajeroService = {
                     const data = await response.json();
                     if (data && data.length > 0) {
                         return data[0]; // Retornar el primer turno activo
+                    } else {
+                        return null; // ✅ API dice que no hay turno, retornar null y NO usar fallback
                     }
                 }
             } catch (apiError) {
-                console.warn('API no disponible para obtener turno activo:', apiError);
+                console.warn('API no disponible para obtener turno activo, usando fallback:', apiError);
+                // Solo si falla la API (catch), continuamos al fallback
             }
 
-            // Fallback: buscar en localStorage
+            // Fallback: buscar en localStorage (SOLO SI API FALLA)
             const turnos = JSON.parse(localStorage.getItem('turnos') || '[]');
-            const turnoActivo = turnos.find(t => 
+            const turnoActivo = turnos.find(t =>
                 t.cajero === cajeroId && t.estado === 'ACTIVO'
             );
 

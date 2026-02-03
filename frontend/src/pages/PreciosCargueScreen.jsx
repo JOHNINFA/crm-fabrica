@@ -172,7 +172,7 @@ const PreciosCargueScreen = () => {
                                                     <input
                                                         type="number"
                                                         className="form-control"
-                                                        value={producto.precio_cargue || ''}
+                                                        value={producto.precio_cargue ? Math.floor(producto.precio_cargue) : ''}
                                                         onChange={(e) => handlePrecioChange(producto.id, e.target.value)}
                                                         onBlur={() => guardarPrecio(producto)}
                                                         placeholder="0"

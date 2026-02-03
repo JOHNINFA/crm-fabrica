@@ -11,7 +11,7 @@ import ControlCumplimiento from './ControlCumplimiento';
 import RegistroLotes from './RegistroLotes';
 import BotonCorreccionNuevo from './BotonCorreccionNuevo';
 import BotonVerPedidos from './BotonVerPedidos';
-import BotonSincronizarProductos from './BotonSincronizarProductos';
+
 
 import { cargueHybridService } from '../../services/cargueApiService'; // Corrected import
 import { productoService } from '../../services/api'; // Para cargar precios directamente
@@ -61,11 +61,28 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 const productosBackend = await productoService.getAll();
 
                 if (productosBackend && productosBackend.length > 0) {
+                    // Recuperar caché actual para comparación defensiva
+                    const cacheActual = JSON.parse(localStorage.getItem('precios_cargue_cache') || '{}');
                     const mapaPrecios = {};
+
                     productosBackend.forEach(p => {
                         const precioCargue = parseFloat(p.precio_cargue) || 0;
                         const precioBase = parseFloat(p.precio) || 0;
-                        mapaPrecios[p.id] = precioCargue > 0 ? precioCargue : Math.round(precioBase * 0.65);
+                        // Robustecer búsqueda por ID (String vs Number)
+                        const precioEnCache = cacheActual[p.id] || cacheActual[String(p.id)];
+
+                        // Lógica Defensiva Anti-Rebote:
+                        if (precioCargue > 0) {
+                            // 1. Si la API trae un precio válido, usarlo (Prioridad Máxima)
+                            mapaPrecios[p.id] = precioCargue;
+                        } else if (precioEnCache > 0) {
+                            // 2. Si la API trae 0 pero teníamos un precio válido en caché, CONSERVARLO.
+                            // Esto evita que un glitch de la API nos resetee al precio calculado (1105)
+                            mapaPrecios[p.id] = precioEnCache;
+                        } else {
+                            // 3. Si no hay nada, usar fallback del 65%
+                            mapaPrecios[p.id] = Math.round(precioBase * 0.65);
+                        }
                     });
 
                     // Guardar en caché para próximas cargas
@@ -182,8 +199,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 console.log(`🔄 RESPONSABLE ACTUALIZADO - ${idSheet}: "${e.detail.nuevoNombre}"`);
                 setNombreResponsable(e.detail.nuevoNombre);
 
-                // ✅ Sincronizar con la base de datos
-                actualizarResponsable(idSheet, e.detail.nuevoNombre);
+                // ✅ Sincronizar solo estado local (el evento ya implica persistencia o viene de ella)
+                // NO llamar a actualizarResponsable aquí para evitar bucles infinitos
+                // actualizarResponsable(idSheet, e.detail.nuevoNombre);
             }
         };
 
@@ -1703,8 +1721,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 fechaSeleccionada={fechaSeleccionada}
                             />
 
-                            {/* 🆕 Botón para actualizar precios y productos */}
-                            <BotonSincronizarProductos />
+
                         </div>
                         <div className="text-muted small">
                             {dia} - {fechaSeleccionada} - {idSheet}

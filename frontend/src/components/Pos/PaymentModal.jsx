@@ -6,7 +6,9 @@ import './PaymentModal.css';
 
 const PaymentModal = ({
   show, onClose, cart, total, subtotal = 0, impuestos = 0, descuentos = 0,
-  seller = 'Sistema', client = 'CONSUMIDOR FINAL', clearCart = () => { }
+  seller = 'Sistema', client = 'CONSUMIDOR FINAL', clearCart = () => { },
+  // 🆕 Props nuevas
+  address = '', phone = '', userLogueado = ''
 }) => {
   const safeTotal = typeof total === 'number' ? total : 0;
   const [entregado, setEntregado] = useState(safeTotal);
@@ -127,6 +129,7 @@ const PaymentModal = ({
       const ventaData = {
         fecha: getFechaLocal(), // Enviar fecha local explícitamente
         vendedor: seller,
+        creado_por: userLogueado, // 🆕 Usuario logueado en caja
         cliente: client,
         metodo_pago: metodoPago.toUpperCase(),
         subtotal: subtotal,
@@ -173,7 +176,11 @@ const PaymentModal = ({
               metodoPago: metodoPago,
               dineroEntregado: entregado,
               devuelta: devuelta,
-              formatoImpresion: impresion // 'Tirilla' o 'Carta'
+              formatoImpresion: impresion, // 'Tirilla' o 'Carta'
+              // 🆕 Datos extra
+              direccion: address,
+              telefono: phone,
+              usuario: userLogueado // 🆕
             };
 
             // Imprimir ticket
@@ -670,7 +677,15 @@ const PaymentModal = ({
           
           <div class="ticket-info">
             <p>Cliente:<span><strong>${data.cliente}</strong></span></p>
-            <p>Atendido por:<span><strong>${data.vendedor}</strong></span></p>
+            ${data.direccion ? `<p style="font-size: ${tamanioInfo - 1}px;">Dir: <span><strong>${data.direccion}</strong></span></p>` : ''}
+            ${data.telefono ? `<p style="font-size: ${tamanioInfo - 1}px;">Tel: <span><strong>${data.telefono}</strong></span></p>` : ''}
+            
+            ${data.vendedor && data.usuario && data.vendedor !== data.usuario ? `
+                <p>Vendedor:<span><strong>${data.vendedor}</strong></span></p>
+                <p>Atendido por:<span><strong>${data.usuario}</strong></span></p>
+            ` : `
+                <p>Atendido por:<span><strong>${data.vendedor || data.usuario}</strong></span></p>
+            `}
           </div>
           
           <div class="ticket-divider">........................................</div>

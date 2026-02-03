@@ -20,6 +20,7 @@ const InformeVentasGeneral = () => {
   const [confirmacionAnular, setConfirmacionAnular] = useState('');
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [ticketData, setTicketData] = useState(null);
+  const [busqueda, setBusqueda] = useState('');
 
   // Estados para los calendarios
   const [fechaInicial, setFechaInicial] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -314,26 +315,35 @@ const InformeVentasGeneral = () => {
     }
   };
 
-  // Transformar ventas para la tabla (con filtro de fechas)
-  const transacciones = ventasFiltradas.map((venta) => ({
-    id: venta.id,
-    tipo: 'Ventas',
-    medio: venta.metodo_pago || 'Efectivo',
-    facturas: venta.numero_factura || venta.id, // Mostrar número de factura real
-    trans: 1,
-    fecha: new Date(venta.fecha).toLocaleString('es-CO'),
-    estado: venta.estado || 'Pagado',
-    pendientes: 0,
-    vendedor: venta.vendedor || 'Sistema',
-    cliente: venta.cliente || 'CONSUMIDOR FINAL',
-    facturado: parseFloat(venta.total || 0),
-    costo: 0.00,
-    utilidad: parseFloat(venta.total || 0),
-    utilidadPct: 100.00,
-    pagar: parseFloat(venta.total || 0),
-    abonado: parseFloat(venta.dinero_entregado || 0),
-    pendiente: Math.max(0, parseFloat(venta.total || 0) - parseFloat(venta.dinero_entregado || 0))
-  }));
+  // Transformar ventas para la tabla (con filtro de fechas y búsqueda)
+  const transacciones = ventasFiltradas
+    .filter(venta => {
+      if (!busqueda) return true;
+      const termino = busqueda.toLowerCase();
+      const cliente = (venta.cliente || '').toLowerCase();
+      const factura = (venta.numero_factura || venta.id || '').toString().toLowerCase();
+      return cliente.includes(termino) || factura.includes(termino);
+    })
+    .map((venta) => ({
+      id: venta.id,
+      tipo: 'Ventas',
+      medio: venta.metodo_pago || 'Efectivo',
+      facturas: venta.numero_factura || venta.id, // Mostrar número de factura real
+      trans: 1,
+      fecha: new Date(venta.fecha).toLocaleString('es-CO'),
+      estado: venta.estado || 'Pagado',
+      pendientes: 0,
+      vendedor: venta.vendedor || 'Sistema',
+      creado_por: venta.creado_por || 'Sistema',
+      cliente: venta.cliente || 'CONSUMIDOR FINAL',
+      facturado: parseFloat(venta.total || 0),
+      costo: 0.00,
+      utilidad: parseFloat(venta.total || 0),
+      utilidadPct: 100.00,
+      pagar: parseFloat(venta.total || 0),
+      abonado: parseFloat(venta.dinero_entregado || 0),
+      pendiente: Math.max(0, parseFloat(venta.total || 0) - parseFloat(venta.dinero_entregado || 0))
+    }));
 
   const formatCurrency = (amount) => {
     return `$ ${amount.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -878,8 +888,23 @@ const InformeVentasGeneral = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="p-3 border-bottom">
+                    <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
                       <h6 className="mb-0">Transacciones de Ventas</h6>
+                      <div className="position-relative" style={{ width: '280px' }}>
+                        <i
+                          className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
+                          style={{ fontSize: '13px' }}
+                        ></i>
+                        <Form.Control
+                          type="text"
+                          placeholder="Buscar Cliente o # Pedido..."
+                          size="sm"
+                          value={busqueda}
+                          onChange={(e) => setBusqueda(e.target.value)}
+                          className="ps-5 border-0 bg-light"
+                          style={{ borderRadius: '20px', fontSize: '13px' }}
+                        />
+                      </div>
                     </div>
                     <div style={{ overflowX: 'auto' }}>
                       <Table hover className="mb-0" style={{ fontSize: '12px' }}>
@@ -891,6 +916,7 @@ const InformeVentasGeneral = () => {
                             <th>Fecha</th>
                             <th>Estado</th>
                             <th>Vendedor</th>
+                            <th>Creado Por</th>
                             <th>Cliente</th>
                             <th>T.Facturado</th>
                             <th>T.Abonado</th>
@@ -918,6 +944,7 @@ const InformeVentasGeneral = () => {
                                   </Badge>
                                 </td>
                                 <td>{transaccion.vendedor}</td>
+                                <td>{transaccion.creado_por}</td>
                                 <td>{transaccion.cliente}</td>
                                 <td>{formatCurrency(transaccion.facturado)}</td>
                                 <td>{formatCurrency(transaccion.abonado)}</td>
@@ -979,6 +1006,7 @@ const InformeVentasGeneral = () => {
                       <p><strong># Factura:</strong> {ventaSeleccionada.numero_factura || ventaSeleccionada.id}</p>
                       <p><strong>Cliente:</strong> {ventaSeleccionada.cliente || 'CONSUMIDOR FINAL'}</p>
                       <p><strong>Vendedor:</strong> {ventaSeleccionada.vendedor || 'Sistema'}</p>
+                      <p><strong>Creado Por:</strong> {ventaSeleccionada.creado_por || 'Sistema'}</p>
                       <p><strong>Fecha:</strong> {new Date(ventaSeleccionada.fecha).toLocaleString('es-CO')}</p>
                       <p><strong>Método de Pago:</strong>
                         <Badge bg="primary" className="ms-2 text-capitalize" style={{ backgroundColor: '#0c2c53' }}>

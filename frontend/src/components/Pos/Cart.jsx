@@ -16,7 +16,10 @@ export default function Cart({
   setDesc = () => { },
   seller = 'Sistema',
   client = 'CONSUMIDOR FINAL',
-  clearCart = () => { }
+  clearCart = () => { },
+  address = '',
+  phone = '',
+  userLogueado = 'Sistema' // 🆕
 }) {
   const { cajeroLogueado, isAuthenticated, turnoActivo, openLoginModal } = useCajero();
   const [nota, setNota] = useState("");
@@ -240,8 +243,12 @@ export default function Cart({
         impuestos={imp}
         descuentos={desc}
         seller={seller}
+        userLogueado={userLogueado} // 🆕
         client={client}
         clearCart={clearCart}
+        // 🆕 Datos extra para el ticket
+        address={address}
+        phone={phone}
       />
     </div>
   );

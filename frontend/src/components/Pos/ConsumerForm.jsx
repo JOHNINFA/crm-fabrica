@@ -2,52 +2,58 @@ import React, { useState, useEffect, useRef } from "react";
 import "./ConsumerForm.css";
 import { clienteService } from "../../services/clienteService";
 import { listaPrecioService } from "../../services/listaPrecioService";
+import { vendedorService } from "../../services/vendedorService"; // 🆕
 import { useCajero } from "../../context/CajeroContext";
 import { useScrollVisibility } from "../../hooks/useScrollVisibility";
 import { cajonService } from "../../services/cajonService";
 
-export default function ConsumerForm({ date, seller, client, setDate, setClient, priceList, setPriceList }) {
+export default function ConsumerForm({
+  date, seller, setSeller, client, setDate, setClient,
+  priceList, setPriceList, setAddress, setPhone
+}) {
   const { cajeroLogueado, sucursalActiva, isAuthenticated } = useCajero();
   const [priceLists, setPriceLists] = useState([]);
+  const [vendedores, setVendedores] = useState([]); // 🆕
   const isVisible = useScrollVisibility(false);
 
   useEffect(() => {
     cargarListasPrecios();
+    cargarVendedores(); // 🆕
   }, []);
 
   const cargarListasPrecios = async () => {
     try {
       const listas = await listaPrecioService.getAll({ activo: true });
-
-      // Obtener configuración de listas visibles en POS desde localStorage
-      let listasVisiblesPos = JSON.parse(localStorage.getItem('listasVisiblesPos') || '{}');
-
-      // Asegurar que PRECIOS CAJA esté activada por defecto si no existe en la configuración
-      if (listasVisiblesPos['PRECIOS CAJA'] === undefined) {
-        listasVisiblesPos['PRECIOS CAJA'] = true;
-        localStorage.setItem('listasVisiblesPos', JSON.stringify(listasVisiblesPos));
-      }
-
-      // Filtrar solo las listas que están marcadas como visibles en POS
-      const listasVisibles = listas.filter(lista => listasVisiblesPos[lista.nombre] === true);
-
-
-
+      const listasVisibles = listas.filter(lista =>
+        lista.visible_pos === true || lista.nombre === 'PRECIOS CAJA'
+      );
       setPriceLists(listasVisibles);
-      if (listasVisibles.length > 0 && !priceList) {
-        const clienteLista = listasVisibles.find(l => l.nombre === 'CLIENTES');
-        setPriceList(clienteLista ? 'CLIENTES' : listasVisibles[0].nombre);
+      if (listasVisibles.length > 0 && (!priceList || !listasVisibles.some(l => l.nombre === priceList))) {
+        const listaDefault = listasVisibles.find(l => l.nombre === 'PRECIOS CAJA') || listasVisibles[0];
+        setPriceList(listaDefault.nombre);
       }
     } catch (error) {
       console.error('Error cargando listas:', error);
     }
   };
+
+  // 🆕 Cargar lista de vendedores
+  const cargarVendedores = async () => {
+    try {
+      const data = await vendedorService.getAll();
+      if (data && Array.isArray(data)) {
+        setVendedores(data);
+      }
+    } catch (error) {
+      console.error("Error cargando vendedores", error);
+    }
+  };
+
   const [clienteSuggestions, setClienteSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const suggestionRef = useRef(null);
 
-  // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(event) {
       if (suggestionRef.current && !suggestionRef.current.contains(event.target)) {
@@ -58,10 +64,15 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Buscar clientes cuando se escribe
   const handleClientSearch = async (term) => {
     setSearchTerm(term);
     setClient(term);
+
+    // Si borra el cliente, limpiar datos extra
+    if (!term) {
+      setAddress("");
+      setPhone("");
+    }
 
     if (term.length < 2) {
       setClienteSuggestions([]);
@@ -76,9 +87,9 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
         const termLower = term.toLowerCase();
         const filteredClientes = clientes.filter(c =>
           (c.nombre_completo || '').toLowerCase().includes(termLower) ||
-          (c.alias || '').toLowerCase().includes(termLower) ||  // Buscar por nombre del negocio
+          (c.alias || '').toLowerCase().includes(termLower) ||
           (c.identificacion || '').includes(term)
-        ).slice(0, 5); // Limitar a 5 resultados
+        ).slice(0, 5);
 
         setClienteSuggestions(filteredClientes);
       }
@@ -87,15 +98,22 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
     }
   };
 
-  // Seleccionar un cliente de las sugerencias
   const selectCliente = (cliente) => {
-    // Usar el nombre del negocio si existe, si no usar el nombre del contacto
     setClient(cliente.alias || cliente.nombre_completo);
+
+    // 🆕 Autocompletar Address y Phone
+    setAddress(cliente.direccion || "");
+    const tel = cliente.movil || cliente.telefono_1 || cliente.telefono_contacto || "";
+    setPhone(tel);
+
+    // 🆕 Actualizar Lista de Precios si el cliente tiene una asignada
+    if (cliente.tipo_lista_precio) {
+      setPriceList(cliente.tipo_lista_precio);
+    }
+
     setClienteSuggestions([]);
     setIsSearching(false);
   };
-
-
 
   return (
     <div
@@ -128,7 +146,6 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
             }}
           />
 
-          {/* Sugerencias de clientes */}
           {isSearching && clienteSuggestions.length > 0 && (
             <div
               ref={suggestionRef}
@@ -182,7 +199,12 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
           </button>
           <button
             title="Limpiar"
-            onClick={() => setClient("CONSUMIDOR FINAL")}
+            onClick={() => {
+              setClient("CONSUMIDOR FINAL");
+              setAddress("");
+              setPhone("");
+              setSeller(cajeroLogueado?.nombre || 'POS'); // Reset vendedor también
+            }}
           >
             <span className="material-icons" style={{ fontSize: '16px' }}>clear</span>
           </button>
@@ -241,23 +263,41 @@ export default function ConsumerForm({ date, seller, client, setDate, setClient,
         </div>
         <div className="consumer-form-group">
           <label className="consumer-form-label">Atendido por</label>
-          <input
-            type="text"
-            className="form-control consumer-form-title-input"
-            value={seller}
-            readOnly
-            style={{
-              fontSize: '12px',
-              height: '28px',
-              padding: '2px 8px',
-              backgroundColor: '#f8f9fa',
-              cursor: 'not-allowed',
-              fontWeight: 'bold',
-              color: '#495057'
-            }}
-          />
+          {/* 🆕 Convertido a Select editable */}
+          <div className="position-relative">
+            <select
+              className="form-control consumer-form-title-input"
+              value={seller}
+              onChange={(e) => setSeller(e.target.value)}
+              style={{
+                fontSize: '12px',
+                height: '28px',
+                padding: '2px 8px',
+                fontWeight: 'bold',
+                color: '#495057',
+                appearance: 'none'
+              }}
+            >
+              {/* Opción por defecto: Cajero Actual */}
+              <option value={cajeroLogueado?.nombre || 'POS'}>{cajeroLogueado?.nombre || 'POS'}</option>
 
-          {/* Información adicional del cajero */}
+              {/* Lista de Vendedores */}
+              {vendedores.map(v => (
+                <option key={v.id} value={v.nombre}>{v.nombre}</option>
+              ))}
+            </select>
+            <span className="material-icons position-absolute" style={{
+              right: '5px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontSize: '14px',
+              pointerEvents: 'none',
+              color: '#6c757d'
+            }}>
+              arrow_drop_down
+            </span>
+          </div>
+
           {isAuthenticated && cajeroLogueado && sucursalActiva?.nombre && (
             <div style={{ fontSize: '10px', color: '#6c757d', marginTop: '2px' }}>
               <span className="material-icons" style={{ fontSize: '10px', verticalAlign: 'middle' }}>

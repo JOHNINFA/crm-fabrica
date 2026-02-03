@@ -451,7 +451,22 @@ export const cargueHybridService = {
             }
 
             // Si no existe localmente, usar datos de la app tal cual
-            return productoApp;
+            // 🆕 FIX CRÍTICO: Recalcular total y neto incluso para productos nuevos de la App
+            const cantidad = productoApp.cantidad || 0;
+            const dctos = productoApp.dctos || 0;
+            const adicional = productoApp.adicional || 0;
+            const devoluciones = productoApp.devoluciones || 0;
+            const vencidas = productoApp.vencidas || 0;
+            const valor = productoApp.valor || 0;
+
+            const totalRecalculado = cantidad - dctos + adicional - devoluciones - vencidas;
+            const netoRecalculado = Math.round(totalRecalculado * valor);
+
+            return {
+              ...productoApp,
+              total: totalRecalculado,
+              neto: netoRecalculado
+            };
           });
 
           const datosMergeados = {

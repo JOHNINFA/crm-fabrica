@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, 
-    RegistroInventario, Venta, DetalleVenta, Cliente, ListaPrecio, PrecioProducto, 
+    RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, 
     CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6,
     CargueProductos, CargueResumen, CarguePagos, CargueCumplimiento,  # Nuevos modelos normalizados
     Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, 
@@ -117,7 +117,7 @@ class VentaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venta
         fields = [
-            'id', 'numero_factura', 'fecha', 'vendedor', 'cliente',
+            'id', 'numero_factura', 'fecha', 'vendedor', 'creado_por', 'cliente',
             'metodo_pago', 'subtotal', 'impuestos', 'descuentos', 'total',
             'dinero_entregado', 'devuelta', 'estado', 'nota', 'banco',
             'centro_costo', 'bodega', 'detalles'
@@ -142,6 +142,19 @@ class ClienteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('fecha_creacion',)
 
+class ProductosFrecuentesSerializer(serializers.ModelSerializer):
+    """Serializer para productos frecuentes de un cliente"""
+    cliente_nombre = serializers.ReadOnlyField(source='cliente.nombre_completo')
+    
+    class Meta:
+        model = ProductosFrecuentes
+        fields = [
+            'id', 'cliente', 'cliente_nombre', 'dia', 'productos', 'nota',
+            'fecha_creacion', 'fecha_actualizacion'
+        ]
+        read_only_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+
 class ListaPrecioSerializer(serializers.ModelSerializer):
     """Serializer para listas de precios"""
     
@@ -149,7 +162,7 @@ class ListaPrecioSerializer(serializers.ModelSerializer):
         model = ListaPrecio
         fields = [
             'id', 'nombre', 'tipo', 'empleado', 'sucursal', 
-            'activo', 'fecha_creacion'
+            'visible_pos', 'activo', 'fecha_creacion'
         ]
         read_only_fields = ('fecha_creacion',)
 

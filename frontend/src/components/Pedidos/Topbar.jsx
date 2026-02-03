@@ -84,11 +84,16 @@ export default function Topbar({ onOpenCategoryManager }) {
 
                     {/* Botón de Login/Logout */}
                     <Button
-                        variant={isAuthenticated ? "outline-danger" : "outline-primary"}
+                        variant={isAuthenticated ? "outline-success" : "outline-primary"}
                         size="sm"
                         onClick={handleLoginClick}
                         className="d-flex align-items-center"
-                        style={{ fontSize: 12 }}
+                        style={{
+                            fontSize: 12,
+                            backgroundColor: 'white', // Forzar fondo blanco como POS
+                            color: isAuthenticated ? '#28a745' : undefined,
+                            borderColor: isAuthenticated ? '#28a745' : undefined
+                        }}
                     >
                         <span className="material-icons me-1" style={{ fontSize: 16 }}>
                             {isAuthenticated ? 'logout' : 'login'}

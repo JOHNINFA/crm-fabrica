@@ -4,14 +4,67 @@ import { useNavigate } from "react-router-dom";
 import { useCajero } from "../../context/CajeroContext";
 import SyncButton from "./SyncButton";
 import LoginCajeroModal from "./LoginCajeroModal";
+import { API_URL } from "../../services/api"; // 🆕 Importar API_URL
 import "./Topbar.css";
 
 export default function Topbar({ onOpenCategoryManager }) {
-  const { getTopbarInfo, isAuthenticated, cajeroLogueado, turnoActivo } = useCajero();
+  const { getTopbarInfo, isAuthenticated, cajeroLogueado, turnoActivo, sucursalActiva } = useCajero(); // 🆕 Traer sucursalActiva
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showReportMenu, setShowReportMenu] = useState(false);
+  const [otrosCajerosActivos, setOtrosCajerosActivos] = useState([]); // 🆕 Estado para cajeros activos
   const reportMenuRef = useRef(null);
   const navigate = useNavigate();
+
+  // 🆕 Verificar si hay otros cajeros trabajando en la sucursal (o en toda la empresa si es Admin global)
+  useEffect(() => {
+    const verificarActividad = async () => {
+      // Ejecutar si estoy logueado y NO tengo turno activo (soy supervisor)
+      if (isAuthenticated && !turnoActivo) {
+        try {
+          // Construir query. Si tengo sucursal, filtro. Si no, traigo todo (modo Dios).
+          const sucursalId = sucursalActiva ? (sucursalActiva.id || sucursalActiva) : null;
+          const querySucursal = sucursalId ? `&sucursal_id=${sucursalId}` : '';
+
+          console.log('🔍 Verificando cajas (ACTIVO/ABIERTO)...');
+
+          // Helper para fetch seguro
+          const fetchTurnos = async (estado) => {
+            try {
+              const res = await fetch(`${API_URL}/turnos/?estado=${estado}${querySucursal}`);
+              const d = await res.json();
+              return Array.isArray(d) ? d : [];
+            } catch (e) { return []; }
+          };
+
+          // Consultar ambos estados para cubrir inconsistencias de datos (Legacy vs Nuevo)
+          const [dataActivos, dataAbiertos] = await Promise.all([
+            fetchTurnos('ACTIVO'),
+            fetchTurnos('ABIERTO')
+          ]);
+
+          // Unir y eliminar duplicados
+          const todos = [...dataActivos, ...dataAbiertos];
+          const unicos = todos.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
+
+          if (unicos.length > 0) {
+            console.log('✅ Cajas encontradas:', unicos.length);
+            setOtrosCajerosActivos(unicos);
+          } else {
+            setOtrosCajerosActivos([]);
+          }
+        } catch (error) {
+          console.error("Error verificando cajeros activos:", error);
+        }
+      } else {
+        setOtrosCajerosActivos([]);
+      }
+    };
+
+    verificarActividad();
+    // Polling cada 15 segundos para mayor reactividad
+    const interval = setInterval(verificarActividad, 15000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, turnoActivo, sucursalActiva]);
 
   const topbarInfo = getTopbarInfo();
 
@@ -115,6 +168,20 @@ export default function Topbar({ onOpenCategoryManager }) {
               0
             </span>
           </span>
+
+          {/* 🆕 Indicador de Cajas Activas (Visible para Admin/Supervisor libre) */}
+          {isAuthenticated && !turnoActivo && otrosCajerosActivos.length > 0 && (
+            <div
+              className="d-flex align-items-center me-3 animate__animated animate__fadeIn"
+              title={`Cajas abiertas: ${otrosCajerosActivos.map(t => t.cajero_nombre || 'Cajero').join(', ')}`}
+              style={{ cursor: 'help' }}
+            >
+              <span className="material-icons me-1 text-success blink-animation" style={{ fontSize: 14 }}>fiber_manual_record</span>
+              <span style={{ fontSize: 13, fontWeight: '600', color: '#198754' }}>
+                {otrosCajerosActivos.length} {otrosCajerosActivos.length === 1 ? 'Caja Abierta' : 'Cajas Abiertas'}
+              </span>
+            </div>
+          )}
 
           {/* Botón de Login/Logout */}
           <Button

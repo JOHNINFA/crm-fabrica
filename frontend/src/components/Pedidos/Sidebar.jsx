@@ -2,10 +2,16 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from '../../assets/images/icono.png';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 export default function Sidebar({ onWidthChange }) {
     const navigate = useNavigate();
+    const { usuario, esAdmin } = useAuth(); // 🆕 Obtener estado de admin y usuario
+    const isAdmin = esAdmin();
+    // Normalizar rol para evitar errores
+    const rolNormalizado = usuario?.rol ? usuario.rol.trim().toUpperCase() : '';
+    const isCajeroPos = rolNormalizado === 'CAJERO POS' || rolNormalizado === 'POS';
     const [isExpanded, setIsExpanded] = useState(false);
     const [showPreciosSubmenu, setShowPreciosSubmenu] = useState(false);
     const [showInformesSubmenu, setShowInformesSubmenu] = useState(false);
@@ -115,148 +121,163 @@ export default function Sidebar({ onWidthChange }) {
                             <span style={{ fontSize: '14px' }}>Pedidos</span>
                         </li>
 
-                        {/* Productos - Navegar a página completa */}
-                        <li
-                            className="nav-item sidebar-item py-2"
-                            onClick={() => {
-                                sessionStorage.setItem('origenModulo', 'pedidos');
-                                navigate('/productos');
-                                setIsExpanded(false);
-                            }}
-                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-                        >
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
-                            <span style={{ fontSize: '14px' }}>Productos</span>
-                        </li>
+                        {/* Productos - Solo Admin */}
+                        {isAdmin && (
+                            <li
+                                className="nav-item sidebar-item py-2"
+                                onClick={() => {
+                                    sessionStorage.setItem('origenModulo', 'pedidos');
+                                    navigate('/productos');
+                                    setIsExpanded(false);
+                                }}
+                                style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+                            >
+                                <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>apps</span>
+                                <span style={{ fontSize: '14px' }}>Productos</span>
+                            </li>
+                        )}
 
-                        {/* Lista de precios con submenu */}
-                        <li
-                            className="nav-item sidebar-item py-2"
-                            onClick={() => setShowPreciosSubmenu(!showPreciosSubmenu)}
-                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-                        >
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>attach_money</span>
-                            <span style={{ fontSize: '14px' }}>Precios</span>
-                            <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
-                                {showPreciosSubmenu ? 'expand_less' : 'expand_more'}
-                            </span>
-                        </li>
-
-                        {/* Submenu de Lista de precios */}
-                        {showPreciosSubmenu && (
+                        {/* Precios e Inventarios - Solo Admin */}
+                        {isAdmin && (
                             <>
+                                {/* Lista de precios con submenu */}
                                 <li
-                                    className="nav-item sidebar-item py-1"
-                                    onClick={() => {
-                                        sessionStorage.setItem('origenModulo', 'pedidos');
-                                        navigate('/lista-precios');
-                                        setIsExpanded(false);
-                                    }}
-                                    style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                    className="nav-item sidebar-item py-2"
+                                    onClick={() => setShowPreciosSubmenu(!showPreciosSubmenu)}
+                                    style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                                 >
-                                    <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Lista de precios</span>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>attach_money</span>
+                                    <span style={{ fontSize: '14px' }}>Precios</span>
+                                    <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
+                                        {showPreciosSubmenu ? 'expand_less' : 'expand_more'}
+                                    </span>
                                 </li>
-                                <li
-                                    className="nav-item sidebar-item py-1"
-                                    onClick={() => {
-                                        sessionStorage.setItem('origenModulo', 'pedidos');
-                                        navigate('/informe-lista-precios');
-                                        setIsExpanded(false);
-                                    }}
-                                    style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                                >
-                                    <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Informe de lista de precios</span>
+
+                                {/* Submenu de Lista de precios */}
+                                {showPreciosSubmenu && (
+                                    <>
+                                        <li
+                                            className="nav-item sidebar-item py-1"
+                                            onClick={() => {
+                                                sessionStorage.setItem('origenModulo', 'pedidos');
+                                                navigate('/lista-precios');
+                                                setIsExpanded(false);
+                                            }}
+                                            style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                                            <span>Lista de precios</span>
+                                        </li>
+                                        <li
+                                            className="nav-item sidebar-item py-1"
+                                            onClick={() => {
+                                                sessionStorage.setItem('origenModulo', 'pedidos');
+                                                navigate('/informe-lista-precios');
+                                                setIsExpanded(false);
+                                            }}
+                                            style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                                            <span>Informe de lista de precios</span>
+                                        </li>
+                                    </>
+                                )}
+
+                                <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>keyboard_double_arrow_down</span>
+                                    <span style={{ fontSize: '14px' }}>Ingresos</span>
+                                </li>
+                                <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>upload</span>
+                                    <span style={{ fontSize: '14px' }}>Gastos</span>
+                                </li>
+                                <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>balance</span>
+                                    <span style={{ fontSize: '14px' }}>Inventarios</span>
                                 </li>
                             </>
                         )}
-
-                        <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>keyboard_double_arrow_down</span>
-                            <span style={{ fontSize: '14px' }}>Ingresos</span>
-                        </li>
-                        <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>upload</span>
-                            <span style={{ fontSize: '14px' }}>Gastos</span>
-                        </li>
-                        <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>balance</span>
-                            <span style={{ fontSize: '14px' }}>Inventarios</span>
-                        </li>
-                        <li
-                            className="nav-item sidebar-item py-2"
-                            onClick={() => setShowInformesSubmenu(!showInformesSubmenu)}
-                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-                        >
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>assessment</span>
-                            <span style={{ fontSize: '14px' }}>Informes</span>
-                            <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
-                                {showInformesSubmenu ? 'expand_less' : 'expand_more'}
-                            </span>
-                        </li>
-
-                        {/* Submenu de Informes */}
-                        {showInformesSubmenu && (
+                        {/* Informes - Solo Admin */}
+                        {isAdmin && (
                             <>
                                 <li
-                                    className="nav-item sidebar-item py-1"
-                                    onClick={() => {
-                                        navigate('/informes/pedidos');
-                                        setIsExpanded(false);
-                                    }}
-                                    style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                    className="nav-item sidebar-item py-2"
+                                    onClick={() => setShowInformesSubmenu(!showInformesSubmenu)}
+                                    style={{ cursor: 'pointer', ...getMenuItemStyle() }}
                                 >
-                                    <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Pedidos por ruta</span>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>assessment</span>
+                                    <span style={{ fontSize: '14px' }}>Informes</span>
+                                    <span className="material-icons ms-auto" style={{ fontSize: '16px' }}>
+                                        {showInformesSubmenu ? 'expand_less' : 'expand_more'}
+                                    </span>
                                 </li>
-                                <li
-                                    className="nav-item sidebar-item py-1"
-                                    onClick={() => {
-                                        navigate('/informes/transportadoras');
-                                        setIsExpanded(false);
-                                    }}
-                                    style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                                >
-                                    <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Pedidos por transportadora</span>
-                                </li>
-                                <li
-                                    className="nav-item sidebar-item py-1"
-                                    onClick={() => {
-                                        navigate('/informes/entregas');
-                                        setIsExpanded(false);
-                                    }}
-                                    style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                                >
-                                    <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Estado de entregas</span>
-                                </li>
-                                <li
-                                    className="nav-item sidebar-item py-1"
-                                    onClick={() => {
-                                        navigate('/informes/devoluciones-pedido');
-                                        setIsExpanded(false);
-                                    }}
-                                    style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
-                                >
-                                    <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                                    <span>Devoluciones de pedido</span>
-                                </li>
+
+                                {/* Submenu de Informes */}
+                                {showInformesSubmenu && (
+                                    <>
+                                        <li
+                                            className="nav-item sidebar-item py-1"
+                                            onClick={() => {
+                                                navigate('/informes/pedidos');
+                                                setIsExpanded(false);
+                                            }}
+                                            style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                                            <span>Pedidos por ruta</span>
+                                        </li>
+                                        <li
+                                            className="nav-item sidebar-item py-1"
+                                            onClick={() => {
+                                                navigate('/informes/transportadoras');
+                                                setIsExpanded(false);
+                                            }}
+                                            style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                                            <span>Pedidos por transportadora</span>
+                                        </li>
+                                        <li
+                                            className="nav-item sidebar-item py-1"
+                                            onClick={() => {
+                                                navigate('/informes/entregas');
+                                                setIsExpanded(false);
+                                            }}
+                                            style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                                            <span>Estado de entregas</span>
+                                        </li>
+                                        <li
+                                            className="nav-item sidebar-item py-1"
+                                            onClick={() => {
+                                                navigate('/informes/devoluciones-pedido');
+                                                setIsExpanded(false);
+                                            }}
+                                            style={{ cursor: 'pointer', paddingLeft: '40px', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <span className="material-icons me-2" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                                            <span>Devoluciones de pedido</span>
+                                        </li>
+                                    </>
+                                )}
                             </>
                         )}
 
-                        <li
-                            className="nav-item sidebar-item py-2"
-                            onClick={() => {
-                                navigate('/pedidos');
-                                setIsExpanded(false);
-                            }}
-                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-                        >
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
-                            <span style={{ fontSize: '14px' }}>Gestión de Pedidos</span>
-                        </li>
+                        {/* Gestión de Pedidos - Oculto para Cajero POS */}
+                        {!isCajeroPos && (
+                            <li
+                                className="nav-item sidebar-item py-2"
+                                onClick={() => {
+                                    navigate('/pedidos');
+                                    setIsExpanded(false);
+                                }}
+                                style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+                            >
+                                <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>shopping_cart</span>
+                                <span style={{ fontSize: '14px' }}>Gestión de Pedidos</span>
+                            </li>
+                        )}
                         <li
                             className="nav-item sidebar-item py-2"
                             onClick={() => {
@@ -268,26 +289,31 @@ export default function Sidebar({ onWidthChange }) {
                             <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>groups</span>
                             <span style={{ fontSize: '14px' }}>Clientes</span>
                         </li>
-                        <li
-                            className="nav-item sidebar-item py-2"
-                            onClick={() => {
-                                navigate('/vendedores');
-                                setIsExpanded(false);
-                            }}
-                            style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-                        >
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>badge</span>
-                            <span style={{ fontSize: '14px' }}>Vendedores</span>
-                        </li>
+                        {/* Vendedores, Proveedores, Bancos - Solo Admin */}
+                        {isAdmin && (
+                            <>
+                                <li
+                                    className="nav-item sidebar-item py-2"
+                                    onClick={() => {
+                                        navigate('/vendedores');
+                                        setIsExpanded(false);
+                                    }}
+                                    style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+                                >
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>badge</span>
+                                    <span style={{ fontSize: '14px' }}>Vendedores</span>
+                                </li>
 
-                        <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person_search</span>
-                            <span style={{ fontSize: '14px' }}>Proveedores</span>
-                        </li>
-                        <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
-                            <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>account_balance</span>
-                            <span style={{ fontSize: '14px' }}>Bancos</span>
-                        </li>
+                                <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>person_search</span>
+                                    <span style={{ fontSize: '14px' }}>Proveedores</span>
+                                </li>
+                                <li className="nav-item sidebar-item py-2" style={getMenuItemStyle()}>
+                                    <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>account_balance</span>
+                                    <span style={{ fontSize: '14px' }}>Bancos</span>
+                                </li>
+                            </>
+                        )}
                     </ul>
                 </div>
 

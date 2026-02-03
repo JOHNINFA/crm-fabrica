@@ -41,13 +41,13 @@ export const sucursalService = {
             return data;
         } catch (error) {
             console.error('Error en getAll sucursales:', error);
-            
+
             // Fallback: usar localStorage o datos de ejemplo
             const sucursalesLocal = localStorage.getItem('sucursales');
             if (sucursalesLocal) {
                 return JSON.parse(sucursalesLocal);
             }
-            
+
             // Si no hay datos locales, usar ejemplos y guardarlos
             localStorage.setItem('sucursales', JSON.stringify(sucursalesEjemplo));
             return sucursalesEjemplo;
@@ -56,6 +56,10 @@ export const sucursalService = {
 
     // Obtener sucursal por ID
     getById: async (id) => {
+        if (!id || id === 'undefined' || id === 'null') {
+            console.warn('⚠️ sucursalService.getById llamado con ID inválido:', id);
+            return null;
+        }
         try {
 
             const response = await fetch(`${API_URL}/sucursales/${id}/`);
@@ -63,14 +67,14 @@ export const sucursalService = {
             return await response.json();
         } catch (error) {
             console.error('Error en getById sucursal:', error);
-            
+
             // Fallback: buscar en localStorage
             const sucursalesLocal = localStorage.getItem('sucursales');
             if (sucursalesLocal) {
                 const sucursales = JSON.parse(sucursalesLocal);
                 return sucursales.find(s => s.id === parseInt(id));
             }
-            
+
             return handleApiError(error);
         }
     },
@@ -79,7 +83,7 @@ export const sucursalService = {
     create: async (sucursalData) => {
         try {
 
-            
+
             const response = await fetch(`${API_URL}/sucursales/`, {
                 method: 'POST',
                 headers: {
@@ -87,32 +91,32 @@ export const sucursalService = {
                 },
                 body: JSON.stringify(sucursalData)
             });
-            
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Error response:', errorText);
                 throw new Error(`Error al crear sucursal: ${response.status}`);
             }
-            
+
             const result = await response.json();
 
             return result;
         } catch (error) {
             console.error('Error en create sucursal:', error);
-            
+
             // Fallback: guardar en localStorage
             const sucursalesLocal = localStorage.getItem('sucursales');
             const sucursales = sucursalesLocal ? JSON.parse(sucursalesLocal) : [];
-            
+
             const nuevaSucursal = {
                 id: Date.now(), // ID temporal
                 ...sucursalData,
                 fecha_creacion: new Date().toISOString()
             };
-            
+
             sucursales.push(nuevaSucursal);
             localStorage.setItem('sucursales', JSON.stringify(sucursales));
-            
+
 
             return nuevaSucursal;
         }
@@ -122,7 +126,7 @@ export const sucursalService = {
     update: async (id, sucursalData) => {
         try {
 
-            
+
             const response = await fetch(`${API_URL}/sucursales/${id}/`, {
                 method: 'PATCH',
                 headers: {
@@ -130,38 +134,38 @@ export const sucursalService = {
                 },
                 body: JSON.stringify(sucursalData)
             });
-            
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Error response:', errorText);
                 throw new Error(`Error al actualizar sucursal: ${response.status}`);
             }
-            
+
             const result = await response.json();
 
             return result;
         } catch (error) {
             console.error('Error en update sucursal:', error);
-            
+
             // Fallback: actualizar en localStorage
             const sucursalesLocal = localStorage.getItem('sucursales');
             if (sucursalesLocal) {
                 const sucursales = JSON.parse(sucursalesLocal);
                 const index = sucursales.findIndex(s => s.id === parseInt(id));
-                
+
                 if (index !== -1) {
                     sucursales[index] = {
                         ...sucursales[index],
                         ...sucursalData,
                         fecha_actualizacion: new Date().toISOString()
                     };
-                    
+
                     localStorage.setItem('sucursales', JSON.stringify(sucursales));
 
                     return sucursales[index];
                 }
             }
-            
+
             return handleApiError(error);
         }
     },
@@ -170,26 +174,26 @@ export const sucursalService = {
     delete: async (id) => {
         try {
 
-            
+
             const response = await fetch(`${API_URL}/sucursales/${id}/`, {
                 method: 'DELETE'
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Error al eliminar sucursal: ${response.status}`);
             }
-            
+
 
             return { success: true };
         } catch (error) {
             console.error('Error en delete sucursal:', error);
-            
+
             // Fallback: marcar como inactiva en localStorage
             const sucursalesLocal = localStorage.getItem('sucursales');
             if (sucursalesLocal) {
                 const sucursales = JSON.parse(sucursalesLocal);
                 const index = sucursales.findIndex(s => s.id === parseInt(id));
-                
+
                 if (index !== -1) {
                     sucursales[index].activo = false;
                     localStorage.setItem('sucursales', JSON.stringify(sucursales));
@@ -197,7 +201,7 @@ export const sucursalService = {
                     return { success: true };
                 }
             }
-            
+
             return handleApiError(error);
         }
     },
@@ -227,16 +231,16 @@ export const sucursalService = {
             } catch (apiError) {
                 console.warn('API no disponible para sucursal principal:', apiError);
             }
-            
+
             // Fallback: usar sucursales locales
             const sucursalesActivas = await sucursalService.getActivas();
             const principal = sucursalesActivas.find(s => s.es_principal);
             const sucursalDefault = principal || (sucursalesActivas.length > 0 ? sucursalesActivas[0] : null);
-            
+
             if (sucursalDefault) {
 
             }
-            
+
             return sucursalDefault;
         } catch (error) {
             console.error('Error obteniendo sucursal por defecto:', error);

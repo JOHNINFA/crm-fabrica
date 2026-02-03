@@ -21,10 +21,7 @@ const InformeListaPreciosScreen = () => {
     const [productoSeleccionado, setProductoSeleccionado] = useState(null);
 
     // Estado para controlar qué listas están visibles en POS
-    const [listasVisiblesPos, setListasVisiblesPos] = useState(() => {
-        const saved = localStorage.getItem('listasVisiblesPos');
-        return saved ? JSON.parse(saved) : {};
-    });
+    const [listasVisiblesPos, setListasVisiblesPos] = useState({});
 
     // 🆕 Estado para controlar los checkboxes de aumento
     const [listasAumento, setListasAumento] = useState(() => {
@@ -53,6 +50,14 @@ const InformeListaPreciosScreen = () => {
             setProductos(productosData);
             setListasPrecios(listasData);
             setPreciosProductos(preciosData);
+
+            // 🆕 Inicializar visibilidad POS desde DB
+            const mapaVisibilidad = {};
+            listasData.forEach(lista => {
+                mapaVisibilidad[lista.nombre] = lista.visible_pos;
+            });
+            setListasVisiblesPos(mapaVisibilidad);
+
         } catch (error) {
             console.error('Error cargando datos:', error);
         } finally {
@@ -94,14 +99,27 @@ const InformeListaPreciosScreen = () => {
 
     };
 
-    const handleToggleVisiblePos = (nombreLista) => {
-        const nuevasListas = {
-            ...listasVisiblesPos,
-            [nombreLista]: !listasVisiblesPos[nombreLista]
-        };
-        setListasVisiblesPos(nuevasListas);
-        localStorage.setItem('listasVisiblesPos', JSON.stringify(nuevasListas));
-        console.log(`✅ Lista "${nombreLista}" ${nuevasListas[nombreLista] ? 'activada' : 'desactivada'} para POS`);
+    const handleToggleVisiblePos = async (listaId, nombreLista) => {
+        const nuevoEstado = !listasVisiblesPos[nombreLista];
+
+        // Optimistic UI update
+        setListasVisiblesPos(prev => ({
+            ...prev,
+            [nombreLista]: nuevoEstado
+        }));
+
+        try {
+            await listaPrecioService.patch(listaId, { visible_pos: nuevoEstado });
+            console.log(`✅ Lista "${nombreLista}" actualizada en DB: POS=${nuevoEstado}`);
+        } catch (error) {
+            console.error('Error actualizando visibilidad POS:', error);
+            // Revertir en caso de error
+            setListasVisiblesPos(prev => ({
+                ...prev,
+                [nombreLista]: !nuevoEstado
+            }));
+            alert('Error al guardar cambio. Verifica tu conexión.');
+        }
     };
 
     // 🆕 Manejar toggle de aumento
@@ -236,7 +254,7 @@ const InformeListaPreciosScreen = () => {
                                                             type="checkbox"
                                                             role="switch"
                                                             checked={listasVisiblesPos[lista.nombre] || false}
-                                                            onChange={() => handleToggleVisiblePos(lista.nombre)}
+                                                            onChange={() => handleToggleVisiblePos(lista.id, lista.nombre)}
                                                             title={`${listasVisiblesPos[lista.nombre] ? 'Desactivar' : 'Activar'} para POS`}
                                                             style={{ cursor: 'pointer' }}
                                                         />

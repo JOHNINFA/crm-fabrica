@@ -40,10 +40,11 @@ function PedidosMainContent() {
     }, [allProducts, getProductsByModule]);
 
     const { cajeroLogueado, isAuthenticated } = useCajeroPedidos();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState("");
     const [cart, setCart] = useState([]);
     const [showCategoryManager, setShowCategoryManager] = useState(false);
+    const [productosFrecuentesCargados, setProductosFrecuentesCargados] = useState(false);  // 🆕 Flag para evitar recargas
     // Función para obtener fecha local en formato YYYY-MM-DD
     const getFechaLocal = () => {
         const hoy = new Date();
@@ -107,6 +108,12 @@ function PedidosMainContent() {
     }, [searchParams, isAuthenticated, cajeroLogueado]);
 
     // 🆕 Actualizar contexto cuando cambia la fecha (para que siempre regreses al día correcto)
+    // 🆕 Actualizar contexto cuando cambia la fecha (para que siempre regreses al día correcto)
+    /* 
+       ⚠️ COMENTADO: Esto causaba un error. Si estoy gestionando la planilla del SABADO
+       pero creo un pedido para el LUNES, esto me cambiaba el retorno al LUNES.
+       El usuario quiere volver a la planilla que estaba trabajando (SABADO).
+       
     useEffect(() => {
         if (date) {
             // Solo actualizar si ya hay contexto guardado (viniste desde gestión)
@@ -119,10 +126,11 @@ function PedidosMainContent() {
 
                 // Actualizar contexto con la nueva fecha
                 localStorage.setItem('pedidos_retorno_dia', nuevoDia);
-                localStorage.setItem('pedidos_retorno_fecha', date);
+                // localStorage.setItem('pedidos_retorno_fecha', date); // Tampoco cambiar la fecha de retorno
             }
         }
     }, [date]);
+    */
 
     const [imp, setImp] = useState(0);
 
@@ -133,17 +141,73 @@ function PedidosMainContent() {
     const { precios } = usePriceList(priceList, products);
 
     // Actualizar precios del carrito cuando cambia la lista de precios
+    // Actualizar precios del carrito cuando cambia la lista de precios o se cargan productos
     useEffect(() => {
         if (cart.length > 0 && Object.keys(precios).length > 0) {
-            setCart(prevCart =>
-                prevCart.map(item => {
-                    // Obtener el precio de la nueva lista, o usar el precio base del producto
-                    const nuevoPrecio = precios[item.id] !== undefined ? precios[item.id] : item.price;
+            let huboCambios = false;
+
+            const nuevoCart = cart.map(item => {
+                const nuevoPrecio = precios[item.id] !== undefined ? precios[item.id] : item.price;
+                // Solo marcar cambio si el precio es diferente
+                if (item.price !== nuevoPrecio) {
+                    huboCambios = true;
                     return { ...item, price: nuevoPrecio };
-                })
-            );
+                }
+                return item;
+            });
+
+            if (huboCambios) {
+                setCart(nuevoCart);
+            }
         }
-    }, [priceList, precios]);
+    }, [priceList, precios, cart.length]);
+
+    // 🆕 Cargar productos frecuentes al carrito si vienen en la URL
+    useEffect(() => {
+        const clienteParam = searchParams.get('cliente');
+        // Solo cargar UNA VEZ cuando hay productos disponibles y NO se han cargado antes
+        if (clienteParam && !productosFrecuentesCargados && products.length > 0) {
+            try {
+                const clienteData = JSON.parse(decodeURIComponent(clienteParam));
+
+                if (clienteData.productos_frecuentes && clienteData.productos_frecuentes.length > 0) {
+                    console.log('📦 Cargando productos frecuentes al carrito:', clienteData.productos_frecuentes);
+
+                    // Convertir productos frecuentes a items del carrito
+                    const productosParaCarrito = [];
+
+                    for (const pf of clienteData.productos_frecuentes) {
+                        // Buscar el producto en la lista de productos disponibles
+                        const producto = products.find(p => p.id === pf.producto_id);
+
+                        if (producto) {
+                            // Obtener precio de la lista o usar precio base
+                            const precioProducto = precios[producto.id] !== undefined ? precios[producto.id] : producto.precio;
+
+                            productosParaCarrito.push({
+                                ...producto,
+                                price: precioProducto,
+                                qty: pf.cantidad || 1
+                            });
+
+                            console.log(`✅ ${producto.nombre} x${pf.cantidad} agregado`);
+                        } else {
+                            console.warn(`⚠️ Producto ${pf.producto_id} no encontrado`);
+                        }
+                    }
+
+                    if (productosParaCarrito.length > 0) {
+                        setCart(productosParaCarrito);
+                        setProductosFrecuentesCargados(true);  // 🆕 Marcar como cargado
+                        console.log(`✅ ${productosParaCarrito.length} productos cargados al carrito`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando productos frecuentes:', error);
+            }
+        }
+    }, [searchParams, products, precios, productosFrecuentesCargados]);
+
 
     // Función para limpiar carrito después de remisión exitosa
     const clearCart = () => {
@@ -156,10 +220,14 @@ function PedidosMainContent() {
     const resetForm = () => {
         setClient("DESTINATARIO GENERAL");
         setSeller("PEDIDOS");
-        setPriceList("CLIENTES");
-        setDate(getFechaLocal());
+        setPriceList("VENDEDORES"); // Corregido: VENDEDORES es el default correcto
+        // setDate(getFechaLocal()); // Mantener fecha seleccionada
+
         setClientData(null);
         clearCart();
+
+        // 🆕 Limpia la URL sin recargar la página (elimina ?cliente=...)
+        setSearchParams({});
     };
 
     // Funciones carrito

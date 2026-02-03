@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
+import Swal from 'sweetalert2'; // 🆕 Importar SweetAlert2
 import { pedidoService, API_URL } from '../services/api';
 import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
 import usePageTitle from '../hooks/usePageTitle';
 
+
 // 🆕 Días de la semana
 const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+
+// Función auxiliar para fecha local YYYY-MM-DD
+const getFechaLocal = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function PedidosDiaScreen() {
   const { dia } = useParams();
@@ -14,7 +25,7 @@ export default function PedidosDiaScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [fechaSeleccionada, setFechaSeleccionada] = useState(
-    searchParams.get('fecha') || new Date().toISOString().split('T')[0]
+    searchParams.get('fecha') || getFechaLocal()
   );
 
   // 🆕 Estado para días seleccionados (array de días)
@@ -29,8 +40,7 @@ export default function PedidosDiaScreen() {
 
     // Validar que diaSemana existe y es válido
     if (!diaSemana || diasSemana[diaSemana] === undefined) {
-      const hoy = new Date();
-      return hoy.toISOString().split('T')[0];
+      return getFechaLocal();
     }
 
     const hoy = new Date();
@@ -45,7 +55,12 @@ export default function PedidosDiaScreen() {
     const fechaObjetivo = new Date(hoy);
     fechaObjetivo.setDate(hoy.getDate() + diasHastaObjetivo);
 
-    return fechaObjetivo.toISOString().split('T')[0];
+    // 🆕 Usar métodos locales para evitar desfase UTC
+    const year = fechaObjetivo.getFullYear();
+    const month = String(fechaObjetivo.getMonth() + 1).padStart(2, '0');
+    const day = String(fechaObjetivo.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
   };
 
   // 🆕 Función para alternar día seleccionado
@@ -75,11 +90,106 @@ export default function PedidosDiaScreen() {
   const [motivoAnulacion, setMotivoAnulacion] = useState('Anulado desde gestión de pedidos');
   const [anulando, setAnulando] = useState(false);
 
+  // Estado para tooltip de teléfono
+  const [telefonoHover, setTelefonoHover] = useState(null);
+
+  // Estados para productos frecuentes
+  const [showProductosModal, setShowProductosModal] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [productosDisponibles, setProductosDisponibles] = useState([]);
+  const [productosFrecuentesSeleccionados, setProductosFrecuentesSeleccionados] = useState([]);
+  const [clientesConFrecuentes, setClientesConFrecuentes] = useState(new Set()); // 🆕 IDs de clientes con productos frecuentes
+  const [notasClientes, setNotasClientes] = useState({}); // 🆕 Mapa clienteId -> nota
+  const [mapaIdsFrecuentes, setMapaIdsFrecuentes] = useState({}); // 🆕 Mapa clienteId -> id_registro_frecuente
+
+  // Cargar indicadores de productos frecuentes
+  useEffect(() => {
+    const cargarIndicadores = async () => {
+      try {
+        const response = await fetch(`${API_URL}/productos-frecuentes/?dia=${dia}`);
+        if (response.ok) {
+          const data = await response.json();
+
+          const nuevosClientesIds = new Set();
+          const nuevasNotas = {};
+          const nuevosIds = {};
+
+          data.forEach(item => {
+            // Marcar si tiene productos
+            if (item.productos && item.productos.length > 0) {
+              nuevosClientesIds.add(item.cliente);
+            }
+            // Guardar nota si existe
+            if (item.nota) {
+              nuevasNotas[item.cliente] = item.nota;
+            }
+            // Guardar ID del registro para futuras actualizaciones
+            nuevosIds[item.cliente] = item.id;
+          });
+
+          setClientesConFrecuentes(nuevosClientesIds);
+          setNotasClientes(nuevasNotas);
+          setMapaIdsFrecuentes(nuevosIds);
+        }
+      } catch (error) {
+        console.error('Error cargando indicadores:', error);
+      }
+    };
+    cargarIndicadores();
+  }, [dia, showProductosModal]); // Recargar cuando cambia el día o se cierra el modal (por si se guardaron nuevos)
+
+
 
   useEffect(() => {
     cargarClientes();
     cargarPedidos();
   }, [dia, fechaSeleccionada]);
+
+  // Cargar productos disponibles
+  useEffect(() => {
+    const cargarProductos = async () => {
+      try {
+        const response = await fetch(`${API_URL}/productos/`);
+        if (response.ok) {
+          const data = await response.json();
+          // Filtrar solo productos disponibles para pedidos
+          const productosPedidos = data.filter(p => p.disponible_pedidos && p.activo);
+          setProductosDisponibles(productosPedidos);
+        }
+      } catch (error) {
+        console.error('Error cargando productos:', error);
+      }
+    };
+    cargarProductos();
+  }, []);
+
+  // Cargar productos frecuentes cuando se selecciona un cliente
+  useEffect(() => {
+    const cargarProductosFrecuentes = async () => {
+      if (!clienteSeleccionado) return;
+
+      try {
+        const response = await fetch(
+          `${API_URL}/productos-frecuentes/?cliente=${clienteSeleccionado.id}&dia=${dia}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.length > 0 && data[0].productos) {
+            setProductosFrecuentesSeleccionados(data[0].productos);
+          } else {
+            setProductosFrecuentesSeleccionados([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando productos frecuentes:', error);
+      }
+    };
+
+    cargarProductosFrecuentes();
+  }, [clienteSeleccionado, dia]);
+
+
 
   // Actualizar fecha automáticamente cuando cambia el día
   useEffect(() => {
@@ -98,12 +208,13 @@ export default function PedidosDiaScreen() {
 
         // 1. Intentar cargar desde API (Fuente de la verdad)
         try {
-          const res = await fetch(`${API_URL}/ruta-orden/?dia=${dia}`);
+          // Usar endpoint específico para obtener la ruta global (ruta_id=null)
+          const res = await fetch(`${API_URL}/ruta-orden/obtener_orden/?dia=${dia}`);
           if (res.ok) {
             const data = await res.json();
-            // Data es un array (filtrado por dia)
-            if (data && data.length > 0 && data[0].clientes_ids) {
-              idsOrdenados = data[0].clientes_ids;
+            // Data es un objeto directo
+            if (data && data.clientes_ids) {
+              idsOrdenados = data.clientes_ids;
               console.log("✅ Orden cargado desde BD para", dia);
             }
           }
@@ -125,14 +236,14 @@ export default function PedidosDiaScreen() {
 
         // 3. Aplicar orden
         if (idsOrdenados) {
-          // Reordenar clientes según el orden guardado
+          // Reordenar clientes según el orden guardado (Comparación flexible String/Number)
           const clientesReordenados = idsOrdenados
-            .map(id => clientes.find(cliente => cliente.id === id))
+            .map(id => clientes.find(cliente => String(cliente.id) === String(id)))
             .filter(Boolean);
 
           // Agregar clientes nuevos al final
           const clientesNuevos = clientes.filter(
-            cliente => !idsOrdenados.includes(cliente.id)
+            cliente => !idsOrdenados.some(id => String(id) === String(cliente.id))
           );
 
           setClientesOrdenados([...clientesReordenados, ...clientesNuevos]);
@@ -155,6 +266,45 @@ export default function PedidosDiaScreen() {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [fechaSeleccionada]);
+
+  const guardarNotaCliente = async (clienteId, nuevaNota) => {
+    try {
+      const idExistente = mapaIdsFrecuentes[clienteId];
+      // Actualizar estado local inmediatamente para reflejar el cambio
+      setNotasClientes(prev => ({ ...prev, [clienteId]: nuevaNota }));
+
+      if (idExistente) {
+        // PATCH si ya existe
+        await fetch(`${API_URL}/productos-frecuentes/${idExistente}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nota: nuevaNota }),
+        });
+      } else {
+        // POST si no existe (solo si hay nota)
+        if (!nuevaNota.trim()) return;
+
+        const res = await fetch(`${API_URL}/productos-frecuentes/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cliente: clienteId,
+            dia: dia,
+            productos: [], // Vacío inicialmente
+            nota: nuevaNota
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // Guardar el nuevo ID para futuros updates
+          setMapaIdsFrecuentes(prev => ({ ...prev, [clienteId]: data.id }));
+        }
+      }
+    } catch (error) {
+      console.error('Error guardando nota:', error);
+    }
+  };
 
   const cargarClientes = async () => {
     try {
@@ -234,9 +384,54 @@ export default function PedidosDiaScreen() {
     }
   };
 
+  const guardarProductosFrecuentes = async () => {
+    if (!clienteSeleccionado) return;
+
+    try {
+      // Verificar si ya existe configuración para este cliente y día
+      const getResponse = await fetch(
+        `${API_URL}/productos-frecuentes/?cliente=${clienteSeleccionado.id}&dia=${dia}`
+      );
+
+      let method = 'POST';
+      let url = `${API_URL}/productos-frecuentes/`;
+
+      if (getResponse.ok) {
+        const data = await getResponse.json();
+        if (data.length > 0) {
+          // Ya existe, hacer PUT
+          method = 'PUT';
+          url = `${API_URL}/productos-frecuentes/${data[0].id}/`;
+        }
+      }
+
+      // Guardar
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliente: clienteSeleccionado.id,
+          dia: dia,
+          productos: productosFrecuentesSeleccionados
+        })
+      });
+
+      if (response.ok) {
+        alert(`✅ Productos frecuentes guardados para ${clienteSeleccionado.alias || clienteSeleccionado.nombre_completo}`);
+        setShowProductosModal(false);
+        setClienteSeleccionado(null);
+        setProductosFrecuentesSeleccionados([]);
+      } else {
+        alert('❌ Error al guardar productos frecuentes');
+      }
+    } catch (error) {
+      console.error('Error guardando productos frecuentes:', error);
+      alert('❌ Error de conexión');
+    }
+  };
 
 
-  const handleRowClick = (cliente) => {
+  const handleRowClick = async (cliente) => {
     const tienePedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
     if (tienePedido) {
       verDetallePedido(cliente);
@@ -244,6 +439,24 @@ export default function PedidosDiaScreen() {
       // 🆕 Guardar contexto para volver aquí después de crear el pedido
       localStorage.setItem('pedidos_retorno_dia', dia);
       localStorage.setItem('pedidos_retorno_fecha', fechaSeleccionada);
+
+      // 🆕 Intentar cargar productos frecuentes
+      let productosFrecuentes = [];
+      try {
+        const response = await fetch(
+          `${API_URL}/productos-frecuentes/?cliente=${cliente.id}&dia=${dia}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.length > 0 && data[0].productos && data[0].productos.length > 0) {
+            productosFrecuentes = data[0].productos;
+            console.log(`✅ Productos frecuentes cargados para ${cliente.alias}:`, productosFrecuentes);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando productos frecuentes:', error);
+      }
 
       // Navegar a crear pedido
       const clienteData = encodeURIComponent(JSON.stringify({
@@ -253,7 +466,8 @@ export default function PedidosDiaScreen() {
         lista_precio: cliente.tipo_lista_precio,
         telefono: cliente.telefono_1 || cliente.movil,
         dia: dia,
-        fecha: fechaSeleccionada
+        fecha: fechaSeleccionada,
+        productos_frecuentes: productosFrecuentes  // 🆕 Pasar productos
       }));
       navigate(`/remisiones?cliente=${clienteData}`);
     }
@@ -271,6 +485,37 @@ export default function PedidosDiaScreen() {
 
     if (!pedido) {
       alert('No se encontró el pedido para anular');
+      return;
+    }
+
+    // 🆕 ALERTA DE SEGURIDAD PARA PEDIDOS ENTREGADOS
+    if (pedido.estado === 'ENTREGADO' || pedido.estado === 'ENTREGADA') {
+      Swal.fire({
+        title: '⚠️ ¿ANULAR PEDIDO VENDIDO?',
+        html: `
+                <div style="text-align: left;">
+                    <p>Este pedido figura como <b>ENTREGADO</b>. Si lo anulas:</p>
+                    <ul style="color: #d33; font-weight: bold;">
+                        <li>NO se devolverá el stock al inventario.</li>
+                        <li>Se descontará del total de ventas del día.</li>
+                        <li>Quedará registro de la anulación.</li>
+                    </ul>
+                    <p>Solo haz esto si realmente fue un error y la venta no existió.</p>
+                </div>
+            `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, Anular',
+        cancelButtonText: 'Cancelar',
+        focusCancel: true
+      }).then((result) => {
+        if (result.isConfirmed) {
+          setPedidoAAnular(pedido);
+          setShowAnularModal(true);
+        }
+      });
       return;
     }
 
@@ -348,6 +593,7 @@ export default function PedidosDiaScreen() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dia: dia,
+        ruta_id: null, // 🆕 Explícito para evitar ambigüedad en backend global (rutas null)
         clientes_ids: idsOrdenados
       })
     }).then(res => {
@@ -458,8 +704,9 @@ export default function PedidosDiaScreen() {
                   <th style={{ padding: '6px 16px', width: '18%', textAlign: 'center', height: '45px' }} scope="col">Dirección</th>
                   <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Lista Precio</th>
                   <th style={{ padding: '6px 16px', width: '9%', textAlign: 'center', height: '45px' }} scope="col">Estado</th>
+                  <th style={{ padding: '6px 16px', width: '6%', textAlign: 'center', height: '45px' }} scope="col">Teléfono</th>
                   <th style={{ padding: '6px 16px', width: '5%', textAlign: 'center', height: '45px' }} scope="col">Anular</th>
-                  <th style={{ padding: '6px 16px', width: '20%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
+                  <th style={{ padding: '6px 16px', width: '13%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
                 </tr>
               </thead>
               <tbody>
@@ -586,6 +833,85 @@ export default function PedidosDiaScreen() {
                           </span>
                         )}
                       </td>
+                      <td style={{ padding: '4px 16px', textAlign: 'center', verticalAlign: 'middle', height: '45px', position: 'relative' }}>
+                        {cliente.movil ? (
+                          <div
+                            style={{ position: 'relative', display: 'inline-block' }}
+                            onMouseEnter={() => setTelefonoHover(cliente.id)}
+                            onMouseLeave={() => setTelefonoHover(null)}
+                          >
+                            <span className="material-icons" style={{
+                              fontSize: '18px',
+                              color: '#10B981',
+                              cursor: 'pointer'
+                            }}>
+                              phone
+                            </span>
+
+                            {/* Tooltip con números */}
+                            {telefonoHover === cliente.id && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: 'calc(100% + 10px)',
+                                transform: 'translateY(-50%)',
+                                backgroundColor: '#FFFFFF',
+                                color: '#1F2937',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                fontSize: '13px',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                border: '1px solid #E5E7EB',
+                                zIndex: 1000,
+                                pointerEvents: 'none'
+                              }}>
+                                {/* Flecha del tooltip (izquierda) */}
+                                <div style={{
+                                  position: 'absolute',
+                                  left: '-5px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  width: 0,
+                                  height: 0,
+                                  borderTop: '5px solid transparent',
+                                  borderBottom: '5px solid transparent',
+                                  borderRight: '5px solid #FFFFFF'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  left: '-6px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  width: 0,
+                                  height: 0,
+                                  borderTop: '6px solid transparent',
+                                  borderBottom: '6px solid transparent',
+                                  borderRight: '6px solid #E5E7EB'
+                                }} />
+
+                                <div style={{ fontWeight: '700', marginBottom: '6px', fontSize: '11px', color: '#06386d', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span className="material-icons" style={{ fontSize: '14px', color: '#06386d' }}>phone</span>
+                                  Contacto
+                                </div>
+                                {cliente.movil.split(/[-,]/).map((num, i) => (
+                                  <div key={i} style={{
+                                    fontWeight: '600',
+                                    letterSpacing: '0.5px',
+                                    marginBottom: i < cliente.movil.split(/[-,]/).length - 1 ? '4px' : '0',
+                                    color: '#1F2937',
+                                    fontSize: '13px'
+                                  }}>
+                                    {num.trim()}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#9CA3AF', fontSize: '12px' }}>-</span>
+                        )}
+                      </td>
                       <td style={{ padding: '4px 16px', textAlign: 'center', verticalAlign: 'middle', height: '45px' }}>
                         {tienePedido ? (() => {
                           // 🆕 Validar si el vendedor ya procesó el pedido en la app
@@ -637,34 +963,85 @@ export default function PedidosDiaScreen() {
                         )}
                       </td>
                       <td style={{ padding: '4px 16px', verticalAlign: 'middle', height: '45px' }}>
-                        <input
-                          type="text"
-                          value={notas[cliente.id] || ''}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleNotaChange(cliente.id, e.target.value);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            width: '100%',
-                            backgroundColor: '#F9FAFB',
-                            border: '1px solid #D1D5DB',
-                            color: '#111827',
-                            fontSize: '12px',
-                            borderRadius: '8px',
-                            padding: '6px 8px',
-                            transition: 'all 0.2s ease-in-out'
-                          }}
-                          onFocus={(e) => {
-                            e.target.style.borderColor = '#1D4ED8';
-                            e.target.style.backgroundColor = '#FFFFFF';
-                          }}
-                          onBlur={(e) => {
-                            e.target.style.borderColor = '#D1D5DB';
-                            e.target.style.backgroundColor = '#F9FAFB';
-                          }}
-                          placeholder="Añadir nota..."
-                        />
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          {/* Botón de productos frecuentes */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setClienteSeleccionado(cliente);
+                              setShowProductosModal(true);
+                            }}
+                            style={{
+                              padding: '4px',
+                              backgroundColor: 'transparent',
+                              color: 'inherit',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '18px',
+                              flexShrink: 0,
+                              transition: 'all 0.3s ease',
+                              // 🆕 Efecto de "Glow" INTENSO
+                              filter: clientesConFrecuentes.has(cliente.id)
+                                ? 'drop-shadow(0 0 8px rgba(34, 197, 94, 1))'
+                                : 'none',
+                              transform: clientesConFrecuentes.has(cliente.id) ? 'scale(1.1)' : 'scale(1)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.transform = 'scale(1.25)';
+                              if (!clientesConFrecuentes.has(cliente.id)) {
+                                e.target.style.filter = 'drop-shadow(0 0 3px rgba(0,0,0,0.2))';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = clientesConFrecuentes.has(cliente.id) ? 'scale(1.1)' : 'scale(1)';
+                              e.target.style.filter = clientesConFrecuentes.has(cliente.id)
+                                ? 'drop-shadow(0 0 8px rgba(34, 197, 94, 1))'
+                                : 'none';
+                            }}
+                            title={clientesConFrecuentes.has(cliente.id) ? "Productos frecuentes configurados" : "Configurar productos frecuentes"}
+                          >
+                            📦
+                          </button>
+
+                          {/* Input de notas */}
+                          <input
+                            type="text"
+                            value={notasClientes[cliente.id] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setNotasClientes(prev => ({ ...prev, [cliente.id]: val }));
+                            }}
+                            onBlur={(e) => {
+                              // Restaurar estilos visuales
+                              e.target.style.borderColor = '#D1D5DB';
+                              e.target.style.backgroundColor = '#F9FAFB';
+                              // Guardar nota
+                              guardarNotaCliente(cliente.id, e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') e.target.blur();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#F9FAFB',
+                              border: '1px solid #D1D5DB',
+                              color: '#111827',
+                              fontSize: '12px',
+                              borderRadius: '8px',
+                              padding: '6px 8px',
+                              transition: 'all 0.2s ease-in-out'
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.borderColor = '#1D4ED8';
+                              e.target.style.backgroundColor = '#FFFFFF';
+                            }}
+                            placeholder="Añadir nota..."
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -683,6 +1060,142 @@ export default function PedidosDiaScreen() {
         onClose={() => setShowModal(false)}
         pedido={pedidoSeleccionado}
       />
+
+      {/* Modal de Productos Frecuentes */}
+      <Modal
+        show={showProductosModal}
+        onHide={() => {
+          setShowProductosModal(false);
+          setClienteSeleccionado(null);
+          setProductosFrecuentesSeleccionados([]);
+        }}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton style={{ backgroundColor: '#06386d', color: 'white' }}>
+          <Modal.Title>
+            📦 Productos Frecuentes - {clienteSeleccionado?.alias || clienteSeleccionado?.nombre_completo}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          <p className="text-muted mb-3">
+            Selecciona los productos que <strong>{clienteSeleccionado?.alias || clienteSeleccionado?.nombre_completo}</strong> pide frecuentemente los días <strong>{dia}</strong>.
+          </p>
+
+          {productosDisponibles.length === 0 ? (
+            <div className="text-center py-4">
+              <span className="material-icons" style={{ fontSize: '48px', color: '#9CA3AF' }}>inventory_2</span>
+              <p className="text-muted mt-2">Cargando productos...</p>
+            </div>
+          ) : (
+            <div className="row g-2">
+              {productosDisponibles.map(producto => {
+                const seleccionado = productosFrecuentesSeleccionados.find(p => p.producto_id === producto.id);
+
+                return (
+                  <div key={producto.id} className="col-md-6">
+                    <div
+                      style={{
+                        border: seleccionado ? '2px solid #10B981' : '1px solid #E5E7EB',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        backgroundColor: seleccionado ? '#F0FDF4' : 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onClick={() => {
+                        if (seleccionado) {
+                          // Deseleccionar
+                          setProductosFrecuentesSeleccionados(prev =>
+                            prev.filter(p => p.producto_id !== producto.id)
+                          );
+                        } else {
+                          // Seleccionar con cantidad 1
+                          setProductosFrecuentesSeleccionados(prev => [
+                            ...prev,
+                            { producto_id: producto.id, nombre: producto.nombre, cantidad: 1 }
+                          ]);
+                        }
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div className="flex-grow-1">
+                          <strong style={{ color: '#1F2937', fontSize: '14px' }}>{producto.nombre}</strong>
+                          {seleccionado && (
+                            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                              <label className="form-label mb-1" style={{ fontSize: '12px', color: '#6B7280' }}>
+                                Cantidad:
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={seleccionado.cantidad}
+                                onChange={(e) => {
+                                  const nuevaCantidad = parseInt(e.target.value) || 1;
+                                  setProductosFrecuentesSeleccionados(prev =>
+                                    prev.map(p =>
+                                      p.producto_id === producto.id
+                                        ? { ...p, cantidad: nuevaCantidad }
+                                        : p
+                                    )
+                                  );
+                                }}
+                                className="form-control form-control-sm"
+                                style={{ width: '80px' }}
+                                onFocus={(e) => e.target.select()}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          {seleccionado ? (
+                            <span className="material-icons" style={{ color: '#10B981', fontSize: '24px' }}>
+                              check_circle
+                            </span>
+                          ) : (
+                            <span className="material-icons" style={{ color: '#D1D5DB', fontSize: '24px' }}>
+                              radio_button_unchecked
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <div className="d-flex justify-content-between w-100 align-items-center">
+            <span className="text-muted" style={{ fontSize: '14px' }}>
+              {productosFrecuentesSeleccionados.length} producto(s) seleccionado(s)
+            </span>
+            <div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowProductosModal(false);
+                  setClienteSeleccionado(null);
+                  setProductosFrecuentesSeleccionados([]);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                className="ms-2"
+                style={{ backgroundColor: '#06386d', borderColor: '#06386d' }}
+                onClick={guardarProductosFrecuentes}
+              >
+                <i className="bi bi-save me-2"></i>
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </Modal.Footer>
+      </Modal>
+
 
       {/* Modal de Confirmación de Anulación */}
       <Modal

@@ -46,6 +46,12 @@ export const AuthProvider = ({ children }) => {
             if (data.success) {
                 setUsuario(data.usuario);
                 localStorage.setItem('crm_usuario', JSON.stringify(data.usuario));
+
+                // 🧹 Limpieza de higiene: Borrar cualquier rastro de turno de sesiones anteriores
+                // Esto evita que un usuario nuevo herede un turno "zombie" en localStorage y se le bloquee el logout
+                localStorage.removeItem('turno_activo');
+                localStorage.removeItem('cajero_logueado');
+
                 return { success: true, message: data.message };
             } else {
                 setError(data.error);
@@ -62,8 +68,32 @@ export const AuthProvider = ({ children }) => {
 
     // Logout
     const logout = () => {
+        // 🔒 VERIFICACIÓN DE CAJA GLOBAL (Para Admins y Cajeros)
+        // Verificar si hay un turno activo en localStorage antes de permitir la salida del sistema
+        const turnoGuardado = localStorage.getItem('turno_activo');
+        if (turnoGuardado) {
+            try {
+                const turno = JSON.parse(turnoGuardado);
+                if (turno && turno.estado === 'ACTIVO') {
+                    // ⛔ Bloquear salida
+                    // Usamos alert nativo para asegurar bloqueo inmediato en cualquier parte del sistema
+                    alert("⛔ CAJA ABIERTA\n\nNo puedes cerrar sesión del sistema mientras tengas un turno de caja activo.\n\nPor favor, dirígete al módulo POS/Caja y realiza el cierre de turno correspondiente.");
+                    return; // Cancelar logout
+                }
+            } catch (e) {
+                // Si el JSON es inválido, ignorar y permitir salir (limpiando basura)
+                console.error('Error verificando turno activo en logout:', e);
+                localStorage.removeItem('turno_activo');
+            }
+        }
+
         setUsuario(null);
         localStorage.removeItem('crm_usuario');
+
+        // Limpiar también datos de caja por si acaso (aunque el bloqueo anterior debería prevenirlo)
+        // Si llegamos aquí es porque no había turno activo o estaba corrupto
+        localStorage.removeItem('turno_activo');
+        localStorage.removeItem('cajero_logueado');
     };
 
     // Recuperar contraseña
@@ -106,8 +136,15 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Verificar si es admin
+    // Verificar si es admin (Versión robusta)
     const esAdmin = () => {
-        return usuario?.es_admin === true || usuario?.rol === 'ADMINISTRADOR';
+        if (!usuario) return false;
+        if (usuario.es_admin === true) return true;
+
+        const rol = usuario.rol ? usuario.rol.toUpperCase() : '';
+        const rolesAdmin = ['ADMIN', 'ADMINISTRADOR', 'ADMINISTRADOR DE SISTEMA', 'SUPERUSUARIO', 'GERENTE'];
+
+        return rolesAdmin.includes(rol);
     };
 
     const value = {

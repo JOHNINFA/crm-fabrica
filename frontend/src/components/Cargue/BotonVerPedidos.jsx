@@ -429,11 +429,22 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                     <div style={{ padding: '16px 24px' }}>
                                         {pedidosClientes.map((pedido, index) => {
                                             const tieneNovedades = pedido.novedades && pedido.novedades.length > 0;
+                                            const esEntregado = pedido.estado === 'ENTREGADO' || pedido.estado === 'ENTREGADA';
+
+                                            // Estilos condicionales
+                                            const borderColor = tieneNovedades
+                                                ? (esEntregado ? '#f59e0b' : '#ef4444') // Amarillo (Warning) si entregado, Rojo (Danger) si no
+                                                : '#e0e0e0';
+
+                                            const backgroundColor = tieneNovedades
+                                                ? (esEntregado ? '#fffbeb' : 'rgba(254, 202, 202, 0.5)')
+                                                : 'white';
+
                                             return (
                                                 <div key={pedido.id} style={{
                                                     marginBottom: '12px',
-                                                    border: tieneNovedades ? '1px solid #ef4444' : '1px solid #e0e0e0',
-                                                    backgroundColor: tieneNovedades ? 'rgba(254, 202, 202, 0.5)' : 'white',
+                                                    border: `1px solid ${borderColor}`,
+                                                    backgroundColor: backgroundColor,
                                                     borderRadius: '8px',
                                                     overflow: 'hidden'
                                                 }}>
@@ -511,25 +522,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                                 >
                                                                     <i className={`bi ${pedidoExpandido === pedido.id ? 'bi-chevron-up' : 'bi-eye'}`}></i>
                                                                 </button>
-                                                                {/* Botón Editar - Amarillo */}
-                                                                <button
-                                                                    onClick={(e) => handleGestionarPedido(e, pedido)}
-                                                                    style={{
-                                                                        background: 'transparent',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer',
-                                                                        padding: '8px',
-                                                                        color: '#eab308',
-                                                                        fontSize: '18px',
-                                                                        borderRadius: '50%',
-                                                                        transition: 'background-color 0.2s'
-                                                                    }}
-                                                                    title="Editar pedido"
-                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fefce8'}
-                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                                >
-                                                                    <i className="bi bi-pencil"></i>
-                                                                </button>
+
                                                                 {/* Botón Anular - Rojo */}
                                                                 <button
                                                                     onClick={(e) => handleAnularClick(e, pedido)}

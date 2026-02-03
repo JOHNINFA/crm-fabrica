@@ -51,8 +51,23 @@ export const CajeroProvider = ({ children }) => {
                     // Verificar si hay turno activo para este cajero
                     const turnoActivo = await cajeroService.getTurnoActivo(cajeroData.id);
                     if (turnoActivo && !turnoActivo.error) {
-                        setTurnoActivo(turnoActivo);
-                        localStorage.setItem('turno_activo', JSON.stringify(turnoActivo));
+                        // ✅ VALIDACIÓN ADICIONAL: Verificar que el turno sea realmente de este cajero
+                        const turnoEsDelCajero =
+                            turnoActivo.cajero === cajeroData.id ||
+                            turnoActivo.cajero_id === cajeroData.id;
+
+                        if (turnoEsDelCajero) {
+                            setTurnoActivo(turnoActivo);
+                            localStorage.setItem('turno_activo', JSON.stringify(turnoActivo));
+                        } else {
+                            console.warn('⚠️ Turno encontrado no pertenece al cajero actual. Descartando.');
+                            setTurnoActivo(null);
+                            localStorage.removeItem('turno_activo');
+                        }
+                    } else {
+                        // 🧹 Fix: Si no hay turno activo en API, limpiar estado local explícitamente
+                        setTurnoActivo(null);
+                        localStorage.removeItem('turno_activo');
                     }
                 } catch (error) {
                     console.error('Error sincronizando con sistema:', error);
@@ -163,11 +178,19 @@ export const CajeroProvider = ({ children }) => {
         try {
 
 
-            // Cerrar turno si está activo
+            // 🔒 BLOQUEO ESTRICTO: Si hay turno activo, NO permitir logout
+            // El usuario DEBE cerrar el turno mediante el proceso de Arqueo de Caja
             if (turnoActivo && turnoActivo.estado === 'ACTIVO') {
-                await cajeroService.cerrarTurno(turnoActivo.id);
-
+                return {
+                    success: false,
+                    message: '⛔ CAJA ABIERTA: No puedes cerrar sesión con un turno activo.\n\nPor favor, ve al módulo de Caja y realiza el "Cierre de Turno" (Arqueo) para cuadrar las ventas.'
+                };
             }
+
+            // ❌ ELIMINADO: No cerrar turno automáticamente al salir.
+            // if (turnoActivo && turnoActivo.estado === 'ACTIVO') {
+            //    await cajeroService.cerrarTurno(turnoActivo.id);
+            // }
 
             // Marcar que se hizo logout para que el próximo login sepa que debe limpiar
             localStorage.setItem('ultimo_logout', new Date().toISOString());

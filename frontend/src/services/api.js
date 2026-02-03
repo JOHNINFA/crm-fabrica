@@ -417,6 +417,66 @@ export const categoriaService = {
     }
   },
 
+  // Anular un pedido
+  anularPedido: async (id, motivo) => {
+    try {
+      // Intentar anular en el servidor
+      try {
+        const response = await fetch(`${API_URL}/pedidos/${id}/anular/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ motivo }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          return { success: true, message: result.message || 'Pedido anulado correctamente' };
+        } else {
+          // Si es 404, es posible que sea un pedido LOCAL no sincronizado
+          if (response.status === 404) {
+            console.warn('Pedido no encontrado en servidor, buscando en local...');
+            throw new Error('NOT_FOUND_SERVER');
+          }
+
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Error al anular pedido');
+        }
+      } catch (apiError) {
+        // Si falló por 404 o conexión, intentar anular localmente
+        console.warn('Fallo anulación servidor:', apiError);
+
+        const pedidosLocales = JSON.parse(localStorage.getItem('pedidos_sistema') || '[]');
+        // Buscar por ID numérico o string
+        const index = pedidosLocales.findIndex(p => p.id == id);
+
+        if (index !== -1) {
+          // Actualizar estado local
+          pedidosLocales[index].estado = 'ANULADA';
+          pedidosLocales[index].motivo_anulacion = motivo;
+          localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosLocales));
+
+          return {
+            success: true,
+            message: 'Pedido local anulado correctamente (No sincronizado)'
+          };
+        }
+
+        // Si no estaba en local tampoco, entonces sí es un error real
+        if (apiError.message === 'NOT_FOUND_SERVER') {
+          throw new Error('Pedido no encontrado ni en servidor ni en local');
+        }
+
+        return handleApiError(apiError);
+      }
+
+    } catch (error) {
+      console.error('Error en anularPedido:', error);
+      return { success: false, message: error.message };
+    }
+  },
+
   // Eliminar una categoría
   delete: async (id) => {
     try {
@@ -871,45 +931,14 @@ export const pedidoService = {
 
       const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
 
-
-      // Intentar con API primero
-      try {
-        const response = await fetch(url);
-        if (response.ok) {
-          const data = await response.json();
-
-          return data;
-        }
-      } catch (apiError) {
-        console.warn('API no disponible para obtener pedidos:', apiError);
-      }
-
-      // Fallback: usar localStorage
-
-      const pedidosGuardados = localStorage.getItem('pedidos_sistema');
-
-      if (pedidosGuardados) {
-        let pedidos = JSON.parse(pedidosGuardados);
-
-        // Verificar pedidos anulados y actualizar estados
-        const pedidosAnulados = JSON.parse(localStorage.getItem('pedidos_anulados') || '[]');
-        if (pedidosAnulados.length > 0) {
-
-          pedidos = pedidos.map(pedido => {
-            if (pedidosAnulados.includes(pedido.id)) {
-              return { ...pedido, estado: 'ANULADA' };
-            }
-            return pedido;
-          });
-        }
-
-
-        return pedidos;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
       } else {
-
+        console.warn('Error fetching pedidos:', response.status);
         return [];
       }
-
     } catch (error) {
       console.error('Error en getAll pedidos:', error);
       return [];
@@ -919,57 +948,25 @@ export const pedidoService = {
   // Crear un nuevo pedido
   create: async (remisionData) => {
     try {
+      const response = await fetch(`${API_URL}/pedidos/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(remisionData),
+      });
 
-
-      // Intentar con API primero
-      try {
-        const response = await fetch(`${API_URL}/pedidos/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(remisionData),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-
-
-          // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
-          window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: result }));
-
-          return result;
-        } else {
-          const errorText = await response.text();
-          console.error('Error response:', errorText);
-          throw new Error(`Error al crear pedido: ${response.status}`);
-        }
-      } catch (apiError) {
-        console.warn('API no disponible, guardando en localStorage:', apiError);
-
-        // Fallback: guardar en localStorage
-        const pedidosGuardados = JSON.parse(localStorage.getItem('pedidos_sistema') || '[]');
-
-        // Generar ID único y número de pedido
-        const nuevoId = Date.now();
-        const numeroPedido = `PED-${String(nuevoId).slice(-6)}`;
-
-        const nuevoPedido = {
-          id: nuevoId,
-          numero_pedido: numeroPedido,
-          ...remisionData,
-          fecha_creacion: new Date().toISOString()
-        };
-
-        pedidosGuardados.push(nuevoPedido);
-        localStorage.setItem('pedidos_sistema', JSON.stringify(pedidosGuardados));
-
-
+      if (response.ok) {
+        const result = await response.json();
 
         // 🆕 Disparar evento para actualizar Total Pedidos en Cargue
-        window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: nuevoPedido }));
+        window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: result }));
 
-        return nuevoPedido;
+        return result;
+      } else {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error al crear pedido: ${response.status}`);
       }
     } catch (error) {
       console.error('Error en create pedido:', error);
@@ -980,91 +977,39 @@ export const pedidoService = {
   // Obtener una remisión por ID
   getById: async (id) => {
     try {
-
-
-      // Intentar con API primero
-      try {
-        const response = await fetch(`${API_URL}/pedidos/${id}/`);
-        if (response.ok) {
-          const data = await response.json();
-
-          return data;
-        } else {
-          console.log('⚠️ API response not ok:', response.status);
-        }
-      } catch (apiError) {
-        console.warn('⚠️ API no disponible para obtener remisión por ID:', apiError);
+      const response = await fetch(`${API_URL}/pedidos/${id}/`);
+      if (response.ok) {
+        return await response.json();
+      } else {
+        throw new Error(`Error al obtener pedido: ${response.status}`);
       }
-
-      // Fallback: buscar en localStorage
-
-      const remisionesGuardadas = localStorage.getItem('remisiones_sistema');
-
-      if (remisionesGuardadas) {
-        const remisiones = JSON.parse(remisionesGuardadas);
-        let remision = remisiones.find(r => r.id === parseInt(id));
-
-        if (remision) {
-          // Verificar si está anulada
-          const remisionesAnuladas = JSON.parse(localStorage.getItem('remisiones_anuladas') || '[]');
-          if (remisionesAnuladas.includes(parseInt(id))) {
-            remision = { ...remision, estado: 'ANULADA' };
-          }
-
-
-          return remision;
-        } else {
-          console.log('❌ Remisión no encontrada en localStorage con ID:', id);
-        }
-      }
-
-      throw new Error('Remisión no encontrada en API ni localStorage');
-
     } catch (error) {
-      console.error('❌ Error en getById remisión:', error);
+      console.error('Error en getById pedido:', error);
       return { error: true, message: error.message };
     }
   },
 
-  // Anular un pedido (remisión)
-  anularPedido: async (id, motivo = 'Anulado desde gestión de pedidos') => {
+  // Anular un pedido
+  anularPedido: async (id, motivo) => {
     try {
+      const response = await fetch(`${API_URL}/pedidos/${id}/anular/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ motivo }),
+      });
 
-
-      // Intentar con el endpoint específico de anulación
-      try {
-        const response = await fetch(`${API_URL}/pedidos/${id}/anular/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ motivo })
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-
-          return {
-            success: true,
-            message: result.message || 'Pedido anulado exitosamente',
-            pedido: result.pedido
-          };
-        } else {
-          const errorData = await response.json();
-          console.error('❌ Error al anular pedido:', errorData);
-          throw new Error(errorData.detail || `Error ${response.status}`);
-        }
-      } catch (apiError) {
-        console.error('❌ Error en API al anular pedido:', apiError);
-        throw apiError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, message: errorData.error || 'Error al anular pedido' };
       }
 
+      const result = await response.json();
+      return { success: true, message: result.message };
     } catch (error) {
-      console.error('❌ Error en anularPedido:', error);
-      return {
-        error: true,
-        message: error.message || 'Error al anular el pedido'
-      };
+      console.error('Error en anularPedido:', error);
+      return handleApiError(error);
     }
   },
 

@@ -41,6 +41,9 @@ const PaymentModal = ({
     const [bodega, setBodega] = useState("Principal");
     const [pedidoCreado, setPedidoCreado] = useState(null);
     const [showTicketModal, setShowTicketModal] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false); // 🆕 Estado para pantalla de éxito interna
+    const [showError, setShowError] = useState(false); // 🆕 Estado para pantalla de error
+    const [errorMessage, setErrorMessage] = useState({ title: '', text: '' }); // 🆕 Datos del error
 
     // Cargar bancos desde localStorage
     useEffect(() => {
@@ -69,10 +72,14 @@ const PaymentModal = ({
 
     // Inicializar fecha de entrega y datos del cliente
     useEffect(() => {
-        const mañana = new Date();
-        mañana.setDate(mañana.getDate() + 1);
-        setFechaEntrega(mañana.toISOString().split('T')[0]);
-    }, []);
+        if (date) {
+            setFechaEntrega(date);
+        } else {
+            const mañana = new Date();
+            mañana.setDate(mañana.getDate() + 1);
+            setFechaEntrega(mañana.toISOString().split('T')[0]);
+        }
+    }, [date]);
 
     // Cargar datos del cliente si vienen de Pedidos
     useEffect(() => {
@@ -96,9 +103,13 @@ const PaymentModal = ({
         setDestinatario("DESTINATARIO GENERAL");
         setDireccionEntrega("");
         setTelefonoContacto("");
-        const mañana = new Date();
-        mañana.setDate(mañana.getDate() + 1);
-        setFechaEntrega(mañana.toISOString().split('T')[0]);
+        if (date) {
+            setFechaEntrega(date);
+        } else {
+            const mañana = new Date();
+            mañana.setDate(mañana.getDate() + 1);
+            setFechaEntrega(mañana.toISOString().split('T')[0]);
+        }
         setNota("");
         setTipoRemision("ENTREGA");
         setTransportadora("Propia");
@@ -130,26 +141,9 @@ const PaymentModal = ({
     };
 
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (cart.length === 0) {
-            alert('El carrito está vacío');
-            return;
-        }
-
-        if (!destinatario.trim()) {
-            alert('Debe especificar el destinatario');
-            return;
-        }
-
-        if (!direccionEntrega.trim()) {
-            alert('Debe especificar la dirección de entrega');
-            return;
-        }
-
+    // Nueva función aislada para crear pedido (puede ser llamada tras validar o forzar)
+    const executeCreation = async () => {
         setProcessing(true);
-
         try {
             // Función para obtener fecha local (solo fecha, sin hora para evitar problemas de zona horaria)
             const getFechaLocal = () => {
@@ -162,13 +156,13 @@ const PaymentModal = ({
 
             // Preparar datos del pedido
             const pedidoData = {
-                fecha: getFechaLocal(),
+                fecha: getFechaLocal(), // Fecha de creación (hoy)
                 vendedor: seller,
                 destinatario: destinatario,
                 direccion_entrega: direccionEntrega,
                 telefono_contacto: telefonoContacto,
-                zona_barrio: zonaBarrio, // 🆕 Enviar zona al backend
-                fecha_entrega: fechaEntrega,
+                zona_barrio: zonaBarrio,
+                fecha_entrega: fechaEntrega, // Fecha programada entrega
                 tipo_remision: tipoPedido,
                 transportadora: transportadora,
                 subtotal: subtotal,
@@ -177,7 +171,6 @@ const PaymentModal = ({
                 total: safeTotal,
                 estado: 'PENDIENTE',
                 nota: nota,
-
                 detalles: cart.map(item => ({
                     producto: item.id,
                     cantidad: item.qty,
@@ -185,28 +178,15 @@ const PaymentModal = ({
                 }))
             };
 
-
-
-
-
-            // Crear el pedido
             const result = await pedidoService.create(pedidoData);
 
             if (result && !result.error) {
-
-
-                // Construir mensaje de éxito
-                let mensaje = `✅ Pedido #${result.numero_pedido} creado exitosamente\n`;
-
-
-
-                alert(mensaje);
-
                 if (impresion === 'Tirilla') {
                     setPedidoCreado(result);
                     setShowTicketModal(true);
                 } else {
-                    handleCloseAndReset();
+                    setPedidoCreado(result);
+                    setShowSuccess(true);
                 }
             } else {
                 console.error('❌ Error al crear pedido:', result);
@@ -218,6 +198,51 @@ const PaymentModal = ({
         } finally {
             setProcessing(false);
         }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (cart.length === 0) { alert('El carrito está vacío'); return; }
+        if (!destinatario.trim()) { alert('Debe especificar el destinatario'); return; }
+        if (!direccionEntrega.trim()) { alert('Debe especificar la dirección de entrega'); return; }
+
+        // 🛡️ Validación de Duplicados
+        try {
+            const pedidosExistentes = await pedidoService.getAll({ fecha_entrega: fechaEntrega });
+            if (Array.isArray(pedidosExistentes)) {
+                const normalize = s => s ? s.toString().trim().toLowerCase() : '';
+                const targetName = normalize(destinatario);
+
+                // Comparación de fechas segura (substring 10 chars)
+                const sameDate = (d1, d2) => {
+                    if (!d1 || !d2) return false;
+                    return d1.toString().substring(0, 10) === d2.toString().substring(0, 10);
+                };
+
+                const duplicado = pedidosExistentes.find(p =>
+                    normalize(p.destinatario) === targetName &&
+                    sameDate(p.fecha_entrega, fechaEntrega) &&
+                    p.estado !== 'ANULADA'
+                );
+
+                if (duplicado) {
+                    setErrorMessage({
+                        title: '⛔ ACCIÓN DENEGADA',
+                        text: `Ya existe un pedido activo (#${duplicado.numero_pedido}) para el cliente "${destinatario}" con fecha de entrega ${fechaEntrega}.\n\n` +
+                            `Vendedor: ${duplicado.vendedor || 'Desconocido'}\n\n` +
+                            `El sistema NO permite duplicados idénticos para el mismo día.`
+                    });
+                    setShowError(true);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.warn('Error verificando duplicados:', error);
+        }
+
+        // Si pasa validaciones
+        await executeCreation();
     };
 
     // Métodos de pago
@@ -470,7 +495,8 @@ const PaymentModal = ({
                     >
                         {processing ? (
                             <>
-                                <i className="bi bi-hourglass-split"></i> Generando...
+                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                Generando...
                             </>
                         ) : (
                             <>
@@ -479,6 +505,101 @@ const PaymentModal = ({
                         )}
                     </button>
                 </div>
+
+                {/* 🆕 Pantalla de Éxito Interna (Overlay) */}
+                {showSuccess && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        zIndex: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '30px',
+                        animation: 'fadeIn 0.3s ease-in-out'
+                    }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            backgroundColor: '#d1e7dd',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '20px'
+                        }}>
+                            <i className="bi bi-check-lg" style={{ fontSize: '40px', color: '#198754' }}></i>
+                        </div>
+
+                        <h3 style={{ color: '#198754', fontWeight: 'bold', marginBottom: '10px' }}>¡Pedido Generado!</h3>
+
+                        <p style={{ fontSize: '16px', color: '#6c757d', marginBottom: '30px' }}>
+                            El pedido <strong style={{ color: '#212529' }}>#{pedidoCreado?.numero_pedido}</strong> ha sido creado exitosamente.
+                        </p>
+
+                        <button
+                            className="btn btn-success btn-lg"
+                            onClick={handleCloseAndReset}
+                            style={{ padding: '10px 40px', fontSize: '16px', fontWeight: '500' }}
+                        >
+                            Aceptar
+                        </button>
+                    </div>
+                )}
+
+                {/* 🆕 Pantalla de Error Interna (Overlay) */}
+                {showError && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        zIndex: 30,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '30px',
+                        animation: 'fadeIn 0.3s ease-in-out',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            backgroundColor: '#f8d7da',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '20px'
+                        }}>
+                            <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '40px', color: '#dc3545' }}></i>
+                        </div>
+
+                        <h3 style={{ color: '#dc3545', fontWeight: 'bold', marginBottom: '10px' }}>{errorMessage.title}</h3>
+
+                        <p style={{ fontSize: '16px', color: '#6c757d', marginBottom: '30px', whiteSpace: 'pre-line' }}>
+                            {errorMessage.text}
+                        </p>
+
+                        <button
+                            className="btn btn-danger"
+                            onClick={() => setShowError(false)}
+                            style={{ padding: '10px 20px', fontSize: '16px', fontWeight: '500' }}
+                        >
+                            Entendido
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Modal de vista previa del ticket */}

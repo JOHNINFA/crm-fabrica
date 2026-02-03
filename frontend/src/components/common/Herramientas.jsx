@@ -511,10 +511,105 @@ const Herramientas = () => {
                         )}
                     </Button>
                 </div>
+                <hr className="my-4" />
+
+                {/* 🆕 SECCIÓN: Gestión de Turnos */}
+                <div className="mb-3">
+                    <h6 className="text-primary">🟢 Gestión de Turnos</h6>
+                    <p className="text-muted small">
+                        Herramienta para reabrir turnos cerrados accidentalmente.
+                    </p>
+
+                    <Form.Group className="mb-2">
+                        <Form.Label>Vendedor</Form.Label>
+                        <Form.Select
+                            id="select-vendedor-turno"
+                            defaultValue=""
+                        >
+                            <option value="">Seleccionar Vendedor</option>
+                            <option value="ID1">JHONATHAN ONOFRES (ID1)</option>
+                            <option value="ID2">IVAN MAURICIO (ID2)</option>
+                            <option value="ID3">DIEGO BELTRÁN (ID3)</option>
+                            <option value="ID4">YEISON (ID4)</option>
+                            <option value="ID5">YULIAN (ID5)</option>
+                            <option value="ID6">VENDEDOR 6 (ID6)</option>
+                        </Form.Select>
+                    </Form.Group>
+
+                    <Form.Group className="mb-3">
+                        <Form.Label>Fecha del Turno (Opcional)</Form.Label>
+                        <Form.Control
+                            type="date"
+                            id="input-fecha-turno"
+                        />
+                        <Form.Text className="text-muted">
+                            Si se deja vacío, se reabrirá el último turno cerrado de este vendedor.
+                        </Form.Text>
+                    </Form.Group>
+
+                    <Button
+                        variant="success"
+                        onClick={async () => {
+                            const vendedor = document.getElementById('select-vendedor-turno').value;
+                            const fecha = document.getElementById('input-fecha-turno').value;
+
+                            if (!vendedor) {
+                                alert('Por favor selecciona un vendedor');
+                                return;
+                            }
+
+                            setLoading(true);
+                            setMessage({ type: 'info', text: 'Reabriendo turno...' });
+
+                            try {
+                                const response = await fetch(`${API_URL}/turno/abrir-manual/`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        vendedor_id: vendedor,
+                                        fecha: fecha || null
+                                    })
+                                });
+
+                                const data = await response.json();
+
+                                if (response.ok && data.success) {
+                                    setMessage({
+                                        type: 'success',
+                                        text: `✅ ${data.message}`
+                                    });
+                                    // Limpiar campos
+                                    document.getElementById('input-fecha-turno').value = '';
+                                } else {
+                                    setMessage({
+                                        type: 'danger',
+                                        text: `❌ Error: ${data.message || data.error || 'No se pudo reabrir el turno'}`
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('Error reabriendo turno:', error);
+                                setMessage({ type: 'danger', text: `Error de conexión: ${error.message}` });
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        className="d-flex align-items-center w-100 justify-content-center"
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <Spinner animation="border" size="sm" />
+                        ) : (
+                            <>
+                                <span className="material-icons me-2">lock_open</span>
+                                Reabrir Turno Cerrado
+                            </>
+                        )}
+                    </Button>
+                </div>
 
                 <hr className="my-4" />
 
-                {/* 🆕 SECCIÓN: Limpieza de Transacciones */}
+                {/* 🆕 SECCIÓN: Transacciones */}
                 <div className="mb-3">
                     <h6 className="text-danger">⚠️ Limpieza de Transacciones</h6>
                     <p className="text-muted small">

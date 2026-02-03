@@ -66,31 +66,8 @@ function PosMainContent() {
   const [client, setClient] = useState("CONSUMIDOR FINAL");
 
   // 🆕 Determinar qué lista de precios usar según configuración de visibilidad
-  const [priceList, setPriceList] = useState(() => {
-    try {
-      let listasVisiblesPos = JSON.parse(localStorage.getItem('listasVisiblesPos') || '{}');
-
-      // Asegurar que PRECIOS CAJA esté activada por defecto si no existe
-      if (listasVisiblesPos['PRECIOS CAJA'] === undefined) {
-        listasVisiblesPos['PRECIOS CAJA'] = true;
-        localStorage.setItem('listasVisiblesPos', JSON.stringify(listasVisiblesPos));
-      }
-
-      // Buscar la primera lista activa (priorizar PRECIOS CAJA)
-      if (listasVisiblesPos['PRECIOS CAJA'] === true) {
-        return 'PRECIOS CAJA';
-      }
-
-      const listaActiva = Object.keys(listasVisiblesPos).find(nombre => listasVisiblesPos[nombre] === true);
-      if (listaActiva) {
-        return listaActiva;
-      }
-    } catch (error) {
-      console.error('Error leyendo listasVisiblesPos:', error);
-    }
-    // Fallback a PRECIOS CAJA
-    return "PRECIOS CAJA";
-  });
+  // 🆕 Determinar qué lista de precios usar (ConsumerForm actualizará si es necesario)
+  const [priceList, setPriceList] = useState("PRECIOS CAJA");
 
   const [imp, setImp] = useState(0);
   const [desc, setDesc] = useState(0);
@@ -128,6 +105,12 @@ function PosMainContent() {
     setCart([]);
     setImp(0);
     setDesc(0);
+    // 🆕 Resetear datos de venta a valores por defecto
+    setClient("CONSUMIDOR FINAL");
+    setPriceList("PRECIOS CAJA");
+    setSelectedSeller(cajeroLogueado?.nombre || 'POS');
+    setAddress("");
+    setPhone("");
   };
 
   // Funciones carrito
@@ -158,6 +141,18 @@ function PosMainContent() {
   const subtotal = cart.reduce((a, c) => a + c.price * c.qty, 0);
   const total = Math.max(0, subtotal + Number(imp) - Number(desc));
 
+  // 🆕 Estados para datos de domicilio/envío
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [selectedSeller, setSelectedSeller] = useState(cajeroLogueado?.nombre || 'POS');
+
+  // Inicializar vendedor cuando carga el cajero
+  useEffect(() => {
+    if (cajeroLogueado?.nombre) {
+      setSelectedSeller(cajeroLogueado.nombre);
+    }
+  }, [cajeroLogueado]);
+
   return (
     <ModalProvider>
       <div className="d-flex pos-screen">
@@ -186,12 +181,16 @@ function PosMainContent() {
                 >
                   <ConsumerForm
                     date={date}
-                    seller={seller}
+                    seller={selectedSeller} // Pasamos el vendedor seleccionado
+                    setSeller={setSelectedSeller} // Permitimos cambiarlo
                     client={client}
                     priceList={priceList}
                     setDate={setDate}
                     setClient={setClient}
                     setPriceList={setPriceList}
+                    // 🆕 Pasamos setters para autocompletar datos del cliente
+                    setAddress={setAddress}
+                    setPhone={setPhone}
                   />
                   <Cart
                     cart={cart}
@@ -203,9 +202,13 @@ function PosMainContent() {
                     desc={desc}
                     setDesc={setDesc}
                     total={total}
-                    seller={seller}
+                    seller={selectedSeller} // El Vendedor (puede ser Moto)
+                    userLogueado={cajeroLogueado?.nombre || 'Sistema'} // 🆕 El Cajero real
                     client={client}
                     clearCart={clearCart}
+                    // 🆕 Datos extra para el ticket
+                    address={address}
+                    phone={phone}
                   />
                 </div>
               </div>

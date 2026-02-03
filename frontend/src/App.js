@@ -39,7 +39,7 @@ import ReporteTransferenciasScreen from './pages/ReporteTransferenciasScreen';
 
 // Componente para proteger rutas
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, usuario } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -60,6 +60,21 @@ function ProtectedRoute({ children }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // 🆕 Restricción para CAJERO POS: Solo permitir acceso a pantalla POS
+  // Normalizar rol para evitar errores de case/espacios
+  const rolNormalizado = usuario?.rol ? usuario.rol.trim().toUpperCase() : '';
+
+  if (rolNormalizado === 'CAJERO POS' || rolNormalizado === 'POS') {
+    const rutasPermitidas = ['/pos', '/configuracion/impresion', '/cajero'];
+    // Verificar si la ruta actual empieza por alguna de las permitidas
+    const accesoPermitido = rutasPermitidas.some(ruta => location.pathname.startsWith(ruta));
+
+    if (!accesoPermitido) {
+      console.log(`⛔ Bloqueando acceso a ${location.pathname} para rol ${rolNormalizado}`);
+      return <Navigate to="/pos" replace />;
+    }
   }
 
   return children;

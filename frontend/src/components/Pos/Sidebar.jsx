@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useModalContext } from '../../context/ModalContext';
+import { useCajero } from '../../context/CajeroContext';
 import ProductsModal from './ProductsModal';
 import AddProductModal from './AddProductModal';
 import logo from '../../assets/images/icono.png';
@@ -9,6 +10,9 @@ import './Sidebar.css';
 
 export default function Sidebar({ onWidthChange, onOpenCategoryManager }) {
   const { openProductsModal } = useModalContext();
+  const { cajeroLogueado } = useCajero();
+  // Validar varios formatos de rol Admin
+  const isAdmin = ['ADMIN', 'ADMINISTRADOR', 'Administrador', 'Superusuario'].includes(cajeroLogueado?.rol);
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -117,8 +121,8 @@ export default function Sidebar({ onWidthChange, onOpenCategoryManager }) {
               </li>
             )}
 
-            {/* Productos - Solo en modo web */}
-            {!isPosOnlyMode && (
+            {/* Productos - Solo Admin */}
+            {isAdmin && (
               <li
                 className="nav-item sidebar-item py-2"
                 onClick={() => {
@@ -133,8 +137,8 @@ export default function Sidebar({ onWidthChange, onOpenCategoryManager }) {
               </li>
             )}
 
-            {/* Inventarios - Solo en modo web */}
-            {!isPosOnlyMode && (
+            {/* Inventarios - Solo Admin */}
+            {isAdmin && (
               <li
                 className="nav-item sidebar-item py-2"
                 onClick={() => {
@@ -149,8 +153,8 @@ export default function Sidebar({ onWidthChange, onOpenCategoryManager }) {
               </li>
             )}
 
-            {/* Pedidos - Solo en modo web */}
-            {!isPosOnlyMode && (
+            {/* Pedidos - Solo Admin */}
+            {isAdmin && (
               <li
                 className="nav-item sidebar-item py-2"
                 onClick={() => {
@@ -211,18 +215,20 @@ export default function Sidebar({ onWidthChange, onOpenCategoryManager }) {
               <span style={{ fontSize: '14px' }}>Gestionar</span>
             </li>
 
-            {/* 🆕 Configuración de Impresión (siempre disponible) */}
-            <li
-              className="nav-item sidebar-item py-2"
-              onClick={() => {
-                navigate('/configuracion/impresion');
-                setIsExpanded(false);
-              }}
-              style={{ cursor: 'pointer', ...getMenuItemStyle() }}
-            >
-              <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>print</span>
-              <span style={{ fontSize: '14px' }}>Config. Impresión</span>
-            </li>
+            {/* 🆕 Configuración de Impresión (Solo Admin) */}
+            {isAdmin && (
+              <li
+                className="nav-item sidebar-item py-2"
+                onClick={() => {
+                  navigate('/configuracion/impresion');
+                  setIsExpanded(false);
+                }}
+                style={{ cursor: 'pointer', ...getMenuItemStyle() }}
+              >
+                <span className="material-icons me-2 align-middle" style={{ fontSize: '20px' }}>print</span>
+                <span style={{ fontSize: '14px' }}>Config. Impresión</span>
+              </li>
+            )}
             {/*
             <li
               className="nav-item sidebar-item py-2"

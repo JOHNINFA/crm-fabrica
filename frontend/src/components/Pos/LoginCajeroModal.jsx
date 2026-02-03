@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // 🆕 Importar hook
 import { Modal, Form, Button, Alert, Spinner, Dropdown } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { useCajero } from '../../context/CajeroContext';
 import './LoginCajeroModal.css';
 
 const LoginCajeroModal = ({ show, onHide, modoAbrirTurno = false }) => {
+    const navigate = useNavigate(); // 🆕 Hook de navegación
     const {
         login,
         logout,
@@ -86,9 +88,17 @@ const LoginCajeroModal = ({ show, onHide, modoAbrirTurno = false }) => {
         setLoadingCajeros(true);
         try {
             const cajeros = await getCajerosDisponibles();
-            setCajerosDisponibles(cajeros);
 
-            if (cajeros.length === 0) {
+            // 🆕 Filtrar cajeros de Pedidos/Remisiones para que no aparezcan en POS
+            const cajerosFiltrados = cajeros.filter(c => {
+                const nombre = c.nombre ? c.nombre.trim().toUpperCase() : '';
+                // Excluir usuarios que solo son para pedidos/remisiones
+                return nombre !== 'REMISIONES' && nombre !== 'PEDIDOS';
+            });
+
+            setCajerosDisponibles(cajerosFiltrados);
+
+            if (cajerosFiltrados.length === 0) {
                 setError(`No hay cajeros disponibles en ${sucursalActiva?.nombre}`);
             } else {
                 setError('');
@@ -191,43 +201,30 @@ const LoginCajeroModal = ({ show, onHide, modoAbrirTurno = false }) => {
 
     // Manejar logout
     const handleLogout = async () => {
-        // 🆕 Confirmar que se realizó el corte de caja
-        const confirmarCierre = await Swal.fire({
-            title: '⚠️ Cerrar Sesión',
-            html: `
-                <p style="font-size: 16px; margin-bottom: 15px;">
-                    ¿Realizaste el <strong>corte de caja</strong> antes de cerrar sesión?
-                </p>
-                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 15px;">
-                    <p style="margin: 0; color: #856404; font-size: 14px;">
-                        <i class="bi bi-exclamation-triangle-fill"></i> 
-                        <strong>Importante:</strong> Debes hacer el corte de caja antes de cerrar sesión.
-                    </p>
-                </div>
-            `,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#dc3545',
-            confirmButtonText: '✅ Sí, hice el corte',
-            cancelButtonText: '❌ Cancelar',
-            reverseButtons: true,
-            focusCancel: true
-        });
-
-        // Si no confirma, cancelar el logout
-        if (!confirmarCierre.isConfirmed) {
-            return;
-        }
-
-        // Proceder con el logout
+        // 🆕 Intento directo de logout (el contexto validará si hay turno activo)
         try {
             const resultado = await logout();
+
             if (resultado.success) {
                 setSuccess('Sesión cerrada exitosamente');
                 setTimeout(() => {
                     onHide();
                 }, 1000);
+            } else {
+                // ⛔ Si falla (por turno activo), mostrar alerta bloqueante
+                Swal.fire({
+                    title: '⛔ Acción Requerida',
+                    text: resultado.message || 'No se puede cerrar sesión.',
+                    icon: 'error',
+                    confirmButtonText: 'Ir a Caja para Cerrar',
+                    confirmButtonColor: '#003d88',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        onHide();
+                        navigate('/caja'); // Redirigir al usuario a hacer su trabajo
+                    }
+                });
             }
         } catch (error) {
             console.error('Error en logout:', error);

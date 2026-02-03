@@ -222,14 +222,14 @@ const ClientesScreen = () => {
 
                   {/* Celular */}
                   <div className="col-md-3">
-                    <label className="form-label fw-semibold">Celular</label>
+                    <label className="form-label fw-semibold">Celular/Teléfono</label>
                     <input
                       type="tel"
                       className="form-control"
                       value={clienteData.movil || ''}
                       onChange={(e) => handleChange('movil', e.target.value)}
-                      placeholder="Ej: 3001234567"
-                      maxLength={10}
+                      placeholder="Ej: 3001234567-3219876543"
+                      maxLength={100}
                     />
                   </div>
 

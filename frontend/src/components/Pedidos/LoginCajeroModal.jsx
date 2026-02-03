@@ -45,10 +45,17 @@ const LoginCajeroModal = ({ show, onHide }) => {
         setLoadingCajeros(true);
         try {
             const cajeros = await getCajerosDisponibles();
-            setCajerosDisponibles(cajeros);
 
-            if (cajeros.length === 0) {
-                setError('No hay cajeros disponibles para esta sucursal');
+            // 🆕 Filtrar cajeros POS para que no aparezcan en Pedidos (ya que no tienen permisos)
+            const cajerosFiltrados = cajeros.filter(c => {
+                const nombre = c.nombre ? c.nombre.trim().toUpperCase() : '';
+                return nombre !== 'CAJERO POS';
+            });
+
+            setCajerosDisponibles(cajerosFiltrados);
+
+            if (cajerosFiltrados.length === 0) {
+                setError('No hay cajeros autorizados disponibles para esta sucursal');
             }
         } catch (error) {
             console.error('Error cargando cajeros:', error);

@@ -3,10 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Form, Table, Spinner, Alert, Badge, Tabs, Tab, Modal } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { cajaService } from '../services/cajaService';
+import { cajeroService } from '../services/cajeroService'; // 🆕 Importar servicio de cajero
 import { ventaService, productoService } from '../services/api';
 import { cajaValidaciones } from '../components/Pos/CajaValidaciones';
 
 import { CajeroProvider, useCajero } from '../context/CajeroContext';
+import { useAuth } from '../context/AuthContext'; // 🆕 Importar AuthContext
 import usePageTitle from '../hooks/usePageTitle';
 import '../styles/CajaScreen.css';
 
@@ -15,7 +17,8 @@ const CajaScreenContent = () => {
     usePageTitle('Caja');
     const navigate = useNavigate();
     const location = useLocation();
-    const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva, logout } = useCajero();
+    const { cajeroLogueado, isAuthenticated, turnoActivo, sucursalActiva, logout, setTurnoActivo } = useCajero();
+    const { esAdmin } = useAuth(); // 🆕 Obtener función esAdmin del sistema
 
     const [cajero, setCajero] = useState('jose');
     const [banco, setBanco] = useState('Todos');
@@ -387,21 +390,36 @@ const CajaScreenContent = () => {
 
                 } else if (fechaUltimoArqueo === fechaHoy) {
 
+                    // Lógica robusta V2: Prioridad absoluta al ID del turno
+                    let esMismoTurno = false;
 
-                    // Verificar si es un nuevo turno
-                    const ultimoLogin = localStorage.getItem('ultimo_login');
-                    const ultimoLogout = localStorage.getItem('ultimo_logout');
+                    if (turnoActivo && turnoActivo.id) {
+                        // Si hay turno activo, SOLO consideramos que es el mismo turno si los IDs coinciden.
+                        // Si el arqueo no tiene ID o es diferente, se considera NUEVO.
+                        if (ultimo.turno_id && String(ultimo.turno_id) === String(turnoActivo.id)) {
+                            esMismoTurno = true;
+                            console.log(`✅ Arqueo pertenece al turno actual (${turnoActivo.id})`);
+                        } else {
+                            esMismoTurno = false;
+                            console.log(`⛔ Arqueo ID ${ultimo.turno_id} no coincide con Turno ID ${turnoActivo.id}. Limpiando.`);
+                        }
+                    } else {
+                        // Fallback: Verificar si es un nuevo turno por timestamps de login
+                        const ultimoLogin = localStorage.getItem('ultimo_login');
+                        const ultimoLogout = localStorage.getItem('ultimo_logout');
 
-                    let esNuevoTurno = false;
-                    if (ultimoLogin && ultimoLogout) {
-                        esNuevoTurno = new Date(ultimoLogin) > new Date(ultimoLogout);
-                    } else if (ultimoLogin) {
-                        const minutosDesdeLogin = (new Date() - new Date(ultimoLogin)) / 1000 / 60;
-                        esNuevoTurno = minutosDesdeLogin < 2;
+                        let esNuevoTurno = false;
+                        if (ultimoLogin && ultimoLogout) {
+                            esNuevoTurno = new Date(ultimoLogin) > new Date(ultimoLogout);
+                        } else if (ultimoLogin) {
+                            const minutosDesdeLogin = (new Date() - new Date(ultimoLogin)) / 1000 / 60;
+                            esNuevoTurno = minutosDesdeLogin < 2;
+                        }
+                        esMismoTurno = !esNuevoTurno;
                     }
 
-                    if (esNuevoTurno) {
-
+                    if (!esMismoTurno) {
+                        console.log('✨ Nuevo turno detectado: Iniciando con valores limpios');
                         // Nuevo turno: empezar limpio
                         setValoresCaja({
                             efectivo: saldoInicialTurno,
@@ -413,7 +431,7 @@ const CajaScreenContent = () => {
                             bonos: 0
                         });
                     } else {
-
+                        console.log('🔄 Mismo turno detectado: Recuperando valores del arqueo en progreso');
                         // Mismo turno: mostrar valores del arqueo en progreso
                         if (ultimo.valores_caja) {
                             setValoresCaja({
@@ -689,9 +707,16 @@ const CajaScreenContent = () => {
             return;
         }
 
-        const monto = parseFloat(montoMovimiento);
+        // 🆕 Lógica robusta: "$ 1.200.000" -> 1200000
+        // Convertir a string y borrar absolutamente todo lo que no sea dígito
+        const valorString = String(montoMovimiento || '');
+        const soloNumeros = valorString.replace(/\D/g, '');
+        const monto = parseFloat(soloNumeros);
+
+        // console.log('💰 Procesando movimiento:', { input: montoMovimiento, clean: soloNumeros, float: monto });
+
         if (isNaN(monto) || monto <= 0) {
-            alert('⚠️ El monto debe ser un número válido mayor a 0');
+            alert('⚠️ El monto ingresado no es válido. Debe ser mayor a 0.');
             return;
         }
 
@@ -702,7 +727,8 @@ const CajaScreenContent = () => {
                 concepto: conceptoMovimiento,
                 fecha: getFechaLocal(),
                 hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                cajero: cajero
+                cajero: cajero,
+                turno_id: turnoActivo?.id // 🆕 Agregar ID del turno
             };
 
             // Guardar en la base de datos
@@ -737,8 +763,19 @@ const CajaScreenContent = () => {
             // Si es administrador, no filtrar por cajero (ver todos los movimientos)
             const esAdmin = cajeroLogueado?.rol === 'ADMINISTRADOR' || cajeroLogueado?.rol === 'ADMIN';
             const cajeroFiltro = esAdmin ? null : cajero;
+            // 🆕 Si es admin, NO filtramos por turno (queremos ver todo el día). Si es cajero, sí.
+            const turnoId = esAdmin ? null : turnoActivo?.id;
 
-            const movimientos = await cajaService.getMovimientosCaja(fechaConsulta, cajeroFiltro);
+            // 🔒 Si no es admin y no tenemos turno identificado, NO cargar nada todavía
+            // Esto evita que se muestren todos los movimientos del día por defecto
+            if (!esAdmin && !turnoId) {
+                console.log('⏳ Esperando turno activo para cargar movimientos de caja...');
+                setMovimientosCaja([]); // Limpiar por seguridad
+                return;
+            }
+
+            // 🆕 Pasamos el ID del turno para filtrar
+            const movimientos = await cajaService.getMovimientosCaja(fechaConsulta, cajeroFiltro, turnoId);
             setMovimientosCaja(movimientos);
 
         } catch (error) {
@@ -837,16 +874,27 @@ const CajaScreenContent = () => {
                     <h3>Valores del Sistema</h3>
                     <table>
                         <tr><th>Método</th><th class="text-right">Valor</th></tr>
-                        ${Object.entries(arqueo.valores_sistema || {}).map(([metodo, valor]) => `
-                            <tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>
-                        `).join('')}
+                        ${Object.entries(arqueo.valores_sistema || {})
+                .filter(([m]) => m.toUpperCase() !== 'BONOS')
+                .map(([metodo, valor]) => {
+                    if (metodo.toUpperCase() === 'EFECTIVO' && arqueo.desglose_base) {
+                        return `
+                                    <tr><td>BASE CAJA</td><td class="text-right">${formatCurrency(arqueo.desglose_base.base)}</td></tr>
+                                    <tr><td>VENTAS EFECTIVO</td><td class="text-right">${formatCurrency(arqueo.desglose_base.ventas)}</td></tr>
+                                    <tr style="font-weight: bold; background-color: #f0f0f0;"><td>TOTAL EFECTIVO</td><td class="text-right">${formatCurrency(valor)}</td></tr>
+                                `;
+                    }
+                    return `<tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>`;
+                }).join('')}
                         <tr class="total-row"><td>TOTAL SISTEMA</td><td class="text-right">${formatCurrency(arqueo.total_sistema)}</td></tr>
                     </table>
                     
                     <h3>Valores en Caja</h3>
                     <table>
                         <tr><th>Método</th><th class="text-right">Valor</th></tr>
-                        ${Object.entries(arqueo.valores_caja || {}).map(([metodo, valor]) => `
+                        ${Object.entries(arqueo.valores_caja || {})
+                .filter(([m]) => m.toUpperCase() !== 'BONOS')
+                .map(([metodo, valor]) => `
                             <tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>
                         `).join('')}
                         <tr class="total-row"><td>TOTAL CAJA</td><td class="text-right">${formatCurrency(arqueo.total_caja)}</td></tr>
@@ -855,7 +903,9 @@ const CajaScreenContent = () => {
                     <h3>Diferencias</h3>
                     <table>
                         <tr><th>Método</th><th class="text-right">Diferencia</th></tr>
-                        ${Object.entries(arqueo.diferencias || {}).map(([metodo, valor]) => `
+                        ${Object.entries(arqueo.diferencias || {})
+                .filter(([m]) => m.toUpperCase() !== 'BONOS')
+                .map(([metodo, valor]) => `
                             <tr><td>${metodo.toUpperCase()}</td><td class="text-right">${formatCurrency(valor)}</td></tr>
                         `).join('')}
                         <tr class="total-row"><td>TOTAL DIFERENCIA</td><td class="text-right">${formatCurrency(arqueo.total_diferencia)}</td></tr>
@@ -1211,7 +1261,14 @@ const CajaScreenContent = () => {
 
     // Manejar cambios en inputs con validación
     const handleInputChange = (metodo, valor) => {
-
+        // ✅ FIX: Permitir borrar contenido (string vacío)
+        if (valor === '') {
+            setValoresCaja(prev => ({
+                ...prev,
+                [metodo]: ''
+            }));
+            return;
+        }
 
         const validacionNumero = cajaValidaciones.validarFormatoNumero(valor);
 
@@ -1331,7 +1388,7 @@ const CajaScreenContent = () => {
                 if (!resultadoHorario.isConfirmed) return;
             }
 
-            await cajaService.guardarArqueoCaja(datosArqueo);
+            const arqueoGuardado = await cajaService.guardarArqueoCaja(datosArqueo);
 
             // Mostrar mensaje de éxito con detalles
             const mensaje = `✅ Arqueo de caja guardado exitosamente
@@ -1355,8 +1412,9 @@ const CajaScreenContent = () => {
             // await cargarUltimoArqueo();
 
             // Marcar que se realizó el corte de caja
-            // NOTA: Este estado se limpiará automáticamente al hacer logout
-            const corteKey = `corteRealizado_${cajero}_${fechaConsulta}`;
+            // NOTA: Usar ID de turno para permitir múltiples cortes en el mismo día
+            const turnoId = turnoActivo?.id || 'sin_turno';
+            const corteKey = `corteRealizado_${cajero}_${fechaConsulta}_${turnoId}`;
             setCorteRealizado(true);
             localStorage.setItem(corteKey, 'true');
 
@@ -1378,24 +1436,57 @@ const CajaScreenContent = () => {
                         <p style="color: #6c757d;">🔒 Se cerrará el turno y será redirigido al POS para abrir uno nuevo.</p>
                     </div>
                 `,
-                showCancelButton: true,
-                confirmButtonText: '✓ Cerrar Turno',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                allowOutsideClick: false
+                showCancelButton: false, // 🚫 PREVENIR QUE EL USUARIO CANCELE Y QUEDE ATRAPADO
+                showDenyButton: true,
+                confirmButtonText: '🖨️ Imprimir y Salir',
+                denyButtonText: '🚪 Salir (Sin Imprimir)',
+                confirmButtonColor: '#0d6efd',
+                denyButtonColor: '#28a745',
+                allowOutsideClick: false,
+                allowEscapeKey: false // Obligar a elegir una opción de salida
             });
 
-            if (resultado.isConfirmed) {
+            // Si se confirmó (Imprimir) o se denegó (Solo Salir), proceder al cierre
+            // Al no haber botón cancelar, siempre entrará aquí salvo error catastrófico
+            if (resultado.isConfirmed || resultado.isDenied) {
+                // Si eligió imprimir (confirmado)
+                if (resultado.isConfirmed) {
+                    const datosParaImprimir = arqueoGuardado || datosArqueo;
+                    // Inyectar desglose para el ticket sin afectar el objeto original
+                    const datosTicket = {
+                        ...datosParaImprimir,
+                        desglose_base: {
+                            base: saldoInicialTurno,
+                            ventas: (datosParaImprimir.valores_sistema?.efectivo || 0) - saldoInicialTurno
+                        }
+                    };
+
+                    imprimirArqueo(datosTicket);
+                    // Esperar un momento para que se abra la ventana de impresión
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
                 try {
-                    // Cerrar turno y hacer logout
+                    // 🔒 PASO CRÍTICO: Cerrar el turno explícitamente antes de Logout
+                    // Esto desbloquea la función logout del contexto
+                    if (turnoActivo && turnoActivo.id) {
+                        console.log('🔒 Cerrando turno automáticamente tras arqueo:', turnoActivo.id);
+                        await cajeroService.cerrarTurno(turnoActivo.id);
+
+                        // Actualizar estado local del contexto para que el logout sepa que ya cerramos
+                        if (setTurnoActivo) {
+                            setTurnoActivo({ ...turnoActivo, estado: 'CERRADO' });
+                        }
+                    }
+
+                    // Cerrar sesión
                     await logout();
 
                     // Redirigir al POS para abrir nuevo turno
                     navigate('/pos');
                 } catch (logoutError) {
-                    console.error('❌ Error en logout automático:', logoutError);
-                    // Aún así redirigir al POS
+                    console.error('❌ Error en proceso de cierre/logout:', logoutError);
+                    // Forzar redirección
                     navigate('/pos');
                 }
             }
@@ -1419,6 +1510,36 @@ const CajaScreenContent = () => {
         cargarUltimoArqueo();
         cargarVentasDelDia();
         cargarMovimientosCaja();
+    };
+
+    // 🆕 Función de escape (Cerrar turno manualmente)
+    const handleFinalizarTurno = async () => {
+        try {
+            console.log('🚪 Finalizando turno manualmente...');
+            if (turnoActivo && turnoActivo.id) {
+                // Forzar cierre en backend
+                await cajeroService.cerrarTurno(turnoActivo.id);
+                // Actualizar contexto local para desbloquear logout
+                if (setTurnoActivo) setTurnoActivo({ ...turnoActivo, estado: 'CERRADO' });
+            }
+
+            // Limpiar flag de localStorage si existe
+            if (cajero && fechaConsulta) {
+                // Limpiar key específica del turno
+                const turnoId = turnoActivo?.id || 'sin_turno';
+                localStorage.removeItem(`corteRealizado_${cajero}_${fechaConsulta}_${turnoId}`);
+                // Limpieza fallback por compatibilidad
+                localStorage.removeItem(`corteRealizado_${cajero}_${fechaConsulta}`);
+            }
+
+            // Proceder con logout y redirección
+            await logout();
+            navigate('/pos');
+        } catch (error) {
+            console.error('Error al finalizar turno manual:', error);
+            // Intentar salir de todas formas
+            navigate('/pos');
+        }
     };
 
     // Imprimir reporte
@@ -1456,8 +1577,9 @@ const CajaScreenContent = () => {
         cargarVentasDelDia();
         cargarMovimientosCaja();
 
-        // Verificar si ya se hizo el corte hoy
-        const corteKey = `corteRealizado_${cajero}_${fechaConsulta}`;
+        // Verificar si ya se hizo el corte hoy PARA ESTE TURNO ESPECÍFICO
+        const turnoId = turnoActivo?.id || 'sin_turno';
+        const corteKey = `corteRealizado_${cajero}_${fechaConsulta}_${turnoId}`;
         const yaSeHizoCorte = localStorage.getItem(corteKey) === 'true';
 
         // Verificar si es un nuevo login comparando timestamps
@@ -1493,7 +1615,7 @@ const CajaScreenContent = () => {
             setCorteRealizado(yaSeHizoCorte);
 
         }
-    }, [fechaConsulta, cajero, isAuthenticated, cajeroLogueado?.id]);
+    }, [fechaConsulta, cajero, isAuthenticated, cajeroLogueado?.id, turnoActivo]);
 
     const mediosPago = [
         { key: 'efectivo', label: 'Efectivo Disponible:', destacado: true },
@@ -1748,10 +1870,12 @@ const CajaScreenContent = () => {
                                             Control de Efectivo y Medios de Pago
                                         </h5>
                                         {saldoInicialTurno > 0 && (
-                                            <small className="text-muted">
-                                                <i className="bi bi-wallet2 me-1"></i>
-                                                Saldo inicial del turno: {formatCurrency(saldoInicialTurno)}
-                                            </small>
+                                            <div className="mt-1">
+                                                <span className="text-success fw-bold fs-6 border border-success rounded px-2 py-1 bg-success bg-opacity-10">
+                                                    <i className="bi bi-cash-stack me-2"></i>
+                                                    BASE EN CAJA: {formatCurrency(saldoInicialTurno)}
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
                                     <Button
@@ -1778,10 +1902,10 @@ const CajaScreenContent = () => {
                                     <Table className="caja-table-page">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '40%' }}>Medio de Pago</th>
-                                                <th style={{ width: '20%' }}>Sistema</th>
-                                                <th style={{ width: '20%' }}>Saldo En Caja</th>
-                                                <th style={{ width: '20%' }}>Diferencia</th>
+                                                <th style={{ width: '40%' }} className="ps-3">MEDIO DE PAGO</th>
+                                                <th style={{ width: '20%' }} className="text-end">SISTEMA</th>
+                                                <th style={{ width: '20%' }} className="text-center">SALDO EN CAJA</th>
+                                                <th style={{ width: '20%' }} className="text-end pe-3">DIFERENCIA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -2193,8 +2317,8 @@ const CajaScreenContent = () => {
                     </Tab>
 
 
-                    {/* Tab Historial - Solo visible para ADMINISTRADOR */}
-                    {cajeroLogueado?.rol === 'ADMINISTRADOR' && (
+                    {/* Tab Historial - Visible para Cajero Admin o Admin del Sistema */}
+                    {(cajeroLogueado?.rol === 'ADMINISTRADOR' || esAdmin()) && (
                         <Tab eventKey="historial" title="📅 Historial">
                             <Card>
                                 <Card.Header>
@@ -2485,12 +2609,21 @@ const CajaScreenContent = () => {
                         <Col className="text-center">
                             <div className="d-flex justify-content-center gap-3">
                                 <Button
-                                    variant="outline-secondary"
+                                    variant={corteRealizado ? "danger" : "outline-secondary"}
                                     size="lg"
-                                    onClick={() => navigate('/pos')}
+                                    onClick={corteRealizado ? handleFinalizarTurno : () => navigate('/pos')}
                                 >
-                                    <i className="bi bi-x-lg me-2"></i>
-                                    Cancelar
+                                    {corteRealizado ? (
+                                        <>
+                                            <i className="bi bi-box-arrow-right me-2"></i>
+                                            Cerrar Turno y Salir
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-x-lg me-2"></i>
+                                            Cancelar
+                                        </>
+                                    )}
                                 </Button>
                                 <Button
                                     variant="success"
@@ -2605,14 +2738,21 @@ const CajaScreenContent = () => {
                                         <Form.Group className="mb-3">
                                             <Form.Label>Monto</Form.Label>
                                             <Form.Control
-                                                type="number"
-                                                placeholder="0.00"
+                                                type="text"
+                                                placeholder="$ 0"
                                                 value={montoMovimiento}
-                                                onChange={(e) => setMontoMovimiento(e.target.value)}
+                                                onChange={(e) => {
+                                                    // 🆕 Formatear visualmente como Pesos Colombianos
+                                                    const rawValue = e.target.value.replace(/\D/g, '');
+                                                    if (rawValue) {
+                                                        const num = parseInt(rawValue, 10);
+                                                        setMontoMovimiento('$ ' + num.toLocaleString('es-CO'));
+                                                    } else {
+                                                        setMontoMovimiento('');
+                                                    }
+                                                }}
                                                 onFocus={(e) => e.target.select()}
-                                                min="0"
-                                                step="0.01"
-                                                style={{ minWidth: '110px' }}
+                                                style={{ minWidth: '110px', fontWeight: 'bold' }}
                                             />
                                         </Form.Group>
                                     </Col>
@@ -2960,43 +3100,15 @@ const CajaScreenContent = () => {
                     )}
                 </Modal.Body>
                 <Modal.Footer>
-                    <div className="d-flex justify-content-between w-100">
-                        <div className="d-flex gap-2">
-                            <Button
-                                onClick={abrirModalAnular}
-                                disabled={ventaSeleccionada?.estado === 'ANULADA'}
-                                style={{
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
-                                    color: ventaSeleccionada?.estado === 'ANULADA' ? '#6c757d' : '#dc3545',
-                                    fontSize: '16px',
-                                    fontWeight: '500'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (ventaSeleccionada?.estado !== 'ANULADA') {
-                                        e.target.style.backgroundColor = '#f8d7da';
-                                        e.target.style.borderRadius = '4px';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.target.style.backgroundColor = 'transparent';
-                                }}
-                                title={ventaSeleccionada?.estado === 'ANULADA' ? 'Esta venta ya está anulada' : 'Anular esta venta'}
-                            >
-                                <i className="bi bi-x-circle me-2"></i>
-                                {ventaSeleccionada?.estado === 'ANULADA' ? 'Ya Anulada' : 'Anular Venta'}
-                            </Button>
-                        </div>
-                        <div className="d-flex gap-2">
-                            <Button variant="outline-secondary" onClick={() => setShowVentaModal(false)}>
-                                <i className="bi bi-x-lg me-1"></i>
-                                Cerrar
-                            </Button>
-                            <Button style={{ backgroundColor: 'rgb(12, 44, 83)', borderColor: 'rgb(12, 44, 83)' }}>
-                                <i className="bi bi-printer me-1"></i>
-                                Imprimir Factura
-                            </Button>
-                        </div>
+                    <div className="d-flex justify-content-end w-100 gap-2">
+                        <Button variant="outline-secondary" onClick={() => setShowVentaModal(false)}>
+                            <i className="bi bi-x-lg me-1"></i>
+                            Cerrar
+                        </Button>
+                        <Button style={{ backgroundColor: 'rgb(12, 44, 83)', borderColor: 'rgb(12, 44, 83)' }}>
+                            <i className="bi bi-printer me-1"></i>
+                            Imprimir Factura
+                        </Button>
                     </div>
                 </Modal.Footer>
             </Modal>

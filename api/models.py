@@ -291,6 +291,7 @@ class Venta(models.Model):
     numero_factura = models.CharField(max_length=50, unique=True, blank=True)
     fecha = models.DateTimeField(default=timezone.now)
     vendedor = models.CharField(max_length=100, default='Sistema')
+    creado_por = models.CharField(max_length=100, default='Sistema')  # 🆕 Usuario que digitó la venta
     cliente = models.CharField(max_length=255, default='CONSUMIDOR FINAL')
     metodo_pago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='EFECTIVO')
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -377,7 +378,7 @@ class Cliente(models.Model):
     
     # Contacto
     telefono_1 = models.CharField(max_length=20, blank=True, null=True)
-    movil = models.CharField(max_length=20, blank=True, null=True)
+    movil = models.CharField(max_length=100, blank=True, null=True)
     email_1 = models.EmailField(blank=True, null=True)
     contacto = models.CharField(max_length=255, blank=True, null=True)
     telefono_contacto = models.CharField(max_length=20, blank=True, null=True)
@@ -415,6 +416,24 @@ class Cliente(models.Model):
     def __str__(self):
         return f"{self.identificacion} - {self.nombre_completo}"
 
+class ProductosFrecuentes(models.Model):
+    """Productos frecuentes de un cliente para un día específico"""
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='productos_frecuentes')
+    dia = models.CharField(max_length=20)  # LUNES, MARTES, etc.
+    productos = models.JSONField(default=list)  # [{producto_id, cantidad, nombre}, ...]
+    nota = models.TextField(blank=True, null=True)  # 🆕 Nota persistente para este día
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Productos Frecuentes'
+        verbose_name_plural = 'Productos Frecuentes'
+        unique_together = ['cliente', 'dia']
+    
+    def __str__(self):
+        return f"{self.cliente.nombre_completo} - {self.dia}"
+
+
 class ListaPrecio(models.Model):
     """Modelo para listas de precios"""
     TIPO_CHOICES = [
@@ -427,6 +446,7 @@ class ListaPrecio(models.Model):
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='CLIENTE')
     empleado = models.CharField(max_length=100, blank=True, null=True)
     sucursal = models.CharField(max_length=100, default='Principal')
+    visible_pos = models.BooleanField(default=False)  # 🆕 Controlar visibilidad en POS globalmente
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     
@@ -1610,6 +1630,11 @@ class MovimientoCaja(models.Model):
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     concepto = models.CharField(max_length=255)
     
+    # 🆕 Relación con el turno
+    # 🆕 Relación con el turno
+    turno = models.ForeignKey('Turno', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_caja')
+    
+    
     # Metadatos
     fecha_creacion = models.DateTimeField(default=timezone.now)
     
@@ -1851,29 +1876,7 @@ class Domiciliario(models.Model):
 
 
 
-class MovimientoCaja(models.Model):
-    """Modelo para registrar movimientos de caja (ingresos y egresos)"""
-    
-    TIPO_CHOICES = [
-        ('INGRESO', 'Ingreso'),
-        ('EGRESO', 'Egreso'),
-    ]
-    
-    fecha = models.DateField()
-    hora = models.CharField(max_length=10)
-    cajero = models.CharField(max_length=100)
-    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
-    monto = models.DecimalField(max_digits=12, decimal_places=2)
-    concepto = models.CharField(max_length=255)
-    fecha_creacion = models.DateTimeField(default=timezone.now)
-    
-    class Meta:
-        verbose_name = 'Movimiento de Caja'
-        verbose_name_plural = 'Movimientos de Caja'
-        ordering = ['-fecha', '-hora']
-    
-    def __str__(self):
-        return f"{self.fecha} {self.hora} - {self.tipo} - ${self.monto} - {self.concepto}"
+
 
 
 # ===== MÓDULO RUTAS Y VENTAS RUTA =====

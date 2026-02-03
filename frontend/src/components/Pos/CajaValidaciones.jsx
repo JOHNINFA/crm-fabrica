@@ -90,18 +90,11 @@ export const cajaValidaciones = {
     /**
      * Validar horario de arqueo
      */
+    /**
+     * Validar horario de arqueo
+     */
     validarHorarioArqueo: () => {
-        const ahora = new Date();
-        const hora = ahora.getHours();
-
-        // Advertir si es muy temprano o muy tarde
-        if (hora < 6 || hora > 23) {
-            return {
-                esValido: true,
-                advertencia: 'Está realizando el arqueo fuera del horario habitual (6:00 - 23:00)'
-            };
-        }
-
+        // ✅ Horario flexible 24/7 (Sin restricciones)
         return { esValido: true };
     },
 
