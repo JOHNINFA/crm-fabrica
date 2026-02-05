@@ -7,9 +7,6 @@ import ModalDetallePedido from '../components/Pedidos/ModalDetallePedido';
 import usePageTitle from '../hooks/usePageTitle';
 
 
-// 🆕 Días de la semana
-const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-
 // Función auxiliar para fecha local YYYY-MM-DD
 const getFechaLocal = () => {
   const d = new Date();
@@ -27,9 +24,6 @@ export default function PedidosDiaScreen() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(
     searchParams.get('fecha') || getFechaLocal()
   );
-
-  // 🆕 Estado para días seleccionados (array de días)
-  const [diasSeleccionados, setDiasSeleccionados] = useState(dia ? [dia] : []);
 
   // Función para obtener la fecha del próximo día de la semana
   const obtenerProximaFecha = (diaSemana) => {
@@ -63,24 +57,11 @@ export default function PedidosDiaScreen() {
     return `${year}-${month}-${day}`;
   };
 
-  // 🆕 Función para alternar día seleccionado
-  const toggleDia = (d) => {
-    setDiasSeleccionados(prev => {
-      if (prev.includes(d)) {
-        // Si solo queda un día, no quitarlo
-        if (prev.length === 1) return prev;
-        return prev.filter(x => x !== d);
-      }
-      return [...prev, d];
-    });
-  };
-
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pedidosRealizados, setPedidosRealizados] = useState({});
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [notas, setNotas] = useState({});
   const [clientesOrdenados, setClientesOrdenados] = useState([]);
   const [draggedIndex, setDraggedIndex] = useState(null);
 
@@ -275,11 +256,16 @@ export default function PedidosDiaScreen() {
 
       if (idExistente) {
         // PATCH si ya existe
-        await fetch(`${API_URL}/productos-frecuentes/${idExistente}/`, {
+        const response = await fetch(`${API_URL}/productos-frecuentes/${idExistente}/`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nota: nuevaNota }),
         });
+
+        if (!response.ok) {
+          throw new Error('Error al actualizar nota en el servidor');
+        }
+        console.log(`✅ Nota actualizada para cliente ${clienteId}`);
       } else {
         // POST si no existe (solo si hay nota)
         if (!nuevaNota.trim()) return;
@@ -295,14 +281,33 @@ export default function PedidosDiaScreen() {
           }),
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          // Guardar el nuevo ID para futuros updates
-          setMapaIdsFrecuentes(prev => ({ ...prev, [clienteId]: data.id }));
+        if (!res.ok) {
+          throw new Error('Error al crear nota en el servidor');
         }
+
+        const data = await res.json();
+        // Guardar el nuevo ID para futuros updates
+        setMapaIdsFrecuentes(prev => ({ ...prev, [clienteId]: data.id }));
+        console.log(`✅ Nota creada para cliente ${clienteId}, ID: ${data.id}`);
       }
     } catch (error) {
-      console.error('Error guardando nota:', error);
+      console.error('❌ Error guardando nota:', error);
+      // Mostrar alerta al usuario
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al guardar nota',
+        text: 'No se pudo guardar la nota. Por favor, intenta de nuevo.',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+      // Revertir el cambio local si falló
+      setNotasClientes(prev => {
+        const newState = { ...prev };
+        delete newState[clienteId];
+        return newState;
+      });
     }
   };
 
@@ -416,17 +421,39 @@ export default function PedidosDiaScreen() {
         })
       });
 
-      if (response.ok) {
-        alert(`✅ Productos frecuentes guardados para ${clienteSeleccionado.alias || clienteSeleccionado.nombre_completo}`);
-        setShowProductosModal(false);
-        setClienteSeleccionado(null);
-        setProductosFrecuentesSeleccionados([]);
-      } else {
-        alert('❌ Error al guardar productos frecuentes');
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor');
       }
+
+      // Éxito
+      Swal.fire({
+        icon: 'success',
+        title: '✅ Guardado exitoso',
+        text: `Productos frecuentes guardados para ${clienteSeleccionado.alias || clienteSeleccionado.nombre_completo}`,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+
+      setShowProductosModal(false);
+      setClienteSeleccionado(null);
+      setProductosFrecuentesSeleccionados([]);
     } catch (error) {
-      console.error('Error guardando productos frecuentes:', error);
-      alert('❌ Error de conexión');
+      console.error('❌ Error guardando productos frecuentes:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al guardar',
+        text: 'No se pudieron guardar los productos frecuentes. Verifica tu conexión e intenta de nuevo.',
+        confirmButtonText: 'Reintentar',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Reintentar
+          guardarProductosFrecuentes();
+        }
+      });
     }
   };
 
@@ -471,13 +498,6 @@ export default function PedidosDiaScreen() {
       }));
       navigate(`/remisiones?cliente=${clienteData}`);
     }
-  };
-
-  const handleNotaChange = (clienteId, valor) => {
-    setNotas(prev => ({
-      ...prev,
-      [clienteId]: valor
-    }));
   };
 
   const abrirModalAnular = (cliente) => {
@@ -583,9 +603,10 @@ export default function PedidosDiaScreen() {
 
     const idsOrdenados = newClientes.map(cliente => cliente.id);
 
-    // 1. Guardar en localStorage (Inmediato)
+    // 1. Guardar en localStorage (Inmediato - Backup)
     const ordenKey = `orden_${dia}`;
     localStorage.setItem(ordenKey, JSON.stringify(idsOrdenados));
+    console.log(`💾 Orden guardado en localStorage para ${dia}`);
 
     // 2. Guardar en API (Persistente)
     fetch(`${API_URL}/ruta-orden/`, {
@@ -593,15 +614,32 @@ export default function PedidosDiaScreen() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dia: dia,
-        ruta_id: null, // 🆕 Explícito para evitar ambigüedad en backend global (rutas null)
+        ruta_id: null,
         clientes_ids: idsOrdenados
       })
-    }).then(res => {
-      if (res.ok) console.log("✅ Orden persistido en BD");
-      else console.error("❌ Error guardando orden BD");
-    }).catch(err => console.error("❌ Error conexión guardar orden:", err));
-
-    console.log(`✅ Orden actualizado localmente para ${dia}`);
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Error HTTP: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(() => {
+        console.log("✅ Orden persistido en BD para", dia);
+      })
+      .catch(err => {
+        console.error("❌ Error guardando orden en BD:", err);
+        // Mostrar notificación discreta
+        Swal.fire({
+          icon: 'warning',
+          title: 'Orden guardado localmente',
+          text: 'El orden se guardó en tu navegador pero no se pudo sincronizar con el servidor. Se intentará sincronizar automáticamente.',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 4000
+        });
+      });
   };
 
   return (
@@ -679,10 +717,12 @@ export default function PedidosDiaScreen() {
             backgroundColor: '#FFFFFF',
             borderRadius: '0.5rem',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            overflowX: 'auto'
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch'
           }}>
             <table style={{
               width: '100%',
+              minWidth: '1200px',
               fontSize: '13px',
               textAlign: 'left',
               color: '#374151'
@@ -706,7 +746,7 @@ export default function PedidosDiaScreen() {
                   <th style={{ padding: '6px 16px', width: '9%', textAlign: 'center', height: '45px' }} scope="col">Estado</th>
                   <th style={{ padding: '6px 16px', width: '6%', textAlign: 'center', height: '45px' }} scope="col">Teléfono</th>
                   <th style={{ padding: '6px 16px', width: '5%', textAlign: 'center', height: '45px' }} scope="col">Anular</th>
-                  <th style={{ padding: '6px 16px', width: '13%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
+                  <th style={{ padding: '6px 16px', width: '14%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
                 </tr>
               </thead>
               <tbody>
@@ -745,52 +785,55 @@ export default function PedidosDiaScreen() {
                       onClick={() => handleRowClick(cliente)}
                     >
                       <td style={{
-                        padding: '4px 16px',
+                        padding: '3px 8px',
                         textAlign: 'center',
                         cursor: 'grab',
                         verticalAlign: 'middle',
-                        height: '45px'
+                        height: '35px'
                       }}>
-                        <span className="material-icons" style={{ fontSize: '16px', color: '#9CA3AF' }}>drag_indicator</span>
+                        <span className="material-icons" style={{ fontSize: '14px', color: '#9CA3AF' }}>drag_indicator</span>
                       </td>
                       <th style={{
-                        padding: '4px 16px',
+                        padding: '3px 8px',
                         fontWeight: '500',
                         color: '#1F2937',
                         whiteSpace: 'nowrap',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '45px'
+                        height: '35px',
+                        fontSize: '11px'
                       }} scope="row">
                         {cliente.alias || cliente.nombre_completo}
                       </th>
                       <td style={{
-                        padding: '4px 8px',
+                        padding: '3px 6px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '45px',
-                        fontSize: '11px',
+                        height: '35px',
+                        fontSize: '10px',
                         color: '#4B5563'
                       }}>
                         {(cliente.dia_entrega || '').split(',').map(d => d.trim().substring(0, 3)).join('/')}
                       </td>
                       <td style={{
-                        padding: '4px 16px',
+                        padding: '3px 8px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '45px'
+                        height: '35px',
+                        fontSize: '11px'
                       }}>
                         {cliente.vendedor_asignado || 'Sin vendedor'}
                       </td>
                       <td style={{
-                        padding: '4px 16px',
+                        padding: '3px 8px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '45px',
+                        height: '35px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        maxWidth: '200px'
+                        maxWidth: '150px',
+                        fontSize: '11px'
                       }}>
                         {cliente.direccion || 'Sin dirección'}
                       </td>
@@ -802,38 +845,38 @@ export default function PedidosDiaScreen() {
                       }}>
                         {cliente.tipo_lista_precio || 'Sin lista'}
                       </td>
-                      <td style={{ padding: '4px 16px', textAlign: 'center', verticalAlign: 'middle', height: '45px' }}>
+                      <td style={{ padding: '3px 8px', textAlign: 'center', verticalAlign: 'middle', height: '35px' }}>
                         {tienePedido ? (
                           <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            padding: '2px 10px',
+                            padding: '2px 6px',
                             borderRadius: '9999px',
-                            fontSize: '12px',
+                            fontSize: '10px',
                             fontWeight: '500',
                             backgroundColor: '#F0FDF4',
                             color: '#166534'
                           }}>
-                            <span className="material-icons" style={{ fontSize: '14px', marginRight: '4px' }}>check_circle</span>
+                            <span className="material-icons" style={{ fontSize: '12px', marginRight: '2px' }}>check_circle</span>
                             Realizado
                           </span>
                         ) : (
                           <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            padding: '2px 10px',
+                            padding: '2px 6px',
                             borderRadius: '9999px',
-                            fontSize: '12px',
+                            fontSize: '10px',
                             fontWeight: '500',
                             backgroundColor: '#EBF8FF',
                             color: '#1D4ED8'
                           }}>
-                            <span className="material-icons" style={{ fontSize: '14px', marginRight: '4px' }}>add_shopping_cart</span>
+                            <span className="material-icons" style={{ fontSize: '12px', marginRight: '2px' }}>add_shopping_cart</span>
                             Pendiente
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '4px 16px', textAlign: 'center', verticalAlign: 'middle', height: '45px', position: 'relative' }}>
+                      <td style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', height: '35px', position: 'relative' }}>
                         {cliente.movil ? (
                           <div
                             style={{ position: 'relative', display: 'inline-block' }}
@@ -841,7 +884,7 @@ export default function PedidosDiaScreen() {
                             onMouseLeave={() => setTelefonoHover(null)}
                           >
                             <span className="material-icons" style={{
-                              fontSize: '18px',
+                              fontSize: '14px',
                               color: '#10B981',
                               cursor: 'pointer'
                             }}>
@@ -912,7 +955,7 @@ export default function PedidosDiaScreen() {
                           <span style={{ color: '#9CA3AF', fontSize: '12px' }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: '4px 16px', textAlign: 'center', verticalAlign: 'middle', height: '45px' }}>
+                      <td style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', height: '35px' }}>
                         {tienePedido ? (() => {
                           // 🆕 Validar si el vendedor ya procesó el pedido en la app
                           const fueEntregado = tienePedido.estado === 'ENTREGADO';
@@ -925,7 +968,7 @@ export default function PedidosDiaScreen() {
                           if (vendedorYaLoProceso) {
                             return (
                               <span
-                                style={{ color: '#9CA3AF', fontSize: '12px', cursor: 'not-allowed' }}
+                                style={{ color: '#9CA3AF', fontSize: '10px', cursor: 'not-allowed' }}
                                 title="No se puede anular: El vendedor ya procesó este pedido en la app"
                               >
                                 🔒
@@ -946,8 +989,8 @@ export default function PedidosDiaScreen() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                width: '20px',
-                                height: '20px'
+                                width: '16px',
+                                height: '16px'
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -955,15 +998,15 @@ export default function PedidosDiaScreen() {
                               }}
                               title="Anular pedido (solo si el vendedor no lo ha procesado)"
                             >
-                              <span className="material-icons" style={{ fontSize: '16px' }}>close</span>
+                              <span className="material-icons" style={{ fontSize: '14px' }}>close</span>
                             </button>
                           );
                         })() : (
                           <span style={{ color: '#9CA3AF' }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: '4px 16px', verticalAlign: 'middle', height: '45px' }}>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <td style={{ padding: '3px 8px', verticalAlign: 'middle', height: '35px' }}>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                           {/* Botón de productos frecuentes */}
                           <button
                             onClick={(e) => {
@@ -972,7 +1015,7 @@ export default function PedidosDiaScreen() {
                               setShowProductosModal(true);
                             }}
                             style={{
-                              padding: '4px',
+                              padding: '2px',
                               backgroundColor: 'transparent',
                               color: 'inherit',
                               border: 'none',
@@ -980,7 +1023,7 @@ export default function PedidosDiaScreen() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: '18px',
+                              fontSize: '14px',
                               flexShrink: 0,
                               transition: 'all 0.3s ease',
                               // 🆕 Efecto de "Glow" INTENSO
@@ -1030,9 +1073,9 @@ export default function PedidosDiaScreen() {
                               backgroundColor: '#F9FAFB',
                               border: '1px solid #D1D5DB',
                               color: '#111827',
-                              fontSize: '12px',
-                              borderRadius: '8px',
-                              padding: '6px 8px',
+                              fontSize: '10px',
+                              borderRadius: '6px',
+                              padding: '4px 6px',
                               transition: 'all 0.2s ease-in-out'
                             }}
                             onFocus={(e) => {
