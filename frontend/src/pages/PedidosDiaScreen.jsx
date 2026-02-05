@@ -626,6 +626,15 @@ export default function PedidosDiaScreen() {
       })
       .then(() => {
         console.log("✅ Orden persistido en BD para", dia);
+        // 🆕 Toast de éxito
+        Swal.fire({
+          icon: 'success',
+          title: 'Orden guardado',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000
+        });
       })
       .catch(err => {
         console.error("❌ Error guardando orden en BD:", err);
