@@ -27,6 +27,10 @@ function InformePedidosContent() {
     const [motivoAnulacion, setMotivoAnulacion] = useState('Anulado desde gestión de pedidos');
     const [anulando, setAnulando] = useState(false);
 
+    // Estados para filtros
+    const [filtroBusqueda, setFiltroBusqueda] = useState('');
+    const [fechaFiltro, setFechaFiltro] = useState('');
+
     useEffect(() => {
         cargarPedidos();
     }, []);
@@ -137,6 +141,37 @@ function InformePedidosContent() {
         }
     };
 
+    // Filtrar pedidos según búsqueda y fechas
+    const pedidosFiltrados = pedidos.filter(pedido => {
+        // Filtro de búsqueda de texto
+        if (filtroBusqueda.trim()) {
+            const busqueda = filtroBusqueda.toLowerCase();
+            const matchNumero = (pedido.numero_pedido || '').toLowerCase().includes(busqueda);
+            const matchDestinatario = (pedido.destinatario || '').toLowerCase().includes(busqueda);
+            const matchVendedor = (pedido.vendedor || '').toLowerCase().includes(busqueda);
+
+            if (!matchNumero && !matchDestinatario && !matchVendedor) {
+                return false;
+            }
+        }
+
+        // Filtro de fecha exacta (fecha de entrega)
+        if (fechaFiltro) {
+            // Normalizar fecha de entrega del pedido a YYYY-MM-DD
+            let fechaEntregaStr = '';
+            if (pedido.fecha_entrega) {
+                // Tomar los primeros 10 caracteres (YYYY-MM-DD) sea string ISO o string simple
+                fechaEntregaStr = String(pedido.fecha_entrega).substring(0, 10);
+            }
+
+            if (fechaEntregaStr !== fechaFiltro) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
     return (
         <div className="d-flex">
             <style>
@@ -199,6 +234,111 @@ function InformePedidosContent() {
                                             <div className="p-3 border-bottom">
                                                 <h6 className="mb-0">Pedidos Registrados</h6>
                                             </div>
+
+                                            {/* Filtros */}
+                                            <div className="p-3 border-bottom bg-light">
+                                                <Row className="g-3">
+                                                    <Col md={6}>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <button
+                                                                className="btn btn-light"
+                                                                style={{ borderRadius: '12px', padding: '8px 12px' }}
+                                                                title="Buscar"
+                                                            >
+                                                                <span className="material-icons" style={{ fontSize: '20px' }}>search</span>
+                                                            </button>
+
+                                                            <input
+                                                                className="form-control"
+                                                                style={{
+                                                                    flex: 1,
+                                                                    borderRadius: '12px',
+                                                                    height: '40px',
+                                                                    padding: '8px 16px'
+                                                                }}
+                                                                type="text"
+                                                                value={filtroBusqueda}
+                                                                onChange={(e) => setFiltroBusqueda(e.target.value)}
+                                                                placeholder="Buscar por N° Pedido, Destinatario o Vendedor..."
+                                                                autoComplete="off"
+                                                                onFocus={(e) => {
+                                                                    e.target.style.borderColor = '#28a745';
+                                                                    e.target.style.borderWidth = '1px';
+                                                                    e.target.style.boxShadow = 'none';
+                                                                    e.target.style.outline = 'none';
+                                                                }}
+                                                                onBlur={(e) => {
+                                                                    e.target.style.borderColor = '#dee2e6';
+                                                                    e.target.style.borderWidth = '1px';
+                                                                    e.target.style.boxShadow = 'none';
+                                                                    e.target.style.outline = 'none';
+                                                                }}
+                                                            />
+
+                                                            {filtroBusqueda && (
+                                                                <button
+                                                                    onClick={() => setFiltroBusqueda('')}
+                                                                    className="btn btn-light"
+                                                                    style={{
+                                                                        borderRadius: '12px',
+                                                                        padding: '8px 12px'
+                                                                    }}
+                                                                    title="Limpiar búsqueda"
+                                                                >
+                                                                    <span className="material-icons" style={{ fontSize: '20px' }}>close</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </Col>
+
+                                                    <Col md={6}>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <div className="d-flex align-items-center gap-2 flex-grow-1">
+                                                                <label className="text-nowrap mb-0" style={{ fontSize: '14px' }}>Fecha Entrega:</label>
+                                                                <input
+                                                                    type="date"
+                                                                    className="form-control"
+                                                                    style={{ borderRadius: '12px', height: '40px' }}
+                                                                    value={fechaFiltro}
+                                                                    onChange={(e) => setFechaFiltro(e.target.value)}
+                                                                    onFocus={(e) => {
+                                                                        e.target.style.borderColor = '#28a745';
+                                                                        e.target.style.borderWidth = '1px';
+                                                                        e.target.style.boxShadow = 'none';
+                                                                        e.target.style.outline = 'none';
+                                                                    }}
+                                                                    onBlur={(e) => {
+                                                                        e.target.style.borderColor = '#dee2e6';
+                                                                        e.target.style.borderWidth = '1px';
+                                                                        e.target.style.boxShadow = 'none';
+                                                                        e.target.style.outline = 'none';
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            {fechaFiltro && (
+                                                                <button
+                                                                    onClick={() => setFechaFiltro('')}
+                                                                    className="btn btn-light"
+                                                                    style={{ borderRadius: '12px', padding: '8px 12px' }}
+                                                                    title="Limpiar fecha"
+                                                                >
+                                                                    <span className="material-icons" style={{ fontSize: '20px' }}>close</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </Col>
+                                                </Row>
+
+                                                {/* Contador de resultados */}
+                                                {(filtroBusqueda || fechaFiltro) && (
+                                                    <div className="mt-2">
+                                                        <small className="text-muted">
+                                                            Mostrando <strong>{pedidosFiltrados.length}</strong> de <strong>{pedidos.length}</strong> pedidos
+                                                        </small>
+                                                    </div>
+                                                )}
+                                            </div>
+
                                             <div style={{ overflowX: 'auto' }}>
                                                 <Table hover className="mb-0" style={{ fontSize: '12px' }}>
                                                     <thead className="table-light">
@@ -215,8 +355,8 @@ function InformePedidosContent() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {pedidos.length > 0 ? (
-                                                            pedidos.map((pedido) => (
+                                                        {pedidosFiltrados.length > 0 ? (
+                                                            pedidosFiltrados.map((pedido) => (
                                                                 <tr
                                                                     key={pedido.id}
                                                                     className="table-row-hover"
@@ -273,12 +413,12 @@ function InformePedidosContent() {
                                                 <Row>
                                                     <Col md={6}>
                                                         <small className="text-muted">
-                                                            <strong>Cantidad de Pedidos:</strong> {pedidos.length}
+                                                            <strong>Cantidad de Pedidos:</strong> {pedidosFiltrados.length}
                                                         </small>
                                                     </Col>
                                                     <Col md={6} className="text-end">
                                                         <small className="text-muted">
-                                                            <strong>Total:</strong> {formatCurrency(pedidos.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0))}
+                                                            <strong>Total:</strong> {formatCurrency(pedidosFiltrados.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0))}
                                                         </small>
                                                     </Col>
                                                 </Row>

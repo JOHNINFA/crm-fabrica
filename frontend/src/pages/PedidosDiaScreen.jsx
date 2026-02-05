@@ -74,6 +74,12 @@ export default function PedidosDiaScreen() {
   // Estado para tooltip de teléfono
   const [telefonoHover, setTelefonoHover] = useState(null);
 
+  // Estados para modal de notas
+  const [showNotaModal, setShowNotaModal] = useState(false);
+  const [clienteNotaSeleccionado, setClienteNotaSeleccionado] = useState(null);
+  const [notaEditando, setNotaEditando] = useState('');
+  const [notaHover, setNotaHover] = useState(null);
+
   // Estados para productos frecuentes
   const [showProductosModal, setShowProductosModal] = useState(false);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
@@ -82,6 +88,9 @@ export default function PedidosDiaScreen() {
   const [clientesConFrecuentes, setClientesConFrecuentes] = useState(new Set()); // 🆕 IDs de clientes con productos frecuentes
   const [notasClientes, setNotasClientes] = useState({}); // 🆕 Mapa clienteId -> nota
   const [mapaIdsFrecuentes, setMapaIdsFrecuentes] = useState({}); // 🆕 Mapa clienteId -> id_registro_frecuente
+
+  // Estado para filtro de búsqueda
+  const [filtroBusqueda, setFiltroBusqueda] = useState('');
 
   // Cargar indicadores de productos frecuentes
   useEffect(() => {
@@ -310,6 +319,22 @@ export default function PedidosDiaScreen() {
       });
     }
   };
+
+  const abrirModalNota = (cliente) => {
+    setClienteNotaSeleccionado(cliente);
+    setNotaEditando(notasClientes[cliente.id] || '');
+    setShowNotaModal(true);
+  };
+
+  const guardarNotaDesdeModal = async () => {
+    if (!clienteNotaSeleccionado) return;
+
+    await guardarNotaCliente(clienteNotaSeleccionado.id, notaEditando);
+    setShowNotaModal(false);
+    setClienteNotaSeleccionado(null);
+    setNotaEditando('');
+  };
+
 
   const cargarClientes = async () => {
     try {
@@ -651,6 +676,14 @@ export default function PedidosDiaScreen() {
       });
   };
 
+  // Filtrar clientes según búsqueda
+  const clientesFiltrados = clientesOrdenados.filter(cliente => {
+    if (!filtroBusqueda.trim()) return true;
+    const busqueda = filtroBusqueda.toLowerCase();
+    const nombre = (cliente.alias || cliente.nombre_completo || '').toLowerCase();
+    return nombre.includes(busqueda);
+  });
+
   return (
     <div className="container-fluid" style={{ paddingBottom: '60px' }}>
       {/* Header */}
@@ -709,7 +742,65 @@ export default function PedidosDiaScreen() {
       </div>
 
       {/* Lista de clientes en tabla */}
-      <div className="mt-3" style={{ margin: '0 40px' }}>
+      <div className="mt-3" style={{ margin: '0 20px' }}>
+        {/* Campo de búsqueda */}
+        <div className="d-flex align-items-center gap-2 mb-3">
+          <button
+            className="btn btn-light"
+            style={{ borderRadius: '12px', padding: '8px 12px' }}
+            title="Buscar"
+          >
+            <span className="material-icons" style={{ fontSize: '20px' }}>search</span>
+          </button>
+
+          <input
+            className="form-control"
+            style={{
+              maxWidth: 400,
+              borderRadius: '12px',
+              height: '40px',
+              padding: '8px 16px'
+            }}
+            type="text"
+            value={filtroBusqueda}
+            onChange={(e) => setFiltroBusqueda(e.target.value)}
+            placeholder="Buscar cliente por nombre..."
+            autoComplete="off"
+            onFocus={(e) => {
+              e.target.style.borderColor = '#2196F3';
+              e.target.style.borderWidth = '1px';
+              e.target.style.boxShadow = 'none';
+              e.target.style.outline = 'none';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = '#dee2e6';
+              e.target.style.borderWidth = '1px';
+              e.target.style.boxShadow = 'none';
+              e.target.style.outline = 'none';
+            }}
+          />
+
+          {filtroBusqueda && (
+            <button
+              onClick={() => setFiltroBusqueda('')}
+              className="btn btn-light"
+              style={{
+                borderRadius: '12px',
+                padding: '8px 12px'
+              }}
+              title="Limpiar búsqueda"
+            >
+              <span className="material-icons" style={{ fontSize: '20px' }}>close</span>
+            </button>
+          )}
+
+          {filtroBusqueda && (
+            <div style={{ fontSize: '14px', color: '#6B7280', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+              {clientesFiltrados.length} de {clientesOrdenados.length} clientes
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="text-center py-5">
             <div className="spinner-border text-primary" role="status">
@@ -732,12 +823,12 @@ export default function PedidosDiaScreen() {
             <table style={{
               width: '100%',
               minWidth: '1200px',
-              fontSize: '13px',
+              fontSize: '15px',
               textAlign: 'left',
               color: '#374151'
             }}>
               <thead style={{
-                fontSize: '14px',
+                fontSize: '13px',
                 color: '#1F2937',
                 textTransform: 'uppercase',
                 backgroundColor: '#F9FAFB',
@@ -747,19 +838,19 @@ export default function PedidosDiaScreen() {
                   <th style={{ padding: '6px 16px', width: '3%', textAlign: 'center', height: '45px' }} scope="col">
                     <span className="material-icons" style={{ fontSize: '16px', color: '#9CA3AF' }}>drag_indicator</span>
                   </th>
-                  <th style={{ padding: '6px 16px', width: '15%', textAlign: 'center', height: '45px' }} scope="col">Negocio</th>
+                  <th style={{ padding: '6px 16px', width: '18%', textAlign: 'center', height: '45px' }} scope="col">Negocio</th>
                   <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Días</th>
-                  <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Vendedor</th>
+                  <th style={{ padding: '6px 16px', width: '12%', textAlign: 'center', height: '45px' }} scope="col">Vendedor</th>
                   <th style={{ padding: '6px 16px', width: '18%', textAlign: 'center', height: '45px' }} scope="col">Dirección</th>
                   <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Lista Precio</th>
-                  <th style={{ padding: '6px 16px', width: '9%', textAlign: 'center', height: '45px' }} scope="col">Estado</th>
-                  <th style={{ padding: '6px 16px', width: '6%', textAlign: 'center', height: '45px' }} scope="col">Teléfono</th>
-                  <th style={{ padding: '6px 16px', width: '5%', textAlign: 'center', height: '45px' }} scope="col">Anular</th>
-                  <th style={{ padding: '6px 16px', width: '14%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
+                  <th style={{ padding: '6px 16px', width: '10%', textAlign: 'center', height: '45px' }} scope="col">Estado</th>
+                  <th style={{ padding: '6px 16px', width: '4%', textAlign: 'center', height: '45px' }} scope="col">Teléfono</th>
+                  <th style={{ padding: '6px 16px', width: '4%', textAlign: 'center', height: '45px' }} scope="col">Anular</th>
+                  <th style={{ padding: '6px 16px', width: '8%', textAlign: 'center', height: '45px' }} scope="col">Notas</th>
                 </tr>
               </thead>
               <tbody>
-                {clientesOrdenados.map((cliente, index) => {
+                {clientesFiltrados.map((cliente, index) => {
                   const tienePedido = pedidosRealizados[(cliente.alias || '').toLowerCase()] || pedidosRealizados[cliente.nombre_completo.toLowerCase()];
                   const estaEntregado = tienePedido && tienePedido.estado === 'ENTREGADO';
                   const tieneNovedad = tienePedido && (tienePedido.novedades && tienePedido.novedades.length > 0);
@@ -798,7 +889,7 @@ export default function PedidosDiaScreen() {
                         textAlign: 'center',
                         cursor: 'grab',
                         verticalAlign: 'middle',
-                        height: '35px'
+                        height: '45px'
                       }}>
                         <span className="material-icons" style={{ fontSize: '14px', color: '#9CA3AF' }}>drag_indicator</span>
                       </td>
@@ -809,7 +900,7 @@ export default function PedidosDiaScreen() {
                         whiteSpace: 'nowrap',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '35px',
+                        height: '45px',
                         fontSize: '11px'
                       }} scope="row">
                         {cliente.alias || cliente.nombre_completo}
@@ -818,7 +909,7 @@ export default function PedidosDiaScreen() {
                         padding: '3px 6px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '35px',
+                        height: '45px',
                         fontSize: '10px',
                         color: '#4B5563'
                       }}>
@@ -828,7 +919,7 @@ export default function PedidosDiaScreen() {
                         padding: '3px 8px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '35px',
+                        height: '45px',
                         fontSize: '11px'
                       }}>
                         {cliente.vendedor_asignado || 'Sin vendedor'}
@@ -837,7 +928,7 @@ export default function PedidosDiaScreen() {
                         padding: '3px 8px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '35px',
+                        height: '45px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -850,11 +941,12 @@ export default function PedidosDiaScreen() {
                         padding: '4px 16px',
                         textAlign: 'center',
                         verticalAlign: 'middle',
-                        height: '45px'
+                        height: '45px',
+                        fontSize: '11px'
                       }}>
                         {cliente.tipo_lista_precio || 'Sin lista'}
                       </td>
-                      <td style={{ padding: '3px 8px', textAlign: 'center', verticalAlign: 'middle', height: '35px' }}>
+                      <td style={{ padding: '3px 8px', textAlign: 'center', verticalAlign: 'middle', height: '45px' }}>
                         {tienePedido ? (
                           <span style={{
                             display: 'inline-flex',
@@ -885,7 +977,7 @@ export default function PedidosDiaScreen() {
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', height: '35px', position: 'relative' }}>
+                      <td style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', height: '45px', position: 'relative' }}>
                         {cliente.movil ? (
                           <div
                             style={{ position: 'relative', display: 'inline-block' }}
@@ -964,7 +1056,7 @@ export default function PedidosDiaScreen() {
                           <span style={{ color: '#9CA3AF', fontSize: '12px' }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', height: '35px' }}>
+                      <td style={{ padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', height: '45px' }}>
                         {tienePedido ? (() => {
                           // 🆕 Validar si el vendedor ya procesó el pedido en la app
                           const fueEntregado = tienePedido.estado === 'ENTREGADO';
@@ -1014,8 +1106,8 @@ export default function PedidosDiaScreen() {
                           <span style={{ color: '#9CA3AF' }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: '3px 8px', verticalAlign: 'middle', height: '35px' }}>
-                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <td style={{ padding: '3px 8px', verticalAlign: 'middle', height: '45px' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'center' }}>
                           {/* Botón de productos frecuentes */}
                           <button
                             onClick={(e) => {
@@ -1024,7 +1116,7 @@ export default function PedidosDiaScreen() {
                               setShowProductosModal(true);
                             }}
                             style={{
-                              padding: '2px',
+                              padding: '4px',
                               backgroundColor: 'transparent',
                               color: 'inherit',
                               border: 'none',
@@ -1035,64 +1127,119 @@ export default function PedidosDiaScreen() {
                               fontSize: '14px',
                               flexShrink: 0,
                               transition: 'all 0.3s ease',
-                              // 🆕 Efecto de "Glow" INTENSO
                               filter: clientesConFrecuentes.has(cliente.id)
-                                ? 'drop-shadow(0 0 8px rgba(34, 197, 94, 1))'
+                                ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.8))'
                                 : 'none',
                               transform: clientesConFrecuentes.has(cliente.id) ? 'scale(1.1)' : 'scale(1)'
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.transform = 'scale(1.25)';
+                              e.currentTarget.style.transform = 'scale(1.2)';
                               if (!clientesConFrecuentes.has(cliente.id)) {
-                                e.target.style.filter = 'drop-shadow(0 0 3px rgba(0,0,0,0.2))';
+                                e.currentTarget.style.filter = 'drop-shadow(0 0 3px rgba(0,0,0,0.2))';
                               }
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.transform = clientesConFrecuentes.has(cliente.id) ? 'scale(1.1)' : 'scale(1)';
-                              e.target.style.filter = clientesConFrecuentes.has(cliente.id)
-                                ? 'drop-shadow(0 0 8px rgba(34, 197, 94, 1))'
+                              e.currentTarget.style.transform = clientesConFrecuentes.has(cliente.id) ? 'scale(1.1)' : 'scale(1)';
+                              e.currentTarget.style.filter = clientesConFrecuentes.has(cliente.id)
+                                ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.8))'
                                 : 'none';
                             }}
-                            title={clientesConFrecuentes.has(cliente.id) ? "Productos frecuentes configurados" : "Configurar productos frecuentes"}
+                            title={clientesConFrecuentes.has(cliente.id) ? "Productos frecuentes configurados ✅" : "Configurar productos frecuentes"}
                           >
                             📦
                           </button>
 
-                          {/* Input de notas */}
-                          <input
-                            type="text"
-                            value={notasClientes[cliente.id] || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setNotasClientes(prev => ({ ...prev, [cliente.id]: val }));
-                            }}
-                            onBlur={(e) => {
-                              // Restaurar estilos visuales
-                              e.target.style.borderColor = '#D1D5DB';
-                              e.target.style.backgroundColor = '#F9FAFB';
-                              // Guardar nota
-                              guardarNotaCliente(cliente.id, e.target.value);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') e.target.blur();
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              flex: 1,
-                              backgroundColor: '#F9FAFB',
-                              border: '1px solid #D1D5DB',
-                              color: '#111827',
-                              fontSize: '10px',
-                              borderRadius: '6px',
-                              padding: '4px 6px',
-                              transition: 'all 0.2s ease-in-out'
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.borderColor = '#1D4ED8';
-                              e.target.style.backgroundColor = '#FFFFFF';
-                            }}
-                            placeholder="Añadir nota..."
-                          />
+                          {/* Botón de notas */}
+                          <div
+                            style={{ position: 'relative', display: 'inline-block' }}
+                            onMouseEnter={() => setNotaHover(cliente.id)}
+                            onMouseLeave={() => setNotaHover(null)}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirModalNota(cliente);
+                              }}
+                              style={{
+                                padding: '4px',
+                                backgroundColor: 'transparent',
+                                color: notasClientes[cliente.id] ? '#F59E0B' : '#9CA3AF',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transition: 'all 0.3s ease',
+                                filter: notasClientes[cliente.id]
+                                  ? 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.6))'
+                                  : 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.2)';
+                                if (!notasClientes[cliente.id]) {
+                                  e.currentTarget.style.filter = 'drop-shadow(0 0 3px rgba(0,0,0,0.2))';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.filter = notasClientes[cliente.id]
+                                  ? 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.6))'
+                                  : 'none';
+                              }}
+                            >
+                              <span className="material-icons" style={{ fontSize: '18px' }}>description</span>
+                            </button>
+
+                            {/* Tooltip con preview de nota */}
+                            {notaHover === cliente.id && notasClientes[cliente.id] && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '50%',
+                                right: 'calc(100% + 10px)',
+                                transform: 'translateY(-50%)',
+                                backgroundColor: '#FFFFFF',
+                                color: '#1F2937',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '200px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                border: '1px solid #FCD34D',
+                                zIndex: 9999,
+                                pointerEvents: 'none'
+                              }}>
+                                {/* Flecha */}
+                                <div style={{
+                                  position: 'absolute',
+                                  right: '-5px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  width: 0,
+                                  height: 0,
+                                  borderTop: '5px solid transparent',
+                                  borderBottom: '5px solid transparent',
+                                  borderLeft: '5px solid #FFFFFF'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  right: '-6px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  width: 0,
+                                  height: 0,
+                                  borderTop: '6px solid transparent',
+                                  borderBottom: '6px solid transparent',
+                                  borderLeft: '6px solid #FCD34D'
+                                }} />
+                                <strong style={{ color: '#F59E0B', marginRight: '6px' }}>📝</strong>
+                                {notasClientes[cliente.id]}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1248,6 +1395,66 @@ export default function PedidosDiaScreen() {
         </Modal.Footer>
       </Modal>
 
+
+      {/* Modal de Edici\u00f3n de Notas */}
+      <Modal
+        show={showNotaModal}
+        onHide={() => {
+          setShowNotaModal(false);
+          setClienteNotaSeleccionado(null);
+          setNotaEditando('');
+        }}
+        size="md"
+        centered
+      >
+        <Modal.Header closeButton style={{ backgroundColor: '#F59E0B', color: 'white' }}>
+          <Modal.Title>
+            <span className="material-icons" style={{ verticalAlign: 'middle', marginRight: '8px', fontSize: '24px' }}>description</span>
+            Nota - {clienteNotaSeleccionado?.alias || clienteNotaSeleccionado?.nombre_completo}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted mb-3">
+            <i className="bi bi-info-circle me-2"></i>
+            Añade información importante sobre este cliente.
+          </p>
+          <textarea
+            className="form-control"
+            rows="6"
+            value={notaEditando}
+            onChange={(e) => setNotaEditando(e.target.value)}
+            placeholder="Escribe aqu\u00ed tus notas..."
+            style={{
+              fontSize: '14px',
+              resize: 'none'
+            }}
+            autoFocus
+          />
+          <small className="text-muted mt-2 d-block">
+            {notaEditando.length} caracteres
+          </small>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowNotaModal(false);
+              setClienteNotaSeleccionado(null);
+              setNotaEditando('');
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="warning"
+            onClick={guardarNotaDesdeModal}
+            style={{ color: 'white' }}
+          >
+            <i className="bi bi-save me-2"></i>
+            Guardar Nota
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Modal de Confirmación de Anulación */}
       <Modal
