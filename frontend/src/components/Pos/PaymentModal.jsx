@@ -209,6 +209,20 @@ const PaymentModal = ({
           }
         }
 
+        // 🔄 NUEVO: Emitir evento para actualizar inventario en otras pantallas
+        window.dispatchEvent(new CustomEvent('inventarioActualizado', {
+          detail: {
+            tipo: 'venta_pos',
+            productos: cart.map(item => ({
+              id: item.id,
+              nombre: item.name,
+              cantidad: item.qty
+            })),
+            timestamp: new Date().toISOString()
+          }
+        }));
+        console.log('📢 Evento inventarioActualizado emitido');
+
         // Limpiar y cerrar
         clearCart();
         setMetodoPago("Efectivo"); // Resetear método de pago a Efectivo

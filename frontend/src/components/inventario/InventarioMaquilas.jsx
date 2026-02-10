@@ -589,16 +589,32 @@ const InventarioMaquilas = () => {
 
         await registroInventarioService.create(registroData);
 
-        // 🔥 Actualizar stock en la BD
+        // 🔥 NUEVO: Crear MovimientoInventario ENTRADA (actualiza stock automáticamente)
         try {
-          await productoService.updateStock(
-            producto.id,
-            cantidadMovimiento,
-            usuario,
-            `Maquila: ${lotes.map((l) => l.numero).join(", ")}`
-          );
+          const movimientoData = {
+            producto: producto.id,
+            tipo: 'ENTRADA',
+            cantidad: cantidadMovimiento,
+            usuario: usuario,
+            nota: `Maquila: ${lotes.map((l) => l.numero).join(", ")}`
+          };
+
+          const responseMovimiento = await fetch(`${API_URL}/movimientos/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(movimientoData)
+          });
+
+          if (!responseMovimiento.ok) {
+            const errorText = await responseMovimiento.text();
+            throw new Error(
+              `Error al crear movimiento: ${responseMovimiento.status} - ${errorText}`
+            );
+          }
+
+          console.log(`✅ Movimiento ENTRADA creado: ${producto.nombre} +${cantidadMovimiento}`);
         } catch (stockError) {
-          console.error("Error al actualizar stock en BD:", stockError);
+          console.error("Error al crear movimiento de inventario:", stockError);
         }
       } catch (error) {
         console.error("Error al guardar cantidad de maquila:", error);
@@ -688,16 +704,32 @@ const InventarioMaquilas = () => {
       // ❌ NO actualizar contexto global
       // actualizarExistencias(nuevosProductos);
 
-      // 🔥 Actualizar stock en BD
+      // 🔥 NUEVO: Crear MovimientoInventario AJUSTE (actualiza stock automáticamente)
       try {
-        await productoService.updateStock(
-          id,
-          diferenciaCantidad,
-          usuario,
-          `Edición Maquila: ${cantidadOriginal}→${nuevaCantidadProduccion}`
-        );
+        const movimientoData = {
+          producto: id,
+          tipo: diferenciaCantidad > 0 ? 'ENTRADA' : 'SALIDA',
+          cantidad: Math.abs(diferenciaCantidad),
+          usuario: usuario,
+          nota: `Edición Maquila: ${cantidadOriginal}→${nuevaCantidadProduccion}`
+        };
+
+        const responseMovimiento = await fetch(`${API_URL}/movimientos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(movimientoData)
+        });
+
+        if (!responseMovimiento.ok) {
+          const errorText = await responseMovimiento.text();
+          throw new Error(
+            `Error al crear movimiento: ${responseMovimiento.status} - ${errorText}`
+          );
+        }
+
+        console.log(`✅ Movimiento AJUSTE creado: ${productoEditado.nombre} ${diferenciaCantidad > 0 ? '+' : ''}${diferenciaCantidad}`);
       } catch (stockError) {
-        console.error("Error al actualizar stock en BD:", stockError);
+        console.error("Error al crear movimiento de inventario:", stockError);
       }
 
       // Actualizar datos de confirmación
@@ -790,16 +822,32 @@ const InventarioMaquilas = () => {
       // ❌ NO actualizar contexto global
       // actualizarExistencias(nuevosProductos);
 
-      // 🔥 Actualizar stock en BD
+      // 🔥 NUEVO: Crear MovimientoInventario AJUSTE (actualiza stock automáticamente)
       try {
-        await productoService.updateStock(
-          id,
-          diferenciaExistencias,
-          usuario,
-          `Edición Existencias: ${productoEditado.existencias}→${nuevasExistencias}`
-        );
+        const movimientoData = {
+          producto: id,
+          tipo: diferenciaExistencias > 0 ? 'ENTRADA' : 'SALIDA',
+          cantidad: Math.abs(diferenciaExistencias),
+          usuario: usuario,
+          nota: `Edición Existencias: ${productoEditado.existencias}→${nuevasExistencias}`
+        };
+
+        const responseMovimiento = await fetch(`${API_URL}/movimientos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(movimientoData)
+        });
+
+        if (!responseMovimiento.ok) {
+          const errorText = await responseMovimiento.text();
+          throw new Error(
+            `Error al crear movimiento: ${responseMovimiento.status} - ${errorText}`
+          );
+        }
+
+        console.log(`✅ Movimiento AJUSTE creado: ${productoEditado.nombre} ${diferenciaExistencias > 0 ? '+' : ''}${diferenciaExistencias}`);
       } catch (stockError) {
-        console.error("Error al actualizar stock en BD:", stockError);
+        console.error("Error al crear movimiento de inventario:", stockError);
       }
 
       // Crear movimiento si hay diferencia

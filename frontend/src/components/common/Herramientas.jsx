@@ -215,32 +215,42 @@ const Herramientas = () => {
         setMessage({ type: 'info', text: 'Reseteando stock de productos...' });
 
         try {
-            const response = await fetch(`${API_URL}/stocks/`);
+            const response = await fetch(`${API_URL}/stock/`);
             if (response.ok) {
                 const stocks = await response.json();
                 let reseteados = 0;
 
                 for (const stock of stocks) {
                     try {
-                        // Actualizar stock a 0 en lugar de eliminarlo
-                        await fetch(`${API_URL}/stocks/${stock.id}/`, {
+                        // PK del Stock es 'producto' (producto_id), no 'id'
+                        const stockPk = stock.producto;
+                        const resp = await fetch(`${API_URL}/stock/${stockPk}/`, {
                             method: 'PATCH',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({
-                                cantidad: 0
+                                cantidad_actual: 0
                             })
                         });
-                        reseteados++;
+                        if (resp.ok) {
+                            reseteados++;
+                        } else {
+                            console.warn(`⚠️ Error HTTP ${resp.status} reseteando stock ${stockPk}`);
+                        }
                     } catch (err) {
-                        console.warn(`⚠️ Error reseteando stock ${stock.id}:`, err);
+                        console.warn(`⚠️ Error reseteando stock:`, err);
                     }
                 }
 
                 setMessage({
                     type: 'success',
                     text: `✅ ${reseteados} productos con stock reseteado a 0`
+                });
+            } else {
+                setMessage({
+                    type: 'danger',
+                    text: `❌ Error obteniendo stock: HTTP ${response.status}`
                 });
             }
         } catch (error) {
@@ -383,15 +393,15 @@ const Herramientas = () => {
 
             // 5. Resetear Stock a 0
             setMessage({ type: 'info', text: '5/6: Reseteando stock a 0...' });
-            const stocksResp = await fetch(`${API_URL}/stocks/`);
+            const stocksResp = await fetch(`${API_URL}/stock/`);
             if (stocksResp.ok) {
                 const stocks = await stocksResp.json();
                 for (const stock of stocks) {
                     try {
-                        await fetch(`${API_URL}/stocks/${stock.id}/`, {
+                        await fetch(`${API_URL}/stock/${stock.producto}/`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ cantidad: 0 })
+                            body: JSON.stringify({ cantidad_actual: 0 })
                         });
                         totalEliminado++;
                     } catch (err) { }

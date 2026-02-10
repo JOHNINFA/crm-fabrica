@@ -899,6 +899,14 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
             {formatCurrency((baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0) - calcularTotal('descuentos')) - calcularTotal('nequi') - calcularTotal('daviplata'))}
           </div>
         </div>
+
+        {/* 🆕 Mostrar novedad de precios especiales si existe */}
+        {datos.novedad && (
+          <div className="bg-warning p-2 mt-2" style={{ borderRadius: '4px', backgroundColor: '#fff3cd' }}>
+            <strong style={{ color: '#856404' }}>📝 Novedad:</strong>
+            <div className="text-end" style={{ color: '#856404' }}>{datos.novedad}</div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -379,7 +379,7 @@ export default function TicketPreviewModal({
                     <div class="ticket-divider">................................................</div>
                     
                     <div class="ticket-info">
-                        <p><strong>${tipo === 'venta' ? 'FACTURA' : 'CUENTA DE COBRO'}: ${numero}</strong></p>
+                        <p><strong>FACTURA: ${numero}</strong></p>
                         <p><strong>Fecha: ${formatFecha(fecha)}</strong></p>
                     </div>
                     

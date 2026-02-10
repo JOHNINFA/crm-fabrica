@@ -378,7 +378,7 @@ export default function MenuSheets() {
       </style>
       <div className="container-fluid" style={{ paddingBottom: '60px' }}>
         {/* Header compacto */}
-        <div className="d-flex justify-content-between align-items-center py-2 ">
+        <div className="d-flex justify-content-between align-items-center py-2" style={{ position: 'relative' }}>
           <div className="d-flex align-items-center gap-3">
             <button
               type="button"

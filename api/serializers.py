@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import models
 from .models import (
     Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, 
     RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, 
@@ -6,7 +7,7 @@ from .models import (
     CargueProductos, CargueResumen, CarguePagos, CargueCumplimiento,  # Nuevos modelos normalizados
     Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, 
     ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, 
-    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden, ReportePlaneacion
+    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden, ReportePlaneacion, TipoNegocio
 )
 
 
@@ -124,6 +125,12 @@ class VentaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('numero_factura', 'fecha', 'id')
 
+class TipoNegocioSerializer(serializers.ModelSerializer):
+    """Serializer para tipos de negocio"""
+    class Meta:
+        model = TipoNegocio
+        fields = ['id', 'nombre', 'activo']
+
 class ClienteSerializer(serializers.ModelSerializer):
     """Serializer para clientes"""
     
@@ -237,7 +244,7 @@ class CargueID3Serializer(serializers.ModelSerializer):
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -254,7 +261,7 @@ class CargueID4Serializer(serializers.ModelSerializer):
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -271,7 +278,7 @@ class CargueID5Serializer(serializers.ModelSerializer):
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -288,7 +295,7 @@ class CargueID6Serializer(serializers.ModelSerializer):
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos', 
             'venta', 'total_efectivo', 'licencia_transporte', 'soat', 'uniforme',
             'no_locion', 'no_accesorios', 'capacitacion_carnet', 'higiene', 
-            'estibas', 'desinfeccion', 'usuario', 'responsable', 'ruta', 'activo', 'fecha_creacion', 
+            'estibas', 'desinfeccion', 'usuario', 'responsable', 'activo', 'fecha_creacion', 
             'fecha_actualizacion'
         ]
         read_only_fields = ('total', 'neto', 'fecha_creacion', 'fecha_actualizacion')
@@ -668,8 +675,11 @@ class PedidoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion', 'inventario_afectado')
     
+
+    
     def create(self, validated_data):
         from django.db import transaction
+        from django.db import models
         from .models import Planeacion, Producto, MovimientoInventario, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         
         # Extraer detalles si vienen en los datos
@@ -686,6 +696,7 @@ class PedidoSerializer(serializers.ModelSerializer):
             print(f"🎯 Asignado a: {pedido.asignado_a_tipo} - {pedido.asignado_a_id or 'Ninguno'}")
             print(f"⚡ Afectar inventario inmediato: {'SÍ' if pedido.afectar_inventario_inmediato else 'NO'}")
             
+            # ===== 2. CREAR LOS DETALLES =====
             # ===== 2. CREAR LOS DETALLES =====
             for detalle_data in detalles_data:
                 DetallePedido.objects.create(
@@ -765,7 +776,84 @@ class PedidoSerializer(serializers.ModelSerializer):
                         print(f"⚠️ Error actualizando Planeación: {str(e)}")
                         continue
             
-            # ===== 5. ACTUALIZAR CARGUE SI ESTÁ ASIGNADO A VENDEDOR =====
+            # ===== 5. CREAR CLIENTE EN RUTA SI ESTÁ ASIGNADO A VENDEDOR =====
+            if pedido.asignado_a_tipo == 'VENDEDOR' and pedido.asignado_a_id and pedido.fecha_entrega:
+                print(f"\n👥 CREANDO/ACTUALIZANDO CLIENTE EN RUTA")
+                print(f"{'='*60}")
+                
+                try:
+                    from .models import Ruta, ClienteRuta, Vendedor
+                    import datetime
+                    
+                    # Buscar el vendedor
+                    vendedor = Vendedor.objects.filter(id_vendedor=pedido.asignado_a_id).first()
+                    
+                    if vendedor:
+                        # Buscar la ruta del vendedor
+                        ruta = Ruta.objects.filter(vendedor=vendedor, activo=True).first()
+                        
+                        if ruta:
+                            # Obtener el día de la semana de la fecha de entrega
+                            dias_map = {
+                                0: 'LUNES',
+                                1: 'MARTES',
+                                2: 'MIERCOLES',
+                                3: 'JUEVES',
+                                4: 'VIERNES',
+                                5: 'SABADO',
+                                6: 'DOMINGO'
+                            }
+                            dia_semana = dias_map[pedido.fecha_entrega.weekday()]
+                            
+                            # Buscar si ya existe el cliente en la ruta
+                            cliente_ruta = ClienteRuta.objects.filter(
+                                ruta=ruta,
+                                nombre_negocio=pedido.destinatario
+                            ).first()
+                            
+                            if cliente_ruta:
+                                # Actualizar días de visita si no incluye el día actual
+                                dias_actuales = [d.strip() for d in cliente_ruta.dia_visita.split(',')]
+                                if dia_semana not in dias_actuales:
+                                    dias_actuales.append(dia_semana)
+                                    # Ordenar días
+                                    orden_dias = {'LUNES': 1, 'MARTES': 2, 'MIERCOLES': 3, 'JUEVES': 4, 'VIERNES': 5, 'SABADO': 6, 'DOMINGO': 7}
+                                    dias_actuales.sort(key=lambda d: orden_dias.get(d, 99))
+                                    cliente_ruta.dia_visita = ','.join(dias_actuales)
+                                    cliente_ruta.save()
+                                    print(f"✅ Cliente actualizado: {pedido.destinatario} - Días: {cliente_ruta.dia_visita}")
+                                else:
+                                    print(f"ℹ️ Cliente ya existe: {pedido.destinatario}")
+                            else:
+                                # Crear nuevo cliente en ruta
+                                ultimo_orden = ClienteRuta.objects.filter(ruta=ruta).aggregate(
+                                    models.Max('orden')
+                                )['orden__max'] or 0
+                                
+                                ClienteRuta.objects.create(
+                                    ruta=ruta,
+                                    nombre_negocio=pedido.destinatario,
+                                    nombre_contacto=pedido.destinatario,
+                                    direccion=pedido.direccion_entrega or '',
+                                    telefono=pedido.telefono_contacto or '',
+                                    tipo_negocio=f"Cliente | PEDIDOS",  # 🔥 MARCAR ORIGEN COMO PEDIDOS
+                                    dia_visita=dia_semana,
+                                    orden=ultimo_orden + 1,
+                                    activo=True,
+                                    nota=f"Pedido #{pedido.numero_pedido}"
+                                )
+                                print(f"✅ Cliente creado en ruta: {pedido.destinatario} - Día: {dia_semana} - ORIGEN: PEDIDOS")
+                        else:
+                            print(f"⚠️ No se encontró ruta activa para el vendedor {pedido.asignado_a_id}")
+                    else:
+                        print(f"⚠️ No se encontró vendedor con ID {pedido.asignado_a_id}")
+                        
+                except Exception as e:
+                    print(f"❌ Error creando cliente en ruta: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # ===== 6. ACTUALIZAR CARGUE SI ESTÁ ASIGNADO A VENDEDOR =====
             if pedido.asignado_a_tipo == 'VENDEDOR' and pedido.asignado_a_id and pedido.fecha_entrega:
                 print(f"\n💼 ACTUALIZANDO CARGUE DEL VENDEDOR")
                 print(f"{'='*60}")
@@ -939,9 +1027,50 @@ class RutaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ClienteRutaSerializer(serializers.ModelSerializer):
+    lista_precio_nombre = serializers.SerializerMethodField()
+
     class Meta:
         model = ClienteRuta
         fields = '__all__'
+
+    def create(self, validated_data):
+        # ⚡ Calcular orden automáticamente si no se proporciona
+        if 'orden' not in validated_data or validated_data.get('orden') is None:
+            ruta = validated_data.get('ruta')
+            if ruta:
+                # Obtener el máximo orden actual de la ruta
+                max_orden = ClienteRuta.objects.filter(ruta=ruta).aggregate(
+                    models.Max('orden')
+                )['orden__max']
+                validated_data['orden'] = (max_orden or 0) + 1
+            else:
+                validated_data['orden'] = 999
+        
+        return super().create(validated_data)
+
+    def get_lista_precio_nombre(self, obj):
+        """Buscar si este cliente tiene una lista de precios asignada en el sistema administrativo"""
+        try:
+            from django.db.models import Q
+            from .models import Cliente
+            
+            # Normalizar nombre para búsqueda
+            nombre_busqueda = obj.nombre_negocio.strip()
+            
+            # Buscar coincidencia exacta o parcial en nombre, contacto o alias
+            cliente_admin = Cliente.objects.filter(
+                Q(nombre_completo__iexact=nombre_busqueda) |
+                Q(contacto__iexact=nombre_busqueda) |
+                Q(alias__iexact=nombre_busqueda) |
+                Q(nombre_completo__icontains=nombre_busqueda)
+            ).first()
+            
+            if cliente_admin and cliente_admin.tipo_lista_precio:
+                return cliente_admin.tipo_lista_precio
+                
+        except Exception:
+            pass
+        return None
 
 class EvidenciaVentaSerializer(serializers.ModelSerializer):
     class Meta:

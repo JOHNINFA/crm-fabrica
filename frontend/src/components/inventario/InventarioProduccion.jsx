@@ -586,22 +586,32 @@ const InventarioProduccion = () => {
         localStorage.setItem(fechaKey, JSON.stringify(datosActualizados));
       }
 
-      // Actualizar stock en BD
+      // Actualizar stock en BD usando MovimientoInventario
       try {
-        const responsePatch = await fetch(
-          `${API_URL}/productos/${id}/`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stock_total: nuevasExistencias }),
-          }
-        );
+        const movimientoData = {
+          producto: id,
+          tipo: diferenciaCantidad > 0 ? 'ENTRADA' : 'SALIDA',
+          cantidad: Math.abs(diferenciaCantidad),
+          usuario: usuario,
+          nota: `Edición Producción: ${cantidadOriginal}→${nuevaCantidadProduccion} - ${motivo || "No especificado"}`
+        };
 
-        if (!responsePatch.ok) {
-          throw new Error(`Error al actualizar stock: ${responsePatch.status}`);
+        const responseMovimiento = await fetch(`${API_URL}/movimientos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(movimientoData)
+        });
+
+        if (!responseMovimiento.ok) {
+          const errorText = await responseMovimiento.text();
+          throw new Error(
+            `Error al crear movimiento: ${responseMovimiento.status} - ${errorText}`
+          );
         }
+
+        console.log(`✅ Movimiento AJUSTE creado: ${productoEditado.nombre} ${diferenciaCantidad > 0 ? '+' : ''}${diferenciaCantidad}`);
       } catch (error) {
-        console.error("Error al actualizar stock en BD:", error);
+        console.error("Error al crear movimiento de inventario:", error);
       }
 
       // Sincronizar con POS
@@ -1079,43 +1089,36 @@ const InventarioProduccion = () => {
       }
     }
 
-    // 🔧 CORREGIDO: Actualizar stock en api_producto
+    // 🔥 NUEVO: Crear MovimientoInventario ENTRADA (actualiza stock automáticamente)
     for (const producto of productosConCantidad) {
       try {
-        // Obtener el stock actual directamente de la base de datos
-        const responseGet = await fetch(
-          `/api/productos/${producto.id}/`
-        );
-        if (!responseGet.ok) {
-          throw new Error(`Error al obtener producto: ${responseGet.status}`);
-        }
-
-        const productoBD = await responseGet.json();
-        const stockBD = parseInt(productoBD.stock_total) || 0;
         const cantidadAAgregar = parseInt(producto.cantidad) || 0;
-        const stockActual = stockBD + cantidadAAgregar;
 
+        // Crear movimiento de inventario tipo ENTRADA
+        const movimientoData = {
+          producto: producto.id,
+          tipo: 'ENTRADA',
+          cantidad: cantidadAAgregar,
+          usuario: usuario,
+          nota: `Producción - ${fechaProduccion}`
+        };
 
+        const responseMovimiento = await fetch(`${API_URL}/movimientos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(movimientoData)
+        });
 
-        // Actualizar el stock en la base de datos
-        const responsePatch = await fetch(
-          `/api/productos/${producto.id}/`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stock_total: stockActual }),
-          }
-        );
-
-        if (!responsePatch.ok) {
-          const errorText = await responsePatch.text();
+        if (!responseMovimiento.ok) {
+          const errorText = await responseMovimiento.text();
           throw new Error(
-            `Error al actualizar stock: ${responsePatch.status} - ${errorText}`
+            `Error al crear movimiento: ${responseMovimiento.status} - ${errorText}`
           );
         }
-        // Stock actualizado correctamente con PATCH - No llamar a updateStock para evitar doble suma
+
+        console.log(`✅ Movimiento ENTRADA creado: ${producto.nombre} +${cantidadAAgregar}`);
       } catch (error) {
-        console.error("Error al actualizar stock:", error);
+        console.error("Error al crear movimiento de inventario:", error);
         // Intentar actualizar usando el servicio de API como fallback
         try {
           await productoService.updateStock(

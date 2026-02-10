@@ -15,7 +15,7 @@ from .views import (
     RegistrosPlaneacionDiaViewSet,
     CarguePagosViewSet, RutaOrdenViewSet, ReportePlaneacionViewSet,
     obtener_estado_cargue, actualizar_estado_cargue,
-    CargueResumenViewSet,
+    CargueResumenViewSet, TipoNegocioViewSet,
     # 🆕 Endpoints de turno
     verificar_turno_activo, abrir_turno, cerrar_turno_estado,
     # 🆕 Configuración de producción
@@ -55,6 +55,7 @@ router.register(r'stock', StockViewSet, basename='stock')
 router.register(r'ventas', VentaViewSet, basename='ventas')
 router.register(r'pedidos', PedidoViewSet, basename='pedidos')
 router.register(r'clientes', ClienteViewSet, basename='clientes')
+router.register(r'tipos-negocio', TipoNegocioViewSet, basename='tipos-negocio')
 router.register(r'productos-frecuentes', ProductosFrecuentesViewSet, basename='productos-frecuentes')
 router.register(r'lista-precios', ListaPrecioViewSet, basename='lista-precios')
 router.register(r'precio-productos', PrecioProductoViewSet, basename='precio-productos')

@@ -308,9 +308,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
         console.log(`🔍 Verificación automática - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
 
-        // 🆕 LÓGICA AUTOMÁTICA: Si está en ALISTAMIENTO_ACTIVO y todos están listos, pasar a DESPACHO
-        if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.pendientes.length === 0 && resultado.listos.length > 0) {
-          console.log(`✅ Todos los productos listos - Cambiando automáticamente de ALISTAMIENTO_ACTIVO a DESPACHO`);
+        // 🆕 LÓGICA FLEXIBLE: Si está en ALISTAMIENTO_ACTIVO y HAY AL MENOS 1 PRODUCTO LISTO, pasar a DESPACHO
+        if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.listos.length > 0) {
+          console.log(`✅ Al menos 1 producto listo (${resultado.listos.length} listos, ${resultado.pendientes.length} pendientes) - Cambiando automáticamente de ALISTAMIENTO_ACTIVO a DESPACHO`);
           const nuevoEstado = 'DESPACHO';
           setEstado(nuevoEstado);
           localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, nuevoEstado);
@@ -356,9 +356,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       console.log(`⚡ Verificación inmediata - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
 
-      // 🆕 LÓGICA AUTOMÁTICA: Si está en ALISTAMIENTO_ACTIVO y todos están listos, cambiar a DESPACHO
-      if (resultado.pendientes.length === 0 && resultado.listos.length > 0) {
-        console.log(`✅ Todos los productos listos - Cambiando automáticamente de ALISTAMIENTO_ACTIVO a DESPACHO`);
+      // 🆕 LÓGICA FLEXIBLE: Si HAY AL MENOS 1 PRODUCTO LISTO, cambiar a DESPACHO
+      if (resultado.listos.length > 0) {
+        console.log(`✅ Al menos 1 producto listo (${resultado.listos.length} listos, ${resultado.pendientes.length} pendientes) - Cambiando automáticamente de ALISTAMIENTO_ACTIVO a DESPACHO`);
         const nuevoEstado = 'DESPACHO';
         setEstado(nuevoEstado);
         localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, nuevoEstado);

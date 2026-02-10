@@ -153,8 +153,6 @@ const TablaKardex = () => {
 
   // 🚀 CARGA DIRECTA DESDE BACKEND (SIN CACHE)
   useEffect(() => {
-
-
     // Cargar inmediatamente desde servidor
     cargarMovimientosFromBD();
 
@@ -167,6 +165,23 @@ const TablaKardex = () => {
       clearInterval(interval);
     };
   }, [fechaSeleccionada]);
+
+  // 🔄 NUEVO: Escuchar eventos de actualización de inventario
+  useEffect(() => {
+    const handleInventarioActualizado = (event) => {
+      console.log('📢 Kardex: Evento inventarioActualizado recibido', event.detail);
+      // Recargar movimientos inmediatamente
+      cargarMovimientosFromBD();
+    };
+
+    // Agregar listener
+    window.addEventListener('inventarioActualizado', handleInventarioActualizado);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('inventarioActualizado', handleInventarioActualizado);
+    };
+  }, []); // Solo se ejecuta al montar/desmontar
 
   const handleDateSelect = (date) => {
     setFechaSeleccionada(date);

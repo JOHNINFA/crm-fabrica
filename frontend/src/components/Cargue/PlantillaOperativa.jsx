@@ -330,7 +330,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             venta: 0,
             totalEfectivo: 0,
             nequi: 0,
-            daviplata: 0
+            daviplata: 0,
+            novedad: null  // 🆕 Novedad de precios especiales
         };
     });
 
@@ -345,6 +346,21 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             console.error('Error guardando caché resumen:', e);
         }
     }, [datosResumen, dia, idSheet, fechaFormateadaLS]);
+
+    // 🆕 Cargar novedad de precios especiales desde localStorage
+    useEffect(() => {
+        try {
+            const novedadKey = `novedad_precios_${idSheet}_${fechaFormateadaLS}`;
+            const novedadGuardada = localStorage.getItem(novedadKey);
+
+            if (novedadGuardada) {
+                console.log(`📝 Novedad cargada: ${novedadGuardada}`);
+                setDatosResumen(prev => ({ ...prev, novedad: novedadGuardada }));
+            }
+        } catch (e) {
+            console.error('Error cargando novedad:', e);
+        }
+    }, [idSheet, fechaFormateadaLS]);
 
     // 🚀 NUEVA FUNCIÓN: Cargar pedidos del vendedor
     const cargarPedidosVendedor = async (fecha, idVendedor) => {
@@ -362,15 +378,15 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 fechaFormateada = fecha;
             }
 
-            // 1. Cargar PEDIDOS
-            const responsePedidos = await fetch(`${API_URL}/pedidos/`);
+            // 1. Cargar PEDIDOS (🔥 OPTIMIZADO: Con filtros en la URL)
+            const responsePedidos = await fetch(`${API_URL}/pedidos/?fecha_entrega=${fechaFormateada}`);
             let pedidos = [];
             if (responsePedidos.ok) {
                 pedidos = await responsePedidos.json();
             }
 
-            // 2. Cargar VENTAS NORMALES (Ruta)
-            const responseVentas = await fetch(`${API_URL}/ventas-ruta/`);
+            // 2. Cargar VENTAS NORMALES (Ruta) (🔥 OPTIMIZADO: Con filtros en la URL)
+            const responseVentas = await fetch(`${API_URL}/ventas-ruta/?fecha=${fechaFormateada}`);
             let ventas = [];
             if (responseVentas.ok) {
                 ventas = await responseVentas.json();
@@ -1274,8 +1290,48 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         cambioManualRef.current = true;
         console.log(`✏️ ${idSheet} - Cambio manual detectado en campo: ${campo}`);
 
+        // 🆕 FIX: Actualizar localStorage INMEDIATAMENTE para checks (vendedor/despachador)
+        // Esto evita que el polling sobrescriba los checks marcados
+        // IMPORTANTE: Esto se ejecuta ANTES de cualquier otra lógica
+        if (campo === 'vendedor' || campo === 'despachador') {
+            try {
+                const key = `cargue_${dia}_${idSheet}_${fechaFormateadaLS}`;
+                const datosActuales = localStorage.getItem(key);
 
+                console.log(`🔍 FIX CHECKS - Key: ${key}`);
+                console.log(`🔍 FIX CHECKS - Campo: ${campo}, Valor: ${valor}`);
+                console.log(`🔍 FIX CHECKS - Producto ID: ${id}`);
 
+                if (datosActuales) {
+                    const datos = JSON.parse(datosActuales);
+
+                    if (datos.productos) {
+                        const productoEncontrado = datos.productos.find(p => p.id === id);
+
+                        if (productoEncontrado) {
+                            console.log(`🔍 FIX CHECKS - Producto encontrado: ${productoEncontrado.producto}`);
+                            console.log(`🔍 FIX CHECKS - Valor anterior: ${productoEncontrado[campo]}`);
+                        }
+
+                        datos.productos = datos.productos.map(p => {
+                            if (p.id === id) {
+                                return { ...p, [campo]: valor };
+                            }
+                            return p;
+                        });
+
+                        localStorage.setItem(key, JSON.stringify(datos));
+                        console.log(`✅ LocalStorage actualizado: Producto ID ${id}.${campo} = ${valor}`);
+                    } else {
+                        console.warn(`⚠️ FIX CHECKS - No hay productos en localStorage`);
+                    }
+                } else {
+                    console.warn(`⚠️ FIX CHECKS - No se encontró datos en localStorage con key: ${key}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error actualizando localStorage:`, error);
+            }
+        }
 
         // Verificar estado del botón para actualización en tiempo real
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
@@ -1445,13 +1501,14 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valorParaBD} (${result.action})`);
                     } else {
                         console.error(`❌ Error sincronizando BD:`, result.error);
+                        console.error(`❌ Error en sincronización:`, result.error);
                     }
                 }).catch(err => {
                     console.error(`❌ Error en sincronización:`, err);
                 });
             }, debounceTime);
         }
-    };
+    }
 
     // 🚀 NUEVA FUNCIÓN: Actualizar inventario basado en cambio de TOTAL
     const actualizarInventarioPorTOTAL = async (productoId, diferenciaTOTAL) => {

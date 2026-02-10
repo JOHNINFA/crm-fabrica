@@ -9,6 +9,59 @@ import './ClientesScreen.css';
 // Días de la semana
 const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 
+// 🆕 Departamentos y ciudades de Colombia
+const DEPARTAMENTOS_CIUDADES = {
+  'CUNDINAMARCA': [
+    'BOGOTÁ', 'SOACHA', 'FACATATIVÁ', 'ZIPAQUIRÁ', 'CHÍA', 'MOSQUERA', 'FUSAGASUGÁ',
+    'MADRID', 'FUNZA', 'CAJICÁ', 'SIBATÉ', 'TOCANCIPÁ', 'GIRARDOT', 'COTA', 'LA CALERA',
+    'SOPÓ', 'TENJO', 'TABIO', 'SUBACHOQUE', 'EL ROSAL', 'BOJACÁ', 'ARBELÁEZ',
+    'ANAPOIMA', 'ANOLAIMA', 'APULO', 'BELTRÁN', 'BITUIMA', 'CABRERA', 'CACHIPAY',
+    'CAPARRAPÍ', 'CÁQUEZA', 'CARMEN DE CARUPA', 'CHAGUANÍ', 'CHIPAQUE', 'CHOACHÍ',
+    'CHOCONTÁ', 'COGUA', 'CUCUNUBÁ', 'EL COLEGIO', 'EL PEÑÓN', 'EL ROSAL', 'FÓMEQUE',
+    'FOSCA', 'GACHALÁ', 'GACHANCIPÁ', 'GACHETÁ', 'GAMA', 'GRANADA', 'GUACHETÁ',
+    'GUADUAS', 'GUASCA', 'GUATAQUÍ', 'GUATAVITA', 'GUAYABAL DE SÍQUIMA', 'GUAYABETAL',
+    'GUTIÉRREZ', 'JERUSALÉN', 'JUNÍN', 'LA MESA', 'LA PALMA', 'LA PEÑA', 'LA VEGA',
+    'LENGUAZAQUE', 'MACHETÁ', 'MANTA', 'MEDINA', 'NARIÑO', 'NEMOCÓN', 'NILO',
+    'NIMAIMA', 'NOCAIMA', 'PACHO', 'PAIME', 'PANDI', 'PARATEBUENO', 'PASCA',
+    'PUERTO SALGAR', 'PULÍ', 'QUEBRADANEGRA', 'QUETAME', 'QUIPILE', 'RICAURTE',
+    'SAN ANTONIO DEL TEQUENDAMA', 'SAN BERNARDO', 'SAN CAYETANO', 'SAN FRANCISCO',
+    'SAN JUAN DE RIOSECO', 'SASAIMA', 'SESQUILÉ', 'SILVANIA', 'SIMIJACA', 'SUSA',
+    'SUTATAUSA', 'SUESCA', 'SUPATA', 'SUSA', 'SUTATAUSA', 'TABIO', 'TAUSA',
+    'TENA', 'TENJO', 'TIBACUY', 'TIBIRITA', 'TOCAIMA', 'TOCANCIPÁ', 'TOPAIPÍ',
+    'UBALÁ', 'UBAQUE', 'UBATÉ', 'UNE', 'ÚTICA', 'VENECIA', 'VERGARA', 'VIANÍ',
+    'VILLAGÓMEZ', 'VILLAPINZÓN', 'VILLETA', 'VIOTÁ', 'YACOPÍ', 'ZIPACÓN'
+  ],
+  'ANTIOQUIA': ['MEDELLÍN', 'BELLO', 'ITAGÜÍ', 'ENVIGADO', 'APARTADÓ', 'TURBO', 'RIONEGRO', 'SABANETA', 'CALDAS', 'LA ESTRELLA'],
+  'VALLE DEL CAUCA': ['CALI', 'PALMIRA', 'BUENAVENTURA', 'TULUÁ', 'CARTAGO', 'BUGA', 'JAMUNDÍ', 'YUMBO'],
+  'ATLÁNTICO': ['BARRANQUILLA', 'SOLEDAD', 'MALAMBO', 'SABANALARGA', 'PUERTO COLOMBIA'],
+  'SANTANDER': ['BUCARAMANGA', 'FLORIDABLANCA', 'GIRÓN', 'PIEDECUESTA', 'BARRANCABERMEJA', 'SAN GIL'],
+  'BOLÍVAR': ['CARTAGENA', 'MAGANGUÉ', 'TURBACO', 'ARJONA'],
+  'NORTE DE SANTANDER': ['CÚCUTA', 'OCAÑA', 'PAMPLONA', 'VILLA DEL ROSARIO'],
+  'TOLIMA': ['IBAGUÉ', 'ESPINAL', 'MELGAR', 'HONDA'],
+  'HUILA': ['NEIVA', 'PITALITO', 'GARZÓN', 'LA PLATA'],
+  'RISARALDA': ['PEREIRA', 'DOSQUEBRADAS', 'SANTA ROSA DE CABAL'],
+  'QUINDÍO': ['ARMENIA', 'CALARCÁ', 'LA TEBAIDA', 'MONTENEGRO'],
+  'CALDAS': ['MANIZALES', 'VILLAMARÍA', 'CHINCHINÁ'],
+  'CAUCA': ['POPAYÁN', 'SANTANDER DE QUILICHAO', 'PUERTO TEJADA'],
+  'NARIÑO': ['PASTO', 'TUMACO', 'IPIALES'],
+  'MAGDALENA': ['SANTA MARTA', 'CIÉNAGA', 'FUNDACIÓN'],
+  'CÓRDOBA': ['MONTERÍA', 'CERETÉ', 'LORICA', 'SAHAGÚN'],
+  'CESAR': ['VALLEDUPAR', 'AGUACHICA', 'BOSCONIA'],
+  'SUCRE': ['SINCELEJO', 'COROZAL', 'SAN MARCOS'],
+  'LA GUAJIRA': ['RIOHACHA', 'MAICAO', 'URIBIA'],
+  'META': ['VILLAVICENCIO', 'ACACÍAS', 'GRANADA'],
+  'BOYACÁ': ['TUNJA', 'DUITAMA', 'SOGAMOSO', 'CHIQUINQUIRÁ'],
+  'CASANARE': ['YOPAL', 'AGUAZUL', 'VILLANUEVA'],
+  'ARAUCA': ['ARAUCA', 'TAME', 'SARAVENA'],
+  'CAQUETÁ': ['FLORENCIA', 'SAN VICENTE DEL CAGUÁN'],
+  'PUTUMAYO': ['MOCOA', 'PUERTO ASÍS'],
+  'AMAZONAS': ['LETICIA'],
+  'GUAINÍA': ['INÍRIDA'],
+  'GUAVIARE': ['SAN JOSÉ DEL GUAVIARE'],
+  'VAUPÉS': ['MITÚ'],
+  'VICHADA': ['PUERTO CARREÑO']
+};
+
 const ClientesScreen = () => {
   usePageTitle('Cliente');
   const navigate = useNavigate();
@@ -22,17 +75,21 @@ const ClientesScreen = () => {
   const [listaPrecios, setListaPrecios] = useState([]);
   const [rutas, setRutas] = useState([]);
 
+  // 🆕 Tipos de negocio (cargados desde la API)
+  const [tiposNegocio, setTiposNegocio] = useState([]);
+
   // Datos del cliente
   const [clienteData, setClienteData] = useState({
     tipo_identificacion: 'CC',
     identificacion: '',
     nombre_completo: '', // Nombre del contacto
     alias: '', // Nombre del negocio
+    tipo_negocio: '', // 🆕 Tipo de negocio
     movil: '',
     direccion: '',
     dia_entrega: '',
     medio_pago_defecto: 'EFECTIVO',
-    departamento: '',
+    departamento: 'CUNDINAMARCA', // 🆕 Por defecto
     ciudad: '',
     vendedor_asignado: '',
     zona_barrio: '', // Usaremos para la ruta
@@ -52,21 +109,31 @@ const ClientesScreen = () => {
   const cargarDatosIniciales = async () => {
     try {
       // Cargar vendedores
-      const resVendedores = await fetch(`${API_URL}/vendedores/`);
-      if (resVendedores.ok) {
-        setVendedores(await resVendedores.json());
+      const vendedoresRes = await fetch(`${API_URL}/vendedores/`);
+      if (vendedoresRes.ok) {
+        const vendedoresData = await vendedoresRes.json();
+        setVendedores(vendedoresData);
       }
 
-      // Cargar lista de precios
-      const resPrecios = await fetch(`${API_URL}/lista-precios/?activo=true`);
-      if (resPrecios.ok) {
-        setListaPrecios(await resPrecios.json());
+      // Cargar listas de precios
+      const listasRes = await fetch(`${API_URL}/lista-precios/`);
+      if (listasRes.ok) {
+        const listasData = await listasRes.json();
+        setListaPrecios(listasData);
       }
 
       // Cargar rutas
-      const resRutas = await fetch(`${API_URL}/rutas/`);
-      if (resRutas.ok) {
-        setRutas(await resRutas.json());
+      const rutasRes = await fetch(`${API_URL}/rutas/`);
+      if (rutasRes.ok) {
+        const rutasData = await rutasRes.json();
+        setRutas(rutasData);
+      }
+
+      // 🆕 Cargar tipos de negocio
+      const tiposRes = await fetch(`${API_URL}/tipos-negocio/`);
+      if (tiposRes.ok) {
+        const tiposData = await tiposRes.json();
+        setTiposNegocio(tiposData.map(t => t.nombre).sort());
       }
     } catch (error) {
       console.error('Error cargando datos iniciales:', error);
@@ -78,6 +145,10 @@ const ClientesScreen = () => {
       setLoading(true);
       const cliente = await clienteService.getById(clienteId);
       if (cliente && !cliente.error) {
+        // Si no tiene departamento, usar CUNDINAMARCA por defecto
+        if (!cliente.departamento) {
+          cliente.departamento = 'CUNDINAMARCA';
+        }
         setClienteData(cliente);
       }
     } catch (error) {
@@ -191,7 +262,7 @@ const ClientesScreen = () => {
                       type="text"
                       className="form-control"
                       value={clienteData.identificacion || ''}
-                      onChange={(e) => handleChange('identificacion', e.target.value)}
+                      onChange={(e) => handleChange('identificacion', e.target.value.toUpperCase())}
                       placeholder="Ej: 123456789"
                     />
                   </div>
@@ -203,7 +274,7 @@ const ClientesScreen = () => {
                       type="text"
                       className="form-control"
                       value={clienteData.nombre_completo || ''}
-                      onChange={(e) => handleChange('nombre_completo', e.target.value)}
+                      onChange={(e) => handleChange('nombre_completo', e.target.value.toUpperCase())}
                       placeholder="Ej: Juan Pérez"
                     />
                   </div>
@@ -215,9 +286,52 @@ const ClientesScreen = () => {
                       type="text"
                       className="form-control"
                       value={clienteData.alias || ''}
-                      onChange={(e) => handleChange('alias', e.target.value)}
+                      onChange={(e) => handleChange('alias', e.target.value.toUpperCase())}
                       placeholder="Ej: Tienda El Sol"
                     />
+                  </div>
+
+                  {/* Tipo de Negocio */}
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Tipo de Negocio</label>
+                    <select
+                      className="form-select"
+                      value={clienteData.tipo_negocio || ''}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        if (valor === 'OTRO') {
+                          // Mostrar prompt para agregar nuevo tipo
+                          const nuevoTipo = prompt('Ingrese el nuevo tipo de negocio:');
+                          if (nuevoTipo && nuevoTipo.trim()) {
+                            const tipoMayusculas = nuevoTipo.trim().toUpperCase();
+                            // Guardar en la BD
+                            fetch(`${API_URL}/tipos-negocio/`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ nombre: tipoMayusculas, activo: true })
+                            })
+                              .then(res => res.json())
+                              .then(() => {
+                                // Recargar tipos desde la BD
+                                fetch(`${API_URL}/tipos-negocio/`)
+                                  .then(res => res.json())
+                                  .then(data => setTiposNegocio(data.map(t => t.nombre).sort()));
+                              })
+                              .catch(err => console.error('Error guardando tipo:', err));
+
+                            handleChange('tipo_negocio', tipoMayusculas);
+                          }
+                        } else {
+                          handleChange('tipo_negocio', valor);
+                        }
+                      }}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {tiposNegocio.map(tipo => (
+                        <option key={tipo} value={tipo}>{tipo}</option>
+                      ))}
+                      <option value="OTRO">➕ Agregar Otro...</option>
+                    </select>
                   </div>
 
                   {/* Celular */}
@@ -255,7 +369,7 @@ const ClientesScreen = () => {
                       type="text"
                       className="form-control"
                       value={clienteData.direccion || ''}
-                      onChange={(e) => handleChange('direccion', e.target.value)}
+                      onChange={(e) => handleChange('direccion', e.target.value.toUpperCase())}
                       placeholder="Ej: Calle 123 #45-67, Barrio Centro"
                     />
                   </div>
@@ -263,24 +377,37 @@ const ClientesScreen = () => {
                   {/* Departamento y Ciudad */}
                   <div className="col-md-3">
                     <label className="form-label fw-semibold">Departamento</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={clienteData.departamento || ''}
-                      onChange={(e) => handleChange('departamento', e.target.value)}
-                      placeholder="Ej: Cundinamarca"
-                    />
+                    <select
+                      className="form-select"
+                      value={clienteData.departamento || 'CUNDINAMARCA'}
+                      onChange={(e) => {
+                        handleChange('departamento', e.target.value);
+                        // Limpiar ciudad al cambiar departamento
+                        handleChange('ciudad', '');
+                      }}
+                    >
+                      {Object.keys(DEPARTAMENTOS_CIUDADES).map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="col-md-3">
                     <label className="form-label fw-semibold">Ciudad</label>
-                    <input
-                      type="text"
-                      className="form-control"
+                    <select
+                      className="form-select"
                       value={clienteData.ciudad || ''}
                       onChange={(e) => handleChange('ciudad', e.target.value)}
-                      placeholder="Ej: Bogotá"
-                    />
+                    >
+                      <option value="">Seleccionar...</option>
+                      {(() => {
+                        const dept = clienteData.departamento || 'CUNDINAMARCA';
+                        const ciudades = DEPARTAMENTOS_CIUDADES[dept] || [];
+                        return ciudades.map(ciudad => (
+                          <option key={ciudad} value={ciudad}>{ciudad}</option>
+                        ));
+                      })()}
+                    </select>
                   </div>
 
                   {/* Vendedor */}

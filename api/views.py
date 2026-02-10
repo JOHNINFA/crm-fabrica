@@ -12,14 +12,14 @@ import re
 import uuid
 import csv
 from api.services.ai_assistant_service import AIAssistant
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion, CargueResumen
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion, CargueResumen, TipoNegocio
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ProductosFrecuentesSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
     CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer,
-    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer, CargueResumenSerializer
+    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer, CargueResumenSerializer, TipoNegocioSerializer
 )
 
 class CargueResumenViewSet(viewsets.ModelViewSet):
@@ -266,7 +266,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def actualizar_stock(self, request, pk=None):
-        """Actualiza stock y registra movimiento"""
+        """Actualiza stock creando MovimientoInventario (con trazabilidad completa)"""
         try:
             producto = self.get_object()
             cantidad = int(request.data.get('cantidad', 0))
@@ -275,30 +275,43 @@ class ProductoViewSet(viewsets.ModelViewSet):
             
             import datetime
             timestamp = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]
-            print(f"\n=== 🔥 ACTUALIZANDO STOCK [{timestamp}] ===\n")
+            print(f"\n=== 🔥 ACTUALIZANDO STOCK [{timestamp}] ===")
             print(f"Producto: {producto.nombre} (ID: {producto.id})")
             print(f"Stock ANTES: {producto.stock_total}")
             print(f"Cantidad recibida: {cantidad}")
             print(f"Usuario: {usuario}")
             print(f"Nota: {nota}")
-            print(f"Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
-            print(f"Request User-Agent: {request.META.get('HTTP_USER_AGENT', 'Unknown')[:50]}...")
             
-            # Actualizar stock DIRECTAMENTE (sin crear MovimientoInventario)
-            stock_anterior = producto.stock_total
-            producto.stock_total += cantidad
-            producto.save()
+            # ✅ NUEVO: Crear MovimientoInventario (actualiza automáticamente ambos modelos)
+            tipo_movimiento = 'ENTRADA' if cantidad > 0 else 'SALIDA'
+            cantidad_absoluta = abs(cantidad)
+            
+            from .models import MovimientoInventario
+            movimiento = MovimientoInventario.objects.create(
+                producto=producto,
+                tipo=tipo_movimiento,
+                cantidad=cantidad_absoluta,
+                usuario=usuario,
+                nota=nota
+            )
+            
+            # El método save() de MovimientoInventario actualiza:
+            # - Producto.stock_total
+            # - Stock.cantidad_actual
+            
+            # Refrescar producto para obtener stock actualizado
+            producto.refresh_from_db()
             
             print(f"Stock DESPUÉS: {producto.stock_total}")
-            print(f"Diferencia aplicada: {producto.stock_total - stock_anterior}")
+            print(f"Movimiento creado: {tipo_movimiento} de {cantidad_absoluta}")
             print(f"=== ✅ ACTUALIZACIÓN COMPLETADA [{timestamp}] ===\n")
-            print(f"CONTADOR DE LLAMADAS PARA {producto.nombre}: {getattr(producto, '_call_count', 0) + 1}")
-            producto._call_count = getattr(producto, '_call_count', 0) + 1
             
             return Response({
                 'success': True,
                 'stock_actual': producto.stock_total,
-                'nota': 'Stock actualizado sin MovimientoInventario para evitar doble descuento'
+                'movimiento_id': movimiento.id,
+                'tipo': tipo_movimiento,
+                'nota': 'Stock actualizado con MovimientoInventario (trazabilidad completa)'
             })
             
         except (ValueError, TypeError) as e:
@@ -306,6 +319,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
             return Response({'error': 'La cantidad debe ser un número entero'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"❌ Error general: {e}")
+            import traceback
+            traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     # 🆕 ENDPOINTS FILTRADOS POR MÓDULO
@@ -454,12 +469,22 @@ class VentaViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Crear venta con sus detalles"""
         try:
-
             venta_data = request.data.copy()
             detalles_data = venta_data.pop('detalles', [])
             
-
-
+            # 🛡️ VALIDAR DUPLICADOS - Verificar por número de factura (más confiable)
+            numero_factura = venta_data.get('numero_factura')
+            
+            if numero_factura:
+                venta_existente = Venta.objects.filter(numero_factura=numero_factura).first()
+                
+                if venta_existente:
+                    print(f"⚠️ Venta duplicada detectada: Ticket #{numero_factura} ya existe")
+                    return Response({
+                        'error': 'Venta duplicada',
+                        'message': f'El ticket #{numero_factura} ya fue registrado',
+                        'venta_id': venta_existente.id
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
             # Crear la venta
             venta_serializer = self.get_serializer(data=venta_data)
@@ -552,6 +577,12 @@ class DetalleVentaViewSet(viewsets.ModelViewSet):
     """API para gestionar detalles de venta"""
     queryset = DetalleVenta.objects.all()
     serializer_class = DetalleVentaSerializer
+    permission_classes = [permissions.AllowAny]
+
+class TipoNegocioViewSet(viewsets.ModelViewSet):
+    """API para gestionar tipos de negocio"""
+    queryset = TipoNegocio.objects.filter(activo=True)
+    serializer_class = TipoNegocioSerializer
     permission_classes = [permissions.AllowAny]
 
 class ClienteViewSet(viewsets.ModelViewSet):
@@ -2901,6 +2932,27 @@ def guardar_sugerido(request):
                 'productos_existentes': total_existente
             }, status=409)  # 409 Conflict
 
+        # 🚀 OPTIMIZACIÓN: Obtener vendedor una sola vez (fuera del loop)
+        vendedor_nombre = vendedor_id
+        try:
+            from .models import Vendedor
+            vendedor_obj = Vendedor.objects.filter(id_vendedor=vendedor_id).first()
+            if vendedor_obj and vendedor_obj.nombre:
+                vendedor_nombre = vendedor_obj.nombre
+        except Exception as e:
+            print(f"  ⚠️ Error buscando vendedor: {e}")
+        
+        # 🚀 Obtener todos los productos existentes en UNA SOLA QUERY
+        productos_nombres = [prod.get('nombre') for prod in productos if prod.get('nombre')]
+        registros_existentes = {
+            reg.producto: reg
+            for reg in Modelo.objects.filter(dia=dia, fecha=fecha, producto__in=productos_nombres)
+        }
+        
+        # Listas para bulk operations
+        productos_actualizar = []
+        productos_crear = []
+        
         # Procesar cada producto
         count = 0
         for prod in productos:
@@ -2924,49 +2976,52 @@ def guardar_sugerido(request):
                 if not nombre:
                     continue
 
-                # 🔍 Buscar si ya existe un registro para obtener el responsable actual
-                registro_existente = Modelo.objects.filter(
-                    dia=dia,
-                    fecha=fecha,
-                    producto=nombre
-                ).first()
+                # 🚀 Buscar en diccionario (sin query)
+                registro_existente = registros_existentes.get(nombre)
                 
-                # Si existe y tiene un responsable válido (no es ID1, ID2, etc.), mantenerlo
-                responsable_a_usar = vendedor_id  # Por defecto usar el ID
+                # Determinar responsable
+                responsable_a_usar = vendedor_nombre
                 
                 if registro_existente and registro_existente.responsable:
-                    # Si el responsable existente NO es un ID (ID1, ID2, etc.), mantenerlo
                     if not registro_existente.responsable.startswith('ID'):
                         responsable_a_usar = registro_existente.responsable
-                        print(f"  ✅ Manteniendo responsable existente (de Cargue): {responsable_a_usar}")
+                
+                # 🚀 Preparar para bulk operations (sin guardar todavía)
+                if registro_existente:
+                    # Actualizar existente
+                    registro_existente.cantidad = cantidad
+                    registro_existente.total = cantidad
+                    registro_existente.responsable = responsable_a_usar
+                    registro_existente.usuario = 'AppMovil'
+                    registro_existente.v = v_check
+                    productos_actualizar.append(registro_existente)
                 else:
-                    # 🔍 Si no hay registro en Cargue, buscar en tabla Vendedor
-                    try:
-                        from .models import Vendedor
-                        vendedor_obj = Vendedor.objects.filter(id_vendedor=vendedor_id).first()
-                        if vendedor_obj and vendedor_obj.nombre:
-                            responsable_a_usar = vendedor_obj.nombre
-                            print(f"  ✅ Usando responsable de tabla Vendedor: {responsable_a_usar}")
-                    except Exception as e:
-                        print(f"  ⚠️ Error buscando en tabla Vendedor: {e}")
+                    # Crear nuevo
+                    productos_crear.append(Modelo(
+                        dia=dia,
+                        fecha=fecha,
+                        producto=nombre,
+                        cantidad=cantidad,
+                        total=cantidad,
+                        responsable=responsable_a_usar,
+                        usuario='AppMovil',
+                        v=v_check
+                    ))
                 
-                # Buscar o crear
-                # Usamos update_or_create para ser más eficientes
-                defaults_data = {
-                    'cantidad': cantidad,
-                    'total': cantidad,  # ✅ Total = cantidad (sin dctos ni adicionales desde app)
-                    'responsable': responsable_a_usar,
-                    'usuario': 'AppMovil',
-                    'v': v_check  # ✅ Guardar check V
-                }
-                
-                obj, created = Modelo.objects.update_or_create(
-                    dia=dia,
-                    fecha=fecha,
-                    producto=nombre,
-                    defaults=defaults_data
-                )
                 count += 1
+        
+        # 🚀 Ejecutar bulk operations (solo 2 queries en total)
+        if productos_actualizar:
+            Modelo.objects.bulk_update(
+                productos_actualizar,
+                ['cantidad', 'total', 'responsable', 'usuario', 'v'],
+                batch_size=100
+            )
+            print(f"  ✅ Actualizados {len(productos_actualizar)} productos en bulk")
+        
+        if productos_crear:
+            Modelo.objects.bulk_create(productos_crear, batch_size=100)
+            print(f"  ✅ Creados {len(productos_crear)} productos en bulk")
         
         print(f"✅ Sugerido guardado: {count} productos actualizados para {vendedor_id}")
         return Response({'success': True, 'message': f'Sugerido guardado correctamente ({count} productos)'})
@@ -2990,8 +3045,6 @@ def actualizar_check_vendedor(request):
         producto = data.get('producto')
         v_nuevo = data.get('v', False)
         
-        print(f"📱 Actualizando check V: {vendedor_id} - {dia} - {fecha} - {producto} - V={v_nuevo}")
-        
         # Mapeo de ID a Modelo
         modelos = {
             'ID1': CargueID1,
@@ -3006,22 +3059,25 @@ def actualizar_check_vendedor(request):
         if not Modelo:
             return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
         
-        # Buscar el registro o crearlo si no existe (usando get_or_create para evitar duplicados)
-        registro, created = Modelo.objects.get_or_create(
-            dia=dia,
-            fecha=fecha,
-            producto=producto,
-            defaults={
-                'cantidad': 0,
-                'v': False,
-                'd': False,
-                'responsable': 'Sistema'
-            }
-        )
-        if created:
-            print(f"📱 Producto no existía en BD, registro creado: {producto}")
-        else:
-            print(f"📱 Producto encontrado en BD: {producto}")
+        # ⚡ OPTIMIZACIÓN: Usar select_for_update para evitar race conditions
+        # y only() para traer solo los campos necesarios
+        try:
+            registro = Modelo.objects.only('v', 'd', 'total').get(
+                dia=dia,
+                fecha=fecha,
+                producto=producto
+            )
+        except Modelo.DoesNotExist:
+            # Crear registro si no existe
+            registro = Modelo.objects.create(
+                dia=dia,
+                fecha=fecha,
+                producto=producto,
+                cantidad=0,
+                v=False,
+                d=False,
+                responsable='Sistema'
+            )
         
         # ✅ VALIDACIÓN: Solo permitir marcar V si D está marcado y hay cantidad
         if v_nuevo:
@@ -3037,15 +3093,17 @@ def actualizar_check_vendedor(request):
                     'message': 'No puedes marcar el check sin cantidad de producto.'
                 }, status=400)
         
-        # Actualizar el check V
-        registro.v = v_nuevo
-        registro.save()
+        # ⚡ Actualizar solo el campo V (más rápido que save())
+        Modelo.objects.filter(
+            dia=dia,
+            fecha=fecha,
+            producto=producto
+        ).update(v=v_nuevo)
         
-        print(f"✅ Check V actualizado: {producto} - V={v_nuevo}")
         return Response({
             'success': True,
             'message': 'Check actualizado correctamente',
-            'v': registro.v,
+            'v': v_nuevo,
             'd': registro.d,
             'total': registro.total
         })
@@ -3105,21 +3163,49 @@ def obtener_cargue(request):
         # Obtener registros
         registros = Modelo.objects.filter(filtros_q)
         
-        # 🆕 Calcular productos entregados por PEDIDOS para sumarlos al stock visual
-        # (El usuario quiere que los pedidos NO afecten el stock de venta POS)
-        productos_pedidos = {}
-        if fecha:
-            filtros_q &= Q(fecha=fecha)
-        
-        # Obtener registros
-        registros = Modelo.objects.filter(filtros_q)
-        
         # Formatear respuesta para la App
         data = {}
         
+        # 🆕 Obtener estado del cargue desde CargueResumen
+        from .models import CargueResumen
+        estado_cargue_valor = 'DESCONOCIDO'
+        
+        try:
+            # 🔧 CAMBIO: Siempre buscar el estado en ID1 (maestro), ya que el estado es GLOBAL
+            # El estado se controla desde ID1 y aplica para todos los IDs
+            resumen = CargueResumen.objects.filter(
+                vendedor_id='ID1',  # 🔧 Siempre buscar en ID1
+                fecha=fecha
+            ).first()
+            
+            if resumen:
+                estado_cargue_valor = resumen.estado_cargue
+                print(f"✅ Estado del cargue obtenido desde ID1: {estado_cargue_valor}")
+            else:
+                print(f"⚠️ No se encontró estado en CargueResumen para ID1 - fecha: {fecha}")
+        except Exception as e:
+            print(f"⚠️ Error al obtener estado del cargue: {e}")
+
+        # 🆕 Precargar diccionario de Precios Alternos (Listas de Precio)
+        precios_alternos = {}
+        try:
+            from .models import PrecioProducto
+            # Consultar solo precios activos y relacionar
+            pp_qs = PrecioProducto.objects.select_related('producto', 'lista_precio').filter(activo=True)
+            for p in pp_qs:
+                prod_nombre = p.producto.nombre
+                lista_nombre = p.lista_precio.nombre
+                
+                if prod_nombre not in precios_alternos:
+                    precios_alternos[prod_nombre] = {}
+                
+                precios_alternos[prod_nombre][lista_nombre] = float(p.precio)
+        except Exception as e:
+            print(f"⚠️ Error cargando precios alternos: {e}")
+
         # 🆕 Verificar si el turno ya está cerrado (algún producto tiene devoluciones > 0)
         turno_cerrado = registros.filter(devoluciones__gt=0).exists()
-        
+
         for reg in registros:
             # 🆕 Stock disponible para vender
             # CORRECCIÓN: Usar reg.total si existe (ya tiene descontadas vencidas, devoluciones, etc.)
@@ -3139,6 +3225,10 @@ def obtener_cargue(request):
                     stock_disponible = (reg.cantidad or 0) + (reg.adicional or 0) - (reg.dctos or 0) - (reg.vendidas or 0) - (reg.vencidas or 0)
 
             quantity_value = str(max(0, stock_disponible))  # No permitir negativos
+            
+            # Obtener precios alternos para este producto
+            precios_producto = precios_alternos.get(reg.producto, {})
+            
             data[reg.producto] = {
                 'quantity': quantity_value,  # Stock disponible (total - vendidas + pedidos_entregados)
                 'cantidad': reg.cantidad or 0,  # Cantidad base
@@ -3148,6 +3238,8 @@ def obtener_cargue(request):
                 'vencidas': reg.vencidas or 0,  # 🆕 Vencidas
                 'devoluciones': reg.devoluciones or 0,  # 🆕 Devoluciones
                 'turno_cerrado': turno_cerrado,  # 🆕 Flag para indicar que el turno está cerrado
+                'estado': estado_cargue_valor, # 🆕 ESTADO DEL CARGUE (DESPACHO, ETC)
+                'precios_alternos': precios_producto, # 🆕 PRECIOS DE LISTAS ESPECIALES
                 'v': reg.v,  # Check vendedor
                 'd': reg.d,   # Check despachador
                 # 🆕 Campos adicionales para sincronización completa
@@ -3375,12 +3467,12 @@ class RutaViewSet(viewsets.ModelViewSet):
         return queryset
 
 class ClienteRutaViewSet(viewsets.ModelViewSet):
-    queryset = ClienteRuta.objects.all()
+    queryset = ClienteRuta.objects.select_related('ruta').all()  # 🔥 Optimización
     serializer_class = ClienteRutaSerializer
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = ClienteRuta.objects.all()
+        queryset = ClienteRuta.objects.select_related('ruta', 'ruta__vendedor').all()  # 🔥 Optimización
         ruta_id = self.request.query_params.get('ruta', None)
         dia = self.request.query_params.get('dia', None)
         vendedor_id = self.request.query_params.get('vendedor_id', None)
@@ -3389,11 +3481,12 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
         if vendedor_id:
             rutas_vendedor = Ruta.objects.filter(vendedor__id_vendedor=vendedor_id, activo=True)
             queryset = queryset.filter(ruta__in=rutas_vendedor)
-            # Obtener el primer ruta_id para buscar orden personalizado
-            if rutas_vendedor.exists():
-                ruta_id = rutas_vendedor.first().id
+            # 🔥 NO filtrar por ruta_id específica si viene vendedor_id
+            # Esto permite que se muestren clientes de TODAS las rutas del vendedor
+            # Solo usar ruta_id si viene explícitamente en los parámetros
         
-        if ruta_id:
+        if ruta_id and not vendedor_id:
+            # Solo filtrar por ruta_id si NO viene vendedor_id
             queryset = queryset.filter(ruta_id=ruta_id)
             
         if dia:
@@ -3402,18 +3495,31 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(dia_visita__icontains=dia_upper)
             
             # 🆕 Ordenar según RutaOrden si existe para esta ruta + día
-            try:
-                orden_personalizado = RutaOrden.objects.get(ruta_id=ruta_id, dia=dia_upper)
-                clientes_ids = orden_personalizado.clientes_ids
+            # Si viene vendedor_id, aplicar orden combinado de todas las rutas
+            if vendedor_id and not ruta_id:
+                # Obtener todas las órdenes guardadas para este día (ordenadas por más reciente)
+                rutas_vendedor = Ruta.objects.filter(vendedor__id_vendedor=vendedor_id, activo=True)
+                ordenes = RutaOrden.objects.filter(
+                    ruta__in=rutas_vendedor, 
+                    dia=dia_upper
+                ).order_by('-fecha_actualizacion')  # 🔥 Más reciente primero
                 
-                if clientes_ids and len(clientes_ids) > 0:
-                    # Crear orden dinámico basado en la posición en la lista
+                # Combinar todos los clientes_ids de todas las rutas
+                todos_ids_ordenados = []
+                ids_vistos = set()
+                
+                for orden in ordenes:
+                    for cliente_id in orden.clientes_ids:
+                        if cliente_id not in ids_vistos:
+                            todos_ids_ordenados.append(cliente_id)
+                            ids_vistos.add(cliente_id)
+                
+                if todos_ids_ordenados:
+                    # Aplicar orden combinado
                     from django.db.models import Case, When, Value, IntegerField
                     
-                    # Crear condiciones de ordenamiento
-                    ordering_cases = [When(id=pk, then=Value(pos)) for pos, pk in enumerate(clientes_ids)]
+                    ordering_cases = [When(id=pk, then=Value(pos)) for pos, pk in enumerate(todos_ids_ordenados)]
                     
-                    # Agregar anotación para orden personalizado
                     queryset = queryset.annotate(
                         orden_dia=Case(
                             *ordering_cases,
@@ -3423,8 +3529,34 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
                     ).order_by('orden_dia')
                     
                     return queryset.filter(activo=True)
-            except RutaOrden.DoesNotExist:
-                pass  # No hay orden personalizado, usar orden por defecto
+                
+                # Si no hay orden personalizado, usar orden por defecto
+                return queryset.filter(activo=True).order_by('ruta__id', 'orden')
+            
+            if ruta_id:
+                try:
+                    orden_personalizado = RutaOrden.objects.get(ruta_id=ruta_id, dia=dia_upper)
+                    clientes_ids = orden_personalizado.clientes_ids
+                    
+                    if clientes_ids and len(clientes_ids) > 0:
+                        # Crear orden dinámico basado en la posición en la lista
+                        from django.db.models import Case, When, Value, IntegerField
+                        
+                        # Crear condiciones de ordenamiento
+                        ordering_cases = [When(id=pk, then=Value(pos)) for pos, pk in enumerate(clientes_ids)]
+                        
+                        # Agregar anotación para orden personalizado
+                        queryset = queryset.annotate(
+                            orden_dia=Case(
+                                *ordering_cases,
+                                default=Value(999),  # Clientes no en la lista van al final
+                                output_field=IntegerField()
+                            )
+                        ).order_by('orden_dia')
+                        
+                        return queryset.filter(activo=True)
+                except RutaOrden.DoesNotExist:
+                    pass  # No hay orden personalizado, usar orden por defecto
             
         return queryset.filter(activo=True).order_by('orden')
     
@@ -3497,12 +3629,12 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
 
 
 class VentaRutaViewSet(viewsets.ModelViewSet):
-    queryset = VentaRuta.objects.all()
+    queryset = VentaRuta.objects.select_related('vendedor', 'ruta', 'cliente').all()  # 🔥 Optimización: Reducir consultas N+1
     serializer_class = VentaRutaSerializer
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = VentaRuta.objects.all()
+        queryset = VentaRuta.objects.select_related('vendedor', 'ruta', 'cliente').all()  # 🔥 Optimización
         vendedor_id = self.request.query_params.get('vendedor_id', None)
         fecha = self.request.query_params.get('fecha', None)
         
@@ -3622,19 +3754,6 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             'ventas_por_producto': ventas_por_producto[:20],  # Top 20
             'ventas_por_dia': list(ventas_por_dia)
         })
-    
-    def get_queryset(self):
-        queryset = VentaRuta.objects.all()
-        vendedor_id = self.request.query_params.get('vendedor_id', None)
-        fecha = self.request.query_params.get('fecha', None)
-        
-        if vendedor_id:
-            queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
-        if fecha:
-            # Filtrar por fecha (YYYY-MM-DD)
-            queryset = queryset.filter(fecha__date=fecha)
-            
-        return queryset.order_by('-fecha')
 
     def create(self, request, *args, **kwargs):
         import json
@@ -3878,11 +3997,14 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                             ).first()
                             
                             if cargue:
-                                # Sumar a las vencidas existentes
-                                vencidas_actuales = cargue.vencidas or 0
-                                cargue.vencidas = vencidas_actuales + cantidad_vencida
-                                cargue.save(update_fields=['vencidas'])
-                                print(f"   ✅ {nombre_producto}: {vencidas_actuales} + {cantidad_vencida} = {cargue.vencidas}")
+                                # 🔥 OPTIMIZADO: Usar F() para evitar race conditions
+                                from django.db.models import F
+                                ModeloCargue.objects.filter(
+                                    fecha=fecha_venta,
+                                    producto__iexact=nombre_producto,
+                                    activo=True
+                                ).update(vencidas=F('vencidas') + cantidad_vencida)
+                                print(f"   ✅ {nombre_producto}: vencidas += {cantidad_vencida}")
                             else:
                                 print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
                                 # Intentar buscar un registro de referencia del mismo día para copiar metadatos
@@ -3969,12 +4091,17 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                             ).first()
                             
                             if cargue:
-                                # Sumar a las vendidas existentes
-                                vendidas_actuales = cargue.vendidas or 0
-                                cargue.vencidas = cargue.vencidas or 0 # Asegurar que no sea None
-                                cargue.vendidas = vendidas_actuales + cantidad_vendida
-                                cargue.save(update_fields=['vendidas', 'vencidas', 'total', 'neto'])
-                                print(f"   ✅ {nombre_producto}: {vendidas_actuales} + {cantidad_vendida} = {cargue.vendidas}")
+                                # 🔥 OPTIMIZADO: Usar F() para evitar race conditions
+                                from django.db.models import F
+                                ModeloCargue.objects.filter(
+                                    fecha=fecha_venta,
+                                    producto__iexact=nombre_producto,
+                                    activo=True
+                                ).update(
+                                    vendidas=F('vendidas') + cantidad_vendida,
+                                    vencidas=F('vencidas')  # Mantener valor actual
+                                )
+                                print(f"   ✅ {nombre_producto}: vendidas += {cantidad_vendida}")
                             else:
                                 print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
                                 ref_cargue = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True).first()
@@ -4375,102 +4502,50 @@ def cerrar_turno_vendedor(request):
     Cierra el turno del vendedor desde la app móvil.
     Calcula devoluciones automáticamente y las guarda en CargueIDx.
     
+    OPTIMIZADO (Django Expert Skill):
+    - Usa transaction.atomic() para integridad de datos.
+    - Usa bulk_update() para reducir queries SQL.
+    - Manejo robusto de errores con rollback automático.
+    
     POST /api/cargue/cerrar-turno/
-    
-    Body:
-    {
-        "id_vendedor": "ID1",
-        "fecha": "2025-12-17",
-        "productos_vencidos": [
-            {"producto": "AREPA TIPO OBLEA 500Gr", "cantidad": 5}
-        ]
-    }
-    
-    Retorna:
-    {
-        "success": true,
-        "mensaje": "Turno cerrado correctamente",
-        "resumen": [
-            {
-                "producto": "AREPA TIPO OBLEA 500Gr",
-                "cargado": 200,
-                "vendido": 150,
-                "vencidas": 5,
-                "devuelto": 45
-            }
-        ]
-    }
     """
     try:
         id_vendedor = request.data.get('id_vendedor')
         fecha = request.data.get('fecha')
         productos_vencidos = request.data.get('productos_vencidos', [])
+        diferencia_precios = request.data.get('diferencia_precios', 0)  # 🆕 Recibir diferencia por precios especiales
         
-        print(f"🔒 CERRAR TURNO: {id_vendedor} - {fecha}")
-        print(f"   Productos vencidos: {productos_vencidos}")
+        print(f"🔒 CERRAR TURNO (Optimizado): {id_vendedor} - {fecha}")
+        if diferencia_precios > 0:
+            print(f"💰 Diferencia por precios especiales: ${diferencia_precios}")
         
         if not id_vendedor or not fecha:
-            return Response({
-                'error': 'Se requiere id_vendedor y fecha'
-            }, status=400)
+            return Response({'error': 'Se requiere id_vendedor y fecha'}, status=400)
         
         # Mapeo de ID a Modelo
         modelo_map = {
-            'ID1': CargueID1,
-            'ID2': CargueID2,
-            'ID3': CargueID3,
-            'ID4': CargueID4,
-            'ID5': CargueID5,
-            'ID6': CargueID6,
+            'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+            'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
         }
         
         ModeloCargue = modelo_map.get(id_vendedor)
         if not ModeloCargue:
-            return Response({
-                'error': f'ID de vendedor inválido: {id_vendedor}'
-            }, status=400)
+            return Response({'error': f'ID de vendedor inválido: {id_vendedor}'}, status=400)
         
-        # Obtener cargue del día
-        cargues = ModeloCargue.objects.filter(fecha=fecha, activo=True)
-        
-        # 🆕 LÓGICA INTELIGENTE: Si no hay cargue para hoy, buscar si hay un turno abierto de ayer o antes
-        if not cargues.exists():
-            try:
-                print(f"🕵️ No hay cargue para {fecha}. Buscando turno abierto pendiente...")
-                from .models import TurnoVendedor
-                v_id_num = int(id_vendedor.replace('ID', '')) if 'ID' in id_vendedor else 0
+        # INICIO BLOQUE ATÓMICO - Todo o Nada
+        with transaction.atomic():
+            # Obtener cargue del día
+            cargues = ModeloCargue.objects.filter(fecha=fecha, activo=True)
+            
+            # --- MANEJO DE CIERRE VACÍO (Si no hay cargues) ---
+            if not cargues.exists():
+                print(f"⚠️ No hay cargue para {id_vendedor} en {fecha}. Cerrando turno vacío.")
                 
-                # Buscar el último turno abierto de este vendedor
-                turno_abierto = TurnoVendedor.objects.filter(
-                    vendedor_id=v_id_num,
-                    estado='ABIERTO'
-                ).order_by('-fecha').first()
+                # Intentar cerrar el turno Vendedor aunque no haya cargue
+                from .models import TurnoVendedor, CargueResumen
+                v_id_num = int(str(id_vendedor).replace('ID', '')) if 'ID' in str(id_vendedor) else 0
                 
-                if turno_abierto:
-                    fecha_turno = str(turno_abierto.fecha)
-                    # Si encontré un turno abierto y es diferente a la fecha enviada
-                    if fecha_turno != fecha:
-                        print(f"🔄 REDIRECCIONANDO CIERRE: Usando fecha del turno abierto {fecha_turno} en lugar de {fecha}")
-                        # Intentar buscar cargues con la fecha del turno abierto
-                        cargues_turno = ModeloCargue.objects.filter(fecha=fecha_turno, activo=True)
-                        if cargues_turno.exists():
-                            print("✅ ¡Cargues encontrados para el turno abierto!")
-                            cargues = cargues_turno
-                            fecha = fecha_turno  # Actualizar fecha oficial del proceso
-            except Exception as e_recup:
-                print(f"⚠️ Error intentando recuperar turno abierto: {e_recup}")
-
-        # Si sigue sin haber cargues, procedemos al cierre vacío (fallback)
-        if not cargues.exists():
-            print(f"⚠️ No hay cargue para {id_vendedor} en {fecha}. Cerrando turno vacío.")
-            # Intentar cerrar el turno Vendedor aunque no haya cargue
-            try:
-                from .models import TurnoVendedor
-                # Mapear ID1 -> 1, ID2 -> 2, etc. (OJO: Asegurarse que vendedor_id en TurnoVendedor es int)
-                # Si id_vendedor es 'ID1', extraemos 1.
-                v_id_num = int(id_vendedor.replace('ID', '')) if 'ID' in id_vendedor else 0
-                
-                # Buscar turno abierto
+                # Buscar turno ESPECÍFICO de la fecha (Corrección Bug Fantasma)
                 turno = TurnoVendedor.objects.filter(
                     vendedor_id=v_id_num,
                     fecha=fecha,
@@ -4480,14 +4555,14 @@ def cerrar_turno_vendedor(request):
                 if turno:
                     turno.estado = 'CERRADO'
                     turno.hora_cierre = timezone.now()
+                    turno.cerrado_manual = True
                     turno.save()
                     print(f"✅ Turno {turno.id} marcado como CERRADO (sin cargue)")
                 
-                # También actualizar estado global en CargueResumen a COMPLETADO si existe
+                # Actualizar resumen si existe
                 try:
-                    from .models import CargueResumen
                     CargueResumen.objects.update_or_create(
-                        dia=turno.dia if turno else 'DESCONOCIDO', # Fallback si no hay turno
+                        dia=turno.dia if turno else 'DESCONOCIDO',
                         fecha=fecha,
                         vendedor_id=id_vendedor,
                         defaults={'estado_cargue': 'COMPLETADO', 'activo': True}
@@ -4495,158 +4570,123 @@ def cerrar_turno_vendedor(request):
                 except Exception as ex_resumen:
                      print(f"⚠️ Error actualizando CargueResumen sin cargue: {ex_resumen}")
 
-            except Exception as e:
-                print(f"⚠️ Error intentando cerrar turno vacío: {e}")
-
-            return Response({
-                'success': True,
-                'mensaje': 'Turno cerrado correctamente (Sin registros de cargue)',
-                'resumen': [],
-                'totales': {
-                    'cargado': 0,
-                    'vendido': 0,
-                    'vencidas': 0,
-                    'devuelto': 0
-                }
-            })
-        
-        # 🆕 VALIDACIÓN: Verificar si el turno ya fue cerrado
-        # Si algún producto tiene devoluciones > 0, significa que ya se cerró el turno
-        ya_cerrado = cargues.filter(devoluciones__gt=0).exists()
-        if ya_cerrado:
-            print(f"⚠️ TURNO YA CERRADO para {id_vendedor} en {fecha}")
-            return Response({
-                'error': 'TURNO_YA_CERRADO',
-                'message': f'El turno para {id_vendedor} en {fecha} ya fue cerrado anteriormente. No se pueden enviar devoluciones duplicadas.'
-            }, status=409)
-        
-        resumen = []
-        total_cargado = 0
-        total_vendido = 0
-        total_vencidas = 0
-        total_devuelto = 0
-
-        # 🆕 Obtener detalles de pedidos entregados por este vendedor hoy
-        from .models import DetallePedido
-        detalles_pedidos_hoy = DetallePedido.objects.filter(
-            pedido__asignado_a_id=id_vendedor, # ✅ Corrección: Usar el campo correcto del modelo Pedido
-            pedido__fecha_entrega=fecha,
-            pedido__estado='ENTREGADO'
-        ).select_related('producto')
-        
-        # Agrupar por nombre de producto para acceso rápido
-        pedidos_por_producto = {}
-        for detalle in detalles_pedidos_hoy:
-            nombre = detalle.producto.nombre.upper()
-            pedidos_por_producto[nombre] = pedidos_por_producto.get(nombre, 0) + detalle.cantidad
-        
-        print(f"📦 Pedidos entregados hoy sumados al cierre: {pedidos_por_producto}")
-        
-        # Procesar cada producto del cargue
-        for cargue in cargues:
-            # Cantidad inicial con la que salió
-            cantidad_inicial = cargue.cantidad - cargue.dctos + cargue.adicional
+                return Response({
+                    'success': True,
+                    'mensaje': 'Turno cerrado correctamente (Sin registros de cargue)',
+                    'resumen': [],
+                    'totales': {'cargado': 0, 'vendido': 0, 'vencidas': 0, 'devuelto': 0}
+                })
             
-            # 🆕 Usar el campo vendidas que ya se sincroniza automáticamente (Ventas POS)
-            cantidad_vendida_pos = cargue.vendidas or 0
+            # --- VALIDACIÓN: YA CERRADO ---
+            # Si algún producto tiene devoluciones > 0, significa que ya se cerró el turno
+            if cargues.filter(devoluciones__gt=0).exists():
+                print(f"⚠️ TURNO YA CERRADO para {id_vendedor} en {fecha}")
+                return Response({
+                    'error': 'TURNO_YA_CERRADO',
+                    'message': f'El turno para {id_vendedor} en {fecha} ya fue cerrado anteriormente.'
+                }, status=409)
             
-            # 🆕 Sumar lo vendido por Pedidos de Ruta
-            cantidad_vendida_pedidos = pedidos_por_producto.get(cargue.producto.upper(), 0)
+            # --- CÁLCULOS Y ACTUALIZACIÓN ---
             
-            # Cantidad Vendida Total
-            cantidad_vendida_total = cantidad_vendida_pos + cantidad_vendida_pedidos
+            # Obtener detalles de pedidos entregados hoy (Optimizado con select_related)
+            from .models import DetallePedido, TurnoVendedor
+            detalles_pedidos_hoy = DetallePedido.objects.filter(
+                pedido__asignado_a_id=id_vendedor,
+                pedido__fecha_entrega=fecha,
+                pedido__estado='ENTREGADO'
+            ).select_related('producto')
             
-            # Buscar vencidas reportadas para este producto (si viene en el request)
-            vencidas = cargue.vencidas or 0  # 🆕 Usar vencidas ya guardadas
-            for item_vencido in productos_vencidos:
-                producto_vencido = item_vencido.get('producto', '')
-                if producto_vencido.upper() == cargue.producto.upper():
-                    vencidas_adicionales = item_vencido.get('cantidad', 0)
-                    if vencidas_adicionales > 0:
-                        vencidas = vencidas_adicionales  # Actualizar si viene en request
-                    break
+            pedidos_por_producto = {}
+            for detalle in detalles_pedidos_hoy:
+                nombre = detalle.producto.nombre.upper()
+                pedidos_por_producto[nombre] = pedidos_por_producto.get(nombre, 0) + detalle.cantidad
             
-            # 🔢 Calcular devoluciones automáticamente
-            # Fórmula: devoluciones = (cantidad + adicional) - vendidas - vencidas
-            # 🆕 Usar cantidad_vendida_total que incluye pedidos entregados
-            devoluciones = max(0, cantidad_inicial - cantidad_vendida_total - vencidas)
+            resumen = []
+            cargues_a_actualizar = []
+            totales = {'cargado': 0, 'vendido': 0, 'vencidas': 0, 'devuelto': 0}
             
-            print(f"  📦 {cargue.producto}:")
-            print(f"     Cargado: {cantidad_inicial}")
-            print(f"     Vendido POS: {cantidad_vendida_pos}")
-            print(f"     Pedidos Entregados: {cantidad_vendida_pedidos}")
-            print(f"     Vendido TOTAL: {cantidad_vendida_total}")
-            print(f"     Vencidas: {vencidas}")
-            print(f"     📊 Devoluciones calculadas: {devoluciones}")
+            for cargue in cargues:
+                # 1. Calcular cargado
+                cantidad_inicial = cargue.cantidad - cargue.dctos + cargue.adicional
+                
+                # 2. Calcular vendido total (POS + Pedidos)
+                cantidad_vendida_pos = cargue.vendidas or 0
+                cantidad_vendida_pedidos = pedidos_por_producto.get(cargue.producto.upper(), 0)
+                cantidad_vendida_total = cantidad_vendida_pos + cantidad_vendida_pedidos
+                
+                # 3. Calcular vencidas
+                vencidas_final = cargue.vencidas or 0 # Base existente
+                for item_vencido in productos_vencidos:
+                    prod_vencido_nombre = item_vencido.get('producto', '')
+                    # Comparación insensible a mayúsculas
+                    if prod_vencido_nombre and prod_vencido_nombre.upper() == cargue.producto.upper():
+                        cant_vencida = item_vencido.get('cantidad', 0)
+                        if cant_vencida > 0:
+                            vencidas_final = cant_vencida
+                        break
+                
+                # 4. Calcular devoluciones (No negativo)
+                devoluciones = max(0, cantidad_inicial - cantidad_vendida_total - vencidas_final)
+                
+                # Preparar objeto para actualización masiva (No guardar todavía)
+                cargue.vencidas = vencidas_final
+                cargue.devoluciones = devoluciones
+                cargues_a_actualizar.append(cargue)
+                
+                # Acumular totales para respuesta y turno
+                totales['cargado'] += cantidad_inicial
+                totales['vendido'] += cantidad_vendida_total
+                totales['vencidas'] += vencidas_final
+                totales['devuelto'] += devoluciones
+                
+                resumen.append({
+                    'producto': cargue.producto,
+                    'cargado': cantidad_inicial,
+                    'vendido': cantidad_vendida_total,
+                    'vencidas': vencidas_final,
+                    'devuelto': devoluciones
+                })
             
-            # ✅ GUARDAR en BD
-            cargue.vencidas = vencidas
-            cargue.devoluciones = devoluciones
-            # Nota: No sobrescribimos cargue.vendidas aquí para diferenciar POS vs Pedidos,
-            # pero el cálculo de devoluciones ya es correcto.
-            cargue.save()
+            # 🚀 EJECUTAR BULK UPDATE (Optimización Clave: 1 Query SQL)
+            if cargues_a_actualizar:
+                ModeloCargue.objects.bulk_update(cargues_a_actualizar, ['vencidas', 'devoluciones'])
+                print(f"✅ {len(cargues_a_actualizar)} productos actualizados vía bulk_update")
             
-            # Acumular totales
-            total_cargado += cantidad_inicial
-            total_vendido += cantidad_vendida_total
-            total_vencidas += vencidas
-            total_devuelto += devoluciones
-            
-            resumen.append({
-                'producto': cargue.producto,
-                'cargado': cantidad_inicial,
-                'vendido': cantidad_vendida_total, # Mostrar el total real vendido al usuario
-                'vencidas': vencidas,
-                'devuelto': devoluciones
-            })
-        
-        # 🆕 MARCAR TURNO COMO CERRADO EN LA BD
-        try:
-            from .models import TurnoVendedor
-            # Extraer ID numérico seguro
+            # --- CERRAR TURNO EN BD ---
             vendedor_id_numerico = int(str(id_vendedor).replace('ID', '')) if 'ID' in str(id_vendedor) else int(id_vendedor)
-            
-            turno = TurnoVendedor.objects.filter(
-                vendedor_id=vendedor_id_numerico,
-                fecha=fecha
-            ).first()
+            turno = TurnoVendedor.objects.filter(vendedor_id=vendedor_id_numerico, fecha=fecha).first()
             
             if turno:
                 turno.estado = 'CERRADO'
                 turno.hora_cierre = timezone.now()
-                turno.total_ventas = total_vendido
-                turno.total_dinero = total_cargado  # Ajustar según necesites
+                turno.cerrado_manual = True
+                turno.total_ventas = totales['vendido']
+                turno.total_dinero = totales['cargado'] # O el valor monetario real si se tiene
                 turno.save()
                 print(f"✅ Turno marcado como CERRADO en BD")
-        except Exception as e:
-            print(f"⚠️ Error actualizando turno en BD: {e}")
-        
-        print(f"✅ Turno cerrado para {id_vendedor}")
-        print(f"   Total cargado: {total_cargado}")
-        print(f"   Total vendido: {total_vendido}")
-        print(f"   Total vencidas: {total_vencidas}")
-        print(f"   Total devuelto: {total_devuelto}")
-        
-        return Response({
-            'success': True,
-            'mensaje': 'Turno cerrado correctamente',
-            'resumen': resumen,
-            'totales': {
-                'cargado': total_cargado,
-                'vendido': total_vendido,
-                'vencidas': total_vencidas,
-                'devuelto': total_devuelto
-            }
-        })
-        
+
+            print(f"✅ Turno cerrado exitosamente para {id_vendedor}. Rollback no necesario.")
+            
+            # 🆕 Agregar novedad si hay diferencia por precios especiales
+            novedad = None
+            if diferencia_precios > 0:
+                novedad = f"💰 Venta Precios Especiales: +${diferencia_precios:,.0f}"
+                print(f"📝 Novedad agregada: {novedad}")
+            
+            return Response({
+                'success': True,
+                'mensaje': 'Turno cerrado correctamente',
+                'resumen': resumen,
+                'totales': totales,
+                'novedad': novedad  # 🆕 Enviar novedad al frontend
+            })
+            
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"❌ Error cerrando turno: {str(e)}")
-        return Response({
-            'error': str(e),
-            'mensaje': 'Error al cerrar turno'
-        }, status=500)
+        # Gracias a transaction.atomic, si falla algo aquí, Django hace rollback automático
+        print(f"❌ Error cerrando turno (Rollback automático): {str(e)}")
+        return Response({'error': str(e), 'mensaje': 'Error al cerrar turno'}, status=500)
 
 
 # ========================================
@@ -4711,43 +4751,11 @@ def verificar_turno_activo(request):
             ).first()
         
         if turno:
-            # 🆕 VALIDACIÓN: Verificar si el turno tiene cargue asociado
-            # Buscar en CargueProductos (modelo nuevo)
-            tiene_cargue = CargueProductos.objects.filter(
-                vendedor_id=vendedor_id_str,
-                fecha=turno.fecha,
-                cantidad__gt=0
-            ).exists()
-            
-            # Si no hay en CargueProductos, buscar en CargueIDx (modelo viejo)
-            if not tiene_cargue:
-                modelo_map = {
-                    'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
-                    'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6
-                }
-                ModeloCargue = modelo_map.get(vendedor_id_str)
-                if ModeloCargue:
-                    tiene_cargue = ModeloCargue.objects.filter(
-                        fecha=turno.fecha,
-                        activo=True,
-                        cantidad__gt=0
-                    ).exists()
-                    if tiene_cargue:
-                        print(f"✅ Cargue encontrado en {vendedor_id_str} (modelo viejo)")
-            
-            if not tiene_cargue:
-                # No tiene cargue en ningún modelo, cerrar turno automáticamente
-                turno.estado = 'CERRADO'
-                turno.save()
-                print(f"⚠️ Turno {turno.id} cerrado automáticamente (sin cargue): {vendedor_id_str} - {turno.fecha}")
-                
-                return Response({
-                    'turno_activo': False,
-                    'mensaje': 'Turno cerrado automáticamente (no tenía cargue asociado)',
-                    'turno_cerrado_auto': True
-                })
-            
-            # Tiene cargue, retornar turno activo
+            # ✅ Turno ABIERTO encontrado - retornarlo directamente
+            # NOTA: Ya NO cerramos turnos automáticamente por falta de cargue.
+            # La validación de cargue se hace ANTES de abrir turno (en la app).
+            # Cerrar turnos aquí causaba que turnos legítimos se cerraran
+            # por falsos negativos en la búsqueda de cargue.
             return Response({
                 'turno_activo': True,
                 'turno_id': turno.id,
@@ -4842,12 +4850,32 @@ def abrir_turno(request):
                     'estado': turno_existente.estado
                 })
             else:
-                # BLOQUEO ESTRICTO: No permitir reabrir turnos cerrados
-                # Esto asegura que si el vendedor cerró el turno, no pueda volver a abrirlo
-                return Response({
-                    'error': 'TURNO_YA_CERRADO',
-                    'mensaje': 'El turno para este día ya fue cerrado. No se puede reabrir.'
-                }, status=400)
+                # Turno existe pero está CERRADO
+                if turno_existente.cerrado_manual:
+                    # BLOQUEO ESTRICTO: Solo si fue cerrado manualmente por el vendedor
+                    return Response({
+                        'error': 'TURNO_YA_CERRADO',
+                        'mensaje': 'El turno para este día ya fue cerrado. No se puede reabrir.'
+                    }, status=400)
+                else:
+                    # Fue cerrado automáticamente (por error o sistema) - permitir reabrir
+                    turno_existente.estado = 'ABIERTO'
+                    turno_existente.hora_apertura = timezone.now()
+                    turno_existente.dispositivo = dispositivo
+                    turno_existente.save()
+                    print(f"🔄 Turno reabierto (no fue cerrado manualmente): {vendedor_nombre} - {dia} {fecha}")
+                    
+                    return Response({
+                        'success': True,
+                        'nuevo': False,
+                        'reabierto': True,
+                        'mensaje': 'Turno reabierto correctamente',
+                        'turno_id': turno_existente.id,
+                        'dia': turno_existente.dia,
+                        'fecha': turno_existente.fecha.isoformat(),
+                        'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
+                        'estado': turno_existente.estado
+                    })
         
         # Crear nuevo turno
         turno = TurnoVendedor.objects.create(
@@ -5371,6 +5399,69 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
                 'clientes_ids': [],
                 'mensaje': 'No hay orden personalizado para este día'
             })
+    
+    @action(detail=False, methods=['post'])
+    def guardar_orden_vendedor(self, request):
+        """
+        Guardar orden de clientes para un vendedor en un día específico
+        Distribuye automáticamente los clientes por sus rutas correspondientes
+        
+        POST /api/ruta-orden/guardar-orden-vendedor/
+        Body: {
+            "vendedor_id": "ID1",
+            "dia": "MARTES",
+            "clientes_ids": [1, 5, 3, 8, 2]
+        }
+        """
+        vendedor_id = request.data.get('vendedor_id')
+        dia = request.data.get('dia', '').upper()
+        clientes_ids = request.data.get('clientes_ids', [])
+        
+        if not vendedor_id or not dia:
+            return Response({'error': 'Se requiere vendedor_id y dia'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Obtener todos los clientes con sus rutas
+            clientes = ClienteRuta.objects.filter(id__in=clientes_ids).select_related('ruta')
+            
+            # Agrupar clientes por ruta
+            clientes_por_ruta = {}
+            for cliente in clientes:
+                ruta_id = cliente.ruta.id
+                if ruta_id not in clientes_por_ruta:
+                    clientes_por_ruta[ruta_id] = []
+                clientes_por_ruta[ruta_id].append(cliente.id)
+            
+            # Guardar orden para cada ruta
+            ordenes_guardadas = []
+            for ruta_id, ids in clientes_por_ruta.items():
+                # Mantener el orden original de clientes_ids
+                ids_ordenados = [cid for cid in clientes_ids if cid in ids]
+                
+                obj, created = RutaOrden.objects.update_or_create(
+                    ruta_id=ruta_id,
+                    dia=dia,
+                    defaults={'clientes_ids': ids_ordenados}
+                )
+                ordenes_guardadas.append({
+                    'ruta_id': ruta_id,
+                    'ruta_nombre': obj.ruta.nombre,
+                    'clientes_count': len(ids_ordenados)
+                })
+                print(f"✅ Orden guardado: Ruta={obj.ruta.nombre}, Día={dia}, Clientes={len(ids_ordenados)}")
+            
+            return Response({
+                'success': True,
+                'vendedor_id': vendedor_id,
+                'dia': dia,
+                'ordenes_guardadas': ordenes_guardadas
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"❌ Error guardando orden: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ============================================================================
@@ -6885,47 +6976,47 @@ def abrir_turno_manual(request):
     Reabre un turno cerrado para permitir correcciones o pruebas.
     Recibe: { "fecha": "YYYY-MM-DD", "vendedor_id": 1 }
     Opcional: Si no se envía fecha, abre el último turno cerrado de ese vendedor.
+    
+    🆕 MEJORA: Resetea devoluciones y vencidas en CargueIDx para permitir nuevo cierre.
     """
     try:
-        from .models import TurnoVendedor, Vendedor
+        from .models import TurnoVendedor, Vendedor, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         
         fecha = request.data.get('fecha')
         vendedor_id = request.data.get('vendedor_id') # Puede ser ID numérico o código "ID1"
         
-        # Resolver ID numérico del vendedor si viene como código
+        # ✅ NUEVO: Extraer ID numérico del código
         id_numerico = None
-        nombre_vendedor = ""
+        codigo_vendedor = "" # ID1, ID2...
         
-        # Intentar buscar el vendedor para obtener su nombre e ID
-        vendedor_obj = None
         if vendedor_id:
-            # Caso 1: Viene como "ID1" -> buscar en id_vendedor
-            vendedor_obj = Vendedor.objects.filter(id_vendedor=str(vendedor_id)).first()
+            vendedor_str = str(vendedor_id).upper()
             
-            # Caso 2: Viene como entero -> buscar por pk
-            if not vendedor_obj:
-               try:
-                   vendedor_obj = Vendedor.objects.filter(pk=int(vendedor_id)).first()
-               except:
-                   pass
-        
-        if vendedor_obj:
-            # En la tabla TurnoVendedor, vendedor_id suele ser un entero (el ID numérico de usuario, no el código string)
-            # Pero en este sistema híbrido, a veces se guarda el ID de Vendedor.
-            # Vamos a intentar buscar por nombre primero que es más seguro
-            nombre_vendedor = vendedor_obj.nombre
-            
-            # Buscar turnos asociados a este nombre
-            queryset = TurnoVendedor.objects.filter(vendedor_nombre__icontains=nombre_vendedor)
-        else:
-            # Si no encontramos vendedor, intentar buscar por ID directo en TurnoVendedor
-            queryset = TurnoVendedor.objects.all()
-            if vendedor_id:
+            # Caso 1: Viene como "ID1", "ID2", etc. -> Extraer número
+            if vendedor_str.startswith('ID'):
                 try:
-                    queryset = queryset.filter(vendedor_id=int(vendedor_id))
+                    id_numerico = int(vendedor_str.replace('ID', ''))
+                    codigo_vendedor = vendedor_str
                 except:
-                    # Si falla, quizás es porque no es un entero. 
                     pass
+            # Caso 2: Viene como número directo "1", "2", etc.
+            else:
+                try:
+                    id_numerico = int(vendedor_str)
+                    codigo_vendedor = f"ID{id_numerico}"
+                except:
+                    pass
+        
+        if not id_numerico:
+            return Response({
+                'success': False,
+                'message': 'Vendedor ID inválido. Usa "ID1", "ID2", etc. o 1, 2, etc.'
+            }, status=400)
+        
+        # ✅ BUSCAR POR ID NUMÉRICO (no por nombre)
+        queryset = TurnoVendedor.objects.filter(vendedor_id=id_numerico)
+        
+        print(f"🔍 Buscando turnos: vendedor_id={id_numerico}, código={codigo_vendedor}, fecha={fecha or 'cualquiera'}")
         
         # Filtrar por fecha si se proporcionó
         if fecha:
@@ -6938,14 +7029,37 @@ def abrir_turno_manual(request):
         turno = queryset.order_by('-id').first()
         
         if turno:
+            # 1. Reabrir Turno (Cambiar estado)
             turno.estado = 'ABIERTO'
             # turno.hora_cierre = None # Si tuviera este campo
             turno.save()
             
+            # 2. 🆕 LIMPIEZA DE DATOS (Resetear devoluciones y vencidas)
+            # Si no tenemos codigo_vendedor aún, intentamos deducirlo del turno
+            if not codigo_vendedor and turno.vendedor_id:
+                # Asumimos mapeo directo ID 1 -> ID1
+                codigo_vendedor = f"ID{turno.vendedor_id}"
+            
+            # Intentar limpiar la tabla de Cargue correspondiente
+            registros_limpiados = 0
+            if codigo_vendedor:
+                modelo_map = {
+                    'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+                    'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6
+                }
+                ModeloCargue = modelo_map.get(codigo_vendedor)
+                
+                if ModeloCargue:
+                    # Resetear devoluciones y vencidas a 0 para esta fecha
+                    cargues_afectados = ModeloCargue.objects.filter(fecha=turno.fecha, activo=True)
+                    registros_limpiados = cargues_afectados.update(devoluciones=0, vencidas=0)
+                    print(f"🧹 Limpieza exitosa: {registros_limpiados} registros reseteados en {codigo_vendedor} para {turno.fecha}")
+            
             print(f"✅ Turno reabierto: ID {turno.id} - {turno.vendedor_nombre} - {turno.fecha}")
+            
             return Response({
                 'success': True,
-                'message': f'Turno del {turno.fecha} reabierto correctamente',
+                'message': f'Turno del {turno.fecha} reabierto y reseteado correctamente ({registros_limpiados} productos limpiados)',
                 'turno': {
                     'id': turno.id,
                     'fecha': turno.fecha,

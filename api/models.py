@@ -50,6 +50,7 @@ class Producto(models.Model):
     def save(self, *args, **kwargs):
         """Eliminar imagen antigua al actualizar con una nueva y crear/actualizar Stock"""
         es_nuevo = self.pk is None
+        skip_stock_sync = kwargs.pop('skip_stock_sync', False)  # Flag para evitar loops
         
         if self.pk:  # Solo si es actualización
             try:
@@ -64,29 +65,31 @@ class Producto(models.Model):
         
         super().save(*args, **kwargs)
         
-        # 🚀 AUTO-CREAR/ACTUALIZAR STOCK
-        if es_nuevo:
-            # Crear registro en Stock para producto nuevo
-            from api.models import Stock
-            Stock.objects.create(
-                producto=self,
-                cantidad_actual=self.stock_total or 0
-            )
-            print(f"✅ Stock creado automáticamente para: {self.nombre}")
-        else:
-            # Actualizar stock existente
-            try:
+        # 🚀 AUTO-CREAR/ACTUALIZAR STOCK (solo si no viene del Stock mismo)
+        if not skip_stock_sync:
+            if es_nuevo:
+                # Crear registro en Stock para producto nuevo
                 from api.models import Stock
-                stock_obj = Stock.objects.get(producto=self)
-                stock_obj.cantidad_actual = self.stock_total or 0
-                stock_obj.save()
-            except Stock.DoesNotExist:
-                # Si no existe, crearlo
                 Stock.objects.create(
                     producto=self,
                     cantidad_actual=self.stock_total or 0
                 )
-                print(f"✅ Stock creado para producto existente: {self.nombre}")
+                print(f"✅ Stock creado automáticamente para: {self.nombre}")
+            else:
+                # Actualizar stock existente solo si cambió
+                try:
+                    from api.models import Stock
+                    stock_obj = Stock.objects.get(producto=self)
+                    if stock_obj.cantidad_actual != self.stock_total:
+                        stock_obj.cantidad_actual = self.stock_total or 0
+                        stock_obj.save()
+                except Stock.DoesNotExist:
+                    # Si no existe, crearlo
+                    Stock.objects.create(
+                        producto=self,
+                        cantidad_actual=self.stock_total or 0
+                    )
+                    print(f"✅ Stock creado para producto existente: {self.nombre}")
     
     def delete(self, *args, **kwargs):
         """Eliminar imagen al borrar el producto"""
@@ -150,10 +153,26 @@ class Stock(models.Model):
         verbose_name_plural = 'Stocks'
     
     def save(self, *args, **kwargs):
-        """Auto-llenar nombre y descripción del producto"""
+        """Auto-llenar nombre y descripción del producto y sincronizar con Producto.stock_total"""
         if self.producto:
             self.producto_nombre = self.producto.nombre
             self.producto_descripcion = self.producto.descripcion
+            
+            # 🔄 SINCRONIZAR con Producto.stock_total
+            # Solo sincronizar si la cantidad cambió (evitar loops infinitos)
+            if self.pk:  # Si ya existe
+                try:
+                    old_stock = Stock.objects.get(pk=self.pk)
+                    if old_stock.cantidad_actual != self.cantidad_actual:
+                        # Actualizar stock_total del producto con flag para evitar loop
+                        self.producto.stock_total = self.cantidad_actual
+                        self.producto.save(skip_stock_sync=True)
+                except Stock.DoesNotExist:
+                    pass
+            else:  # Si es nuevo
+                self.producto.stock_total = self.cantidad_actual
+                self.producto.save(skip_stock_sync=True)
+        
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -219,7 +238,9 @@ class MovimientoInventario(models.Model):
                 self.lote.cantidad -= self.cantidad
             self.lote.save()
             
-        self.producto.save()
+        # Guardar producto con flag para que sincronice con Stock
+        self.producto.save()  # Esto dispara Producto.save() que actualiza Stock
+        
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -343,6 +364,20 @@ class DetalleVenta(models.Model):
     def __str__(self):
         return f"{self.producto.nombre} x{self.cantidad} - ${self.subtotal}"
 
+class TipoNegocio(models.Model):
+    """Modelo para tipos de negocio personalizables"""
+    nombre = models.CharField(max_length=100, unique=True)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = 'Tipo de Negocio'
+        verbose_name_plural = 'Tipos de Negocio'
+    
+    def __str__(self):
+        return self.nombre
+
 class Cliente(models.Model):
     """Modelo para gestionar clientes"""
     REGIMEN_CHOICES = [
@@ -369,6 +404,7 @@ class Cliente(models.Model):
     identificacion = models.CharField(max_length=50, unique=True)
     nombre_completo = models.CharField(max_length=255)
     alias = models.CharField(max_length=100, blank=True, null=True)
+    tipo_negocio = models.CharField(max_length=100, blank=True, null=True, help_text='Tipo de negocio: Tienda, Supermercado, Carnicería, etc.')
     
     # Nombres separados
     primer_nombre = models.CharField(max_length=100, blank=True, null=True)
