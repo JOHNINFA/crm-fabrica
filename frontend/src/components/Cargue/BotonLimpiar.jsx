@@ -831,8 +831,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const stockResponse = await fetch(`${API_URL}/stock/`);
       const stocks = stockResponse.ok ? await stockResponse.json() : [];
       const stockMap = {};
+      const ordenMap = {}; // 🆕 Guardar el orden de cada producto desde api_stock
       stocks.forEach(s => {
         stockMap[s.producto_nombre] = s.cantidad_actual;
+        ordenMap[s.producto_nombre] = s.orden || 999; // 🆕 Obtener orden de api_stock
       });
 
       // 2. Obtener solicitadas desde BD y localStorage (fallback)
@@ -926,13 +928,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       ]);
 
       const registros = [];
-      let orden = 0;
 
       for (const nombreProducto of productosConDatos) {
         const existencias = stockMap[nombreProducto] || 0;
         const solicitadas = solicitadasMap[nombreProducto] || 0;
         const pedidos = pedidosMap[nombreProducto] || 0;
         const planeacionInfo = planeacionMap[nombreProducto] || { orden: 0, ia: 0 };
+        const ordenDeBD = ordenMap[nombreProducto] || 999; // 🆕 Usar orden de api_stock
 
         // Solo incluir productos con datos relevantes
         if (existencias > 0 || solicitadas > 0 || pedidos > 0) {
@@ -942,13 +944,21 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             solicitadas: solicitadas,
             pedidos: pedidos,
             total: solicitadas + pedidos,
-            orden: planeacionInfo.orden || orden++,
+            orden: planeacionInfo.orden > 0 ? planeacionInfo.orden : ordenDeBD, // 🆕 Priorizar planeación, sino usar BD
             ia: planeacionInfo.ia || 0
           });
         }
       }
 
       console.log(`📊 Registros a guardar: ${registros.length}`);
+
+      // 🆕 ORDENAR REGISTROS por orden de BD antes de guardar
+      registros.sort((a, b) => {
+        if (a.orden !== b.orden) {
+          return a.orden - b.orden;
+        }
+        return a.producto_nombre.localeCompare(b.producto_nombre);
+      });
 
       // 6. Enviar al endpoint de snapshot
       const response = await fetch(`${API_URL}/registros-planeacion-dia/guardar_snapshot/`, {
