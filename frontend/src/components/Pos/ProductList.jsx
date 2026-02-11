@@ -81,7 +81,11 @@ export default function ProductList({ addProduct, search, setSearch, priceList, 
       return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
-      // Ordenar por ID numérico para mantener orden consistente
+      // Ordenar por campo 'orden' (configurado en Productos)
+      const ordenA = a.orden !== undefined ? a.orden : 999999;
+      const ordenB = b.orden !== undefined ? b.orden : 999999;
+      if (ordenA !== ordenB) return ordenA - ordenB;
+      // Si el orden es igual, ordenar por ID
       const idA = parseInt(a.id) || 999999;
       const idB = parseInt(b.id) || 999999;
       return idA - idB;
