@@ -7081,3 +7081,4 @@ def abrir_turno_manual(request):
             'success': False, 
             'error': str(e)
         }, status=500)
+

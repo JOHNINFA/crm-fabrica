@@ -944,7 +944,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             solicitadas: solicitadas,
             pedidos: pedidos,
             total: solicitadas + pedidos,
-            orden: planeacionInfo.orden > 0 ? planeacionInfo.orden : ordenDeBD, // 🆕 Priorizar planeación, sino usar BD
+            orden: planeacionInfo.orden > 0 ? planeacionInfo.orden : 0, // ✅ CANTIDAD a producir (0 por defecto)
+            ordenVisual: ordenDeBD, // 🆕 Posición visual para ordenar
             ia: planeacionInfo.ia || 0
           });
         }
@@ -952,10 +953,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       console.log(`📊 Registros a guardar: ${registros.length}`);
 
-      // 🆕 ORDENAR REGISTROS por orden de BD antes de guardar
+      // 🆕 ORDENAR REGISTROS por orden visual (Kardex) antes de guardar
       registros.sort((a, b) => {
-        if (a.orden !== b.orden) {
-          return a.orden - b.orden;
+        if (a.ordenVisual !== b.ordenVisual) {
+          return a.ordenVisual - b.ordenVisual;
         }
         return a.producto_nombre.localeCompare(b.producto_nombre);
       });

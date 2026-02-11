@@ -33,3 +33,4 @@ yarn-error.log*
 .env.local
 .env.*.local
 *.log
+\n# AI Skills (Local)\n.agents/\nIA_SKILLS/
