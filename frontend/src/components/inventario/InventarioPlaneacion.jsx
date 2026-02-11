@@ -413,14 +413,60 @@ const InventarioPlaneacion = () => {
       }
 
       // 🚀 SIEMPRE calcular dinámicamente desde CARGUE y PEDIDOS (datos en tiempo real)
-      // 📊 Cargar ORDEN e IA desde planeación guardada (ya cargada arriba)
+
+      // 🛡️ RECOVERY FIX: Intentar cargar desde Snapshot Histórico (Reporte)
+      // Si el día está congelado, es posible que el reporte tenga los datos ORIGINALES (antes del bug visual)
+      let reporteData = [];
+      try {
+        const repResponse = await fetch(`${API_URL}/reportes-planeacion/?fecha=${fechaFormateada}`);
+        if (repResponse.ok) {
+          reporteData = await repResponse.json();
+          console.log('🛡️ Reporte histórico encontrado:', reporteData.length);
+        }
+      } catch (e) {
+        console.error('Error cargando reporte recuperación:', e);
+      }
+
+      // 📊 Cargar ORDEN e IA: Prioridad -> Reporte Histórico > Base de Datos Planeación
       const planeacionMap = {};
+
+      // 1. Cargar desde BD principal (puede tener datos corruptos 1,2,3...)
       planeacionData.forEach(item => {
         planeacionMap[item.producto_nombre] = {
           orden: item.orden || 0,
           ia: item.ia || 0
         };
       });
+
+      // 2. SOBRESCRIBIR con datos del Reporte Histórico (si existe)
+      // El reporte "Guardado" (botón verde) es la fuente de verdad inmutable.
+      if (reporteData.length > 0) {
+        const reporte = reporteData[0]; // Usar el primer reporte encontrado
+        if (reporte.datos_json) {
+          let productosReporte = [];
+          try {
+            productosReporte = typeof reporte.datos_json === 'string'
+              ? JSON.parse(reporte.datos_json)
+              : reporte.datos_json;
+
+            console.log('🛡️ Restaurando datos desde reporte histórico:', productosReporte.length);
+
+            productosReporte.forEach(item => {
+              if (item.orden > 0) {
+                // Solo sobrescribir si el producto ya existía o agregarlo
+                if (!planeacionMap[item.nombre]) {
+                  planeacionMap[item.nombre] = {};
+                }
+                planeacionMap[item.nombre].orden = item.orden;
+                // Opcional: restaurar IA también
+                if (item.ia > 0) planeacionMap[item.nombre].ia = item.ia;
+              }
+            });
+          } catch (parseError) {
+            console.error('Error parseando JSON de reporte:', parseError);
+          }
+        }
+      }
 
       const productosConPlaneacion = productosProduccion.map(p => {
         // Obtener existencias desde stockMap
