@@ -435,10 +435,12 @@ const InventarioPlaneacion = () => {
         // ORDEN e IA desde planeación guardada
         const planeacionGuardada = planeacionMap[p.nombre];
 
-        // 🚀 FIX DEFINITIVO: Priorizar SIEMPRE el orden MAESTRO de api_stock (p.orden)
-        // El orden se gestiona exclusivamente en el módulo Productos.
-        // Ignoramos el orden del snapshot si tenemos el maestro disponible.
-        let orden = p.orden > 0 ? p.orden : (planeacionGuardada ? planeacionGuardada.orden : 0);
+        // 🚀 CORRECCIÓN CRÍTICA: Distinguir entre "Orden Visual" (posición) y "Cantidad Ordenada" (producción)
+
+        // 1. Cantidad a producir (Input editable): Viene del snapshot. Si no hay, es 0.
+        let cantidadOrdenada = planeacionGuardada ? (planeacionGuardada.orden || 0) : 0;
+
+        // 2. IA sugerida
         let ia = planeacionGuardada ? planeacionGuardada.ia : 0;
 
         // 🧠 Si no hay IA guardada, usar predicción del cerebro
@@ -446,6 +448,10 @@ const InventarioPlaneacion = () => {
           ia = prediccionesIAMap[p.nombre].ia_sugerido;
           console.log(`🧠 IA sugerida para ${p.nombre}: ${ia} (${prediccionesIAMap[p.nombre].confianza})`);
         }
+
+        // 3. Posición Visual (Orden de lista): Viene del maestro de Productos (Kardex).
+        // Si no existe en maestro, poner al final (9999).
+        let ordenVisual = p.orden > 0 ? p.orden : 9999;
 
         if (solicitadoFinal > 0) {
           console.log(`📊 ${p.nombre}: Solicitadas=${solicitadoFinal}, Pedidos=${pedidosProducto}`);
@@ -457,19 +463,20 @@ const InventarioPlaneacion = () => {
           existencias: existencias,
           solicitado: solicitadoFinal,
           pedidos: pedidosProducto,
-          orden: orden,
+          orden: cantidadOrdenada, // ✅ Restaurado: Es la CANTIDAD a producir
+          ordenVisual: ordenVisual, // 🆕 Nuevo campo para ordenar la lista
           ia: ia
         };
       });
 
       setSolicitadasCargadas(true);
 
-      // 🆕 ORDENAR PRODUCTOS usando el campo 'orden' de la BD (obtenido desde api_stock)
-      // Así el orden coincide con /productos
+      // 🆕 ORDENAR PRODUCTOS usando el campo 'ordenVisual' (posición en Kardex)
+      // El campo 'orden' ahora guarda la CANTIDAD a producir, no la posición.
       productosConPlaneacion.sort((a, b) => {
-        // Usar el campo orden que viene de api_stock/productos
-        const ordenA = a.orden !== undefined ? a.orden : 999999;
-        const ordenB = b.orden !== undefined ? b.orden : 999999;
+        // Usar ordenVisual para ordenar
+        const ordenA = a.ordenVisual !== undefined ? a.ordenVisual : 999999;
+        const ordenB = b.ordenVisual !== undefined ? b.ordenVisual : 999999;
 
         if (ordenA !== ordenB) {
           return ordenA - ordenB;
