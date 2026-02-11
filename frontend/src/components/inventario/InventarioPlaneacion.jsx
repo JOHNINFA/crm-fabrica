@@ -443,6 +443,13 @@ const InventarioPlaneacion = () => {
           console.log(`🧠 IA sugerida para ${p.nombre}: ${ia} (${prediccionesIAMap[p.nombre].confianza})`);
         }
 
+        // 🔄 FIX CRÍTICO: Si el orden del snapshot es 0, usar el orden maestro de api_stock
+        // Esto corrige visualmente los días congelados antiguos que se guardaron sin orden
+        if (orden === 0 && p.orden > 0) {
+          orden = p.orden;
+          // console.log(`🔄 Corrigiendo orden de ${p.nombre}: Snapshot=0 -> Maestro=${orden}`);
+        }
+
         if (solicitadoFinal > 0) {
           console.log(`📊 ${p.nombre}: Solicitadas=${solicitadoFinal}, Pedidos=${pedidosProducto}`);
         }
