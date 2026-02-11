@@ -896,7 +896,7 @@ const InventarioPlaneacion = () => {
         <Col xs={12} md={6}>
           <DateSelector onDateSelect={handleDateSelect} />
         </Col>
-        <Col xs={12} md={6} className="d-flex justify-content-end align-items-center gap-2">
+        <Col xs={12} md={6} className="d-flex justify-content-end align-items-center gap-2 botones-planeacion">
           {/* ✅ Nuevo botón GUARDAR REPORTE */}
           <Button
             variant={reporteGuardado ? "success" : "primary"}
@@ -944,7 +944,7 @@ const InventarioPlaneacion = () => {
           <Button
             variant="outline-success"
             size="sm"
-            className="mb-2 mb-md-0"
+            className="mb-2 mb-md-0 btn-aplicar-ia"
             onClick={() => {
               const productosConIA = productos.filter(p => p.ia > 0);
               if (productosConIA.length === 0) {
@@ -969,8 +969,8 @@ const InventarioPlaneacion = () => {
             disabled={diaCongelado || cargando}
             title={diaCongelado ? 'Bloqueado - Día congelado' : 'Copiar valores de IA a Orden'}
           >
-            <i className="bi bi-robot me-1"></i>
-            Aplicar IA
+            <i className="bi bi-robot"></i>
+            <span className="d-none d-lg-inline ms-1">Aplicar IA</span>
           </Button>
         </Col>
       </Row>

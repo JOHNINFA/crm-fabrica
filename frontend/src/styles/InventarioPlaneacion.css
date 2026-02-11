@@ -74,6 +74,37 @@
   width: 40% !important;
 }
 
+/* 🔧 ARREGLO BOTONES EN TABLET - Evitar sobreposición */
+@media (max-width: 991px) and (min-width: 768px) {
+
+  /* Tablet: Distribuir botones en una sola fila compacta */
+  .botones-planeacion {
+    flex-wrap: nowrap;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+  }
+
+  .botones-planeacion .btn {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap;
+  }
+
+  /* Botón Guardar Reporte - Tamaño normal */
+  /* Sin estilos especiales - mantiene tamaño por defecto */
+
+  /* Botón Aplicar IA solo icono */
+  .btn-aplicar-ia {
+    padding: 0.35rem 0.4rem !important;
+    min-width: auto !important;
+    width: auto !important;
+  }
+
+  .btn-aplicar-ia i {
+    margin: 0 !important;
+  }
+}
+
 /* --- MEJORA VISUALIZACIÓN TABLA PLANEACIÓN (MÓVIL) --- */
 
 /* 1. Truncado de Nombre de Producto (SOLO MÓVIL) */
