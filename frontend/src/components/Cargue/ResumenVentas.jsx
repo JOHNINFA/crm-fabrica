@@ -590,11 +590,17 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
     const totalDespacho = calcularTotalDespacho();
     const totalPedidosVal = datos.totalPedidos || 0;
     const totalDctosVal = calcularTotal('descuentos');
-    const ventaVal = baseCaja + totalDespacho + totalPedidosVal - totalDctosVal;
-    const totalEfectivoVal = ventaVal - calcularTotal('nequi') - calcularTotal('daviplata');
+
+    // 🚀 CORRECCIÓN: VENTA es el total bruto (sin restar gastos/descuentos)
+    // Antes: baseCaja + totalDespacho + totalPedidosVal - totalDctosVal
+    // Ahora: baseCaja + totalDespacho + totalPedidosVal
+    const ventaVal = baseCaja + totalDespacho + totalPedidosVal;
+
+    // El efectivo sí se reduce por los gastos (descuentos) y pagos digitales
+    const totalEfectivoVal = ventaVal - totalDctosVal - calcularTotal('nequi') - calcularTotal('daviplata');
 
     // Comparar con últimos guardados para evitar bucles infinitos
-    const nuevosTotales = { d: totalDespacho, p: totalPedidosVal, v: ventaVal };
+    const nuevosTotales = { d: totalDespacho, p: totalPedidosVal, v: ventaVal, e: totalEfectivoVal };
     if (JSON.stringify(nuevosTotales) === JSON.stringify(ultimosTotalesGuardados.current)) {
       return;
     }
@@ -874,7 +880,8 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
         <div className="bg-lightgreen p-2 mb-2">
           <strong>VENTA:</strong>
-          <div className="text-end">{formatCurrency(baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0) - calcularTotal('descuentos'))}</div>
+          {/* 🚀 CORRECCIÓN VISUAL: Venta Bruta (sin restar descuentos/gastos) */}
+          <div className="text-end">{formatCurrency(baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0))}</div>
         </div>
 
         <div className="bg-light p-2">
@@ -896,7 +903,8 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                 </span>
               </OverlayTrigger>
             )}
-            {formatCurrency((baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0) - calcularTotal('descuentos')) - calcularTotal('nequi') - calcularTotal('daviplata'))}
+            {/* Efectivo = Venta Bruta - Gastos(Dctos) - Nequi - Daviplata */}
+            {formatCurrency((baseCaja + calcularTotalDespacho() + (datos.totalPedidos || 0)) - calcularTotal('descuentos') - calcularTotal('nequi') - calcularTotal('daviplata'))}
           </div>
         </div>
 
