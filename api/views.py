@@ -200,6 +200,40 @@ def actualizar_estado_cargue(request):
         return Response({'error': str(e)}, status=500)
 
 
+# 🆕 Endpoint ULTRALIGERO para Polling Inteligente
+@api_view(['GET'])
+def verificar_actualizaciones(request):
+    """
+    Endpoint ultraligero para polling.
+    Devuelve la fecha de la última actualización en la tabla correspondiente.
+    """
+    vendedor_id = request.query_params.get('idSheet', 'ID1')
+    dia = request.query_params.get('dia', '').upper()
+    fecha = request.query_params.get('fecha')
+
+    if not all([vendedor_id, dia, fecha]):
+        return Response({'error': 'Faltan parámetros'}, status=400)
+
+    # Seleccionar modelo según ID
+    modelos = {
+        'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+        'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6
+    }
+    modelo = modelos.get(vendedor_id)
+
+    if not modelo:
+        return Response({'last_update': None})
+
+    # Consulta optimizada: Solo max(fecha_actualizacion)
+    try:
+        resultado = modelo.objects.filter(dia=dia, fecha=fecha).aggregate(
+            ultima=models.Max('fecha_actualizacion')
+        )
+        return Response({'last_update': resultado['ultima']})
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
 class RegistroViewSet(viewsets.ModelViewSet):
     queryset = Registro.objects.all()
     serializer_class = RegistroSerializer
@@ -1137,7 +1171,11 @@ class VendedorViewSet(viewsets.ViewSet):
                 )
             
             # Actualizar todos los registros existentes de este vendedor
-            datos_actualizar = {'responsable': responsable}
+            from django.utils import timezone
+            datos_actualizar = {
+                'responsable': responsable,
+                'fecha_actualizacion': timezone.now()  # 🔥 Actualizar timestamp para polling
+            }
             if ruta:
                 datos_actualizar['ruta'] = ruta
             
@@ -2424,7 +2462,11 @@ class VendedorViewSet(viewsets.ModelViewSet):
                 modelo = modelos_vendedor.get(id_vendedor)
                 if modelo:
                     # Actualizar todos los registros existentes de este vendedor
-                    modelo.objects.filter(activo=True).update(responsable=responsable)
+                    from django.utils import timezone
+                    modelo.objects.filter(activo=True).update(
+                        responsable=responsable,
+                        fecha_actualizacion=timezone.now()  # 🔥 Actualizar timestamp para polling
+                    )
                     print(f"✅ Responsable actualizado en {modelo.__name__}: {responsable}")
             except Exception as e:
                 print(f"⚠️ Error actualizando tablas de cargue: {str(e)}")
@@ -3189,12 +3231,18 @@ def actualizar_check_vendedor(request):
                     'message': 'No puedes marcar el check sin cantidad de producto.'
                 }, status=400)
         
-        # ⚡ Actualizar solo el campo V (más rápido que save())
+        # ⚡ Actualizar el campo V y fecha_actualizacion
+        from django.utils import timezone
         Modelo.objects.filter(
             dia=dia,
             fecha=fecha,
             producto=producto
-        ).update(v=v_nuevo)
+        ).update(
+            v=v_nuevo,
+            fecha_actualizacion=timezone.now()  # 🔥 CRÍTICO: Actualizar timestamp para polling
+        )
+        
+        print(f"✅ Check V actualizado: {producto} = {v_nuevo} (timestamp actualizado)")
         
         return Response({
             'success': True,

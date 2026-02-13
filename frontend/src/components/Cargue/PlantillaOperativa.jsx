@@ -851,21 +851,111 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             console.log(`🔍 CARGANDO ${idSheet} - Key: ${key}`);
             console.log(`🔄 RECARGA SOLICITADA - Timestamp: ${Date.now()}`);
 
-            // 🚀 NUEVO: Usar servicio híbrido que consulta servidor PRIMERO
-            console.log(`🔍 ${idSheet} - Usando cargueHybridService para cargar datos...`);
-            const resultado = await cargueHybridService.cargarDatos(dia, idSheet, fechaAUsar);
-
             let datos = null;
 
-            if (resultado.success && resultado.data) {
-                datos = resultado.data;
-                console.log(`✅ ${idSheet} - Datos cargados desde ${resultado.source}:`, datos.productos ? datos.productos.length : 0, 'productos');
+            // 🚀 NUEVO: Cargar DIRECTAMENTE desde las tablas CargueIDx (no usar servicio híbrido)
+            console.log(`🔍 ${idSheet} - Cargando datos DIRECTAMENTE desde tabla CargueID...`);
 
-                if (resultado.source === 'app_movil') {
-                    console.log(`📱 ${idSheet} - Datos recibidos desde la app móvil!`);
+            // Mapeo de IDs a endpoints
+            const endpointMap = {
+                'ID1': 'cargue-id1',
+                'ID2': 'cargue-id2',
+                'ID3': 'cargue-id3',
+                'ID4': 'cargue-id4',
+                'ID5': 'cargue-id5',
+                'ID6': 'cargue-id6'
+            };
+
+            const endpoint = endpointMap[idSheet];
+            if (!endpoint) {
+                console.error(`❌ ${idSheet} - ID no válido`);
+                return;
+            }
+
+            // Consultar directamente la tabla CargueIDx
+            const queryParams = new URLSearchParams({
+                dia: dia.toUpperCase(),
+                fecha: fechaAUsar
+            });
+
+            const urlDirecta = `${API_URL}/${endpoint}/?${queryParams.toString()}`;
+            console.log(`🔍 ${idSheet} - URL directa: ${urlDirecta}`);
+
+            try {
+                const response = await fetch(urlDirecta);
+
+                if (!response.ok) {
+                    console.warn(`⚠️ ${idSheet} - Error HTTP ${response.status}`);
+                    return;
                 }
-            } else {
-                console.log(`⚠️ ${idSheet} - No hay datos disponibles para ${key}`);
+
+                const registros = await response.json();
+                console.log(`✅ ${idSheet} - Registros recibidos: ${registros.length}`);
+
+                if (registros.length === 0) {
+                    console.log(`⚠️ ${idSheet} - No hay datos en BD para ${dia} ${fechaAUsar}`);
+                    return;
+                }
+
+                // Convertir registros de BD al formato del frontend
+                const productosDesdeDB = registros.map(reg => {
+                    // Parsear lotes_vencidos si es string JSON
+                    let lotesVencidos = [];
+                    if (reg.lotes_vencidos) {
+                        try {
+                            lotesVencidos = typeof reg.lotes_vencidos === 'string'
+                                ? JSON.parse(reg.lotes_vencidos)
+                                : reg.lotes_vencidos;
+                        } catch (e) {
+                            console.error('Error parsing lotes_vencidos:', e);
+                        }
+                    }
+
+                    return {
+                        id: reg.id || Math.random(),
+                        producto: reg.producto,
+                        cantidad: parseInt(reg.cantidad) || 0,
+                        dctos: parseInt(reg.dctos) || 0,
+                        adicional: parseInt(reg.adicional) || 0,
+                        devoluciones: parseInt(reg.devoluciones) || 0,
+                        vencidas: parseInt(reg.vencidas) || 0,
+                        lotesVencidos: lotesVencidos,
+                        total: parseInt(reg.total) || 0,
+                        valor: parseFloat(reg.valor) || 0,
+                        neto: parseFloat(reg.neto) || 0,
+                        vendedor: reg.v || false,
+                        despachador: reg.d || false
+                    };
+                });
+
+                console.log(`✅ ${idSheet} - Productos convertidos: ${productosDesdeDB.length}`);
+
+                // 🆕 LOG: Mostrar productos con devoluciones/vencidas
+                productosDesdeDB.filter(p => p.devoluciones > 0 || p.vencidas > 0).forEach(p => {
+                    console.log(`📦 ${p.producto}: devoluciones=${p.devoluciones}, vencidas=${p.vencidas}`);
+                });
+
+                // Guardar en localStorage para próximas cargas
+                const datosParaLS = {
+                    dia,
+                    idSheet,
+                    fecha: fechaAUsar,
+                    responsable: nombreResponsable,
+                    productos: productosDesdeDB,
+                    timestamp: Date.now(),
+                    sincronizado: true,
+                    fromServer: true
+                };
+
+                localStorage.setItem(key, JSON.stringify(datosParaLS));
+                console.log(`💾 ${idSheet} - Datos guardados en localStorage desde BD`);
+
+                // Actualizar estado con datos de BD
+                datos = datosParaLS;
+
+            } catch (error) {
+                console.error(`❌ ${idSheet} - Error cargando desde BD:`, error);
+                return;
             }
 
             if (datos && datos.productos) {
@@ -1243,35 +1333,67 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         };
 
         // Intervalo de polling
-        const pollingInterval = setInterval(() => {
+        // ⚡ POLLING INTELIGENTE: Check ultrarrápido (4s) para detectar cambios sin saturar
+        const pollingInterval = setInterval(async () => {
             if (isVisible) {
-                // 🛡️ PROTECCIÓN: No recargar si hubo cambio manual reciente
+                // 🛡️ PROTECCIÓN: No recargar si hubo cambio manual reciente o estamos editando
                 if (cambioManualRef.current) {
-                    console.log(`🛡️ ${idSheet} - Cambio manual pendiente, omitiendo polling`);
+                    // console.log(`🛡️ ${idSheet} - Edición activa, posponiendo check...`);
                     return;
                 }
 
-                console.log(`🔄 ${idSheet} - Polling automático (pestaña visible)`);
-                const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
-
-                // Si está completado, solo recargar si NO tenemos la lista completa
-                if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
-                    // Verificar longitud actual vs contexto
-                    const longitudTotalEsperada = products ? products.length : 0;
-                    const longitudActual = productosOperativos.length;
-
-                    if (longitudActual < longitudTotalEsperada && longitudTotalEsperada > 0) {
-                        console.log(`🔄 ${idSheet} - Polling detectó lista incompleta (${longitudActual}/${longitudTotalEsperada}), recargando...`);
-                        cargarDatosDesdeDB();
+                try {
+                    // 🔧 FIX: Usar API_URL que ya está definido arriba (sin duplicar /api)
+                    // Formatear fecha correctamente
+                    let fechaFormateada;
+                    if (fechaSeleccionada instanceof Date) {
+                        const year = fechaSeleccionada.getFullYear();
+                        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+                        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+                        fechaFormateada = `${year}-${month}-${day}`;
                     } else {
-                        console.log(`✅ ${idSheet} - Polling omitido: Lista ya está completa y modo solo lectura`);
+                        fechaFormateada = fechaSeleccionada || new Date().toISOString().split('T')[0];
                     }
-                } else {
-                    // Si no está completado, cargar normal (localStorage)
-                    cargarDatosGuardados();
+
+                    // 1. Preguntar al servidor si hay novedades (Request minúsculo)
+                    const url = `${API_URL}/cargue/verificar-actualizaciones/?idSheet=${idSheet}&dia=${dia}&fecha=${fechaFormateada}`;
+                    console.log(`🔍 Polling URL: ${url}`);
+
+                    const res = await fetch(url);
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        console.log(`📡 Respuesta polling:`, data);
+
+                        // 2. Comparar fecha de actualización
+                        if (data.last_update) {
+                            const remoteTime = new Date(data.last_update).getTime();
+                            const localKey = `last_update_${idSheet}_${dia}_${fechaFormateada}`;
+                            const localTime = window[localKey] || 0;
+
+                            console.log(`⏰ Comparando tiempos: Local=${new Date(localTime).toISOString()}, Remoto=${data.last_update}`);
+
+                            // Si el servidor tiene datos más nuevos que yo -> RECARGAR
+                            if (remoteTime > localTime) {
+                                console.log(`🚀 CAMBIO REMOTO DETECTADO: ${data.last_update}`);
+                                window[localKey] = remoteTime;
+
+                                console.log(`🔄 ${idSheet} - Sincronizando datos frescos...`);
+                                cargarDatosGuardados(); // Esta función ya tiene la lógica de Merge Correcta
+                            } else {
+                                console.log(`✅ Datos locales están actualizados`);
+                            }
+                        } else {
+                            console.log(`⚠️ No hay last_update en respuesta`);
+                        }
+                    } else {
+                        console.warn(`⚠️ Polling falló con status: ${res.status}`);
+                    }
+                } catch (e) {
+                    console.warn("⚠️ Polling smart check failed:", e);
                 }
             }
-        }, 15000); // 15 segundos
+        }, 3000); // Check cada 3 segundos (balance entre velocidad y estabilidad)
 
         // Listener para cambios de visibilidad
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -1499,12 +1621,28 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 ).then(result => {
                     if (result.success) {
                         console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valorParaBD} (${result.action})`);
+
+                        // 🆕 RESETEAR BANDERA: Después de sincronizar exitosamente
+                        // Esperar 2.5s adicionales para que el servidor procese y el polling pueda recargar
+                        setTimeout(() => {
+                            cambioManualRef.current = false;
+                            console.log(`🔓 ${idSheet} - Bandera reseteada después de sincronización exitosa`);
+                        }, 2500);
                     } else {
                         console.error(`❌ Error sincronizando BD:`, result.error);
-                        console.error(`❌ Error en sincronización:`, result.error);
+                        // Resetear bandera incluso si falla para no bloquear el polling indefinidamente
+                        setTimeout(() => {
+                            cambioManualRef.current = false;
+                            console.log(`🔓 ${idSheet} - Bandera reseteada después de error`);
+                        }, 2500);
                     }
                 }).catch(err => {
                     console.error(`❌ Error en sincronización:`, err);
+                    // Resetear bandera incluso si falla
+                    setTimeout(() => {
+                        cambioManualRef.current = false;
+                        console.log(`🔓 ${idSheet} - Bandera reseteada después de excepción`);
+                    }, 2500);
                 });
             }, debounceTime);
         }
@@ -1586,11 +1724,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 return;
             }
 
-            // Resetear bandera de cambio manual
-            cambioManualRef.current = false;
-
             // 🚀 DESHABILITADO: Ya no usamos guardarDatos porque tenemos sincronización en tiempo real
             // con cargueRealtimeService.actualizarCampoProducto() que se llama en actualizarProducto()
+            // La bandera cambioManualRef se resetea DESPUÉS del debounce en actualizarProducto()
             // Esto evita crear registros duplicados
             // if (cargueApiConfig.USAR_API) {
             //     console.log(`🚀 ${idSheet} - Cambio manual detectado, sincronizando al servidor...`);

@@ -14,7 +14,7 @@ from .views import (
     RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
     RegistrosPlaneacionDiaViewSet,
     CarguePagosViewSet, RutaOrdenViewSet, ReportePlaneacionViewSet,
-    obtener_estado_cargue, actualizar_estado_cargue,
+    obtener_estado_cargue, actualizar_estado_cargue, verificar_actualizaciones,
     CargueResumenViewSet, TipoNegocioViewSet,
     # 🆕 Endpoints de turno
     verificar_turno_activo, abrir_turno, cerrar_turno_estado,
@@ -121,6 +121,9 @@ urlpatterns = router.urls + [
     # 🆕 Estado del cargue
     path('estado-cargue/', obtener_estado_cargue, name='obtener-estado-cargue'),
     path('estado-cargue/actualizar/', actualizar_estado_cargue, name='actualizar-estado-cargue'),
+    
+    # 🆕 Polling Inteligente
+    path('cargue/verificar-actualizaciones/', verificar_actualizaciones, name='verificar-actualizaciones'),
     
     # 🆕 Configuración de producción
     path('configuracion-produccion/', obtener_configuracion_produccion, name='obtener-configuracion-produccion'),
