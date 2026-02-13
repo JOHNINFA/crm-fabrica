@@ -33,8 +33,11 @@ docker-compose.yml
 .dockerignore
 
 # Documentación
+# Documentación
 *.md
 DOCUMENTACION/
+.kiro/
+IA_SKILLS/
 
 # Backups y scripts de desarrollo
 *.sql
