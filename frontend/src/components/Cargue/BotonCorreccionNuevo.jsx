@@ -1,27 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from 'react-bootstrap';
 import ModalCorreccionSimple from './ModalCorreccionSimple';
 
 const BotonCorreccionNuevo = ({ dia, idSheet, fechaSeleccionada, productos, onProductosActualizados }) => {
-    const [mostrarBoton, setMostrarBoton] = useState(true);
     const [showModal, setShowModal] = useState(false);
-
-    // Verificar estado del botón SUGERIDO
-    useEffect(() => {
-        const verificarEstadoBoton = () => {
-            const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
-            setMostrarBoton(estadoBoton === 'ALISTAMIENTO');
-        };
-
-        verificarEstadoBoton();
-        const interval = setInterval(verificarEstadoBoton, 1000);
-        return () => clearInterval(interval);
-    }, [dia, fechaSeleccionada]);
-
-    // No mostrar si el botón SUGERIDO ya se activó
-    if (!mostrarBoton) {
-        return null;
-    }
 
     const handleClickBoton = () => {
 

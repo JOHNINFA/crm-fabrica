@@ -18,12 +18,52 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
         setProductosEditados(nuevos);
     };
 
-    const handleGuardar = () => {
+    const handleGuardar = async () => {
+        console.log('💾 Guardando correcciones...');
 
-        alert('💾 Función guardar ejecutada');
+        // Filtrar solo productos modificados
+        const productosModificados = productosEditados.filter(
+            p => p.cantidadOriginal !== p.cantidadNueva
+        );
 
-        // Actualizar localStorage
+        if (productosModificados.length === 0) {
+            alert('⚠️ No hay cambios para guardar');
+            return;
+        }
+
         try {
+            // 1. Guardar en BD primero
+            console.log(`🔄 Sincronizando ${productosModificados.length} productos con BD...`);
+
+            const API_URL = process.env.REACT_APP_API_URL || '/api';
+
+            const promesas = productosModificados.map(producto =>
+                fetch(`${API_URL}/cargue-corregir-cantidad/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vendedor_id: idSheet,
+                        dia: dia.toUpperCase(),
+                        fecha: fechaSeleccionada,
+                        producto: producto.nombre,
+                        nueva_cantidad: producto.cantidadNueva
+                    })
+                }).then(res => res.json())
+            );
+
+            const resultados = await Promise.all(promesas);
+
+            // Verificar errores
+            const errores = resultados.filter(r => !r.success);
+            if (errores.length > 0) {
+                console.error('❌ Errores guardando:', errores);
+                alert(`❌ Error guardando ${errores.length} producto(s). Revisa la consola para más detalles.`);
+                return;
+            }
+
+            console.log('✅ Todos los productos guardados en BD');
+
+            // 2. Actualizar localStorage (sincronización local)
             const fechaAUsar = fechaSeleccionada;
             const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
 
@@ -31,12 +71,11 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
             if (datosActuales) {
                 const datos = JSON.parse(datosActuales);
 
-                // Actualizar productos
                 productosEditados.forEach(productoEditado => {
                     const productoEnDatos = datos.productos.find(p => p.id === productoEditado.id);
                     if (productoEnDatos && productoEditado.cantidadOriginal !== productoEditado.cantidadNueva) {
                         productoEnDatos.cantidad = productoEditado.cantidadNueva;
-                        // Asegurar que todos los valores sean números válidos
+
                         const cantidad = parseInt(productoEditado.cantidadNueva) || 0;
                         const dctos = parseInt(productoEnDatos.dctos) || 0;
                         const adicional = parseInt(productoEnDatos.adicional) || 0;
@@ -46,25 +85,25 @@ const ModalCorreccionSimple = ({ productos, dia, idSheet, fechaSeleccionada, onC
                         productoEnDatos.total = cantidad - dctos + adicional - devoluciones - vencidas;
                         productoEnDatos.neto = Math.round(productoEnDatos.total * productoEnDatos.valor);
 
-                        console.log(`✅ Actualizado: ${productoEditado.nombre} - ${productoEditado.cantidadOriginal} → ${productoEditado.cantidadNueva}`);
+                        console.log(`✅ localStorage: ${productoEditado.nombre} - ${productoEditado.cantidadOriginal} → ${productoEditado.cantidadNueva}`);
                     }
                 });
 
                 datos.timestamp = Date.now();
                 localStorage.setItem(key, JSON.stringify(datos));
-
-
-                alert('✅ Cambios guardados exitosamente');
-
-                if (onGuardar) {
-                    onGuardar();
-                }
-
-                onClose();
             }
+
+            alert(`✅ ${productosModificados.length} producto(s) corregido(s) exitosamente`);
+
+            if (onGuardar) {
+                onGuardar();
+            }
+
+            onClose();
+
         } catch (error) {
             console.error('❌ Error guardando:', error);
-            alert('❌ Error guardando cambios');
+            alert('❌ Error guardando cambios. Intenta de nuevo.');
         }
     };
 

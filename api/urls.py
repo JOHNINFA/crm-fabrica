@@ -9,7 +9,7 @@ from .views import (
     VendedorViewSet, DomiciliarioViewSet, ProduccionSolicitadaViewSet, PlaneacionViewSet,
     SucursalViewSet, CajeroViewSet, TurnoViewSet, VentaCajeroViewSet, ArqueoCajaViewSet,
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
-    PrediccionIAView, guardar_sugerido, obtener_cargue, obtener_rendimiento_cargue, actualizar_check_vendedor, verificar_estado_dia,
+    PrediccionIAView, guardar_sugerido, corregir_cantidad_cargue, obtener_cargue, obtener_rendimiento_cargue, actualizar_check_vendedor, verificar_estado_dia,
     calcular_devoluciones_automaticas, ventas_tiempo_real, cerrar_turno_vendedor,
     RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
     RegistrosPlaneacionDiaViewSet,
@@ -96,6 +96,7 @@ router.register(r'reportes-planeacion', ReportePlaneacionViewSet, basename='repo
 
 urlpatterns = router.urls + [
     path('guardar-sugerido/', guardar_sugerido, name='guardar-sugerido'),
+    path('cargue-corregir-cantidad/', corregir_cantidad_cargue, name='corregir-cantidad-cargue'),
     path('obtener-cargue/', obtener_cargue, name='obtener-cargue'),
     path('rendimiento-cargue/', obtener_rendimiento_cargue, name='rendimiento-cargue'),
     path('actualizar-check-vendedor/', actualizar_check_vendedor, name='actualizar-check-vendedor'),

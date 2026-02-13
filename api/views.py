@@ -3031,6 +3031,102 @@ def guardar_sugerido(request):
         return Response({'error': str(e)}, status=500)
 
 @api_view(['POST'])
+def corregir_cantidad_cargue(request):
+    """
+    Endpoint para corregir cantidad de un producto específico.
+    NO crea registros nuevos, solo actualiza existentes.
+    Preserva el campo 'usuario' (AppMovil/CRM) y recalcula el total.
+    """
+    try:
+        data = request.data
+        vendedor_id = data.get('vendedor_id')  # Ej: "ID1"
+        dia = data.get('dia', '').upper()  # Ej: "LUNES"
+        fecha = data.get('fecha')  # Ej: "2026-02-11"
+        producto = data.get('producto')  # Ej: "AREPA TIPO OBLEA"
+        nueva_cantidad = data.get('nueva_cantidad')
+        
+        print(f"🔧 Corrigiendo cantidad: {vendedor_id} - {dia} - {fecha} - {producto} → {nueva_cantidad}")
+        
+        # Validación de campos requeridos
+        if not all([vendedor_id, dia, fecha, producto, nueva_cantidad is not None]):
+            return Response({
+                'error': 'Faltan campos requeridos',
+                'campos': {
+                    'vendedor_id': vendedor_id,
+                    'dia': dia,
+                    'fecha': fecha,
+                    'producto': producto,
+                    'nueva_cantidad': nueva_cantidad
+                }
+            }, status=400)
+        
+        # Mapeo de modelos
+        modelos = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+        
+        Modelo = modelos.get(vendedor_id)
+        if not Modelo:
+            return Response({'error': f'Vendedor no válido: {vendedor_id}'}, status=400)
+        
+        # Buscar registro existente
+        registro = Modelo.objects.filter(
+            dia=dia,
+            fecha=fecha,
+            producto=producto
+        ).first()
+        
+        if not registro:
+            return Response({
+                'error': 'Producto no encontrado',
+                'message': f'No existe "{producto}" para {vendedor_id} - {dia} - {fecha}'
+            }, status=404)
+        
+        # Guardar valor anterior para log
+        cantidad_anterior = registro.cantidad
+        
+        # Actualizar cantidad
+        registro.cantidad = int(nueva_cantidad)
+        
+        # Recalcular total (preservando otros campos)
+        cantidad = int(nueva_cantidad)
+        dctos = int(registro.dctos) if registro.dctos else 0
+        adicional = int(registro.adicional) if registro.adicional else 0
+        devoluciones = int(registro.devoluciones) if registro.devoluciones else 0
+        vencidas = int(registro.vencidas) if registro.vencidas else 0
+        
+        registro.total = cantidad - dctos + adicional - devoluciones - vencidas
+        
+        # Guardar (preserva campo 'usuario' - NO lo modificamos)
+        registro.save()
+        
+        print(f"✅ Cantidad corregida: {producto}")
+        print(f"   Cantidad: {cantidad_anterior} → {cantidad}")
+        print(f"   Total recalculado: {registro.total}")
+        print(f"   Usuario preservado: {registro.usuario}")
+        
+        return Response({
+            'success': True,
+            'message': 'Cantidad actualizada correctamente',
+            'producto': producto,
+            'cantidad_anterior': cantidad_anterior,
+            'cantidad_nueva': cantidad,
+            'total_recalculado': registro.total,
+            'usuario': registro.usuario  # Retornar para confirmar que se preservó
+        })
+        
+    except Exception as e:
+        print(f"❌ Error corrigiendo cantidad: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
 def actualizar_check_vendedor(request):
     """
     Endpoint para actualizar el check V (vendedor) desde la App Móvil.
