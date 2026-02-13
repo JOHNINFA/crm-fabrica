@@ -1847,6 +1847,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         idSheet={idSheet}
                         fechaSeleccionada={fechaSeleccionada}
                         productos={productosOperativos}
+                        estadoActual={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO'}
                         onProductosActualizados={() => {
 
                             // Forzar recarga completa de datos
