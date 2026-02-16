@@ -380,7 +380,7 @@ export default function TicketPreviewModal({
                     
                     <div class="ticket-info">
                         <p><strong>FACTURA: ${numero}</strong></p>
-                        <p><strong>Fecha: ${formatFecha(fecha)}</strong></p>
+                        <p><strong>Fecha: ${fechaEntrega || 'Inmediata'} ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}</strong></p>
                     </div>
                     
                     <div class="ticket-divider">................................................</div>
@@ -480,7 +480,8 @@ export default function TicketPreviewModal({
                     
                     <div class="ticket-footer">
                         <p><strong>${mensajeGracias}</strong></p>
-                        <p style="font-size: 7px; margin-top: 8px; color: #666;">Elaborado por Software Guerrero</p>
+                        <p style="font-size: 7px; margin-top: 5px; color: #666;">Fecha de impresion: ${new Date().toLocaleString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                        <p style="font-size: 9px; margin-top: 2px; font-weight: bold;">Elaborado por Software Guerrero</p>
                     </div>
                 </div>
             </body>

@@ -387,6 +387,27 @@ Se eliminaron las restricciones que impedían editar la planeación de producci�
 
 ---
 
+## 🖨️ Mejoras en Impresión de Tickets (Febrero 2026)
+
+### Resumen
+Se ajustó el diseño del ticket de pedido para mejorar la legibilidad y la trazabilidad de la impresión.
+
+### Cambios Visuales
+1.  **Encabezado (Fecha Principal):**
+    -   Se reemplazó la fecha de *creación* por la **Fecha de Entrega**.
+    -   Se añade dinámicamente la **Hora de Impresión** actual para dar contexto temporal preciso.
+    -   Formato: `Fecha: YYYY-MM-DD HH:mm a.m./p.m.`
+
+2.  **Pie de Página (Auditoría):**
+    -   Se añadió un sello de tiempo explícito al final del ticket.
+    -   Texto: `Fecha de impresion: DD/MM/YYYY, HH:mm a.m./p.m.` (Fuente pequeña 7px).
+    -   Firma: **"Elaborado por Software Guerrero"** ahora es más visible (9px, negrita).
+
+### Archivos Modificados
+- `frontend/src/components/Print/TicketPreviewModal.jsx`
+
+---
+
 ## 📦 Análisis Detallado del Módulo de Cargue
 
 ### Arquitectura General
