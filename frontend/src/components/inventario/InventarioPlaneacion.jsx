@@ -40,7 +40,9 @@ const InventarioPlaneacion = () => {
       const estadoBoton = localStorage.getItem(`estado_boton_${diaSemana}_${fechaParaKey}`);
 
       // 🔒 Día congelado si está en ALISTAMIENTO_ACTIVO, FINALIZAR (Despacho) o COMPLETADO
-      const congelado = estadoBoton === 'ALISTAMIENTO_ACTIVO' || estadoBoton === 'FINALIZAR' || estadoBoton === 'COMPLETADO';
+      // 🔓 DESBLOQUEO SOLICITADO: El usuario quiere editar siempre, sin importar el estado del cargue.
+      // El control de "versión final" se hace mediante el botón "Guardar Reporte".
+      const congelado = false; // estadoBoton === 'COMPLETADO'; // ⚠️ Lógica anterior desactivada
       setDiaCongelado(congelado);
 
       if (congelado) {

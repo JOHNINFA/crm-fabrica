@@ -357,6 +357,36 @@ git push origin main
 
 ---
 
+## 📅 Optimización de Planeación (Febrero 2026)
+
+### Resumen Ejecutivo
+
+Se eliminaron las restricciones que impedían editar la planeación de producción cuando el día operativo ya había iniciado. El objetivo es permitir ajustes dinámicos continuos hasta que el usuario decida manualmente "cerrar" la versión.
+
+### Cambios Implementados
+
+#### A. InventarioPlaneacion.jsx - Lógica de Edición
+
+**Eliminación de Bloqueo (Día Congelado)**
+- Se desactivó la lógica `diaCongelado` que bloqueaba inputs cuando el estado del cargue era `ALISTAMIENTO_ACTIVO` o superior.
+- **Antes**: Si alguien iniciaba el alistamiento (botón café), Planeación se volvía de solo lectura.
+- **Ahora**: Planeación es siempre editable, permitiendo corregir errores o ajustar cantidades de producción sobre la marcha.
+
+**Control de Versiones (Snapshot)**
+- La responsabilidad de "congelar" la producción final recae exclusivamente en el botón **"Guardar Reporte"**.
+- Este botón genera un registro histórico inmutable (Snapshot) en la BD.
+- Si no se guarda reporte, los datos siguen siendo dinámicos.
+
+**Integración de Datos**
+- **Inputs**: El usuario edita libremente las columnas `Orden` (cantidad a producir) e `IA` (predicción).
+- **Outputs (Read-only)**: Las columnas `Solicitadas` (suma de ID1-ID6) y `Pedidos` siguen actualizándose en tiempo real desde la operación, sin verse afectadas por la edición manual.
+
+### Archivos Modificados
+
+- `frontend/src/components/inventario/InventarioPlaneacion.jsx`
+
+---
+
 ## 📦 Análisis Detallado del Módulo de Cargue
 
 ### Arquitectura General

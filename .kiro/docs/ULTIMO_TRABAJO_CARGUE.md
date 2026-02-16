@@ -37,6 +37,13 @@ Este archivo tiene cambios pendientes (aún no commiteados en el último push, p
 *   **Validación Ágil:**
     *   Se ajustó la validación para que solo requiera el check del **Despachador ('D')**. El check del Vendedor ('V') ahora es opcional para permitir el flujo.
 
+### C. `frontend/src/components/inventario/InventarioPlaneacion.jsx` (Lógica de Edición)
+*   **Eliminación de Bloqueo (Día Congelado):**
+    *   Se desactivó la lógica que impedía editar la planeación cuando el estado pasaba a `ALISTAMIENTO_ACTIVO`.
+    *   **Motivo:** Permitir al usuario corregir y ajustar cantidades de producción libremente, independientemente del estado del cargue.
+    *   **Control de Cambios:** Ahora la responsabilidad de "congelar" una versión recae exclusivamente en el botón manual "Guardar Reporte" (snapshot).
+    *   **Sincronización:** Los datos de "Solicitadas" y "Pedidos" siguen llegando en tiempo real; solo se eliminó la restricción de escritura en los campos "Orden" e "IA".
+
 ### C. `frontend/src/services/cargueRealtimeService.js` (Infraestructura)
 **Estado:** ✅ YA SUBIDO Y FINALIZADO (Commit `2dccfbab`).
 
