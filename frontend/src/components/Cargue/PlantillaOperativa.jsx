@@ -233,6 +233,8 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     const contextoActualizadoRef = useRef(false);
     // 🆕 NUEVO: Debounce para sincronización (evitar enviar cada tecla)
     const debounceTimerRef = useRef({});
+    // 🆕 Timer para resetear bandera de cambio manual (evitar que resets anteriores interfieran)
+    const resetBanderaTimerRef = useRef(null);
     const [, forceUpdate] = useState(0); // Solo para forzar re-render cuando sea necesario
 
     // ✅ CARGA INMEDIATA CON CACHÉ: Cargar datos desde localStorage con precios cacheados
@@ -886,15 +888,15 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                 if (!response.ok) {
                     console.warn(`⚠️ ${idSheet} - Error HTTP ${response.status}`);
-                    return;
+                    // No hacer return, continuar para cargar productos desde contexto
                 }
 
-                const registros = await response.json();
+                const registros = response.ok ? await response.json() : [];
                 console.log(`✅ ${idSheet} - Registros recibidos: ${registros.length}`);
 
                 if (registros.length === 0) {
-                    console.log(`⚠️ ${idSheet} - No hay datos en BD para ${dia} ${fechaAUsar}`);
-                    return;
+                    console.log(`⚠️ ${idSheet} - No hay datos en BD para ${dia} ${fechaAUsar}, cargando desde contexto...`);
+                    // No hacer return, continuar para mostrar productos vacíos desde contexto
                 }
 
                 // Convertir registros de BD al formato del frontend
@@ -955,7 +957,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             } catch (error) {
                 console.error(`❌ ${idSheet} - Error cargando desde BD:`, error);
-                return;
+                // No hacer return, continuar para cargar productos desde contexto
             }
 
             if (datos && datos.productos) {
@@ -1594,8 +1596,9 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             }
 
             // 🆕 DEBOUNCE: Esperar antes de sincronizar
-            // Para lotes vencidos usar debounce más corto
-            const debounceTime = campo === 'lotesVencidos' ? 500 : 1500;
+            // Para checks D: inmediato (0ms) - Para lotes vencidos: 500ms - Para texto: 1500ms
+            const debounceTime = (campo === 'despachador' || campo === 'vendedor') ? 0
+                : campo === 'lotesVencidos' ? 500 : 1500;
 
             debounceTimerRef.current[timerKey] = setTimeout(() => {
                 // 🆕 Convertir lotesVencidos a JSON string para la BD
@@ -1622,27 +1625,28 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     if (result.success) {
                         console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valorParaBD} (${result.action})`);
 
-                        // 🆕 RESETEAR BANDERA: Después de sincronizar exitosamente
-                        // Esperar 2.5s adicionales para que el servidor procese y el polling pueda recargar
-                        setTimeout(() => {
+                        // 🆕 Cancelar reset anterior y programar uno nuevo
+                        const tiempoReset = (campo === 'despachador' || campo === 'vendedor') ? 9000 : 2500;
+                        if (resetBanderaTimerRef.current) clearTimeout(resetBanderaTimerRef.current);
+                        resetBanderaTimerRef.current = setTimeout(() => {
                             cambioManualRef.current = false;
-                            console.log(`🔓 ${idSheet} - Bandera reseteada después de sincronización exitosa`);
-                        }, 2500);
+                            console.log(`🔓 ${idSheet} - Bandera reseteada (${tiempoReset}ms)`);
+                        }, tiempoReset);
                     } else {
                         console.error(`❌ Error sincronizando BD:`, result.error);
-                        // Resetear bandera incluso si falla para no bloquear el polling indefinidamente
-                        setTimeout(() => {
+                        const tiempoReset = (campo === 'despachador' || campo === 'vendedor') ? 9000 : 2500;
+                        if (resetBanderaTimerRef.current) clearTimeout(resetBanderaTimerRef.current);
+                        resetBanderaTimerRef.current = setTimeout(() => {
                             cambioManualRef.current = false;
-                            console.log(`🔓 ${idSheet} - Bandera reseteada después de error`);
-                        }, 2500);
+                        }, tiempoReset);
                     }
                 }).catch(err => {
                     console.error(`❌ Error en sincronización:`, err);
-                    // Resetear bandera incluso si falla
-                    setTimeout(() => {
+                    const tiempoReset = (campo === 'despachador' || campo === 'vendedor') ? 9000 : 2500;
+                    if (resetBanderaTimerRef.current) clearTimeout(resetBanderaTimerRef.current);
+                    resetBanderaTimerRef.current = setTimeout(() => {
                         cambioManualRef.current = false;
-                        console.log(`🔓 ${idSheet} - Bandera reseteada después de excepción`);
-                    }, 2500);
+                    }, tiempoReset);
                 });
             }, debounceTime);
         }

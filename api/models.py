@@ -1172,6 +1172,9 @@ class CargueResumen(models.Model):
     venta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
+    # 🆕 Notas del cargue
+    nota = models.TextField(blank=True, default='')
+    
     # 🆕 Estado del proceso de cargue
     ESTADO_CARGUE_CHOICES = [
         ('ALISTAMIENTO', 'Alistamiento'),

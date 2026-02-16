@@ -17,7 +17,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   };
   const fechaFormateadaLS = formatearFechaLS(fechaSeleccionada);
 
-  const [estado, setEstado] = useState('SUGERIDO');
+  const [estado, setEstado] = useState('ALISTAMIENTO');
   const [loading, setLoading] = useState(false);
   const [productosValidados, setProductosValidados] = useState([]);
   const [productosPendientes, setProductosPendientes] = useState([]);
@@ -54,61 +54,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Obtener datos frescos del contexto de vendedores
   const { datosVendedores } = useVendedores();
 
-  // 🚀 NUEVA FUNCIÓN: Verificar productos de un ID específico
-  const verificarProductosDelID = async (idVendedor) => {
-    try {
-      const { simpleStorage } = await import('../../services/simpleStorage');
 
-      if (!fechaSeleccionada) {
-        console.warn(`⚠️ fechaSeleccionada no definida para ${idVendedor}`);
-        return { listos: [], pendientes: [] };
-      }
-
-      const fechaAUsar = fechaSeleccionada;
-      const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
-      const datos = await simpleStorage.getItem(key);
-
-      const productosListos = [];
-      const productosPendientes = [];
-
-      if (datos && datos.productos) {
-        for (const producto of datos.productos) {
-          // Debug: mostrar estado de checks para productos con total > 0
-          if (producto.total > 0) {
-            console.log(`🔍 ${idVendedor} - ${producto.producto}: Cantidad=${producto.cantidad}, Adicional=${producto.adicional}, V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
-          }
-
-          // 🚀 LÓGICA CORRECTA: Productos con TOTAL > 0 (cantidad + adicional) sin checkboxes completos
-          if (producto.total > 0 && (!producto.vendedor || !producto.despachador)) {
-            productosPendientes.push({
-              id: producto.id,
-              nombre: producto.producto,
-              totalCantidad: producto.total, // Contar total (cantidad + adicional)
-              vendedorId: idVendedor,
-              vendedor: producto.vendedor,
-              despachador: producto.despachador
-            });
-            console.log(`⚠️ ${idVendedor} PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - V:${producto.vendedor} D:${producto.despachador}`);
-          }
-
-          // 🚀 LÓGICA CORRECTA: Productos completamente listos (V=true, D=true, TOTAL>0)
-          if (producto.vendedor && producto.despachador && producto.total > 0) {
-            productosListos.push({
-              id: producto.id,
-              nombre: producto.producto,
-              totalCantidad: producto.total // Contar total (cantidad + adicional)
-            });
-            console.log(`✅ ${idVendedor} PRODUCTO LISTO: ${producto.producto} - Total: ${producto.total}`);
-          }
-        }
-      }
-
-      return { listos: productosListos, pendientes: productosPendientes };
-    } catch (error) {
-      console.error(`Error verificando productos de ${idVendedor}:`, error);
-      return { listos: [], pendientes: [] };
-    }
-  };
 
   // Verificar productos listos y detectar productos pendientes (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const verificarProductosListos = async () => {
@@ -139,8 +85,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               console.log(`🔍 ${id} - ${producto.producto}: Cantidad=${producto.cantidad}, Adicional=${producto.adicional}, V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
             }
 
-            // 🚀 LÓGICA CORRECTA: Productos con TOTAL > 0 (cantidad + adicional) sin checkboxes completos
-            if (producto.total > 0 && (!producto.vendedor || !producto.despachador)) {
+            // 🚀 LÓGICA FLEXIBLE: Productos con TOTAL > 0 sin check de DESPACHADOR (Vendedor opcional)
+            if (producto.total > 0 && !producto.despachador) {
               if (!productosPendientes[producto.id]) {
                 productosPendientes[producto.id] = {
                   id: producto.id,
@@ -152,11 +98,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 };
               }
               productosPendientes[producto.id].totalCantidad += producto.total; // Contar total (cantidad + adicional)
-              console.log(`⚠️ PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - V:${producto.vendedor} D:${producto.despachador}`);
+              console.log(`⚠️ PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - Falta D (V:${producto.vendedor})`);
             }
 
-            // 🚀 LÓGICA CORRECTA: Productos completamente listos (V=true, D=true, TOTAL>0)
-            if (producto.vendedor && producto.despachador && producto.total > 0) {
+            // 🚀 LÓGICA FLEXIBLE: Productos listos si NO ESTÁN PENDIENTES (marcados por Despachador)
+            if (producto.despachador && producto.total > 0) {
               if (!todosLosProductos[producto.id]) {
                 todosLosProductos[producto.id] = {
                   id: producto.id,
@@ -165,7 +111,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 };
               }
               todosLosProductos[producto.id].totalCantidad += producto.total; // Contar total (cantidad + adicional)
-              console.log(`✅ PRODUCTO LISTO: ${producto.producto} - Total: ${producto.total}`);
+              console.log(`✅ PRODUCTO LISTO (Por Despachador): ${producto.producto} - Total: ${producto.total}`);
             }
           }
         }
@@ -185,65 +131,97 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   useEffect(() => {
     if (idSheet !== 'ID1') return;
 
-    const estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
+    // 1. Cargar estado inicial desde localStorage (para velocidad)
+    let estadoGuardado = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
+
+    // ⚠️ REGLA DE MIGRACIÓN: Si encontramos el estado viejo "SUGERIDO", lo convertimos a "ALISTAMIENTO_ACTIVO"
+    if (estadoGuardado === 'SUGERIDO') {
+      console.log(`🔄 Migrando estado obsoleto SUGERIDO -> ALISTAMIENTO_ACTIVO`);
+      estadoGuardado = 'ALISTAMIENTO_ACTIVO';
+      localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, 'ALISTAMIENTO_ACTIVO');
+    }
+
     if (estadoGuardado) {
       setEstado(estadoGuardado);
-      console.log(`🔄 Estado global recuperado: ${estadoGuardado}`);
-    } else {
-      // 🆕 NUEVO: Si no hay estado en localStorage, intentar inferir desde BD
-      console.log(`🔍 ESTADO - No hay localStorage, consultando endpoint estado-cargue...`);
+      console.log(`🔄 Estado local recuperado: ${estadoGuardado} (Verificando con BD...)`);
+    }
 
-      const cargarEstadoDesdeBD = async () => {
-        try {
-          // Primero intentar con el endpoint de estado
-          const urlEstado = `${API_URL}/estado-cargue/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
-          console.log(`🔍 ESTADO - Consultando: ${urlEstado}`);
+    // 2. SIEMPRE consultar al servidor para tener la verdad absoluta
+    console.log(`🔍 ESTADO - Consultando BD para asegurar sincronización...`);
 
-          const responseEstado = await fetch(urlEstado);
+    const cargarEstadoDesdeBD = async () => {
+      try {
+        const urlEstado = `${API_URL}/estado-cargue/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
+        const responseEstado = await fetch(urlEstado);
 
-          if (responseEstado.ok) {
-            const dataEstado = await responseEstado.json();
+        if (responseEstado.ok) {
+          const dataEstado = await responseEstado.json();
 
-            if (dataEstado.success && dataEstado.estado && dataEstado.estado !== 'ALISTAMIENTO') {
-              console.log(`✅ ESTADO - Obtenido desde BD: ${dataEstado.estado}`);
-              setEstado(dataEstado.estado);
-              localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, dataEstado.estado);
+          if (dataEstado.success && dataEstado.estado) {
+            // CASO ESPECIAL: Si la BD está vacía (ALISTAMIENTO) pero yo tengo un estado avanzado
+            // ENTONCES: La BD está desactualizada. ¡Actualízala con mi estado!
+            if (dataEstado.estado === 'ALISTAMIENTO' && estadoGuardado && estadoGuardado !== 'ALISTAMIENTO') {
+              console.log(`⚠️ ESTADO - BD vacía (${dataEstado.estado}) vs Local avanzado (${estadoGuardado}). ¡Imponiendo Local!`);
+              // Forzar re-envío del estado local a la BD
+              // No hacemos setEstado porque ya está en ese estado, pero el useEffect de guardado no saltará si no cambia.
+              // Así que llamamos manualmente al endpoint de actualización.
+              fetch(`${API_URL}/estado-cargue/actualizar/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  dia: dia.toUpperCase(),
+                  fecha: fechaFormateadaLS,
+                  estado: estadoGuardado,
+                  vendedor_id: 'ID1'
+                })
+              });
               return;
             }
-          }
 
-          // Si no hay estado guardado, inferir desde datos de productos
-          console.log(`🔍 ESTADO - No hay estado en BD, infiriendo desde productos...`);
+            // CASO NORMAL: La BD tiene un esatdo diferente (y no es el default). La BD manda.
+            if (dataEstado.estado !== estadoGuardado) {
+              console.log(`✅ ESTADO - Actualizando desde BD: ${dataEstado.estado} (Local era: ${estadoGuardado})`);
+              setEstado(dataEstado.estado);
+              localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, dataEstado.estado);
+
+              // Si viene congelado de BD, asegurar congelamiento local
+              if (dataEstado.estado === 'DESPACHO' || dataEstado.estado === 'COMPLETADO') {
+                congelarProduccion(dataEstado.estado);
+              }
+            } else {
+              console.log(`✅ ESTADO - Sincronizado (BD y Local coinciden: ${dataEstado.estado})`);
+            }
+            return;
+          }
+        }
+
+        // Si no hay estado en BD y no teníamos local, intentar inferir
+        if (!estadoGuardado) {
+          console.log(`🔍 ESTADO - No hay estado en BD ni Local, infiriendo...`);
+          // ... (Lógica de inferencia existente) ...
           const url = `${API_URL}/cargue-id1/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
           const response = await fetch(url);
-
           if (response.ok) {
             const data = await response.json();
-
             if (Array.isArray(data) && data.length > 0) {
               const tieneCheckVD = data.some(r => r.v === true && r.d === true);
               const tieneCantidad = data.some(r => r.cantidad > 0);
-
               let estadoInferido = 'ALISTAMIENTO';
+              if (tieneCheckVD) estadoInferido = 'DESPACHO';
+              else if (tieneCantidad) estadoInferido = 'ALISTAMIENTO_ACTIVO'; // 🚀 Omitir SUGERIDO, ir directo a ACTIVO
 
-              if (tieneCheckVD) {
-                estadoInferido = 'DESPACHO';
-              } else if (tieneCantidad) {
-                estadoInferido = 'SUGERIDO';
-              }
-
-              console.log(`✅ ESTADO - Inferido desde productos: ${estadoInferido}`);
               setEstado(estadoInferido);
               localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, estadoInferido);
             }
           }
-        } catch (error) {
-          console.error(`❌ Error cargando estado desde BD:`, error);
         }
-      };
 
-      cargarEstadoDesdeBD();
-    }
+      } catch (error) {
+        console.error(`❌ Error cargando estado desde BD:`, error);
+      }
+    };
+
+    cargarEstadoDesdeBD();
 
     // También verificar si hay datos congelados
     const datosCongelados = localStorage.getItem(`produccion_congelada_${dia}_${fechaFormateadaLS}`);
@@ -251,6 +229,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
     }
   }, [dia, fechaFormateadaLS, idSheet]);
+
+
 
   // 🆕 NUEVO: Sincronizar estado con BD cuando cambie
   const estadoAnteriorRef = React.useRef(estado);
@@ -324,15 +304,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     };
 
     // Solo verificar si está en ALISTAMIENTO_ACTIVO
-    if (estado === 'ALISTAMIENTO_ACTIVO') {
+    if (estado === 'ALISTAMIENTO_ACTIVO' || estado === 'ALISTAMIENTO') {
       verificarYAvanzar();
     }
 
     // 🚀 VERIFICACIÓN EN TIEMPO REAL: Solo cuando está en ALISTAMIENTO_ACTIVO
     let interval;
-    if (estado === 'ALISTAMIENTO_ACTIVO') {
-      console.log(`🔄 DEBUG - Iniciando interval de verificación cada 2 segundos (estado: ${estado})`);
-      interval = setInterval(verificarYAvanzar, 2000); // Verificar cada 2 segundos
+    if (estado === 'ALISTAMIENTO_ACTIVO' || estado === 'ALISTAMIENTO') {
+      console.log(`🔄 DEBUG - Iniciando interval de verificación cada 1 segundo (estado: ${estado})`);
+      interval = setInterval(verificarYAvanzar, 1000); // Verificar cada 1 segundo
     }
 
     return () => {
@@ -345,25 +325,26 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
   // 🚀 NUEVA FUNCIONALIDAD: Detectar cambios en datos de cargue para verificación inmediata
   useEffect(() => {
-    if (idSheet !== 'ID1' || estado !== 'ALISTAMIENTO_ACTIVO') return;
+    if (idSheet !== 'ID1' || (estado !== 'ALISTAMIENTO_ACTIVO' && estado !== 'ALISTAMIENTO')) return;
 
     const handleCargueDataChange = async (e) => {
+      // 🕒 Esperar 500ms para asegurar que el almacenamiento se actualizó correctamente
+      setTimeout(async () => {
+        const resultado = await verificarProductosListos();
+        setProductosValidados(resultado.listos);
+        setProductosPendientes(resultado.pendientes);
 
+        console.log(`⚡ Verificación inmediata (con delay) - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
 
-      const resultado = await verificarProductosListos();
-      setProductosValidados(resultado.listos);
-      setProductosPendientes(resultado.pendientes);
-
-      console.log(`⚡ Verificación inmediata - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
-
-      // 🆕 LÓGICA FLEXIBLE: Si HAY AL MENOS 1 PRODUCTO LISTO, cambiar a DESPACHO
-      if (resultado.listos.length > 0) {
-        console.log(`✅ Al menos 1 producto listo (${resultado.listos.length} listos, ${resultado.pendientes.length} pendientes) - Cambiando automáticamente de ALISTAMIENTO_ACTIVO a DESPACHO`);
-        const nuevoEstado = 'DESPACHO';
-        setEstado(nuevoEstado);
-        localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, nuevoEstado);
-        congelarProduccion('DESPACHO');
-      }
+        // 🆕 LÓGICA FLEXIBLE: Si HAY AL MENOS 1 PRODUCTO LISTO, cambiar a DESPACHO
+        if (resultado.listos.length > 0) {
+          console.log(`✅ Al menos 1 producto listo (${resultado.listos.length} listos) - Cambiando a DESPACHO`);
+          const nuevoEstado = 'DESPACHO';
+          setEstado(nuevoEstado);
+          localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, nuevoEstado);
+          congelarProduccion('DESPACHO');
+        }
+      }, 500);
     };
 
     // Escuchar evento personalizado de cambios en cargue
@@ -602,388 +583,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
-  // 🔒 NUEVA FUNCIÓN: Guardar SOLICITADAS en Planeación
-  const guardarSolicitadasEnPlaneacion = async () => {
-    try {
 
 
-      const year = fechaSeleccionada.getFullYear();
-      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-      const fechaFormateada = `${year}-${month}-${day}`;
 
-      // Obtener solicitadas desde todas las tablas de cargue
-      const solicitadasMap = {};
-      const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
-
-      for (const id of idsVendedores) {
-        const response = await fetch(`${API_URL}/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
-        if (response.ok) {
-          const cargueData = await response.json();
-          cargueData.forEach(item => {
-            const producto = item.producto_nombre || item.producto;
-            const cantidad = item.cantidad || 0;
-
-            if (!solicitadasMap[producto]) {
-              solicitadasMap[producto] = 0;
-            }
-            solicitadasMap[producto] += cantidad;
-          });
-        }
-      }
-
-
-
-      // 📸 GUARDAR SNAPSHOT (foto del momento) - Solo si NO existe ya
-      // Verificar si ya hay snapshot guardado para este día
-      const checkSnapshot = await fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`);
-      const snapshotExistente = checkSnapshot.ok ? await checkSnapshot.json() : [];
-
-      if (snapshotExistente.length > 0) {
-
-        return; // Salir sin guardar
-      }
-
-
-
-      // Obtener existencias actuales desde api_stock
-      const stockResponse = await fetch(`${API_URL}/stock/`);
-      const stocks = stockResponse.ok ? await stockResponse.json() : [];
-      const stockMap = {};
-      stocks.forEach(s => {
-        stockMap[s.producto_nombre] = s.cantidad_actual;
-      });
-
-      // Obtener pedidos del día
-      const pedidosResponse = await fetch(`${API_URL}/pedidos/`);
-      const todosPedidos = pedidosResponse.ok ? await pedidosResponse.json() : [];
-      const pedidosFecha = todosPedidos.filter(p =>
-        p.fecha_entrega && p.fecha_entrega.split('T')[0] === fechaFormateada && p.estado !== 'ANULADA'
-      );
-
-      const pedidosMap = {};
-      pedidosFecha.forEach(pedido => {
-        if (pedido.detalles) {
-          pedido.detalles.forEach(detalle => {
-            const nombre = detalle.producto_nombre;
-            if (!pedidosMap[nombre]) pedidosMap[nombre] = 0;
-            pedidosMap[nombre] += detalle.cantidad;
-          });
-        }
-      });
-
-      // Guardar snapshot para cada producto con datos
-      const productosConDatos = new Set([
-        ...Object.keys(solicitadasMap),
-        ...Object.keys(pedidosMap)
-      ]);
-
-      for (const nombreProducto of productosConDatos) {
-        const solicitadas = solicitadasMap[nombreProducto] || 0;
-        const pedidos = pedidosMap[nombreProducto] || 0;
-        const existencias = stockMap[nombreProducto] || 0;
-
-        if (solicitadas > 0 || pedidos > 0) {
-          const snapshot = {
-            fecha: fechaFormateada,
-            producto_nombre: nombreProducto,
-            existencias: existencias,
-            solicitadas: solicitadas,
-            pedidos: pedidos,
-            total: solicitadas + pedidos,
-            orden: 0,
-            ia: 0,
-            usuario: 'Sistema'
-          };
-
-          const response = await fetch(`${API_URL}/planeacion/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(snapshot)
-          });
-
-          if (response.ok) {
-            console.log(`📸 Snapshot guardado: ${nombreProducto} (S:${solicitadas}, P:${pedidos}, E:${existencias})`);
-          } else {
-            console.error(`❌ Error guardando snapshot de ${nombreProducto}`);
-          }
-        }
-      }
-
-
-
-    } catch (error) {
-      console.error('❌ Error guardando solicitadas:', error);
-    }
-  };
-
-  // 🔒 NUEVA FUNCIÓN: Congelar PEDIDOS en Planeación
-  const congelarPedidosEnPlaneacion = async () => {
-    try {
-
-
-      const year = fechaSeleccionada.getFullYear();
-      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-      const fechaFormateada = `${year}-${month}-${day}`;
-
-      // Obtener pedidos actuales de la BD
-      const response = await fetch(`${API_URL}/pedidos/`);
-      if (!response.ok) {
-        console.warn('⚠️ No se pudieron cargar pedidos para congelar');
-        return;
-      }
-
-      const todosPedidos = await response.json();
-
-      // Filtrar pedidos de esta fecha que no estén anulados
-      const pedidosFecha = todosPedidos.filter(p =>
-        p.fecha_entrega === fechaFormateada && p.estado !== 'ANULADA'
-      );
-
-      console.log(`📦 Pedidos encontrados para ${fechaFormateada}:`, pedidosFecha.length);
-
-      // Agrupar pedidos por producto
-      const pedidosMap = {};
-      for (const pedido of pedidosFecha) {
-        if (pedido.detalles && pedido.detalles.length > 0) {
-          for (const detalle of pedido.detalles) {
-            const nombreProducto = detalle.producto_nombre;
-            if (!pedidosMap[nombreProducto]) {
-              pedidosMap[nombreProducto] = 0;
-            }
-            pedidosMap[nombreProducto] += detalle.cantidad;
-          }
-        }
-      }
-
-
-
-      // Guardar/actualizar en api_planeacion con los pedidos congelados
-      for (const [nombreProducto, cantidadPedidos] of Object.entries(pedidosMap)) {
-        if (cantidadPedidos > 0) {
-          // Verificar si ya existe un registro de planeación para este producto y fecha
-          const planeacionResponse = await fetch(
-            `${API_URL}/planeacion/?fecha=${fechaFormateada}&producto_nombre=${encodeURIComponent(nombreProducto)}`
-          );
-
-          let datosPlaneacion = {
-            fecha: fechaFormateada,
-            producto_nombre: nombreProducto,
-            pedidos: cantidadPedidos,
-            existencias: 0,
-            solicitadas: 0,
-            orden: 0,
-            ia: 0
-          };
-
-          if (planeacionResponse.ok) {
-            const planeacionExistente = await planeacionResponse.json();
-            if (planeacionExistente.length > 0) {
-              // Actualizar registro existente, manteniendo otros valores
-              const registro = planeacionExistente[0];
-              datosPlaneacion = {
-                ...datosPlaneacion,
-                existencias: registro.existencias || 0,
-                solicitadas: registro.solicitadas || 0,
-                orden: registro.orden || 0,
-                ia: registro.ia || 0
-              };
-            }
-          }
-
-          // Guardar en BD
-          await fetch(`${API_URL}/planeacion/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datosPlaneacion)
-          });
-
-          console.log(`✅ Pedidos congelados para ${nombreProducto}: ${cantidadPedidos} und`);
-        }
-      }
-
-
-
-    } catch (error) {
-      console.error('❌ Error congelando pedidos:', error);
-    }
-  };
-
-  // 📸 NUEVA FUNCIÓN: Guardar snapshot de Planeación en tabla independiente
-  const guardarSnapshotPlaneacion = async () => {
-    try {
-
-
-      if (!fechaSeleccionada) {
-        console.error('❌ SNAPSHOT - fechaSeleccionada no definida');
-        return;
-      }
-
-      const year = fechaSeleccionada.getFullYear();
-      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-      const fechaFormateada = `${year}-${month}-${day}`;
-
-      console.log(`📸 SNAPSHOT - Fecha: ${fechaFormateada}`);
-
-      // 1. Obtener existencias actuales desde api_stock
-      const stockResponse = await fetch(`${API_URL}/stock/`);
-      const stocks = stockResponse.ok ? await stockResponse.json() : [];
-      const stockMap = {};
-      const ordenMap = {}; // 🆕 Guardar el orden de cada producto desde api_stock
-      stocks.forEach(s => {
-        stockMap[s.producto_nombre] = s.cantidad_actual;
-        ordenMap[s.producto_nombre] = s.orden || 999; // 🆕 Obtener orden de api_stock
-      });
-
-      // 2. Obtener solicitadas desde BD y localStorage (fallback)
-      const solicitadasMap = {};
-      const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
-      const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-
-      // Primero intentar desde BD
-      let datosEncontradosEnBD = false;
-      for (const id of idsVendedores) {
-        const response = await fetch(`${API_URL}/cargue-${id.toLowerCase()}/?fecha=${fechaFormateada}`);
-        if (response.ok) {
-          const cargueData = await response.json();
-          if (cargueData.length > 0) datosEncontradosEnBD = true;
-          cargueData.forEach(item => {
-            const producto = item.producto_nombre || item.producto;
-            const cantidad = item.cantidad || 0;
-            const adicional = item.adicional || 0;
-            const dctos = item.dctos || 0;
-
-            if (!solicitadasMap[producto]) {
-              solicitadasMap[producto] = 0;
-            }
-            solicitadasMap[producto] += (cantidad + adicional + dctos);
-          });
-        }
-      }
-
-      // Si no hay datos en BD, buscar en localStorage
-      if (!datosEncontradosEnBD) {
-
-        const { simpleStorage } = await import('../../services/simpleStorage');
-
-        for (const diaActual of diasSemana) {
-          for (const id of idsVendedores) {
-            const key = `cargue_${diaActual}_${id}_${fechaFormateada}`;
-            const datos = await simpleStorage.getItem(key);
-
-            if (datos && datos.productos) {
-              datos.productos.forEach(item => {
-                const producto = item.producto;
-                const cantidad = item.cantidad || 0;
-                const adicional = item.adicional || 0;
-                const dctos = item.dctos || 0;
-
-                if (!solicitadasMap[producto]) {
-                  solicitadasMap[producto] = 0;
-                }
-                solicitadasMap[producto] += (cantidad + adicional + dctos);
-              });
-            }
-          }
-        }
-        console.log(`📸 SNAPSHOT - Solicitadas desde localStorage:`, Object.keys(solicitadasMap).length, 'productos');
-      }
-
-      // 3. Obtener pedidos del día
-      const pedidosResponse = await fetch(`${API_URL}/pedidos/`);
-      const todosPedidos = pedidosResponse.ok ? await pedidosResponse.json() : [];
-      const pedidosFecha = todosPedidos.filter(p =>
-        p.fecha_entrega && p.fecha_entrega.split('T')[0] === fechaFormateada && p.estado !== 'ANULADA'
-      );
-
-      const pedidosMap = {};
-      pedidosFecha.forEach(pedido => {
-        if (pedido.detalles) {
-          pedido.detalles.forEach(detalle => {
-            const nombre = detalle.producto_nombre;
-            if (!pedidosMap[nombre]) pedidosMap[nombre] = 0;
-            pedidosMap[nombre] += detalle.cantidad;
-          });
-        }
-      });
-
-      // 4. Obtener orden e IA desde api_planeacion (si existe)
-      const planeacionResponse = await fetch(`${API_URL}/planeacion/?fecha=${fechaFormateada}`);
-      const planeacionData = planeacionResponse.ok ? await planeacionResponse.json() : [];
-      const planeacionMap = {};
-      planeacionData.forEach(p => {
-        planeacionMap[p.producto_nombre] = {
-          orden: p.orden || 0,
-          ia: p.ia || 0
-        };
-      });
-
-      // 5. Construir registros para el snapshot
-      const productosConDatos = new Set([
-        ...Object.keys(stockMap),
-        ...Object.keys(solicitadasMap),
-        ...Object.keys(pedidosMap)
-      ]);
-
-      const registros = [];
-
-      for (const nombreProducto of productosConDatos) {
-        const existencias = stockMap[nombreProducto] || 0;
-        const solicitadas = solicitadasMap[nombreProducto] || 0;
-        const pedidos = pedidosMap[nombreProducto] || 0;
-        const planeacionInfo = planeacionMap[nombreProducto] || { orden: 0, ia: 0 };
-        const ordenDeBD = ordenMap[nombreProducto] || 999; // 🆕 Usar orden de api_stock
-
-        // Solo incluir productos con datos relevantes
-        if (existencias > 0 || solicitadas > 0 || pedidos > 0) {
-          registros.push({
-            producto_nombre: nombreProducto,
-            existencias: existencias,
-            solicitadas: solicitadas,
-            pedidos: pedidos,
-            total: solicitadas + pedidos,
-            orden: planeacionInfo.orden > 0 ? planeacionInfo.orden : 0, // ✅ CANTIDAD a producir (0 por defecto)
-            ordenVisual: ordenDeBD, // 🆕 Posición visual para ordenar
-            ia: planeacionInfo.ia || 0
-          });
-        }
-      }
-
-      console.log(`📊 Registros a guardar: ${registros.length}`);
-
-      // 🆕 ORDENAR REGISTROS por orden visual (Kardex) antes de guardar
-      registros.sort((a, b) => {
-        if (a.ordenVisual !== b.ordenVisual) {
-          return a.ordenVisual - b.ordenVisual;
-        }
-        return a.producto_nombre.localeCompare(b.producto_nombre);
-      });
-
-      // 6. Enviar al endpoint de snapshot
-      const response = await fetch(`${API_URL}/registros-planeacion-dia/guardar_snapshot/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fecha: fechaFormateada,
-          registros: registros,
-          usuario: 'Sistema'
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log(`✅ SNAPSHOT GUARDADO: ${result.cantidad} registros para ${fechaFormateada}`);
-      } else {
-        const error = await response.text();
-        console.error('❌ Error guardando snapshot:', error);
-      }
-
-    } catch (error) {
-      console.error('❌ Error en guardarSnapshotPlaneacion:', error);
-    }
-  };
 
   // 🚀 NUEVA FUNCIÓN: Guardar datos de un ID específico
   const guardarDatosDelID = async (fechaAUsar, idVendedor) => {
@@ -2644,83 +2246,38 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     const pendientes = productosPendientes;
 
     switch (estado) {
-      case 'SUGERIDO':
-        return {
-          texto: '📦 SUGERIDO',
-          variant: 'outline-secondary',
-          disabled: loading,
-          onClick: async () => {
-            // 🔒 Congelar producción al activar alistamiento
-            congelarProduccion('ALISTAMIENTO ACTIVADO');
-
-            // 🔒 NUEVO: Congelar PEDIDOS en Planeación
-            await congelarPedidosEnPlaneacion();
-
-            // 🔒 NUEVO: Guardar SOLICITADAS en Planeación automáticamente
-            await guardarSolicitadasEnPlaneacion();
-
-            // 📸 NUEVO: Guardar snapshot de Planeación en tabla independiente
-            await guardarSnapshotPlaneacion();
-
-            setEstado('ALISTAMIENTO_ACTIVO');
-            localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, 'ALISTAMIENTO_ACTIVO');
-
-          }
-        };
+      // 🗑️ Case SUGERIDO eliminado - Estado obsoleto
+      // 🗑️ Case SUGERIDO eliminado - Estado obsoleto
       case 'ALISTAMIENTO_ACTIVO':
         return {
           texto: '📦 ALISTAMIENTO ACTIVO',
-          variant: 'dark',
+          variant: '', // 🛑 Sin variante Bootstrap para evitar conflictos de color
           disabled: listos.length === 0 || loading || pendientes.length > 0,
+          customStyle: {
+            backgroundColor: '#8B4513 !important', // Café FORZADO
+            borderColor: '#8B4513 !important',
+            color: 'white !important'
+          },
           onClick: async () => {
+            // ... (lógica existente)
             setLoading(true);
-
             try {
-              // Validar que no hay productos pendientes
               if (productosPendientes.length > 0) {
                 const listaPendientes = productosPendientes.map(p =>
                   `• ${p.nombre}: ${p.totalCantidad} und (V:${p.vendedor ? '✓' : '✗'} D:${p.despachador ? '✓' : '✗'})`
                 ).join('\n');
-
-                alert(
-                  `❌ NO SE PUEDE CONTINUAR\n\n` +
-                  `Los siguientes productos necesitan verificación completa:\n\n` +
-                  `${listaPendientes}\n\n` +
-                  `🔧 Marque los checkboxes V (Vendedor) y D (Despachador) faltantes.`
-                );
-
-                setLoading(false);
-                return;
+                alert(`❌ NO SE PUEDE CONTINUAR\n\nFalta verificar:\n${listaPendientes}`);
+                setLoading(false); return;
               }
 
-              // Confirmar
-              const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
-              const confirmar = window.confirm(
-                `¿Pasar a DESPACHO?\n\n` +
-                `Productos listos:\n${resumen}\n\n` +
-                `Presione OK para continuar.`
-              );
+              if (!window.confirm('¿Pasar a DESPACHO?')) { setLoading(false); return; }
 
-              if (!confirmar) {
-                setLoading(false);
-                return;
-              }
-
-              // ✅ SOLO cambiar estado a DESPACHO (SIN afectar inventario)
               setEstado('DESPACHO');
-              const fechaKey = fechaSeleccionada instanceof Date
-                ? fechaSeleccionada.toISOString().split('T')[0]
-                : fechaSeleccionada;
+              const fechaKey = fechaSeleccionada instanceof Date ? fechaSeleccionada.toISOString().split('T')[0] : fechaSeleccionada;
               localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'DESPACHO');
-
-              console.log(`✅ Estado cambiado a DESPACHO - Esperando devoluciones/vencidas`);
-              alert('✅ Estado cambiado a DESPACHO\n\nAhora puede registrar devoluciones y vencidas.');
-
-            } catch (error) {
-              console.error('❌ Error:', error);
-              alert(`❌ Error: ${error.message}`);
-            }
-
+              console.log(`✅ Estado cambiado a DESPACHO`);
+              alert('✅ Estado cambiado a DESPACHO');
+            } catch (error) { console.error(error); }
             setLoading(false);
           }
         };
@@ -2744,11 +2301,36 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           onClick: null
         };
       default:
+        // Por defecto, asumimos que estamos en ALISTAMIENTO ACTIVO (Café) para no bloquear la operación
         return {
-          texto: '📦 SUGERIDO',
-          variant: 'secondary',
-          disabled: true,
-          onClick: null
+          texto: '📦 ALISTAMIENTO ACTIVO',
+          variant: '', // 🛑 Sin variante para que gane el customStyle
+          disabled: listos.length === 0 || loading || pendientes.length > 0,
+          customStyle: {
+            backgroundColor: '#8B4513 !important', // Café FORZADO
+            borderColor: '#8B4513 !important',
+            color: 'white !important'
+          },
+          onClick: async () => {
+            setLoading(true);
+            try {
+              if (productosPendientes.length > 0) {
+                // ... Lógica de validación (misma que ALISTAMIENTO_ACTIVO) ...
+                const listaPendientes = productosPendientes.map(p =>
+                  `• ${p.nombre}: ${p.totalCantidad} und (V:${p.vendedor ? '✓' : '✗'} D:${p.despachador ? '✓' : '✗'})`
+                ).join('\n');
+                alert(`❌ NO SE PUEDE CONTINUAR\n\nFalta verificar:\n${listaPendientes}`);
+                setLoading(false); return;
+              }
+
+              if (!window.confirm('¿Pasar a DESPACHO?')) { setLoading(false); return; }
+
+              setEstado('DESPACHO');
+              const fechaKey = fechaSeleccionada instanceof Date ? fechaSeleccionada.toISOString().split('T')[0] : fechaSeleccionada;
+              localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'DESPACHO');
+            } catch (error) { console.error(error); }
+            setLoading(false);
+          }
         };
     }
   };
@@ -2771,7 +2353,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               borderColor: '#0d2d4e !important',
               color: 'white !important'
             } : {}),
-            ...(config.customStyle || {})
+            ...(config.customStyle || {}),
+            opacity: 1 // Forzar opacidad al 100% para que se vea el color incluso disabled
           }}
         >
           {loading ? '⏳ Procesando...' : config.texto}
@@ -2994,25 +2577,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         </Modal.Body>
       </Modal>
 
-      {/* Indicador de productos pendientes */}
-      {idSheet === 'ID1' && productosPendientes.length > 0 && (
-        <div className="mt-2">
-          <div className="py-2 px-3" style={{
-            fontSize: '0.85em',
-            color: '#495057'
-          }}>
-            <strong>⚠️ {estado === 'ALISTAMIENTO_ACTIVO' ? 'ALISTAMIENTO BLOQUEADO' : 'DESPACHO BLOQUEADO'}</strong><br />
-            {productosPendientes.length} producto(s) con cantidad necesitan verificación completa (checkboxes V y D)
-          </div>
-        </div>
-      )}
+
 
       {/* Botón de verificar guardado - OCULTO (no se está usando)
       {idSheet === 'ID1' && estado === 'COMPLETADO' && (
         <VerificarGuardado dia={dia} fechaSeleccionada={fechaSeleccionada} />
       )}
       */}
-    </div>
+    </div >
   );
 };
 

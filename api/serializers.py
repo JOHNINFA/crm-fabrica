@@ -335,7 +335,7 @@ class CargueResumenSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vendedor_id', 'dia', 'fecha',
             'base_caja', 'total_despacho', 'total_pedidos', 'total_dctos',
-            'venta', 'total_efectivo',
+            'venta', 'total_efectivo', 'nota',
             'usuario', 'activo', 'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ('fecha_creacion', 'fecha_actualizacion')

@@ -19,6 +19,105 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
   const [baseCaja, setBaseCaja] = useState(0);
 
+  // 🆕 Estado para nota del cargue
+  const [notaCargue, setNotaCargue] = useState('');
+  const notaTimeoutRef = useRef(null);
+  const notaEditandoRef = useRef(false); // 🔧 Flag para evitar sobrescritura mientras edita
+
+  // 🆕 Cargar nota desde BD
+  useEffect(() => {
+    const cargarNota = async () => {
+      // 🔧 No recargar si el usuario está editando
+      if (notaEditandoRef.current) {
+        console.log('⏸️ Nota en edición, no recargar desde BD');
+        return;
+      }
+
+      if (!fechaSeleccionada || !idSheet || !dia) return;
+      try {
+        const fechaStr = typeof fechaSeleccionada === 'string' ? fechaSeleccionada : fechaSeleccionada.toISOString?.().split('T')[0];
+        const resp = await fetch(`/api/cargue-resumen/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaStr}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setNotaCargue(data[0].nota || '');
+            console.log('✅ Nota cargada desde BD:', data[0].nota);
+          } else {
+            setNotaCargue('');
+          }
+        }
+      } catch (e) {
+        console.error('Error cargando nota:', e);
+      }
+    };
+    cargarNota();
+  }, [fechaSeleccionada, idSheet, dia]);
+
+  // 🆕 Guardar nota en BD (onBlur)
+  const guardarNota = async () => {
+    if (!fechaSeleccionada || !idSheet || !dia) {
+      console.log('⚠️ Faltan parámetros para guardar nota');
+      return;
+    }
+
+    // 🔧 Desactivar flag de edición
+    notaEditandoRef.current = false;
+
+    try {
+      const fechaStr = typeof fechaSeleccionada === 'string' ? fechaSeleccionada : fechaSeleccionada.toISOString?.().split('T')[0];
+      console.log(`💾 Guardando nota para ${idSheet} - ${dia} - ${fechaStr}:`, notaCargue);
+
+      const resp = await fetch(`/api/cargue-resumen/?vendedor_id=${idSheet}&dia=${dia.toUpperCase()}&fecha=${fechaStr}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          // PATCH existente
+          const patchResp = await fetch(`/api/cargue-resumen/${data[0].id}/`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nota: notaCargue })
+          });
+
+          if (patchResp.ok) {
+            console.log('✅ Nota guardada exitosamente (PATCH)');
+          } else {
+            const errorText = await patchResp.text();
+            console.error('❌ Error en PATCH:', patchResp.status, errorText);
+          }
+        } else {
+          // POST nuevo - incluir todos los campos requeridos
+          const postResp = await fetch(`/api/cargue-resumen/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vendedor_id: idSheet,
+              dia: dia.toUpperCase(),
+              fecha: fechaStr,
+              nota: notaCargue,
+              base_caja: 0,
+              total_despacho: 0,
+              total_pedidos: 0,
+              total_dctos: 0,
+              venta: 0,
+              total_efectivo: 0
+            })
+          });
+
+          if (postResp.ok) {
+            console.log('✅ Nota creada exitosamente (POST)');
+          } else {
+            const errorText = await postResp.text();
+            console.error('❌ Error en POST:', postResp.status, errorText);
+          }
+        }
+      } else {
+        console.error('❌ Error consultando cargue-resumen:', resp.status);
+      }
+    } catch (e) {
+      console.error('❌ Error guardando nota:', e);
+    }
+  };
+
   // 🆕 Helper para cargar base caja desde BD
   const cargarBaseCajaDesdeDB = async (fechaActual) => {
     try {
@@ -366,9 +465,15 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
     }
   };
 
+  // 🔧 Ref para bloquear pagosDetallados durante cambio de ID
+  const cambiandoIDRef = useRef(false);
+
   // 🚀 NUEVO: Limpiar datos al cambiar de ID para evitar mostrar datos de otro vendedor
   useEffect(() => {
     console.log(`🔄 RESUMEN - Cambio de ID detectado: ${idSheet}`);
+
+    // 🔧 Bloquear pagosDetallados para evitar rebote visual
+    cambiandoIDRef.current = true;
 
     // Limpiar datos inmediatamente al cambiar de ID
     setFilas(Array(10).fill().map(() => ({
@@ -378,10 +483,19 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       daviplata: 0
     })));
     setBaseCaja(0);
+    setNotaCargue('');
 
     // Luego cargar los datos específicos del nuevo ID
     if (idSheet) {
-      setTimeout(() => cargarDatos(), 100); // Pequeño delay para evitar conflictos
+      setTimeout(() => {
+        cargarDatos();
+        // 🔧 Desbloquear después de que cargarDatos haya tenido tiempo de ejecutar
+        setTimeout(() => {
+          cambiandoIDRef.current = false;
+        }, 300);
+      }, 100);
+    } else {
+      cambiandoIDRef.current = false;
     }
   }, [idSheet]); // Solo cuando cambie el ID
 
@@ -462,6 +576,38 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   const formatCurrency = (amount) => {
     const num = Number(amount) || 0;
     return `$${Math.round(num).toLocaleString()}`;
+  };
+
+  // 🆕 Navegación tipo Excel con flechas en tabla de pagos
+  const handleKeyDownPagos = (e, index, campo) => {
+    const columnas = ['concepto', 'descuentos', 'nequi', 'daviplata'];
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const direction = e.key === 'ArrowUp' ? -1 : 1;
+      const nextId = `pago-${campo}-${index + direction}`;
+      const nextElement = document.getElementById(nextId);
+      if (nextElement) {
+        nextElement.focus();
+        setTimeout(() => nextElement.select(), 0);
+      }
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const currentIndex = columnas.indexOf(campo);
+      if (currentIndex !== -1) {
+        const direction = e.key === 'ArrowLeft' ? -1 : 1;
+        const nextCampoIndex = currentIndex + direction;
+        if (nextCampoIndex >= 0 && nextCampoIndex < columnas.length) {
+          const nextCampo = columnas[nextCampoIndex];
+          const nextId = `pago-${nextCampo}-${index}`;
+          const nextElement = document.getElementById(nextId);
+          if (nextElement) {
+            e.preventDefault();
+            nextElement.focus();
+            setTimeout(() => nextElement.select(), 0);
+          }
+        }
+      }
+    }
   };
 
   const handleInputChange = (index, campo, value) => {
@@ -629,6 +775,12 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
   // 🚀 ACTUALIZADO: Sincronizar Pagos Detallados de App Móvil
   useEffect(() => {
+    // 🔧 No procesar si estamos cambiando de ID (evita rebote visual)
+    if (cambiandoIDRef.current) {
+      console.log('⏸️ RESUMEN - Ignorando pagosDetallados durante cambio de ID');
+      return;
+    }
+
     // Verificar si hay datos detallados (prioridad)
     if (datos.pagosDetallados && Array.isArray(datos.pagosDetallados) && datos.pagosDetallados.length > 0) {
       console.log('📲 Sincronizando pagos detallados en tabla:', datos.pagosDetallados.length);
@@ -798,9 +950,12 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                       overlay={<Tooltip id={`tooltip-${i}`}>{fila.concepto || 'Sin concepto'}</Tooltip>}
                     >
                       <Form.Control
+                        id={`pago-concepto-${i}`}
                         type="text"
                         value={fila.concepto}
                         onChange={(e) => handleInputChange(i, 'concepto', e.target.value)}
+                        onKeyDown={(e) => handleKeyDownPagos(e, i, 'concepto')}
+                        onFocus={(e) => e.target.select()}
                         style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', padding: '4px', textOverflow: 'ellipsis', width: '100%' }}
                       />
                     </OverlayTrigger>
@@ -808,28 +963,37 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
                 </td>
                 <td>
                   <Form.Control
+                    id={`pago-descuentos-${i}`}
                     type="text"
                     className="text-center"
                     value={fila.descuentos ? formatCurrency(fila.descuentos) : ''}
                     onChange={(e) => handleInputChange(i, 'descuentos', e.target.value)}
+                    onKeyDown={(e) => handleKeyDownPagos(e, i, 'descuentos')}
+                    onFocus={(e) => e.target.select()}
                     style={{ border: 'none', background: 'transparent' }}
                   />
                 </td>
                 <td>
                   <Form.Control
+                    id={`pago-nequi-${i}`}
                     type="text"
                     className="text-center"
                     value={fila.nequi ? formatCurrency(fila.nequi) : ''}
                     onChange={(e) => handleInputChange(i, 'nequi', e.target.value)}
+                    onKeyDown={(e) => handleKeyDownPagos(e, i, 'nequi')}
+                    onFocus={(e) => e.target.select()}
                     style={{ border: 'none', background: 'transparent' }}
                   />
                 </td>
                 <td>
                   <Form.Control
+                    id={`pago-daviplata-${i}`}
                     type="text"
                     className="text-center"
                     value={fila.daviplata ? formatCurrency(fila.daviplata) : ''}
                     onChange={(e) => handleInputChange(i, 'daviplata', e.target.value)}
+                    onKeyDown={(e) => handleKeyDownPagos(e, i, 'daviplata')}
+                    onFocus={(e) => e.target.select()}
                     style={{ border: 'none', background: 'transparent' }}
                   />
                 </td>
@@ -887,14 +1051,15 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
         <div className="bg-light p-2">
           <strong>TOTAL EFECTIVO:</strong>
           <div className="text-end d-flex justify-content-end align-items-center">
-            {(calcularTotal('nequi') > 0 || calcularTotal('daviplata') > 0) && (
+            {(calcularTotal('nequi') > 0 || calcularTotal('daviplata') > 0 || calcularTotal('descuentos') > 0) && (
               <OverlayTrigger
                 placement="top"
                 overlay={
                   <Tooltip>
-                    Se descontaron pagos digitales:<br />
-                    Nequi: {formatCurrency(calcularTotal('nequi'))}<br />
-                    Daviplata: {formatCurrency(calcularTotal('daviplata'))}
+                    Se descontaron del efectivo:<br />
+                    {calcularTotal('descuentos') > 0 && <>Descuentos: {formatCurrency(calcularTotal('descuentos'))}<br /></>}
+                    {calcularTotal('nequi') > 0 && <>Nequi: {formatCurrency(calcularTotal('nequi'))}<br /></>}
+                    {calcularTotal('daviplata') > 0 && <>Daviplata: {formatCurrency(calcularTotal('daviplata'))}</>}
                   </Tooltip>
                 }
               >
@@ -916,6 +1081,32 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
           </div>
         )}
       </div>
+
+      {/* 🔒 Campo de Notas - OCULTO temporalmente, se trabajará después */}
+      {/* <div className="mt-3 p-3" style={{ border: '1px solid #dee2e6', borderRadius: '4px', backgroundColor: '#f8f9fa' }}>
+        <strong style={{ fontSize: '0.9rem', color: '#495057' }}>📝 NOTAS DEL DÍA</strong>
+        <textarea
+          className="form-control mt-2"
+          rows="3"
+          placeholder="Escribe aquí las notas u observaciones del día..."
+          value={notaCargue}
+          onChange={(e) => {
+            notaEditandoRef.current = true;
+            setNotaCargue(e.target.value);
+          }}
+          onFocus={() => {
+            notaEditandoRef.current = true;
+          }}
+          onBlur={guardarNota}
+          disabled={estadoCompletado}
+          style={{ fontSize: '0.9rem', resize: 'vertical', border: '1px solid #ced4da' }}
+        />
+        {!estadoCompletado && (
+          <small className="text-muted d-block mt-1">
+            Las notas se guardan automáticamente al hacer clic fuera del campo
+          </small>
+        )}
+      </div> */}
     </div>
   );
 };

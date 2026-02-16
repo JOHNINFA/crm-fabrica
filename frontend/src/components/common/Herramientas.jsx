@@ -13,6 +13,25 @@ const Herramientas = () => {
     const [showResetModal, setShowResetModal] = useState(false);
     const [resetInput, setResetInput] = useState('');
 
+    // 🆕 Estado para vendedores dinámicos
+    const [vendedoresCargue, setVendedoresCargue] = useState([]);
+
+    // 🆕 Cargar vendedores desde BD
+    useEffect(() => {
+        const cargarVendedores = async () => {
+            try {
+                const resp = await fetch(`${API_URL}/vendedores-cargue/`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    setVendedoresCargue(data);
+                }
+            } catch (err) {
+                console.log('⚠️ Error cargando vendedores:', err);
+            }
+        };
+        cargarVendedores();
+    }, []);
+
     const toggleApi = () => {
         if (apiEnabled) {
             cargueApiConfig.USAR_API = false;
@@ -537,12 +556,9 @@ const Herramientas = () => {
                             defaultValue=""
                         >
                             <option value="">Seleccionar Vendedor</option>
-                            <option value="ID1">JHONATHAN ONOFRES (ID1)</option>
-                            <option value="ID2">IVAN MAURICIO (ID2)</option>
-                            <option value="ID3">DIEGO BELTRÁN (ID3)</option>
-                            <option value="ID4">YEISON (ID4)</option>
-                            <option value="ID5">YULIAN (ID5)</option>
-                            <option value="ID6">VENDEDOR 6 (ID6)</option>
+                            {vendedoresCargue.map(v => (
+                                <option key={v.id} value={v.id}>{v.nombre} ({v.id})</option>
+                            ))}
                         </Form.Select>
                     </Form.Group>
 

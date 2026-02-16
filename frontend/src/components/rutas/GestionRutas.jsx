@@ -358,34 +358,67 @@ const GestionRutas = () => {
                                                                 Activa
                                                             </span>
                                                             {showDelete && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        confirmarEliminarRuta(ruta);
-                                                                    }}
-                                                                    style={{
-                                                                        background: '#0f3460',
-                                                                        border: 'none',
-                                                                        color: 'white',
-                                                                        cursor: 'pointer',
-                                                                        padding: '6px 8px',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        borderRadius: '6px',
-                                                                        transition: 'all 0.2s',
-                                                                        animation: 'fadeIn 0.3s'
-                                                                    }}
-                                                                    onMouseEnter={(e) => {
-                                                                        e.currentTarget.style.backgroundColor = '#dc3545';
-                                                                    }}
-                                                                    onMouseLeave={(e) => {
-                                                                        e.currentTarget.style.backgroundColor = '#0f3460';
-                                                                    }}
-                                                                    title="Eliminar ruta"
-                                                                >
-                                                                    <span className="material-icons" style={{ fontSize: '16px' }}>delete</span>
-                                                                </button>
+                                                                <div style={{ display: 'flex', gap: '3px' }}>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditingRuta(ruta);
+                                                                            setFormData({ nombre: ruta.nombre, vendedor: ruta.vendedor || '' });
+                                                                            setShowModal(true);
+                                                                            setShowDeleteButton(null);
+                                                                        }}
+                                                                        style={{
+                                                                            background: '#0f3460',
+                                                                            border: 'none',
+                                                                            color: 'white',
+                                                                            cursor: 'pointer',
+                                                                            padding: '3px 5px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            borderRadius: '4px',
+                                                                            transition: 'all 0.2s',
+                                                                            animation: 'fadeIn 0.3s'
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.currentTarget.style.backgroundColor = '#2563eb';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.currentTarget.style.backgroundColor = '#0f3460';
+                                                                        }}
+                                                                        title="Editar ruta"
+                                                                    >
+                                                                        <span className="material-icons" style={{ fontSize: '13px' }}>edit</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            confirmarEliminarRuta(ruta);
+                                                                        }}
+                                                                        style={{
+                                                                            background: '#0f3460',
+                                                                            border: 'none',
+                                                                            color: 'white',
+                                                                            cursor: 'pointer',
+                                                                            padding: '3px 5px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            borderRadius: '4px',
+                                                                            transition: 'all 0.2s',
+                                                                            animation: 'fadeIn 0.3s'
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.currentTarget.style.backgroundColor = '#dc3545';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.currentTarget.style.backgroundColor = '#0f3460';
+                                                                        }}
+                                                                        title="Eliminar ruta"
+                                                                    >
+                                                                        <span className="material-icons" style={{ fontSize: '13px' }}>delete</span>
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                         </>
                                                     )}

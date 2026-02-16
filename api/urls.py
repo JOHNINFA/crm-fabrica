@@ -39,7 +39,8 @@ from .views import (
     ia_config, ia_retrain, ia_logs,
     # 🆕 Exportar
     exportar_clientes_excel,
-    abrir_turno_manual
+    abrir_turno_manual,
+    listar_vendedores_cargue
 )
 
 router = DefaultRouter()
@@ -170,5 +171,6 @@ urlpatterns = router.urls + [
 
     # 🛠️ Herramientas Manuales
     path('turno/abrir-manual/', abrir_turno_manual, name='abrir-turno-manual'),
+    path('vendedores-cargue/', listar_vendedores_cargue, name='listar-vendedores-cargue'),
 ]
 

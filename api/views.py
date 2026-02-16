@@ -171,6 +171,9 @@ def actualizar_estado_cargue(request):
     estado = request.data.get('estado', 'ALISTAMIENTO')
     vendedor_id = request.data.get('vendedor_id', 'ID1')  # ID1 como referencia global
     
+    print(f"📡 RECIBIDO UPDATE ESTADO: {estado} para {dia} {fecha} (ID: {vendedor_id})")
+
+    
     if not dia or not fecha:
         return Response({'error': 'Se requiere dia y fecha'}, status=400)
     
@@ -2964,8 +2967,11 @@ def guardar_sugerido(request):
             return Response({'error': 'La fecha es requerida'}, status=400)
 
         # ✅ VALIDACIÓN: Verificar si ya existe sugerido para este día/fecha/vendedor
+        # Solo bloquear si hay al menos un producto con cantidad > 0
+        # (Si todos están en 0, fue un envío fallido y se permite reenviar)
         registros_existentes = Modelo.objects.filter(dia=dia, fecha=fecha)
-        if registros_existentes.exists():
+        registros_con_cantidad = registros_existentes.filter(cantidad__gt=0)
+        if registros_con_cantidad.exists():
             total_existente = registros_existentes.count()
             print(f"⚠️ Ya existe sugerido para {vendedor_id} - {dia} - {fecha} ({total_existente} productos)")
             return Response({
@@ -2973,6 +2979,11 @@ def guardar_sugerido(request):
                 'message': f'Ya existe un sugerido para {dia} {fecha}. No se puede enviar otro.',
                 'productos_existentes': total_existente
             }, status=409)  # 409 Conflict
+        elif registros_existentes.exists():
+            # Hay registros pero todos en cantidad=0 (envío fallido), limpiar y permitir reenvío
+            total_vacios = registros_existentes.count()
+            registros_existentes.delete()
+            print(f"🧹 Limpiados {total_vacios} registros vacíos (envío fallido) para {vendedor_id} - {dia} - {fecha}")
 
         # 🚀 OPTIMIZACIÓN: Obtener vendedor una sola vez (fuera del loop)
         vendedor_nombre = vendedor_id
@@ -4725,6 +4736,20 @@ def cerrar_turno_vendedor(request):
             # Si algún producto tiene devoluciones > 0, significa que ya se cerró el turno
             if cargues.filter(devoluciones__gt=0).exists():
                 print(f"⚠️ TURNO YA CERRADO para {id_vendedor} en {fecha}")
+                
+                # Asegurar que el TurnoVendedor también esté CERRADO
+                from .models import TurnoVendedor
+                vendedor_id_num = int(str(id_vendedor).replace('ID', '')) if 'ID' in str(id_vendedor) else int(id_vendedor)
+                turno_abierto = TurnoVendedor.objects.filter(
+                    vendedor_id=vendedor_id_num, fecha=fecha, estado='ABIERTO'
+                ).first()
+                if turno_abierto:
+                    turno_abierto.estado = 'CERRADO'
+                    turno_abierto.hora_cierre = timezone.now()
+                    turno_abierto.cerrado_manual = True
+                    turno_abierto.save()
+                    print(f"✅ TurnoVendedor {turno_abierto.id} forzado a CERRADO")
+                
                 return Response({
                     'error': 'TURNO_YA_CERRADO',
                     'message': f'El turno para {id_vendedor} en {fecha} ya fue cerrado anteriormente.'
@@ -4951,7 +4976,7 @@ def abrir_turno(request):
     - fecha: Fecha del turno (YYYY-MM-DD)
     """
     try:
-        from .models import TurnoVendedor
+        from .models import TurnoVendedor, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         from datetime import datetime
         
         vendedor_id = request.data.get('vendedor_id')
@@ -4959,6 +4984,7 @@ def abrir_turno(request):
         dia = request.data.get('dia', '').upper()
         fecha_str = request.data.get('fecha')
         dispositivo = request.data.get('dispositivo', '')
+        forzar = request.data.get('forzar', False)
         
         if not vendedor_id or not dia or not fecha_str:
             return Response({
@@ -4995,31 +5021,49 @@ def abrir_turno(request):
                 })
             else:
                 # Turno existe pero está CERRADO
-                if turno_existente.cerrado_manual:
-                    # BLOQUEO ESTRICTO: Solo si fue cerrado manualmente por el vendedor
+                if not forzar:
+                    # Sin forzar → Avisar a la app para que pregunte al usuario
+                    print(f"⚠️ Turno CERRADO detectado para {vendedor_nombre} - {dia} {fecha}. Esperando confirmación.")
                     return Response({
                         'error': 'TURNO_YA_CERRADO',
-                        'mensaje': 'El turno para este día ya fue cerrado. No se puede reabrir.'
-                    }, status=400)
-                else:
-                    # Fue cerrado automáticamente (por error o sistema) - permitir reabrir
-                    turno_existente.estado = 'ABIERTO'
-                    turno_existente.hora_apertura = timezone.now()
-                    turno_existente.dispositivo = dispositivo
-                    turno_existente.save()
-                    print(f"🔄 Turno reabierto (no fue cerrado manualmente): {vendedor_nombre} - {dia} {fecha}")
-                    
-                    return Response({
-                        'success': True,
-                        'nuevo': False,
-                        'reabierto': True,
-                        'mensaje': 'Turno reabierto correctamente',
+                        'message': f'El turno para {vendedor_id} en {fecha_str} ya fue cerrado.',
                         'turno_id': turno_existente.id,
-                        'dia': turno_existente.dia,
                         'fecha': turno_existente.fecha.isoformat(),
-                        'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
-                        'estado': turno_existente.estado
-                    })
+                    }, status=409)
+                
+                # Con forzar=true → Reabrir turno
+                turno_existente.estado = 'ABIERTO'
+                turno_existente.hora_apertura = timezone.now()
+                turno_existente.dispositivo = dispositivo
+                turno_existente.cerrado_manual = False
+                turno_existente.save()
+                
+                # 🆕 Limpiar devoluciones del cargue para restaurar stock
+                vendedor_id_str = f"ID{vendedor_id_numerico}" if not str(vendedor_id).upper().startswith('ID') else str(vendedor_id).upper()
+                modelo_map = {
+                    'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+                    'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
+                }
+                ModeloCargue = modelo_map.get(vendedor_id_str)
+                if ModeloCargue:
+                    cargues_con_devoluciones = ModeloCargue.objects.filter(fecha=fecha, activo=True, devoluciones__gt=0)
+                    cantidad_limpiada = cargues_con_devoluciones.update(devoluciones=0)
+                    if cantidad_limpiada > 0:
+                        print(f"🧹 Devoluciones limpiadas: {cantidad_limpiada} productos de {vendedor_id_str} en {fecha}")
+                
+                print(f"🔄 Turno reabierto (forzado): {vendedor_nombre} - {dia} {fecha}")
+                
+                return Response({
+                    'success': True,
+                    'nuevo': False,
+                    'reabierto': True,
+                    'mensaje': 'Turno reabierto correctamente',
+                    'turno_id': turno_existente.id,
+                    'dia': turno_existente.dia,
+                    'fecha': turno_existente.fecha.isoformat(),
+                    'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
+                    'estado': turno_existente.estado
+                })
         
         # Crear nuevo turno
         turno = TurnoVendedor.objects.create(
@@ -5724,7 +5768,7 @@ def ai_agent_command(request):
     try:
         from api.services.ai_agent_service import AIAgentService
         agent = AIAgentService(model="qwen2.5:3b")
-        result = agent.process_command(command)
+        result = agent.process_command(command, session_id=session_id)
         
         return Response(result)
     except Exception as e:
@@ -7112,6 +7156,19 @@ def exportar_clientes_excel(request):
     return response
 
 
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def listar_vendedores_cargue(request):
+    """
+    Devuelve la lista de vendedores (ID1-ID6) con su nombre desde el modelo Vendedor.
+    """
+    from .models import Vendedor
+    
+    vendedores = Vendedor.objects.filter(activo=True).order_by('id_vendedor')
+    data = [{'id': v.id_vendedor, 'nombre': v.nombre} for v in vendedores]
+    
+    return Response(data)
+
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
@@ -7225,4 +7282,3 @@ def abrir_turno_manual(request):
             'success': False, 
             'error': str(e)
         }, status=500)
-

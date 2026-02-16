@@ -47,10 +47,9 @@ const BotonCorreccionNuevo = ({ dia, idSheet, fechaSeleccionada, productos, esta
         setClaveIngresada('');
     };
 
-    // OPCIÓN B: Ocultar después de ALISTAMIENTO (solo visible en SUGERIDO y ALISTAMIENTO)
-    // Seguridad: No permite correcciones después de que el vendedor salió a ruta
-    // Reactivo: Se oculta instantáneamente al cambiar de estado sin recargar
-    if (estadoActualizado && estadoActualizado !== 'SUGERIDO' && estadoActualizado !== 'ALISTAMIENTO') {
+    // OPCIÓN B: Ocultar SOLO en DESPACHO y COMPLETADO
+    // Permitir correcciones en ALISTAMIENTO, SUGERIDO y ALISTAMIENTO_ACTIVO
+    if (estadoActualizado === 'DESPACHO' || estadoActualizado === 'COMPLETADO') {
         return null;
     }
 

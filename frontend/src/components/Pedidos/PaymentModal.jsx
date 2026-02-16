@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { pedidoService } from '../../services/api';
+import { pedidoService, API_URL } from '../../services/api';
 import TicketPreviewModal from '../Print/TicketPreviewModal';
 import { useCajeroPedidos } from '../../context/CajeroPedidosContext'; // 🆕 Para obtener nombre del usuario logueado
 import './PaymentModal.css';
@@ -70,6 +70,69 @@ const PaymentModal = ({
         setDestinatario(client);
     }, [client]);
 
+    // 🆕 Buscar teléfono automáticamente cuando se escribe el destinatario
+    useEffect(() => {
+        const buscarTelefonoCliente = async () => {
+            // Solo buscar si hay un destinatario válido y NO hay clientData (búsqueda manual)
+            if (!destinatario || destinatario === 'DESTINATARIO GENERAL' || destinatario === 'CONSUMIDOR FINAL') {
+                return;
+            }
+
+            // Si ya tenemos clientData, no buscar (ya se cargó desde el selector)
+            if (clientData) {
+                return;
+            }
+
+            try {
+                // Buscar cliente por nombre
+                const response = await fetch(`${API_URL}/clientes/`);
+                if (response.ok) {
+                    const clientes = await response.json();
+
+                    // Normalizar para búsqueda (sin tildes, mayúsculas, espacios extra)
+                    const normalize = (str) => {
+                        if (!str) return '';
+                        return str.toString().trim().toUpperCase()
+                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    };
+
+                    const destinatarioNorm = normalize(destinatario);
+
+                    // Buscar por nombre completo o alias
+                    const clienteEncontrado = clientes.find(c =>
+                        normalize(c.nombre_completo) === destinatarioNorm ||
+                        normalize(c.alias) === destinatarioNorm
+                    );
+
+                    if (clienteEncontrado) {
+                        console.log('✅ Cliente encontrado en BD:', clienteEncontrado.nombre_completo);
+
+                        // Cargar datos automáticamente
+                        const telefono = clienteEncontrado.movil || clienteEncontrado.telefono_1 || clienteEncontrado.telefono_contacto || '';
+                        if (telefono && !telefonoContacto) {
+                            console.log('📞 Teléfono cargado automáticamente:', telefono);
+                            setTelefonoContacto(telefono);
+                        }
+
+                        if (clienteEncontrado.direccion && !direccionEntrega) {
+                            setDireccionEntrega(clienteEncontrado.direccion);
+                        }
+
+                        if (clienteEncontrado.zona_barrio && !zonaBarrio) {
+                            setZonaBarrio(clienteEncontrado.zona_barrio);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error buscando cliente:', error);
+            }
+        };
+
+        // Debounce: esperar 500ms después de que el usuario deje de escribir
+        const timer = setTimeout(buscarTelefonoCliente, 500);
+        return () => clearTimeout(timer);
+    }, [destinatario, clientData]);
+
     // Inicializar fecha de entrega y datos del cliente
     useEffect(() => {
         if (date) {
@@ -87,8 +150,8 @@ const PaymentModal = ({
 
 
             if (clientData.direccion) setDireccionEntrega(clientData.direccion);
-            // 🆕 Priorizar movil, luego telefono_1, luego telefono_contacto
-            const telefono = clientData.movil || clientData.telefono_1 || clientData.telefono_contacto || '';
+            // 🆕 Priorizar telefono (desde PedidosDiaScreen), luego movil, luego telefono_1, luego telefono_contacto
+            const telefono = clientData.telefono || clientData.movil || clientData.telefono_1 || clientData.telefono_contacto || '';
             if (telefono) setTelefonoContacto(telefono);
             if (clientData.zona_barrio) setZonaBarrio(clientData.zona_barrio); // 🆕
             if (clientData.fecha) setFechaEntrega(clientData.fecha);
@@ -181,13 +244,20 @@ const PaymentModal = ({
             const result = await pedidoService.create(pedidoData);
 
             if (result && !result.error) {
-                if (impresion === 'Tirilla') {
-                    setPedidoCreado(result);
-                    setShowTicketModal(true);
-                } else {
-                    setPedidoCreado(result);
-                    setShowSuccess(true);
-                }
+                console.log('✅ Pedido creado exitosamente:', result);
+                console.log('📋 Número de pedido:', result.numero_pedido || result.id);
+
+                // Asegurar que el estado se actualice antes de mostrar el modal
+                setPedidoCreado(result);
+
+                // Usar setTimeout para asegurar que el estado se actualice
+                setTimeout(() => {
+                    if (impresion === 'Tirilla') {
+                        setShowTicketModal(true);
+                    } else {
+                        setShowSuccess(true);
+                    }
+                }, 100);
             } else {
                 console.error('❌ Error al crear pedido:', result);
                 alert('Error al generar el pedido. Intente nuevamente.');
@@ -207,41 +277,11 @@ const PaymentModal = ({
         if (!destinatario.trim()) { alert('Debe especificar el destinatario'); return; }
         if (!direccionEntrega.trim()) { alert('Debe especificar la dirección de entrega'); return; }
 
-        // 🛡️ Validación de Duplicados
-        try {
-            const pedidosExistentes = await pedidoService.getAll({ fecha_entrega: fechaEntrega });
-            if (Array.isArray(pedidosExistentes)) {
-                const normalize = s => s ? s.toString().trim().toLowerCase() : '';
-                const targetName = normalize(destinatario);
+        // ✅ Permitir múltiples pedidos para el mismo cliente en la misma fecha
+        // Cada pedido tendrá su propio número de pedido único
+        // Validación de duplicados ELIMINADA para permitir pedidos múltiples (mañana/tarde/noche)
 
-                // Comparación de fechas segura (substring 10 chars)
-                const sameDate = (d1, d2) => {
-                    if (!d1 || !d2) return false;
-                    return d1.toString().substring(0, 10) === d2.toString().substring(0, 10);
-                };
-
-                const duplicado = pedidosExistentes.find(p =>
-                    normalize(p.destinatario) === targetName &&
-                    sameDate(p.fecha_entrega, fechaEntrega) &&
-                    p.estado !== 'ANULADA'
-                );
-
-                if (duplicado) {
-                    setErrorMessage({
-                        title: '⛔ ACCIÓN DENEGADA',
-                        text: `Ya existe un pedido activo (#${duplicado.numero_pedido}) para el cliente "${destinatario}" con fecha de entrega ${fechaEntrega}.\n\n` +
-                            `Vendedor: ${duplicado.vendedor || 'Desconocido'}\n\n` +
-                            `El sistema NO permite duplicados idénticos para el mismo día.`
-                    });
-                    setShowError(true);
-                    return;
-                }
-            }
-        } catch (error) {
-            console.warn('Error verificando duplicados:', error);
-        }
-
-        // Si pasa validaciones
+        // Crear pedido directamente
         await executeCreation();
     };
 
@@ -540,7 +580,7 @@ const PaymentModal = ({
                         <h3 style={{ color: '#198754', fontWeight: 'bold', marginBottom: '10px' }}>¡Pedido Generado!</h3>
 
                         <p style={{ fontSize: '16px', color: '#6c757d', marginBottom: '30px' }}>
-                            El pedido <strong style={{ color: '#212529' }}>#{pedidoCreado?.numero_pedido}</strong> ha sido creado exitosamente.
+                            El pedido <strong style={{ color: '#212529' }}>#{pedidoCreado?.numero_pedido || pedidoCreado?.id || 'N/A'}</strong> ha sido creado exitosamente.
                         </p>
 
                         <button

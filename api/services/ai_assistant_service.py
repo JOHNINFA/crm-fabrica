@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 from django.conf import settings
+from api.services.rag_context_loader import load_shared_rag_context
 
 class AIAssistant:
     """
@@ -53,10 +54,13 @@ class AIAssistant:
             base_path = Path(__file__).parent.parent.parent
             docs = []
             
-            # Documentos clave para contexto
-            doc_files = [
-                "RESUMEN_ANALISIS.md"
-            ]
+            # 1) Contexto compartido principal (steering)
+            shared_rag = load_shared_rag_context()
+            if shared_rag:
+                docs.append(shared_rag[:5000])
+
+            # 2) Fallbacks legacy (si existen)
+            doc_files = ["RESUMEN_ANALISIS.md"]
             
             for doc_file in doc_files:
                 file_path = base_path / doc_file
@@ -95,14 +99,16 @@ class AIAssistant:
             return f"🐛 Error consultando base de datos: {str(e)}"
 
         # 2. Preparar System Prompt
-        if include_docs:
-            docs = self.load_documentation()
+        docs = self.load_documentation()
+        docs_slice = docs[:2200] if include_docs else docs[:900]
+
+        if docs_slice:
             system_instruction = f"""Eres el Asistente IA experto del CRM Fábrica.
 Tu misión es ayudar a gestionar el negocio de arepas y lácteos.
 Responde en español, de forma profesional, concisa y basada en datos.
 
 Contexto del Negocio:
-{docs[:2000]}
+{docs_slice}
 
 {context_msg}"""
         else:

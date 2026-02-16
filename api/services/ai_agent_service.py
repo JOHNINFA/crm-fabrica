@@ -7,6 +7,7 @@ import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any
+from api.services.rag_context_loader import load_shared_rag_context
 
 
 class AIAgentService:
@@ -22,10 +23,13 @@ class AIAgentService:
         
     def _load_documentation(self) -> str:
         """Carga documentación del CRM para contexto del agente"""
-        from pathlib import Path
-        
         docs = []
         base_path = Path(__file__).parent.parent.parent
+
+        # Contexto compartido principal (steering)
+        shared_rag = load_shared_rag_context()
+        if shared_rag:
+            docs.append(f"## rag-context.md\n{shared_rag[:7000]}")
         
         # Documentos a cargar (ordenados por prioridad)
         doc_files = [
@@ -1073,6 +1077,9 @@ class AIAgentService:
 INFORMACIÓN DE CONTEXTO:
 - Fecha actual: {today_str}
 - Modelos disponibles: Clientes, Ventas, Pedidos, Productos.
+
+CONTEXTO FUNCIONAL DEL CRM:
+{self.context[:2500]}
 
 HERRAMIENTAS DISPONIBLES:
 {tools_description}

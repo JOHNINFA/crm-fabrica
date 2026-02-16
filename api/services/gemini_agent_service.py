@@ -10,6 +10,7 @@ from typing import Dict, List
 from datetime import datetime
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from api.services.rag_context_loader import load_shared_rag_context
 
 
 class GeminiAgent:
@@ -33,6 +34,7 @@ class GeminiAgent:
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel('models/gemini-flash-latest')
         self.tools = self._define_tools()
+        self.context = load_shared_rag_context()
     
     def _define_tools(self) -> List[Dict]:
         """Define las herramientas disponibles para el agente"""
@@ -261,6 +263,9 @@ Herramientas disponibles:
 {tools_desc}
 
 Fecha actual: {datetime.now().strftime('%Y-%m-%d')}
+
+Contexto del CRM:
+{self.context[:2000]}
 
 Si el usuario quiere ejecutar una acción, responde SOLO con un JSON así:
 {{"tool": "nombre_herramienta", "parameters": {{"param1": "valor1"}}}}
