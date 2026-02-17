@@ -57,7 +57,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     useEffect(() => {
         const actualizarPreciosDesdeBackend = async () => {
             try {
-
+                // console.log('🔄 Iniciando actualización de precios desde backend...');
                 const productosBackend = await productoService.getAll();
 
                 if (productosBackend && productosBackend.length > 0) {
@@ -66,18 +66,19 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     const mapaPrecios = {};
 
                     productosBackend.forEach(p => {
-                        const precioCargue = parseFloat(p.precio_cargue) || 0;
+                        const precioCargue = parseFloat(p.precio_cargue);
                         const precioBase = parseFloat(p.precio) || 0;
                         // Robustecer búsqueda por ID (String vs Number)
                         const precioEnCache = cacheActual[p.id] || cacheActual[String(p.id)];
 
                         // Lógica Defensiva Anti-Rebote:
-                        if (precioCargue > 0) {
-                            // 1. Si la API trae un precio válido, usarlo (Prioridad Máxima)
-                            mapaPrecios[p.id] = precioCargue;
+                        // ✅ CAMBIO: Verificar si precio_cargue existe en el objeto (incluso si es 0)
+                        if (p.precio_cargue !== null && p.precio_cargue !== undefined) {
+                            // 1. Si precio_cargue está definido (incluso 0) → Usarlo (Prioridad Máxima)
+                            mapaPrecios[p.id] = precioCargue || 0;
                         } else if (precioEnCache > 0) {
-                            // 2. Si la API trae 0 pero teníamos un precio válido en caché, CONSERVARLO.
-                            // Esto evita que un glitch de la API nos resetee al precio calculado (1105)
+                            // 2. Si precio_cargue NO está definido pero hay caché → CONSERVARLO
+                            // Esto evita que un glitch de la API nos resetee al precio calculado
                             mapaPrecios[p.id] = precioEnCache;
                         } else {
                             // 3. Si no hay nada, usar fallback del 65%

@@ -287,6 +287,7 @@ Se realizó una reingeniería completa del módulo de Cargue para simplificar el
 - Intervalo de verificación reducido a 1 segundo (antes 2s) para mayor reactividad
 - Delay de 500ms al evento de cambio de datos para asegurar que localStorage termine de escribir
 - La lógica actúa tanto si el estado inicial es `ALISTAMIENTO` como `ALISTAMIENTO_ACTIVO`
+- **Sincronización de Estado Global**: Como el cambio de estado depende de los datos (checks 'D'), y los datos se sincronizan en tiempo real entre todos los usuarios, el cambio de botón (Café → Azul) se refleja automáticamente en todos los dispositivos conectados sin necesidad de recargar.
 
 **Limpieza de UI**
 - Se eliminó el mensaje "⚠️ DESPACHO BLOQUEADO" que aparecía debajo del botón
@@ -2155,3 +2156,114 @@ El módulo de Cargue usa optimistic updates con reversión condicional para los 
 - **Descripción**: Cuando el vendedor envía sugerido desde la app (AP GUERRERO) y falla la conexión a internet, la app se queda cargando sin mostrar error claro. Esto causa que el vendedor cierre la app y queden registros con cantidad=0 en la BD que bloquean futuros envíos. Se necesita: (1) Detectar fallo de conexión/timeout al hacer POST a `/api/guardar-sugerido/`. (2) Mostrar alerta clara "Fallo de conexión, no se pudo enviar el sugerido". (3) NO enviar datos parciales si la conexión falla. (4) Permitir reintentar el envío.
 - **Archivos a revisar**: `AP GUERRERO/components/ProductList.js` (función de envío de sugerido), `AP GUERRERO/config.js` (timeouts)
 - **Fecha de registro**: 15 de Febrero de 2026
+
+- **Archivos a revisar**: `api/views.py` (guardar_sugerido), `frontend/src/components/common/Herramientas.jsx`, modelos CargueID1-ID6
+- **Fecha de registro**: 15 de Febrero de 2026
+
+### 📱 Mejorar manejo de error de conexión al enviar Sugerido desde App
+- **Prioridad**: Alta
+- **Descripción**: Cuando el vendedor envía sugerido desde la app (AP GUERRERO) y falla la conexión a internet, la app se queda cargando sin mostrar error claro. Esto causa que el vendedor cierre la app y queden registros con cantidad=0 en la BD que bloquean futuros envíos. Se necesita: (1) Detectar fallo de conexión/timeout al hacer POST a `/api/guardar-sugerido/`. (2) Mostrar alerta clara "Fallo de conexión, no se pudo enviar el sugerido". (3) NO enviar datos parciales si la conexión falla. (4) Permitir reintentar el envío.
+- **Archivos a revisar**: `AP GUERRERO/components/ProductList.js` (función de envío de sugerido), `AP GUERRERO/config.js` (timeouts)
+- **Fecha de registro**: 15 de Febrero de 2026
+
+---
+
+## 🔧 Fix Precios Cargue - Lógica Defensiva de Caché (16 Feb 2026)
+
+### Problema Detectado
+
+En el módulo "Precios Cargue y App" (`/otros/precios-cargue`), cuando se intentaba actualizar el precio de un producto que tenía `precio_cargue = 0` en la base de datos, el cambio NO se reflejaba en el módulo de Cargue. 
+
+**Ejemplo específico**: CANASTILLA
+- En BD: `precio_cargue = 0`
+- En Cargue: Mostraba $13,000 (valor antiguo del caché)
+- Al intentar cambiar a cualquier valor en "Precios Cargue y App", el cambio NO se reflejaba
+
+### Causa Raíz
+
+La lógica defensiva en `PlantillaOperativa.jsx` estaba diseñada para proteger contra "glitches" de la API, pero causaba un efecto secundario no deseado:
+
+**Lógica ANTERIOR** (líneas 69-86):
+```javascript
+if (precioCargue > 0) {
+    // 1. Si precio_cargue > 0 → Usar ese precio
+    mapaPrecios[p.id] = precioCargue;
+} else if (precioEnCache > 0) {
+    // 2. Si precio_cargue = 0 PERO hay caché → CONSERVAR CACHÉ
+    // ❌ PROBLEMA: Esto impedía actualizar productos con precio 0
+    mapaPrecios[p.id] = precioEnCache;
+} else {
+    // 3. Si no hay nada → Calcular 65%
+    mapaPrecios[p.id] = Math.round(precioBase * 0.65);
+}
+```
+
+**Comportamiento problemático**:
+1. CANASTILLA tenía `precio_cargue = 0` en BD
+2. El caché del navegador (`localStorage.precios_cargue_cache`) tenía un valor antiguo de 13000
+3. La condición `else if (precioEnCache > 0)` se cumplía
+4. El sistema conservaba el valor del caché (13000) en lugar de respetar el 0 de la BD
+5. Incluso al cambiar el precio en "Precios Cargue y App", si se guardaba como 0, seguía mostrando 13000
+
+### Solución Implementada
+
+Se modificó la lógica para distinguir entre:
+- **`precio_cargue` definido explícitamente** (incluso si es 0) → Respetar ese valor
+- **`precio_cargue` no definido** (null/undefined por error de API) → Conservar caché como protección
+
+**Lógica NUEVA** (líneas 69-86):
+```javascript
+if (p.precio_cargue !== null && p.precio_cargue !== undefined) {
+    // 1. Si precio_cargue EXISTE en BD (incluso si es 0) → Usarlo
+    // ✅ CAMBIO: Ahora respeta cuando se pone explícitamente 0
+    mapaPrecios[p.id] = precioCargue || 0;
+} else if (precioEnCache > 0) {
+    // 2. Si precio_cargue NO está definido pero hay caché → Conservar caché
+    // Protección anti-glitch: solo actúa si la API no devuelve el campo
+    mapaPrecios[p.id] = precioEnCache;
+} else {
+    // 3. Si no hay nada → Calcular 65%
+    mapaPrecios[p.id] = Math.round(precioBase * 0.65);
+}
+```
+
+### Comportamiento Corregido
+
+| Escenario | precio_cargue BD | Caché | ANTES | AHORA |
+|-----------|------------------|-------|-------|-------|
+| Producto normal | 1900 | 1900 | 1900 ✅ | 1900 ✅ |
+| Cambio de precio | 2500 | 1900 | 2500 ✅ | 2500 ✅ |
+| Precio en 0 explícito | 0 | 13000 | 13000 ❌ | 0 ✅ |
+| Error de API | undefined | 1900 | 1900 ✅ | 1900 ✅ |
+| Producto nuevo sin precio | 0 | - | 65% ✅ | 0 ✅ |
+
+### Impacto
+
+- **Productos con precio > 0**: Sin cambios, funcionan igual que antes ✅
+- **Productos con precio = 0**: Ahora se respeta el 0 de la BD en lugar de conservar caché antiguo ✅
+- **Protección anti-glitch**: Se mantiene para casos donde la API no devuelve el campo ✅
+- **Modificación de precios**: Sigue funcionando correctamente para todos los productos ✅
+
+### Casos de Uso Validados
+
+1. **Cambiar precio de producto normal**: 1900 → 2500 ✅
+2. **Poner precio en 0**: 1900 → 0 ✅
+3. **Cambiar precio desde 0**: 0 → 15000 ✅
+4. **Productos sin precio_cargue**: Usan fallback 65% o caché según disponibilidad ✅
+
+### Archivos Modificados
+
+- `frontend/src/components/Cargue/PlantillaOperativa.jsx` - Lógica de carga de precios (líneas 69-86)
+
+### Notas Técnicas
+
+1. **Caché de precios**: Se guarda en `localStorage.precios_cargue_cache` como mapa `{ productoId: precio }`
+2. **Actualización**: Se ejecuta al montar PlantillaOperativa (useEffect con dependencias vacías)
+3. **Sincronización**: Los cambios en "Precios Cargue y App" se reflejan después de recargar Cargue (F5)
+4. **Fallback 65%**: Solo se usa cuando `precio_cargue` no está definido Y no hay caché
+
+**Fecha de implementación**: 16 de Febrero de 2026
+
+---
+
+**🚀 Recuerda**: Este contexto es tu fuente de verdad sobre el proyecto. Úsalo para tomar decisiones informadas y mantener la consistencia.
