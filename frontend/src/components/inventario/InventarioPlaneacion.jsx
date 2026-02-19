@@ -75,51 +75,22 @@ const InventarioPlaneacion = () => {
         if (datosGuardados) {
           const { productos: productosGuardados, timestamp } = JSON.parse(datosGuardados);
 
+          // ⚡ FLASH VISUAL: Solo pintar orden e ia desde localStorage
+          // Solicitadas, pedidos y existencias se dejan en 0 para evitar rebote visual
+          // El servidor los actualizará con los valores correctos en cargarExistenciasReales
+          const productosFlash = productosGuardados.map(p => ({
+            ...p,
+            existencias: 0,
+            solicitado: 0,
+            pedidos: 0
+          }));
 
-          // 🔥 ACTUALIZAR EXISTENCIAS EN TIEMPO REAL desde api_stock
-          try {
-            const stockResponse = await fetch(`${API_URL}/stock/`);
-            if (stockResponse.ok) {
-              const stocksBD = await stockResponse.json();
-              const stockMap = {};
-              stocksBD.forEach(s => {
-                stockMap[s.producto_id] = s.cantidad_actual;
-              });
-
-              // Actualizar existencias en productos guardados
-              const productosActualizados = productosGuardados.map(p => ({
-                ...p,
-                existencias: stockMap[p.id] !== undefined ? stockMap[p.id] : p.existencias
-              }));
-
-
-              setProductos(productosActualizados);
-
-              // Actualizar cache con existencias frescas
-              setCache({
-                datos: productosActualizados,
-                timestamp: timestamp,
-                fecha: fechaFormateada
-              });
-            } else {
-              // Si falla la actualización, usar datos guardados
-              setProductos(productosGuardados);
-              setCache({
-                datos: productosGuardados,
-                timestamp: timestamp,
-                fecha: fechaFormateada
-              });
-            }
-          } catch (error) {
-            console.error('Error actualizando existencias:', error);
-            // Si falla, usar datos guardados
-            setProductos(productosGuardados);
-            setCache({
-              datos: productosGuardados,
-              timestamp: timestamp,
-              fecha: fechaFormateada
-            });
-          }
+          setProductos(productosFlash);
+          setCache({
+            datos: productosFlash,
+            timestamp: timestamp,
+            fecha: fechaFormateada
+          });
         }
       } catch (error) {
         console.error('Error al cargar desde localStorage:', error);
