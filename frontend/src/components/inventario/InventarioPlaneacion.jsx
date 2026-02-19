@@ -60,8 +60,44 @@ const InventarioPlaneacion = () => {
     return () => clearInterval(interval);
   }, [fechaSeleccionada]);
 
-  // 🚀 Limpiar localStorage viejo al iniciar
+  // 🚀 Cargar datos desde localStorage al iniciar Y actualizar existencias en tiempo real
   useEffect(() => {
+    const cargarDesdeLocalStorage = async () => {
+      try {
+        const year = fechaSeleccionada.getFullYear();
+        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+        const fechaFormateada = `${year}-${month}-${day}`;
+
+        const key = `planeacion_${fechaFormateada}`;
+        const datosGuardados = localStorage.getItem(key);
+
+        if (datosGuardados) {
+          const { productos: productosGuardados, timestamp } = JSON.parse(datosGuardados);
+
+          // ⚡ FLASH VISUAL: Solo pintar orden e ia desde localStorage
+          // Solicitadas, pedidos y existencias se dejan en 0 para evitar rebote visual
+          // El servidor los actualizará con los valores correctos en cargarExistenciasReales
+          const productosFlash = productosGuardados.map(p => ({
+            ...p,
+            existencias: 0,
+            solicitado: 0,
+            pedidos: 0
+          }));
+
+          setProductos(productosFlash);
+          setCache({
+            datos: productosFlash,
+            timestamp: timestamp,
+            fecha: fechaFormateada
+          });
+        }
+      } catch (error) {
+        console.error('Error al cargar desde localStorage:', error);
+      }
+    };
+
+    // 🗑️ Limpiar localStorage viejo (más de 7 días)
     const limpiarLocalStorageViejo = () => {
       try {
         const ahora = Date.now();
@@ -85,8 +121,9 @@ const InventarioPlaneacion = () => {
       }
     };
 
+    cargarDesdeLocalStorage(); // Ahora es async pero no necesitamos await aquí
     limpiarLocalStorageViejo();
-  }, []);  // Solo al montar, una vez
+  }, [fechaSeleccionada]);
 
 
 
@@ -693,11 +730,11 @@ const InventarioPlaneacion = () => {
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaFormateada = `${year}-${month}-${day}`;
 
-      // 🧹 Limpiar productos, cache y activar spinner al cambiar de fecha
-      // Esto evita que datos de otro día aparezcan mientras carga el servidor
-      setProductos([]);
-      setCargando(true);
-      setCache({ datos: null, timestamp: null, fecha: null });
+      // 🧹 Limpiar productos al cambiar de fecha para evitar que valores
+      // del día anterior contaminen el nuevo día durante el merge
+      if (cache.fecha && cache.fecha !== fechaFormateada) {
+        setProductos([]);
+      }
 
       cargarExistenciasReales();
     }
@@ -1084,12 +1121,12 @@ const InventarioPlaneacion = () => {
                 )}
                 {productos.length === 0 && cargando && (
                   <tr>
-                    <td colSpan="7" className="text-center py-5">
-                      <div className="d-flex flex-column justify-content-center align-items-center gap-2">
-                        <div className="spinner-border text-primary" style={{ width: '2rem', height: '2rem' }} role="status">
+                    <td colSpan="7" className="text-center py-4">
+                      <div className="d-flex justify-content-center align-items-center">
+                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
                           <span className="visually-hidden">Cargando...</span>
                         </div>
-                        <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Cargando datos del día...</p>
+                        <p className="text-muted mb-0">Cargando productos...</p>
                       </div>
                     </td>
                   </tr>
