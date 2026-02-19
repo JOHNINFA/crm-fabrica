@@ -86,11 +86,8 @@ const InventarioPlaneacion = () => {
           }));
 
           setProductos(productosFlash);
-          setCache({
-            datos: productosFlash,
-            timestamp: timestamp,
-            fecha: fechaFormateada
-          });
+          // NO actualizar cache aquí para que cargarExistenciasReales
+          // siempre vaya al servidor y traiga los valores reales
         }
       } catch (error) {
         console.error('Error al cargar desde localStorage:', error);
