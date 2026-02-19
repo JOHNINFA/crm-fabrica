@@ -679,6 +679,75 @@ const InventarioPlaneacion = () => {
     setCache({ ...cache, timestamp: Date.now() });
   };
 
+  // ⚡ Sincronización rápida: solo Existencias, Solicitadas y Pedidos (sin IA ni snapshots)
+  const sincronizarDatosOperativos = async () => {
+    try {
+      setCargando(true);
+      const year = fechaSeleccionada.getFullYear();
+      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+      const fechaFormateada = `${year}-${month}-${day}`;
+
+      const [stockRes, cargue1, cargue2, cargue3, cargue4, cargue5, cargue6, pedidosRes] =
+        await Promise.all([
+          fetch(`${API_URL}/stock/`),
+          fetch(`${API_URL}/cargue-id1/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id2/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id3/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id4/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id5/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/cargue-id6/?fecha=${fechaFormateada}`),
+          fetch(`${API_URL}/pedidos/`),
+        ]);
+
+      if (!stockRes.ok) throw new Error('Error stock');
+      const stocksBD = await stockRes.json();
+
+      // Mapa de existencias
+      const stockMap = {};
+      stocksBD.forEach(s => { stockMap[s.producto_id] = s.cantidad_actual; });
+
+      // Sumar solicitadas de todos los cargues
+      const solicitadasMap = {};
+      for (const res of [cargue1, cargue2, cargue3, cargue4, cargue5, cargue6]) {
+        if (res.ok) {
+          const data = await res.json();
+          data.forEach(item => {
+            const nombre = item.producto || item.producto_nombre;
+            const cantidad = item.total || item.cantidad || 0;
+            solicitadasMap[nombre] = (solicitadasMap[nombre] || 0) + cantidad;
+          });
+        }
+      }
+
+      // Sumar pedidos
+      const pedidosMap = {};
+      if (pedidosRes.ok) {
+        const pedidos = await pedidosRes.json();
+        pedidos
+          .filter(p => p.estado !== 'ANULADA' && p.fecha_entrega?.split('T')[0] === fechaFormateada)
+          .forEach(p => {
+            (p.detalles || []).forEach(d => {
+              pedidosMap[d.producto_nombre] = (pedidosMap[d.producto_nombre] || 0) + (d.cantidad || 0);
+            });
+          });
+      }
+
+      // Actualizar solo las 3 columnas operativas, preservar Orden e IA
+      setProductos(prev => prev.map(p => ({
+        ...p,
+        existencias: stockMap[p.id] !== undefined ? stockMap[p.id] : p.existencias,
+        solicitado: solicitadasMap[p.nombre] || 0,
+        pedidos: pedidosMap[p.nombre] || 0,
+      })));
+
+      setCargando(false);
+    } catch (error) {
+      console.error('❌ Error sincronización rápida:', error);
+      setCargando(false);
+    }
+  };
+
   // Effects - Carga inicial (sin polling automático)
   useEffect(() => {
     if (fechaSeleccionada) {
@@ -908,10 +977,8 @@ const InventarioPlaneacion = () => {
             size="sm"
             className="mb-2 mb-md-0"
             onClick={() => {
-
-              setCache({ datos: null, timestamp: null, fecha: null });
-              cargarExistenciasReales(true);
-              mostrarMensaje('Sincronizando datos...', 'info');
+              sincronizarDatosOperativos();
+              mostrarMensaje('Sincronizando...', 'info');
             }}
             disabled={cargando}
           >
