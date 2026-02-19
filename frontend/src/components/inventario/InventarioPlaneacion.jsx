@@ -86,11 +86,8 @@ const InventarioPlaneacion = () => {
           }));
 
           setProductos(productosFlash);
-          setCache({
-            datos: productosFlash,
-            timestamp: timestamp,
-            fecha: fechaFormateada
-          });
+          // NO actualizar cache aquí para que cargarExistenciasReales
+          // siempre vaya al servidor y traiga los valores reales
         }
       } catch (error) {
         console.error('Error al cargar desde localStorage:', error);
@@ -730,13 +727,12 @@ const InventarioPlaneacion = () => {
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaFormateada = `${year}-${month}-${day}`;
 
-      // 🧹 Limpiar productos al cambiar de fecha para evitar que valores
-      // del día anterior contaminen el nuevo día durante el merge
-      if (cache.fecha && cache.fecha !== fechaFormateada) {
-        setProductos([]);
-      }
+      // 🧹 Limpiar productos, cache y activar spinner al cambiar de fecha
+      setProductos([]);
+      setCargando(true);
+      setCache({ datos: null, timestamp: null, fecha: null });
 
-      cargarExistenciasReales();
+      cargarExistenciasReales(true);
     }
 
     // ❌ POLLING DESACTIVADO: Genera demasiadas llamadas al backend
