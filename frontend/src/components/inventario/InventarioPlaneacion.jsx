@@ -693,10 +693,11 @@ const InventarioPlaneacion = () => {
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaFormateada = `${year}-${month}-${day}`;
 
-      // 🧹 Limpiar productos y activar spinner al cambiar de fecha
+      // 🧹 Limpiar productos, cache y activar spinner al cambiar de fecha
       // Esto evita que datos de otro día aparezcan mientras carga el servidor
       setProductos([]);
       setCargando(true);
+      setCache({ datos: null, timestamp: null, fecha: null });
 
       cargarExistenciasReales();
     }
