@@ -60,67 +60,27 @@ const InventarioPlaneacion = () => {
     return () => clearInterval(interval);
   }, [fechaSeleccionada]);
 
-  // 🚀 Cargar datos desde localStorage al iniciar Y actualizar existencias en tiempo real
+  // 🗑️ Limpiar localStorage viejo al montar (más de 7 días)
   useEffect(() => {
-    const cargarDesdeLocalStorage = async () => {
-      try {
-        const year = fechaSeleccionada.getFullYear();
-        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-        const fechaFormateada = `${year}-${month}-${day}`;
-
-        const key = `planeacion_${fechaFormateada}`;
-        const datosGuardados = localStorage.getItem(key);
-
-        if (datosGuardados) {
-          const { productos: productosGuardados, timestamp } = JSON.parse(datosGuardados);
-
-          // ⚡ FLASH VISUAL: Solo pintar orden e ia desde localStorage
-          // Solicitadas, pedidos y existencias se dejan en 0 para evitar rebote visual
-          // El servidor los actualizará con los valores correctos en cargarExistenciasReales
-          const productosFlash = productosGuardados.map(p => ({
-            ...p,
-            existencias: 0,
-            solicitado: 0,
-            pedidos: 0
-          }));
-
-          setProductos(productosFlash);
-          // NO actualizar cache aquí para que cargarExistenciasReales
-          // siempre vaya al servidor y traiga los valores reales
-        }
-      } catch (error) {
-        console.error('Error al cargar desde localStorage:', error);
-      }
-    };
-
-    // 🗑️ Limpiar localStorage viejo (más de 7 días)
-    const limpiarLocalStorageViejo = () => {
-      try {
-        const ahora = Date.now();
-        const SIETE_DIAS = 7 * 24 * 60 * 60 * 1000;
-
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('planeacion_')) {
-            try {
-              const datos = JSON.parse(localStorage.getItem(key));
-              if (datos.timestamp && (ahora - datos.timestamp) > SIETE_DIAS) {
-                localStorage.removeItem(key);
-
-              }
-            } catch (e) {
+    try {
+      const ahora = Date.now();
+      const SIETE_DIAS = 7 * 24 * 60 * 60 * 1000;
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('planeacion_')) {
+          try {
+            const datos = JSON.parse(localStorage.getItem(key));
+            if (datos.timestamp && (ahora - datos.timestamp) > SIETE_DIAS) {
               localStorage.removeItem(key);
             }
+          } catch (e) {
+            localStorage.removeItem(key);
           }
-        });
-      } catch (error) {
-        console.error('Error al limpiar localStorage:', error);
-      }
-    };
-
-    cargarDesdeLocalStorage(); // Ahora es async pero no necesitamos await aquí
-    limpiarLocalStorageViejo();
-  }, [fechaSeleccionada]);
+        }
+      });
+    } catch (error) {
+      console.error('Error al limpiar localStorage:', error);
+    }
+  }, []);
 
 
 
