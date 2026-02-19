@@ -97,6 +97,7 @@ const InventarioPlaneacion = () => {
   // Cargar existencias desde BD con optimización
   const cargarExistenciasReales = async (forzarRecarga = false) => {
     try {
+      setCargando(true);
       const year = fechaSeleccionada.getFullYear();
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
@@ -977,8 +978,7 @@ const InventarioPlaneacion = () => {
             size="sm"
             className="mb-2 mb-md-0"
             onClick={() => {
-              sincronizarDatosOperativos();
-              mostrarMensaje('Sincronizando...', 'info');
+              cargarExistenciasReales(true);
             }}
             disabled={cargando}
           >

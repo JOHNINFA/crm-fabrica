@@ -358,33 +358,91 @@ git push origin main
 
 ---
 
-## 📅 Optimización de Planeación (Febrero 2026)
+## 📅 Módulo de Planeación - Estado Actual (Febrero 2026)
 
 ### Resumen Ejecutivo
 
-Se eliminaron las restricciones que impedían editar la planeación de producción cuando el día operativo ya había iniciado. El objetivo es permitir ajustes dinámicos continuos hasta que el usuario decida manualmente "cerrar" la versión.
+El módulo de Planeación (`InventarioPlaneacion.jsx`) permite planificar la cantidad de productos a fabricar para una fecha específica. Es siempre editable, sin bloqueos por estado del cargue. El control de versión final se hace con el botón "Guardar Reporte".
 
-### Cambios Implementados
+### Comportamiento Actual
 
-#### A. InventarioPlaneacion.jsx - Lógica de Edición
+#### Carga de Datos al Cambiar de Fecha
+- Al seleccionar una fecha nueva: limpia `productos` y `cache` inmediatamente, activa spinner.
+- Servidor carga los datos del día nuevo y los pinta de una sola vez (sin flash ni datos de otro día).
+- El `useEffect` de `fechaSeleccionada` hace `setProductos([])`, `setCargando(true)` y `setCache({...null})` antes de llamar a `cargarExistenciasReales(true)`.
 
-**Eliminación de Bloqueo (Día Congelado)**
-- Se desactivó la lógica `diaCongelado` que bloqueaba inputs cuando el estado del cargue era `ALISTAMIENTO_ACTIVO` o superior.
-- **Antes**: Si alguien iniciaba el alistamiento (botón café), Planeación se volvía de solo lectura.
-- **Ahora**: Planeación es siempre editable, permitiendo corregir errores o ajustar cantidades de producción sobre la marcha.
+#### Merge con Validación de Fecha
+- El bloque de fusión (`setProductos`) verifica `cache.fecha === fechaFormateada` antes de preservar valores locales.
+- Si la fecha del cache es diferente → usa exactamente lo que trae el servidor (evita contaminación entre días).
+- Si es la misma fecha → preserva `orden` e `ia` locales si el servidor trae 0 (protege ediciones del usuario).
 
-**Control de Versiones (Snapshot)**
-- La responsabilidad de "congelar" la producción final recae exclusivamente en el botón **"Guardar Reporte"**.
-- Este botón genera un registro histórico inmutable (Snapshot) en la BD.
-- Si no se guarda reporte, los datos siguen siendo dinámicos.
+#### Edición Siempre Habilitada
+- `diaCongelado` está forzado a `false` (lógica anterior desactivada).
+- El usuario puede editar `Orden` e `IA` en cualquier momento, sin importar el estado del cargue.
+- El bloqueo real solo ocurre si `diaCongelado = true` (actualmente nunca se activa).
 
-**Integración de Datos**
-- **Inputs**: El usuario edita libremente las columnas `Orden` (cantidad a producir) e `IA` (predicción).
-- **Outputs (Read-only)**: Las columnas `Solicitadas` (suma de ID1-ID6) y `Pedidos` siguen actualizándose en tiempo real desde la operación, sin verse afectadas por la edición manual.
+#### Guardado Automático
+- Al editar `Orden` o `IA`: debounce de 500ms → guarda en BD via `guardarEnBD()` (POST o PATCH según exista).
+- Guardado inmediato en `localStorage` (`planeacion_YYYY-MM-DD`) para sobrevivir recargas F5.
+- Indicador visual de spinner por celda mientras guarda.
 
-### Archivos Modificados
+#### Polling Desactivado
+- No hay polling automático. Solo se actualiza:
+  1. Al cargar la página / cambiar de fecha
+  2. Al hacer clic en "Sincronizar"
+  3. Al recibir eventos: `pedidoGuardado`, `inventarioActualizado`, `productosUpdated`, `cargueActualizado`
 
+#### Control de Versiones (Snapshot)
+- Botón "Guardar Reporte" (verde cuando ya existe) genera snapshot inmutable en BD (`/api/reportes-planeacion/`).
+- Si ya existe reporte → muestra advertencia y no sobreescribe.
+- El reporte histórico tiene prioridad sobre `planeacion` BD al cargar (fuente de verdad para `orden` e `ia`).
+
+### Columnas de la Tabla
+
+| Columna | Editable | Fuente |
+|---------|----------|--------|
+| Existencias | ❌ | `api_stock` |
+| Solicitadas | ❌ | Suma cargue ID1-ID6 en tiempo real |
+| Pedidos | ❌ | `api/pedidos/` filtrado por fecha |
+| Total | ❌ | Solicitadas + Pedidos |
+| Orden | ✅ | Usuario / Snapshot BD |
+| IA | ✅ (via botón) | Predicción IA + editable |
+
+### Limpieza de localStorage
+- Al montar el componente: elimina entradas `planeacion_*` con más de 7 días de antigüedad.
+
+### Comportamiento Corregido (historial)
+- Cambiar de día → spinner → datos frescos del nuevo día, sin flash ✅
+- Abrir día sin datos → `Orden = 0` ✅
+- Recargar mismo día con ediciones → preserva valores locales ✅
+- Datos de día anterior no contaminan el día nuevo ✅
+
+### Archivo
 - `frontend/src/components/inventario/InventarioPlaneacion.jsx`
+
+**Última actualización**: 19 de Febrero de 2026
+
+---
+
+## ⚡ Fix Botón Sincronizar Planeación (19 Feb 2026)
+
+### Problema
+El botón "Sincronizar" en Planeación llamaba a `sincronizarDatosOperativos()`, una función liviana que en la práctica no actualizaba correctamente los datos. Además no mostraba animación visual al presionarlo.
+
+### Solución
+- El botón ahora llama directamente a `cargarExistenciasReales(true)` — igual que un F5 pero sin perder la fecha seleccionada.
+- Se agregó `setCargando(true)` al inicio de `cargarExistenciasReales` para que el botón muestre "Sincronizando..." y se desactive mientras carga.
+- Se eliminó la función duplicada `sincronizarDatosOperativos` que había quedado dos veces en el archivo.
+
+**Lo que recarga**:
+- Existencias → desde `api_stock` ✅
+- Solicitadas → desde cargue ID1-ID6 ✅
+- Pedidos → desde BD ✅
+- Orden → preserva lo que el usuario editó ✅
+- IA → preserva lo que el usuario editó ✅
+
+### Archivo Modificado
+- `frontend/src/components/inventario/InventarioPlaneacion.jsx` — botón Sincronizar + `setCargando(true)` en `cargarExistenciasReales`
 
 ---
 
@@ -1189,7 +1247,10 @@ Sistema POS completo para registrar ventas en ruta, gestionar pedidos asignados 
 #### Historial y Reimpresión de Tickets (botón 🧾)
 - Componente: `AP GUERRERO/components/Ventas/VentasScreen.js`
 - Trigger: botón `receipt-outline` en la barra superior de turno (área derecha).
-- Fuente de datos: `ventasDelDia` (ventas locales del día cargadas por `cargarVentasDelDia()`).
+- Fuente de datos (actual): backend primero + fallback local.
+  - `GET /api/ventas-ruta/?vendedor_id=IDx&fecha=YYYY-MM-DD` (ventas ruta sincronizadas).
+  - `GET /api/pedidos/pendientes_vendedor/?vendedor_id=x&fecha=YYYY-MM-DD` (solo `ENTREGADO/ENTREGADA` para reimpresión).
+  - Si backend falla o no responde: usa `ventasDelDia` local (AsyncStorage).
 - Acción por fila: botón `print` ejecuta `imprimirTicket(venta)`.
 
 Estado UI aprobado (actual):
@@ -1198,7 +1259,19 @@ Estado UI aprobado (actual):
 - Se removió el texto guía `"Toca el botón de imprimir..."`.
 - El contenedor general del modal en esa vista quedó transparente.
 - Las cards de cada venta se mantienen sólidas (`#f8f9fa`), con cliente, hora/metodo de pago, total y botón de imprimir.
+- Diferenciación visual por origen:
+  - `RUTA`: card normal.
+  - `PEDIDO_FACTURADO`: card con borde ámbar y badge `PEDIDO`.
 - Cierre del modal: botón `close-circle` (X) en la parte superior derecha.
+
+#### Flujo de Atención Secuencial de Clientes (UX)
+- Objetivo: acelerar la atención en ruta respetando el orden del día.
+- Fuente de orden: lista de `ClienteSelector` del día actual (incluye clientes de ruta y clientes con pedido).
+- Comportamiento:
+  - Después de confirmar una venta, la app avanza automáticamente al siguiente cliente del orden.
+  - Si no se va a vender al cliente actual, el usuario puede tocar el botón `play-skip-forward` en la card de cliente para pasar manualmente al siguiente.
+  - Se mantiene la entrada manual al listado completo con la flecha `chevron-forward`.
+- Regla al final de la lista: muestra alerta de fin de ruta y no altera otros módulos.
 
 #### Validación de Stock
 ```javascript
