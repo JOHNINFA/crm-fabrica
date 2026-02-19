@@ -543,46 +543,32 @@ const InventarioPlaneacion = () => {
       });
 
       // 🎯 Actualizar productos preservando ORDEN e IA editados por el usuario
-      // 🎯 Actualizar productos preservando ORDEN e IA editados por el usuario
+      // Solo se preserva el valor local si la fecha del cache coincide con la fecha actual
+      // Esto evita que valores del día anterior contaminen un día nuevo
       setProductos(prevProductos => {
-        // 🔥 MEJORA CRÍTICA: Priorizar datos locales si el servidor trae 0 o null
-        // Si prevProductos tiene datos (cargados de localStorage), usarlos como base para ORDEN e IA
-
         const productosFusionados = productosConPlaneacion.map(nuevoProducto => {
           const productoLocal = prevProductos.find(p => p.id === nuevoProducto.id);
 
-          if (productoLocal) {
-            // Si el servidor trae 0, pero localmente tenemos un valor, PRESERVAR EL LOCAL
-            // Esto evita que una recarga borre datos que aún no han llegado a la BD
-            const ordenServidor = nuevoProducto.orden || 0;
+          const ordenServidor = nuevoProducto.orden || 0;
+          const iaServidor = nuevoProducto.ia || 0;
+
+          // Solo usar datos locales si corresponden a la MISMA fecha que estamos cargando
+          // Si son de otro día (cambio de fecha), ignorarlos y respetar lo que trae el servidor
+          const localEsDeMismaFecha = cache.fecha === fechaFormateada;
+
+          if (productoLocal && localEsDeMismaFecha) {
             const ordenLocal = productoLocal.orden || 0;
-
-            const iaServidor = nuevoProducto.ia || 0;
             const iaLocal = productoLocal.ia || 0;
-
-            // Lógica de prioridad: Servidor > Local (si servidor != 0), sino Local
-            // PERO si acabamos de recargar, el "servidor" puede venir vacío injustamente.
-            // Para ser seguros: Si el servidor es 0, nos quedamos con el local.
-
             return {
               ...nuevoProducto,
-              orden: ordenServidor > 0 ? ordenServidor : ordenLocal, // Si servidor tiene dato, usarlo. Si no, mantener local.
+              orden: ordenServidor > 0 ? ordenServidor : ordenLocal,
               ia: iaServidor > 0 ? iaServidor : iaLocal
             };
           }
+
+          // Fecha diferente o sin datos locales: usar exactamente lo que trae el servidor
           return nuevoProducto;
         });
-
-        // 🚀 Guardar automáticamente en BD si hay datos locales que no están en el servidor
-        if (!diaCompletado) {
-          productosFusionados.forEach(producto => {
-            const productoLocal = prevProductos.find(p => p.id === producto.id);
-            if (productoLocal && (productoLocal.orden !== producto.orden || productoLocal.ia !== producto.ia)) {
-              // Si estamos rescatando un dato local, forzar guardado en BD para sincronizar
-              guardarEnBD(producto);
-            }
-          });
-        }
 
         return productosFusionados;
       });
@@ -772,6 +758,12 @@ const InventarioPlaneacion = () => {
       const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaFormateada = `${year}-${month}-${day}`;
+
+      // 🧹 Limpiar productos al cambiar de fecha para evitar que valores
+      // del día anterior contaminen el nuevo día durante el merge
+      if (cache.fecha && cache.fecha !== fechaFormateada) {
+        setProductos([]);
+      }
 
       cargarExistenciasReales();
     }
