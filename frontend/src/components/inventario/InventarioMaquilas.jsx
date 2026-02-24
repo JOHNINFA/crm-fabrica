@@ -20,17 +20,99 @@ import { useProductos } from "../../hooks/useUnifiedProducts";
 import { loteService } from "../../services/loteService";
 import { registroInventarioService } from "../../services/registroInventarioService";
 import { productoService, API_URL } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+import { obtenerNombreUsuarioInventario } from "../../utils/inventarioUsuario";
 import productosMaquilasData from "../../data/productosMaquilas";
 import "../../styles/InventarioProduccion.css";
 import "../../styles/TablaKardex.css";
 import "../../styles/ActionButtons.css";
 
+const normalizarNombreProducto = (nombre = "") => String(nombre).trim().toUpperCase();
+
+const unirLotesUnicos = (...lotesTexto) => {
+  const lotes = lotesTexto
+    .filter(Boolean)
+    .flatMap((texto) => String(texto).split(","))
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  return [...new Set(lotes)].join(", ");
+};
+
+const combinarDatosConfirmacion = (actual, nuevo) => {
+  if (!actual) return nuevo;
+
+  const acumulado = new Map();
+  (actual.productos || []).forEach((p) => {
+    const key = normalizarNombreProducto(p.nombre);
+    acumulado.set(key, { ...p, nombre: key, cantidad: Number(p.cantidad) || 0 });
+  });
+
+  (nuevo.productos || []).forEach((p) => {
+    const key = normalizarNombreProducto(p.nombre);
+    const previo = acumulado.get(key);
+    if (previo) {
+      acumulado.set(key, {
+        ...previo,
+        cantidad: (Number(previo.cantidad) || 0) + (Number(p.cantidad) || 0),
+      });
+      return;
+    }
+    acumulado.set(key, { ...p, nombre: key, cantidad: Number(p.cantidad) || 0 });
+  });
+
+  const vencimientos = [actual.fechaVencimiento, nuevo.fechaVencimiento].filter(Boolean);
+  const fechaVencimientoUnica = [...new Set(vencimientos)].length === 1 ? vencimientos[0] : null;
+
+  return {
+    ...actual,
+    ...nuevo,
+    lote: unirLotesUnicos(actual.lote, nuevo.lote),
+    fechaVencimiento: fechaVencimientoUnica,
+    fechaCreacion: new Date().toISOString(),
+    productos: Array.from(acumulado.values()),
+  };
+};
+
+const construirConfirmacionDesdeBackend = (registrosMaquila = [], lotesDelDia = [], usuario = "Usuario Predeterminado") => {
+  const acumulado = new Map();
+  registrosMaquila.forEach((registro) => {
+    const nombre = normalizarNombreProducto(registro.producto_nombre || registro.productoNombre);
+    if (!nombre) return;
+
+    const cantidadRegistro = Number(registro.entradas || registro.cantidad || 0);
+    const previo = acumulado.get(nombre);
+    acumulado.set(nombre, {
+      nombre,
+      cantidad: (previo?.cantidad || 0) + cantidadRegistro,
+    });
+  });
+
+  const lotesUnicos = [...new Set((lotesDelDia || []).map((l) => l?.lote).filter(Boolean))];
+  const vencimientos = [...new Set((lotesDelDia || []).map((l) => l?.fecha_vencimiento).filter(Boolean))];
+
+  if (acumulado.size === 0) return null;
+
+  return {
+    lote: lotesUnicos.join(", "),
+    fechaVencimiento: vencimientos.length === 1 ? vencimientos[0] : null,
+    fechaCreacion: new Date().toISOString(),
+    usuario,
+    productos: Array.from(acumulado.values()),
+  };
+};
+
 const InventarioMaquilas = () => {
   // Context y estados principales
   const { agregarMovimientos, movimientos } = useProductos();
+  const { usuario: usuarioSesion } = useAuth();
+  const nombreUsuarioLogueado = useMemo(
+    () => obtenerNombreUsuarioInventario(usuarioSesion),
+    [usuarioSesion]
+  );
 
   // Estados de producción
-  const [usuario, setUsuario] = useState("Usuario Predeterminado");
+  const [usuario, setUsuario] = useState(() => obtenerNombreUsuarioInventario(usuarioSesion));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [lote, setLote] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
@@ -51,6 +133,10 @@ const InventarioMaquilas = () => {
   useEffect(() => {
     productosRef.current = productos;
   }, [productos]);
+
+  useEffect(() => {
+    setUsuario(nombreUsuarioLogueado);
+  }, [nombreUsuarioLogueado]);
 
   const [cargando, setCargando] = useState(true);
   const [productosGrabados, setProductosGrabados] = useState({});
@@ -121,29 +207,29 @@ const InventarioMaquilas = () => {
     }
 
     // Si es la carga inicial (o F5), productos ya cargaron, y aún no hemos restaurado
-    if (productos.length > 0 && !restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+    if (productos.length > 0 && !restauracionCompleta && fechaKeyStr) {
       const timer = setTimeout(() => {
         restaurarDatosDeLocalStorage(fechaKeyStr);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [productos.length, fechaKeyStr, yaSeGrabo, restaurarDatosDeLocalStorage, procesandoCambioFecha]);
+  }, [productos.length, fechaKeyStr, restaurarDatosDeLocalStorage, procesandoCambioFecha]);
 
 
   // 🛡️ PERSISTENCIA: Auto-guardar lotes
   useEffect(() => {
-    if (restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+    if (restauracionCompleta && fechaKeyStr) {
       if (lotes.length > 0) {
         localStorage.setItem(`inv_maq_lotes_${fechaKeyStr}`, JSON.stringify(lotes));
       } else {
         localStorage.setItem(`inv_maq_lotes_${fechaKeyStr}`, JSON.stringify([]));
       }
     }
-  }, [lotes, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
+  }, [lotes, restauracionCompleta, fechaKeyStr]);
 
   // 🛡️ PERSISTENCIA: Auto-guardar cantidades
   useEffect(() => {
-    if (restauracionCompleta && !yaSeGrabo && fechaKeyStr) {
+    if (restauracionCompleta && fechaKeyStr) {
       const mapaCantidades = {};
       const hayCantidades = productos.some(p => p.cantidad > 0);
       if (hayCantidades) {
@@ -157,7 +243,7 @@ const InventarioMaquilas = () => {
         }
       }
     }
-  }, [productos, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
+  }, [productos, restauracionCompleta, fechaKeyStr]);
 
   // Estado para modal de edición de producción del día
   const [showModalEditarProduccion, setShowModalEditarProduccion] = useState(false);
@@ -268,7 +354,7 @@ const InventarioMaquilas = () => {
   };
 
   // Función para cargar datos de confirmación del día actual
-  const cargarDatosConfirmacionActual = () => {
+  const cargarDatosConfirmacionActual = async () => {
     const fechaActual = new Date();
     const fechaStr = `${fechaActual.getFullYear()}-${String(
       fechaActual.getMonth() + 1
@@ -286,6 +372,27 @@ const InventarioMaquilas = () => {
       } catch (error) {
         console.error("Error al parsear datos de confirmación de maquila:", error);
       }
+      return;
+    }
+
+    try {
+      const [lotesDelDia, registrosDelDia] = await Promise.all([
+        loteService.getByFecha(fechaStr),
+        registroInventarioService.getByFecha(fechaStr),
+      ]);
+
+      const registrosMaquila = (registrosDelDia || []).filter(
+        (r) => r.tipo_movimiento === 'ENTRADA_MAQUILA'
+      );
+
+      const resumen = construirConfirmacionDesdeBackend(registrosMaquila, lotesDelDia, usuario);
+      if (resumen) {
+        localStorage.setItem(fechaKey, JSON.stringify(resumen));
+        setDatosGuardados(resumen);
+        setYaSeGrabo(true);
+      }
+    } catch (error) {
+      console.error("Error cargando confirmación de maquila actual:", error);
     }
   };
 
@@ -638,17 +745,18 @@ const InventarioMaquilas = () => {
       fechaCreacion: new Date().toISOString(),
       usuario: usuario,
       productos: productosConCantidad.map((producto) => ({
-        nombre: producto.nombre,
+        nombre: normalizarNombreProducto(producto.nombre),
         cantidad: parseInt(producto.cantidad) || 0,
       })),
     };
 
     // 🎯 Persistir datos de confirmación en localStorage por fecha
     const fechaKey = `confirmacion_maquila_${fechaProduccion}`;
-    localStorage.setItem(fechaKey, JSON.stringify(datosParaConfirmacion));
+    const datosAcumulados = combinarDatosConfirmacion(datosGuardados, datosParaConfirmacion);
+    localStorage.setItem(fechaKey, JSON.stringify(datosAcumulados));
 
     // 🎯 Mostrar tabla de confirmación
-    setDatosGuardados(datosParaConfirmacion);
+    setDatosGuardados(datosAcumulados);
 
     // 🎯 Limpiar TODOS los campos después de grabar
     const productosLimpios = productos.map((producto) => ({
@@ -997,9 +1105,6 @@ const InventarioMaquilas = () => {
       if (registrosMaquila.length > 0) {
         // Cargar usuario del día
         const usuarioDelDia = registrosMaquila[0].usuario;
-        if (usuarioDelDia && usuarioDelDia !== "Sistema") {
-          setUsuario(usuarioDelDia);
-        }
 
         // 🎯 Mantener inputs limpios, solo mostrar tabla de confirmación
         if (productos.length > 0) {
@@ -1018,7 +1123,14 @@ const InventarioMaquilas = () => {
               setYaSeGrabo(true); // Activar indicador visual
             } catch (parseError) {
               console.error("Error al parsear datos de confirmación de maquila:", parseError);
+              const resumen = construirConfirmacionDesdeBackend(registrosMaquila, lotesFromBD, usuarioDelDia || usuario);
+              setDatosGuardados(resumen);
+              setYaSeGrabo(Boolean(resumen));
             }
+          } else {
+            const resumen = construirConfirmacionDesdeBackend(registrosMaquila, lotesFromBD, usuarioDelDia || usuario);
+            setDatosGuardados(resumen);
+            setYaSeGrabo(Boolean(resumen)); // Hay registros de maquila para el día
           }
         } else {
           setTimeout(() => handleDateSelect(date), 100);
@@ -1026,7 +1138,7 @@ const InventarioMaquilas = () => {
         }
       } else {
         // 🎯 Resetear estados cuando no hay registros
-        setUsuario("Usuario Predeterminado");
+        setUsuario(nombreUsuarioLogueado);
         setDatosGuardados(null);
         setYaSeGrabo(false); // Desactivar indicador visual
         if (productos.length > 0) {
@@ -1052,9 +1164,9 @@ const InventarioMaquilas = () => {
     setProcesandoCambioFecha(false);
   };
 
-  const handleCambiarUsuario = (nuevoUsuario) => {
-    setUsuario(nuevoUsuario);
-    mostrarMensaje("Usuario cambiado correctamente", "info");
+  const handleCambiarUsuario = () => {
+    setUsuario(nombreUsuarioLogueado);
+    mostrarMensaje("Usuario de Inventario tomado desde la sesión activa", "info");
   };
 
   return (
@@ -1066,7 +1178,8 @@ const InventarioMaquilas = () => {
             <Button
               variant="outline-primary"
               className="mb-2 mb-md-0 me-md-2"
-              onClick={() => setShowModalUsuario(true)}
+              onClick={handleCambiarUsuario}
+              title="Usuario tomado desde la sesión actual"
             >
               <i className="bi bi-person"></i> {usuario}
             </Button>
@@ -1111,18 +1224,16 @@ const InventarioMaquilas = () => {
               <div className="d-flex">
                 <Form.Control
                   type="text"
-                  placeholder={yaSeGrabo ? "Lote registrado" : "Lote"}
+                  placeholder="Lote"
                   value={lote}
                   onChange={(e) => setLote(e.target.value)}
-                  className={`fw-bold me-1 compact-input ${yaSeGrabo ? 'input-grabado' : ''}`}
+                  className="fw-bold me-1 compact-input"
                   style={{ width: "498px" }}
-                  disabled={yaSeGrabo}
                 />
                 <Button
                   variant="primary"
                   size="sm"
                   onClick={handleAgregarLote}
-                  disabled={yaSeGrabo}
                 >
                   <i className="bi bi-plus-circle"></i>
                 </Button>
@@ -1141,14 +1252,12 @@ const InventarioMaquilas = () => {
                   type="date"
                   value={fechaVencimiento}
                   onChange={(e) => setFechaVencimiento(e.target.value)}
-                  className={`me-1 compact-input ${yaSeGrabo ? 'input-grabado' : ''}`}
-                  disabled={yaSeGrabo}
+                  className="me-1 compact-input"
                 />
                 <Button
                   variant="outline-primary"
                   size="sm"
                   onClick={handleAgregarLote}
-                  disabled={yaSeGrabo}
                 >
                   <i className="bi bi-calendar-plus"></i>
                 </Button>
@@ -1218,6 +1327,7 @@ const InventarioMaquilas = () => {
               productosGrabados={productosGrabados}
               yaSeGrabo={yaSeGrabo}
               lotesIngresados={lotes.length > 0} // 🆕 Validar si hay lotes antes de permitir cantidades
+              permitirMultiplesRegistros={true}
             />
           </div>
         </Col>
@@ -1240,10 +1350,9 @@ const InventarioMaquilas = () => {
               variant="success"
               className="action-button me-2"
               onClick={handleGrabarMovimiento}
-              disabled={yaSeGrabo}
             >
               <i className="bi bi-save me-2"></i>
-              {yaSeGrabo ? "Ya Grabado" : (
+              {yaSeGrabo ? "Agregar Movimiento" : (
                 <>
                   <span className="d-none d-md-inline">Grabar Movimiento</span>
                   <span className="d-md-none">Grabar</span>

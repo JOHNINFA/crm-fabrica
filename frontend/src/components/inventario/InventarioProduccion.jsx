@@ -21,6 +21,8 @@ import { useProductos } from "../../hooks/useUnifiedProducts";
 import { loteService } from "../../services/loteService";
 import { registroInventarioService } from "../../services/registroInventarioService";
 import { productoService, API_URL } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+import { obtenerNombreUsuarioInventario } from "../../utils/inventarioUsuario";
 import "../../styles/InventarioProduccion.css";
 import "../../styles/TablaKardex.css";
 import "../../styles/ActionButtons.css";
@@ -29,10 +31,14 @@ const InventarioProduccion = () => {
   // Context y estados principales
   const { actualizarExistencias, agregarMovimientos, movimientos } =
     useProductos();
+  const { usuario: usuarioSesion } = useAuth();
+  const nombreUsuarioLogueado = useMemo(
+    () => obtenerNombreUsuarioInventario(usuarioSesion),
+    [usuarioSesion]
+  );
 
   // Estados de producción
-  // 🆕 Usuario se carga desde la API (persistente en BD)
-  const [usuario, setUsuario] = useState('Usuario Predeterminado');
+  const [usuario, setUsuario] = useState(() => obtenerNombreUsuarioInventario(usuarioSesion));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [lote, setLote] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
@@ -53,6 +59,10 @@ const InventarioProduccion = () => {
   useEffect(() => {
     productosRef.current = productos;
   }, [productos]);
+
+  useEffect(() => {
+    setUsuario(nombreUsuarioLogueado);
+  }, [nombreUsuarioLogueado]);
 
   const [cargando, setCargando] = useState(true);
   const [productosGrabados, setProductosGrabados] = useState({});
@@ -443,27 +453,6 @@ const InventarioProduccion = () => {
 
     // 🎯 NUEVO: Cargar datos de confirmación del día actual
     cargarDatosConfirmacionActual();
-
-    // 🆕 Cargar usuario desde la API (BD)
-    const cargarUsuarioDesdeAPI = async () => {
-      try {
-        const response = await fetch(`${API_URL}/configuracion-produccion/?clave=usuario_produccion`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.valor && data.valor !== 'Usuario Predeterminado') {
-            setUsuario(data.valor);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error cargando usuario desde API:', error);
-        // Fallback a localStorage
-        const usuarioLocal = localStorage.getItem('usuario_produccion');
-        if (usuarioLocal) {
-          setUsuario(usuarioLocal);
-        }
-      }
-    };
-    cargarUsuarioDesdeAPI();
 
     // Event listeners con debounce para evitar recargas mientras se edita
     let debounceTimer = null;
@@ -1245,33 +1234,9 @@ const InventarioProduccion = () => {
     setYaSeGrabo(true);
   };
 
-  const handleCambiarUsuario = async (nuevoUsuario) => {
-    setUsuario(nuevoUsuario);
-
-    // 🆕 Guardar en la API (BD)
-    try {
-      const response = await fetch('/api/configuracion-produccion/guardar/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clave: 'usuario_produccion',
-          valor: nuevoUsuario,
-          descripcion: 'Usuario que opera en Producción'
-        })
-      });
-
-      if (response.ok) {
-        mostrarMensaje("✅ Usuario guardado en base de datos", "success");
-        mostrarMensaje("✅ Usuario guardado en base de datos", "success");
-      } else {
-        throw new Error('Error al guardar');
-      }
-    } catch (error) {
-      console.error('❌ Error guardando usuario en API:', error);
-      // Fallback: guardar en localStorage
-      localStorage.setItem('usuario_produccion', nuevoUsuario);
-      mostrarMensaje("Usuario guardado localmente", "info");
-    }
+  const handleCambiarUsuario = () => {
+    setUsuario(nombreUsuarioLogueado);
+    mostrarMensaje("Usuario de Inventario tomado desde la sesión activa", "info");
   };
 
   const handleDateSelect = async (date) => {
@@ -1319,9 +1284,6 @@ const InventarioProduccion = () => {
       if (registrosProduccion.length > 0) {
         // Cargar usuario del día
         const usuarioDelDia = registrosProduccion[0].usuario;
-        if (usuarioDelDia && usuarioDelDia !== "Sistema") {
-          setUsuario(usuarioDelDia);
-        }
 
         // 🎯 MODIFICADO: Mantener inputs limpios, solo mostrar tabla de confirmación
         if (productos.length > 0) {
@@ -1383,7 +1345,7 @@ const InventarioProduccion = () => {
         }
       } else {
         // 🎯 MODIFICADO: Resetear estados cuando no hay registros
-        setUsuario("Usuario Predeterminado");
+        setUsuario(nombreUsuarioLogueado);
         setDatosGuardados(null);
         setYaSeGrabo(false); // Desactivar indicador visual
         if (productos.length > 0) {
@@ -1418,7 +1380,8 @@ const InventarioProduccion = () => {
             <Button
               variant="outline-primary"
               className="mb-2 mb-md-0 me-md-2"
-              onClick={() => setShowModalUsuario(true)}
+              onClick={handleCambiarUsuario}
+              title="Usuario tomado desde la sesión actual"
             >
               <i className="bi bi-person"></i> {usuario}
             </Button>

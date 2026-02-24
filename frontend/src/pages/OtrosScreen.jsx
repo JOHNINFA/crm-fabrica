@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import GestionSucursales from '../components/common/GestionSucursales';
 import GestionUsuarios from '../components/common/GestionUsuarios';
+import GestionVendedores from '../components/common/GestionVendedores';
 import Herramientas from '../components/common/Herramientas';
 import GestionRutas from '../components/rutas/GestionRutas';
 import ReporteVentasRuta from '../components/rutas/ReporteVentasRuta';
@@ -42,6 +43,14 @@ const OtrosScreen = () => {
             icon: 'people',
             color: 'success',
             action: () => handleModuleChange('usuarios')
+        },
+        {
+            id: 'vendedores',
+            title: 'Gestión de Vendedores',
+            description: 'Administrar claves y estado de la App Móvil',
+            icon: 'badge',
+            color: 'dark',
+            action: () => handleModuleChange('vendedores')
         },
         {
             id: 'ia_manager',
@@ -129,14 +138,16 @@ const OtrosScreen = () => {
                                     <span className="material-icons me-2" style={{ verticalAlign: 'middle' }}>
                                         {activeModule === 'ventas_ruta' ? 'point_of_sale' : activeModule === 'rutas' ? 'map' : 'settings'}
                                     </span>
-                                    {activeModule === 'ventas_ruta' ? 'Ventas de Ruta' : activeModule === 'rutas' ? 'Gestión de Rutas' : 'Otros - Configuraciones'}
+                                    {activeModule === 'ventas_ruta' ? 'Ventas de Ruta' : activeModule === 'rutas' ? 'Gestión de Rutas' : activeModule === 'vendedores' ? 'Gestión de Vendedores' : 'Otros - Configuraciones'}
                                 </h2>
                                 <small className="text-muted">
                                     {activeModule === 'ventas_ruta'
                                         ? 'Gestión de ventas realizadas por vendedores en ruta'
                                         : activeModule === 'rutas'
                                             ? 'Administrar rutas y clientes de vendedores'
-                                            : 'Administración y configuraciones del sistema'}
+                                            : activeModule === 'vendedores'
+                                                ? 'Administrar claves y acceso a la App Guerrero'
+                                                : 'Administración y configuraciones del sistema'}
                                 </small>
                             </div>
                         </Col>
@@ -201,6 +212,18 @@ const OtrosScreen = () => {
                                 Volver al Menú de Otros
                             </Button>
                             <GestionUsuarios />
+                        </div>
+                    ) : activeModule === 'vendedores' ? (
+                        <div>
+                            <Button
+                                variant="outline-secondary"
+                                className="mb-3"
+                                onClick={() => handleModuleChange('')}
+                            >
+                                <i className="bi bi-arrow-left me-2"></i>
+                                Volver al Menú de Otros
+                            </Button>
+                            <GestionVendedores />
                         </div>
                     ) : activeModule === 'herramientas' ? (
                         <div>

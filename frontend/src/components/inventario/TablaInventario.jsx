@@ -9,7 +9,8 @@ const TablaInventario = ({
   handleCantidadChange,
   productosGrabados = {},
   yaSeGrabo = false,
-  lotesIngresados = false
+  lotesIngresados = false,
+  permitirMultiplesRegistros = false,
 }) => {
   const handleChange = (id, value) => handleCantidadChange(id, value);
 
@@ -47,9 +48,9 @@ const TablaInventario = ({
                       onFocus={(e) => {
                         e.target.select();
                       }}
-                      className={`quantity-input ${productosGrabados[producto.id] ? 'grabado' : ''} ${yaSeGrabo ? 'input-grabado' : ''}`}
-                      disabled={productosGrabados[producto.id] || yaSeGrabo || !lotesIngresados}
-                      placeholder={yaSeGrabo ? "Grabado" : (!lotesIngresados ? "-" : "0")}
+                      className={`quantity-input ${productosGrabados[producto.id] ? 'grabado' : ''} ${(!permitirMultiplesRegistros && yaSeGrabo) ? 'input-grabado' : ''}`}
+                      disabled={productosGrabados[producto.id] || (!permitirMultiplesRegistros && yaSeGrabo) || !lotesIngresados}
+                      placeholder={(!permitirMultiplesRegistros && yaSeGrabo) ? "Grabado" : (!lotesIngresados ? "-" : "0")}
                       inputMode="numeric" // Teclado numérico en móvil
                       title={!lotesIngresados ? "Debe ingresar un lote antes de escribir cantidades" : ""}
                       aria-label={`Cantidad de ${producto.nombre}`}
