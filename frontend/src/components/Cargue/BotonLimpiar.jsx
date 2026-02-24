@@ -1269,6 +1269,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       console.log(`🔍 VALIDACIÓN ESTRICTA DE LOTES (BD + LOCAL) - ${fechaAUsar}`);
       const { simpleStorage } = await import('../../services/simpleStorage');
       const productosConVencidasSinLotes = [];
+      const productosAmbiguosSoloFvto = [];
       const endpointMap = {
         'ID1': 'cargue-id1', 'ID2': 'cargue-id2', 'ID3': 'cargue-id3',
         'ID4': 'cargue-id4', 'ID5': 'cargue-id5', 'ID6': 'cargue-id6'
@@ -1312,8 +1313,26 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             const tieneLotesBD = p.lotes_vencidos && p.lotes_vencidos.trim().length > 0 && p.lotes_vencidos !== 'undefined';
 
             // Verificar array local (si viene de LS o UI enriquecida)
-            const lotesArray = p.lotesVencidos || [];
-            const tieneLotesArray = lotesArray.some(l => l.lote && l.lote.trim());
+            let lotesArray = Array.isArray(p.lotesVencidos) ? p.lotesVencidos : [];
+            if ((!lotesArray || lotesArray.length === 0) && p.lotes_vencidos) {
+              try {
+                const parsed = typeof p.lotes_vencidos === 'string'
+                  ? JSON.parse(p.lotes_vencidos)
+                  : p.lotes_vencidos;
+                if (Array.isArray(parsed)) {
+                  lotesArray = parsed;
+                }
+              } catch (e) {
+                // Compatibilidad con formato antiguo no JSON
+                lotesArray = [];
+              }
+            }
+
+            const lotesCompletos = lotesArray.filter(l =>
+              String(l?.lote || '').trim() !== '' &&
+              String(l?.motivo || '').trim() !== ''
+            );
+            const tieneLotesArray = lotesCompletos.length > 0;
 
             if (!tieneLotesBD && !tieneLotesArray) {
               console.log(`   ❌ DETECTADO: ${p.producto} tiene ${vencidas} vencidas SIN LOTE`);
@@ -1321,6 +1340,24 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 id: id,
                 producto: p.producto,
                 vencidas: vencidas
+              });
+              continue;
+            }
+
+            // 🆕 Alerta de posible olvido de novedades:
+            // si solo hay FVTO y la cantidad de lotes FVTO es menor a vencidas reportadas.
+            const lotesConMotivo = lotesCompletos.filter(l => String(l?.motivo || '').trim() !== '');
+            const lotesFvto = lotesConMotivo.filter(
+              l => String(l?.motivo || '').trim().toUpperCase() === 'FVTO'
+            ).length;
+            const lotesOtros = Math.max(0, lotesConMotivo.length - lotesFvto);
+
+            if (lotesFvto > 0 && lotesOtros === 0 && lotesFvto < vencidas) {
+              productosAmbiguosSoloFvto.push({
+                id,
+                producto: p.producto,
+                vencidas: Number(vencidas),
+                lotesFvto
               });
             }
           }
@@ -1336,6 +1373,21 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
         alert(mensaje);
         return false;
+      }
+
+      if (productosAmbiguosSoloFvto.length > 0) {
+        const mensajeAmbiguo = `⚠️ Validación de clasificación FVTO\n\n` +
+          `Detectamos productos donde "VENCIDAS" es mayor al número de lotes FVTO y no hay otros motivos registrados.\n` +
+          `Si continúas, el sistema asumirá que TODAS esas vencidas son FVTO.\n\n` +
+          `${productosAmbiguosSoloFvto.map(p =>
+            `• ${p.id}: ${p.producto} (vencidas=${p.vencidas}, lotes FVTO=${p.lotesFvto})`
+          ).join('\n')}\n\n` +
+          `¿Deseas continuar con esa interpretación?`;
+
+        const confirmar = window.confirm(mensajeAmbiguo);
+        if (!confirmar) {
+          return false;
+        }
       }
 
       console.log("✅ Validación de lotes exitosa: Todo correcto.");

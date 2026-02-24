@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Table, Form } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Table, Form, Modal, Button } from 'react-bootstrap';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Tooltip from 'react-bootstrap/Tooltip';
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
@@ -18,6 +18,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   })));
 
   const [baseCaja, setBaseCaja] = useState(0);
+  const [mostrarModalFvto, setMostrarModalFvto] = useState(false);
 
   // 🆕 Estado para nota del cargue
   const [notaCargue, setNotaCargue] = useState('');
@@ -578,6 +579,60 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
     return `$${Math.round(num).toLocaleString()}`;
   };
 
+  // 🆕 Resumen informativo: solo vencidas con motivo FVTO
+  // Regla de discriminación:
+  // - Si todos los lotes con motivo son FVTO => FVTO toma todo "vencidas".
+  // - Si hay mezcla de motivos (FVTO + otros) => FVTO cuenta por # de lotes FVTO.
+  const resumenVencidasFvto = useMemo(() => {
+    const detalle = [];
+    let totalCantidad = 0;
+    let totalValor = 0;
+
+    (Array.isArray(productos) ? productos : []).forEach((producto) => {
+      const lotes = Array.isArray(producto?.lotesVencidos) ? producto.lotesVencidos : [];
+      const vencidasReportadas = Math.max(0, parseInt(producto?.vencidas, 10) || 0);
+      if (vencidasReportadas <= 0) return;
+
+      const lotesConMotivo = lotes.filter((lote) => String(lote?.motivo || '').trim() !== '');
+      const lotesFvto = lotesConMotivo.filter(
+        (lote) => String(lote?.motivo || '').trim().toUpperCase() === 'FVTO'
+      ).length;
+      const lotesOtros = Math.max(0, lotesConMotivo.length - lotesFvto);
+
+      if (lotesFvto <= 0) return;
+
+      let cantidadFvto = 0;
+      if (lotesOtros === 0) {
+        // Solo FVTO -> todo lo reportado en vencidas es FVTO
+        cantidadFvto = vencidasReportadas;
+      } else {
+        // Mezcla de motivos -> discriminar por cantidad de lotes FVTO
+        cantidadFvto = Math.min(vencidasReportadas, lotesFvto);
+      }
+      if (cantidadFvto <= 0) return;
+
+      const valorUnitario = Math.max(0, Math.round(parseFloat(producto?.valor) || 0));
+      const subtotal = cantidadFvto * valorUnitario;
+
+      detalle.push({
+        producto: producto?.producto || 'PRODUCTO',
+        cantidad: cantidadFvto,
+        valorUnitario,
+        subtotal
+      });
+
+      totalCantidad += cantidadFvto;
+      totalValor += subtotal;
+    });
+
+    detalle.sort((a, b) => b.subtotal - a.subtotal);
+    return {
+      detalle,
+      totalCantidad,
+      totalValor
+    };
+  }, [productos]);
+
   // 🆕 Navegación tipo Excel con flechas en tabla de pagos
   const handleKeyDownPagos = (e, index, campo) => {
     const columnas = ['concepto', 'descuentos', 'nequi', 'daviplata'];
@@ -1073,6 +1128,31 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
           </div>
         </div>
 
+        <div className="bg-light p-2 mt-2">
+          <strong>VENCIDAS FVTO:</strong>
+          <div className="text-end d-flex justify-content-end align-items-center">
+            {resumenVencidasFvto.totalValor > 0 && (
+              <OverlayTrigger
+                placement="top"
+                overlay={
+                  <Tooltip>
+                    Ver detalle de vencidas con motivo FVTO
+                  </Tooltip>
+                }
+              >
+                <span
+                  className="text-primary me-3 d-flex align-items-center"
+                  style={{ cursor: 'pointer', marginTop: '2px' }}
+                  onClick={() => setMostrarModalFvto(true)}
+                >
+                  <i className="bi bi-eye-fill"></i>
+                </span>
+              </OverlayTrigger>
+            )}
+            {formatCurrency(resumenVencidasFvto.totalValor)}
+          </div>
+        </div>
+
         {/* 🆕 Mostrar novedad de precios especiales si existe */}
         {datos.novedad && (
           <div className="bg-warning p-2 mt-2" style={{ borderRadius: '4px', backgroundColor: '#fff3cd' }}>
@@ -1107,6 +1187,58 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
           </small>
         )}
       </div> */}
+
+      <Modal
+        show={mostrarModalFvto}
+        onHide={() => setMostrarModalFvto(false)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Detalle Vencidas FVTO ({idSheet})</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {resumenVencidasFvto.detalle.length === 0 ? (
+            <div className="text-muted text-center py-4">
+              No hay productos con vencidas motivo FVTO.
+            </div>
+          ) : (
+            <Table bordered hover size="sm" className="mb-0">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th className="text-center">Cantidad FVTO</th>
+                  <th className="text-end">Valor Unitario</th>
+                  <th className="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumenVencidasFvto.detalle.map((item, idx) => (
+                  <tr key={`${item.producto}-${idx}`}>
+                    <td>{item.producto}</td>
+                    <td className="text-center">{item.cantidad}</td>
+                    <td className="text-end">{formatCurrency(item.valorUnitario)}</td>
+                    <td className="text-end">{formatCurrency(item.subtotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th className="text-end">TOTAL</th>
+                  <th className="text-center">{resumenVencidasFvto.totalCantidad}</th>
+                  <th></th>
+                  <th className="text-end">{formatCurrency(resumenVencidasFvto.totalValor)}</th>
+                </tr>
+              </tfoot>
+            </Table>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setMostrarModalFvto(false)}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
