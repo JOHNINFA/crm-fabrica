@@ -115,6 +115,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
     // 🆕 Estado para modal de vendidas
     const [mostrarModalVendidas, setMostrarModalVendidas] = useState(false);
+    const [sincronizandoAuditoria, setSincronizandoAuditoria] = useState(false);
 
     // 🧮 Función para recalcular totales correctamente
     const recalcularTotales = (productos) => {
@@ -757,6 +758,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                 console.warn(`⚠️ ${idSheet} - Formato de respuesta no reconocido:`, response);
             }
 
+            // 🧮 CRÍTICO: Normalizar SIEMPRE totales/netos al cargar desde BD para evitar "rebote" visual
+            if (productosDesdeDB.length > 0) {
+                productosDesdeDB = recalcularTotales(productosDesdeDB);
+            }
+
             // 🚀 LÓGICA ROBUSTA: Intentar mostrar datos siempre
             let productosFinales = [];
 
@@ -771,12 +777,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                     const productoBD = productosDesdeDB.find(p => p.producto === product.name);
                     if (productoBD) {
                         const valorReal = preciosLista[product.id] !== undefined ? preciosLista[product.id] : (productoBD.valor || Math.round(product.price * 0.65));
-                        const totalReal = productoBD.total || 0;
+                        const totalReal = Number.isFinite(Number(productoBD.total)) ? Number(productoBD.total) : 0;
                         return {
                             ...productoBD,
                             id: product.id || productoBD.id,
                             valor: valorReal,
-                            neto: totalReal * valorReal,
+                            neto: Math.round(totalReal * valorReal),
                             vendedor: productoBD.vendedor || false,
                             despachador: productoBD.despachador || false
                         };
@@ -807,11 +813,12 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             // Validar si tenemos productos finales
             if (productosFinales.length > 0) {
+                const productosFinalesNormalizados = recalcularTotales(productosFinales);
                 console.warn(`🚀 ${idSheet} - Actualizando estado con ${productosFinales.length} productos`);
-                setProductosOperativos(productosFinales);
+                setProductosOperativos(productosFinalesNormalizados);
 
                 // Calcular totales
-                const totalNeto = productosFinales.reduce((sum, p) => sum + (p.neto || 0), 0);
+                const totalNeto = productosFinalesNormalizados.reduce((sum, p) => sum + (p.neto || 0), 0);
 
                 // Cargar pedidos solo si es necesario (evitar doble carga)
                 const resultadoPedidos = await cargarPedidosVendedor(fechaSeleccionada, idSheet);
@@ -921,6 +928,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         dctos: parseInt(reg.dctos) || 0,
                         adicional: parseInt(reg.adicional) || 0,
                         devoluciones: parseInt(reg.devoluciones) || 0,
+                        vendidas: parseInt(reg.vendidas) || 0,
                         vencidas: parseInt(reg.vencidas) || 0,
                         lotesVencidos: lotesVencidos,
                         total: parseInt(reg.total) || 0,
@@ -998,6 +1006,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                         dctos: productoGuardado.dctos || 0,
                         adicional: productoGuardado.adicional || 0,
                         devoluciones: productoGuardado.devoluciones || 0,
+                        vendidas: productoGuardado.vendidas || 0,
                         vencidas: productoGuardado.vencidas || 0,
                         lotesVencidos: productoGuardado.lotesVencidos || [],
                         total: productoGuardado.total || 0,
@@ -1338,6 +1347,11 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         // Intervalo de polling
         // ⚡ POLLING INTELIGENTE: Check ultrarrápido (4s) para detectar cambios sin saturar
         const pollingInterval = setInterval(async () => {
+            if (mostrarModalVendidas) {
+                // 🛡️ Pausar polling si el modal de auditoría está abierto
+                return;
+            }
+
             if (isVisible) {
                 // 🛡️ PROTECCIÓN: No recargar si hubo cambio manual reciente o estamos editando
                 if (cambioManualRef.current) {
@@ -1406,7 +1420,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             console.log(`🛑 ${idSheet} - Polling desactivado`);
         };
-    }, [idSheet, dia, fechaSeleccionada]); // Recrear cuando cambien estos valores
+    }, [idSheet, dia, fechaSeleccionada, mostrarModalVendidas]); // Recrear cuando cambien estos valores
 
 
     // Función deshabilitada - solo el botón DESPACHO afecta inventario
@@ -1873,6 +1887,43 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
         // Función deshabilitada temporalmente
     };
 
+    const abrirAuditoria = async () => {
+        setSincronizandoAuditoria(true);
+        try {
+            let fechaFormateada;
+            if (fechaSeleccionada instanceof Date) {
+                const year = fechaSeleccionada.getFullYear();
+                const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
+                const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
+                fechaFormateada = `${year}-${month}-${day}`;
+            } else {
+                fechaFormateada = fechaSeleccionada || new Date().toISOString().split('T')[0];
+            }
+
+            // Consultar datos reales de la BD del día
+            const url = `${API_URL}/obtener-cargue/?vendedor_id=${idSheet}&dia=${dia}&fecha=${fechaFormateada}`;
+            const res = await fetch(url);
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data && !data.error) {
+                    setProductosOperativos(prev => prev.map(p => {
+                        const ds = data[p.producto] || data[p.producto.trim()];
+                        if (ds) return { ...p, vendidas: ds.vendidas !== undefined ? ds.vendidas : (p.vendidas || 0) };
+                        return p;
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error("Error obteniendo datos para auditoría:", error);
+        } finally {
+            setSincronizandoAuditoria(false);
+            setMostrarModalVendidas(true);
+        }
+    };
+
+    const productosFiltradosAudit = productosOperativos.filter(p => (parseInt(p.vendidas) || 0) > 0);
+
     return (
         <div className="container-fluid plantilla-operativa" style={{ minWidth: '1900px', paddingRight: '150px' }}>
             {/* 👤 CAMPO RESPONSABLE EDITABLE */}
@@ -1902,14 +1953,22 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 <i className="bi bi-pencil-square ms-2 text-muted" style={{ fontSize: '0.9rem' }}></i>
                             </div>
 
-                            {/* 🆕 Botón para ver vendidas */}
+                            {/* 🆕 Botón para ver Auditoría de Vendidas */}
                             <button
-                                className="btn btn-outline-secondary btn-sm"
-                                onClick={() => setMostrarModalVendidas(true)}
-                                title="Ver detalle de vendidas"
+                                className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+                                onClick={abrirAuditoria}
+                                disabled={sincronizandoAuditoria}
+                                title="Ver Auditoría de Liquidación vs App"
                                 style={{ color: '#0d6efd', fontWeight: '500' }}
                             >
-                                📊 Vendidas
+                                {sincronizandoAuditoria ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span>Sincronizando...</span>
+                                    </>
+                                ) : (
+                                    <>⚖️ Auditoría</>
+                                )}
                             </button>
 
                             {/* 🆕 Botón para ver pedidos */}
@@ -2005,66 +2064,184 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             {/* 🆕 Modal de Vendidas */}
             {mostrarModalVendidas && (
-                <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-lg modal-dialog-scrollable">
-                        <div className="modal-content">
-                            <div className="modal-header" style={{
-                                borderBottom: '3px solid #667eea'
-                            }}>
-                                <h5 className="modal-title fw-bold text-primary">📊 Detalle de Vendidas - {dia} {fechaSeleccionada}</h5>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={() => setMostrarModalVendidas(false)}
-                                ></button>
-                            </div>
-                            <div className="modal-body">
-                                <table className="table table-sm table-hover">
-                                    <thead className="table-light">
-                                        <tr>
-                                            <th>Producto</th>
-                                            <th className="text-center">Vendidas</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {productosOperativos
-                                            .filter(p => (p.vendidas || 0) > 0)
-                                            .map((p, idx) => (
-                                                <tr key={idx}>
-                                                    <td>{p.producto}</td>
-                                                    <td className="text-center fw-bold text-success">{p.vendidas || 0}</td>
+                <>
+                    <style>{`
+                        .modal-auditoria-bg {
+                            display: flex !important;
+                            align-items: center;
+                            justify-content: center;
+                            background-color: rgba(15, 23, 42, 0.6);
+                            backdrop-filter: blur(4px);
+                            padding: 1rem;
+                        }
+                        @media (min-width: 992px) {
+                            /* En pantallas de PC o mayores esquiva el menú lateral */
+                            .modal-auditoria-bg {
+                                padding-left: 170px !important;
+                            }
+                        }
+                    `}</style>
+                    <div className="modal show modal-auditoria-bg" tabIndex="-1">
+                        <div className="modal-dialog modal-dialog-scrollable m-0" style={{ width: '100%', maxWidth: '960px' }}>
+                            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden w-100" style={{ backgroundColor: '#ffffff', maxHeight: '90vh' }}>
+                                {/* Header */}
+                                <div className="modal-header border-bottom py-3 px-4" style={{ borderColor: '#f1f5f9' }}>
+                                    <div>
+                                        <h5 className="modal-title fw-bold fs-5 d-flex align-items-center mb-1" style={{ color: '#0f172a' }}>
+                                            <i className="bi bi-bar-chart-fill text-primary me-2"></i>
+                                            Auditoría de Liquidación <span className="text-secondary opacity-75 fw-normal ms-2" style={{ fontSize: '0.9rem' }}>| {dia} {fechaSeleccionada?.split ? fechaSeleccionada.split('T')[0] : fechaSeleccionada}</span>
+                                        </h5>
+                                        <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>
+                                            Muestra los productos que el vendedor reportó como vendidos en la App Móvil.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={() => setMostrarModalVendidas(false)}
+                                    ></button>
+                                </div>
+
+                                {/* Body */}
+                                <div className="modal-body p-4 bg-white" style={{ overflowY: 'hidden' }}>
+                                    <div className="border rounded-3" style={{ borderColor: '#e2e8f0', overflow: 'auto', maxHeight: '55vh' }}>
+                                        <table className="table mb-0 align-middle">
+                                            <thead style={{ backgroundColor: '#f8fafc', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}>
+                                                <tr className="text-center text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px', color: '#475569' }}>
+                                                    <th className="text-start py-3 px-4 border-bottom-0 fw-semibold bg-transparent">PRODUCTO</th>
+                                                    <th className="py-3 px-3 border-bottom-0 fw-semibold text-center bg-transparent" style={{ width: '15%' }}>FÍSICO</th>
+                                                    <th className="py-3 px-3 border-bottom-0 fw-semibold text-center bg-transparent" style={{ width: '15%' }}>APP (VENDIDAS)</th>
+                                                    <th className="py-3 px-3 border-bottom-0 fw-semibold text-center bg-transparent" style={{ width: '15%' }}>DIFERENCIA</th>
+                                                    <th className="py-3 px-4 border-bottom-0 fw-semibold text-center bg-transparent text-nowrap" style={{ width: '20%' }}>ESTADO</th>
                                                 </tr>
-                                            ))}
-                                        {productosOperativos.filter(p => (p.vendidas || 0) > 0).length === 0 && (
-                                            <tr>
-                                                <td colSpan="2" className="text-center text-muted">
-                                                    No hay productos vendidos registrados
-                                                </td>
-                                            </tr>
+                                            </thead>
+                                            <tbody className="bg-white">
+                                                {productosFiltradosAudit.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="3" className="text-center text-muted py-5 border-0 bg-light">
+                                                            <i className="bi bi-inbox fs-2 d-block mb-3 text-secondary"></i>
+                                                            No hay productos registrados para esta vista.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                {productosFiltradosAudit
+                                                    .map((p, idx) => {
+                                                        const fisico = parseInt(p.total) || 0;
+                                                        const app = parseInt(p.vendidas) || 0;
+                                                        const diferencia = app - fisico;
+
+                                                        let estadoBadge = null;
+                                                        let difBadge = null;
+                                                        let rowBg = 'transparent';
+
+                                                        if (diferencia === 0) {
+                                                            difBadge = <span className="text-secondary fw-medium">-</span>;
+                                                            estadoBadge = (
+                                                                <span className="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                                                                    <i className="bi bi-check-circle-fill" style={{ color: '#94a3b8' }}></i> Cuadra
+                                                                </span>
+                                                            );
+                                                        } else if (diferencia < 0) {
+                                                            rowBg = '#fef2f2'; // hover red-50 appx
+                                                            difBadge = (
+                                                                <span className="d-inline-flex align-items-center px-3 py-1 rounded-pill fw-bold" style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#b91c1c' }}>
+                                                                    {diferencia}
+                                                                </span>
+                                                            );
+                                                            estadoBadge = (
+                                                                <span className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
+                                                                    <span className="rounded-circle spinner-grow spinner-grow-sm" style={{ backgroundColor: '#dc2626', width: '6px', height: '6px' }}></span>
+                                                                    Faltante
+                                                                </span>
+                                                            );
+                                                        } else {
+                                                            rowBg = '#fffbeb';
+                                                            difBadge = (
+                                                                <span className="d-inline-flex align-items-center px-3 py-1 rounded-pill fw-bold" style={{ fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#b45309' }}>
+                                                                    +{diferencia}
+                                                                </span>
+                                                            );
+                                                            estadoBadge = (
+                                                                <span className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                                                                    <span className="rounded-circle" style={{ backgroundColor: '#d97706', width: '6px', height: '6px' }}></span>
+                                                                    Sobrante
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <tr key={idx} style={{ backgroundColor: rowBg, borderBottom: '1px solid #f1f5f9' }}>
+                                                                <td className="px-4 py-3 border-0">
+                                                                    <span className="fw-medium" style={{ color: '#0f172a', fontSize: '0.875rem' }}>{p.producto}</span>
+                                                                </td>
+                                                                <td className="text-center py-3 border-0">
+                                                                    <span style={{ color: '#475569', fontSize: '0.875rem' }}>{fisico}</span>
+                                                                </td>
+                                                                <td className="text-center py-3 border-0">
+                                                                    <span style={{ color: '#475569', fontSize: '0.875rem', fontWeight: 'bold' }}>{app}</span>
+                                                                </td>
+                                                                <td className="text-center py-3 border-0">{difBadge}</td>
+                                                                <td className="text-center py-3 border-0 text-nowrap">{estadoBadge}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                            </tbody>
+                                            <tfoot style={{ backgroundColor: '#f8fafc', position: 'sticky', bottom: 0, zIndex: 10, borderTop: '1px solid #e2e8f0', boxShadow: '0 -1px 2px 0 rgba(0,0,0,0.05)' }}>
+                                                <tr>
+                                                    <td className="text-end pe-4 py-3 fw-bold text-uppercase bg-transparent" style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Unidades:</td>
+                                                    <td className="text-center fw-bold py-3 bg-transparent" style={{ color: '#0f172a' }}>
+                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.total) || 0), 0)}
+                                                    </td>
+                                                    <td className="text-center fw-bold py-3 bg-transparent" style={{ color: '#0f172a' }}>
+                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.vendidas) || 0), 0)}
+                                                    </td>
+                                                    <td className="text-center fw-bold py-3 bg-transparent" colSpan="2">
+                                                        {/* Total de diferencias si se desea mostrar, o dejar vacío */}
+                                                        {(() => {
+                                                            const diffTotal = productosFiltradosAudit.reduce((sum, p) => sum + ((parseInt(p.vendidas) || 0) - (parseInt(p.total) || 0)), 0);
+                                                            return diffTotal !== 0 ? (
+                                                                <span className={diffTotal > 0 ? 'text-warning' : 'text-danger'}>
+                                                                    {diffTotal > 0 ? '+' : ''}{diffTotal}
+                                                                </span>
+                                                            ) : '-';
+                                                        })()}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="modal-footer d-flex justify-content-between align-items-center py-3 px-4 rounded-bottom-4" style={{ backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
+                                    <div>
+                                        {productosFiltradosAudit.some(p => ((parseInt(p.vendidas) || 0) - (parseInt(p.total) || 0)) < 0) ? (
+                                            <span className="d-flex align-items-center text-danger" style={{ fontSize: '0.875rem', fontWeight: '500' }}>
+                                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                                Discrepancia crítica detectada (Faltantes)
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted" style={{ fontSize: '0.875rem' }}>
+                                                No se detectan faltantes críticos.
+                                            </span>
                                         )}
-                                    </tbody>
-                                    <tfoot className="table-light">
-                                        <tr>
-                                            <th>TOTAL</th>
-                                            <th className="text-center text-success">
-                                                {productosOperativos.reduce((sum, p) => sum + (parseInt(p.vendidas) || 0), 0)}
-                                            </th>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                            <div className="modal-footer">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setMostrarModalVendidas(false)}
-                                >
-                                    Cerrar
-                                </button>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                        <button
+                                            type="button"
+                                            className="btn px-4 fw-bold shadow-sm d-flex align-items-center gap-2"
+                                            onClick={() => setMostrarModalVendidas(false)}
+                                            style={{ fontSize: '0.875rem', backgroundColor: '#1e3b8a', color: 'white', border: 'none' }}
+                                        >
+                                            <span>Confirmar</span>
+                                            <i className="bi bi-check-all"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

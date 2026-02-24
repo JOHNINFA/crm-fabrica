@@ -4,10 +4,21 @@ import LogoGuerrero from '../../assets/images/icono.png'; // Importar Logo
 
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
+const safeParseJSON = (rawValue, fallback) => {
+    if (!rawValue) return fallback;
+    try {
+        return JSON.parse(rawValue);
+    } catch (error) {
+        return fallback;
+    }
+};
+
 const ChatIA = ({ onBack }) => { // Recibir onBack
     const [messages, setMessages] = useState(() => {
         const saved = localStorage.getItem('chat_history_v1');
-        return saved ? JSON.parse(saved) : [];
+        const parsed = safeParseJSON(saved, []);
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
     });
 
     // Estado Configuración
@@ -30,7 +41,8 @@ const ChatIA = ({ onBack }) => { // Recibir onBack
     // Inicializar tema leyendo de localStorage, si no existe default true (Oscuro)
     const [darkMode, setDarkMode] = useState(() => {
         const savedTheme = localStorage.getItem('chat_theme_preference');
-        return savedTheme !== null ? JSON.parse(savedTheme) : true;
+        const parsed = safeParseJSON(savedTheme, true);
+        return typeof parsed === 'boolean' ? parsed : true;
     });
 
     // Guardar preferencia cuando cambia

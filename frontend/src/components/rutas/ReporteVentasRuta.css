@@ -250,6 +250,22 @@
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+/* Animación icono recargar */
+.reload-icon-spin {
+    display: inline-block;
+    animation: reload-icon-rotate 0.8s linear infinite;
+}
+
+@keyframes reload-icon-rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Estilos Análisis de Ruta (Clean Design) */
 
 .search-section {

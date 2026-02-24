@@ -20,6 +20,11 @@ const ReporteVentasRuta = () => {
     const [selectedPedido, setSelectedPedido] = useState(null); // 🆕 Para modal de pedido
     const [showPedidoModal, setShowPedidoModal] = useState(false); // 🆕 Modal pedido
 
+    // 🆕 Estados para modal de anuladas
+    const [showAnuladasModal, setShowAnuladasModal] = useState(false);
+    const [ventasAnuladas, setVentasAnuladas] = useState([]);
+    const [loadingAnuladas, setLoadingAnuladas] = useState(false);
+
     // ========== ESTADOS PESTAÑA CLIENTES ==========
     const [rutas, setRutas] = useState([]);
     const [selectedVendedor, setSelectedVendedor] = useState(null);
@@ -86,9 +91,11 @@ const ReporteVentasRuta = () => {
         try {
             // Cargar ventas de ruta (app móvil)
             const data = await rutasService.obtenerVentasRuta(filtros.vendedor_id, filtros.fecha);
-            setVentas(data);
+            // 🆕 Filtrar ventas anuladas para que no aparezcan en la tabla principal
+            const ventasValidas = Array.isArray(data) ? data.filter(v => v.estado !== 'ANULADA') : [];
+            setVentas(ventasValidas);
 
-            // 🆕 Cargar pedidos entregados del día
+
             // 🆕 Cargar pedidos entregados del día
             const vendedorObj = filtros.vendedor_id
                 ? vendedores.find(v => v.id_vendedor === filtros.vendedor_id)
@@ -96,6 +103,30 @@ const ReporteVentasRuta = () => {
             await cargarPedidosEntregados(filtros.fecha, vendedorObj);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
+    };
+
+    // 🆕 Cargar ventas anuladas
+    const cargarAnuladas = async () => {
+        setLoadingAnuladas(true);
+        try {
+            const API_URL = process.env.REACT_APP_API_URL || '/api';
+            let url = `${API_URL}/ventas-ruta/?estado=ANULADA`;
+            if (filtros.fecha) url += `&fecha=${filtros.fecha}`;
+            if (filtros.vendedor_id) url += `&vendedor_id=${filtros.vendedor_id}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                // Filtrar solo las ANULADAS (por si el backend no filtra por estado aún)
+                const anuladas = Array.isArray(data) ? data.filter(v => v.estado === 'ANULADA') : [];
+                setVentasAnuladas(anuladas);
+            }
+        } catch (e) { console.error(e); }
+        finally { setLoadingAnuladas(false); }
+    };
+
+    const abrirModalAnuladas = () => {
+        setShowAnuladasModal(true);
+        cargarAnuladas();
     };
 
     // 🆕 Cargar pedidos entregados del día (Lógica Robusta v3)
@@ -481,6 +512,11 @@ ${venta.nombre_negocio ? '<div class="info-row"><span>Negocio:</span><span>' + v
 <div class="divider"></div>
 ${productosHTML}
 <div class="divider"></div>
+${venta.productos_vencidos?.length > 0 ? `
+<div class="info-row"><span style="color:red;font-weight:bold">PRODUCTOS VENCIDOS:</span></div>
+${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}</span><span>${v.cantidad} ud</span></div>`).join('')}
+<div class="divider"></div>
+` : ''}
 <div class="total-row"><span>TOTAL:</span><span>$${parseFloat(venta.total).toLocaleString()}</span></div>
 <div class="divider"></div>
 <div class="footer"><p>¡Gracias por su compra!</p><p>AP Guerrero - ${fechaStr}</p></div>
@@ -536,49 +572,75 @@ ${productosHTML}
                         </Form>
                     </div>
 
-                    {/* KPIs Cards */}
-                    <Row className="mb-4 g-4">
-                        <Col md={3} sm={6}>
-                            <div className="kpi-card kpi-blue">
-                                <div className="kpi-content">
-                                    <div className="kpi-label">Ventas Ruta</div>
-                                    <div className="kpi-value">${calcularTotalDia().toLocaleString()}</div>
-                                    <div className="kpi-trend positive"><i className="bi bi-graph-up me-1"></i>Hoy</div>
+                    {/* Dashboard Resumen estilo UI Moderno */}
+                    <div className="mb-4">
+                        <div className="bg-white shadow-sm p-4 d-flex flex-column flex-xl-row align-items-xl-center justify-content-between" style={{ borderRadius: '1.25rem' }}>
+                            {/* Lado Izquierdo: Total General */}
+                            <div className="mb-4 mb-xl-0 d-flex align-items-start">
+                                <div className="rounded bg-opacity-10 bg-primary d-flex align-items-center justify-content-center me-3 mt-1" style={{ width: '40px', height: '40px' }}>
+                                    <i className="bi bi-wallet2 text-primary fs-5"></i>
                                 </div>
-                                <div className="kpi-icon-wrapper"><i className="bi bi-phone"></i></div>
-                            </div>
-                        </Col>
-                        <Col md={3} sm={6}>
-                            <div className="kpi-card kpi-green">
-                                <div className="kpi-content">
-                                    <div className="kpi-label">Cant. Ventas</div>
-                                    <div className="kpi-value">{ventas.length}</div>
-                                    <div className="kpi-trend neutral">Transacciones</div>
+                                <div>
+                                    <h6 className="text-muted text-uppercase fw-bold mb-2" style={{ fontSize: '0.8rem', letterSpacing: '0.5px' }}>
+                                        Total Recaudo General
+                                    </h6>
+                                    <div className="d-flex align-items-center mb-1">
+                                        <h1 className="display-5 fw-bolder text-dark mb-0 me-3" style={{ letterSpacing: '-1.5px', color: '#1a1d2e' }}>
+                                            ${(calcularTotalDia() + calcularTotalPedidos()).toLocaleString()}
+                                        </h1>
+                                    </div>
+                                    <small className="text-muted" style={{ fontSize: '0.85rem' }}>Acumulación del periodo filtrado</small>
                                 </div>
-                                <div className="kpi-icon-wrapper"><i className="bi bi-bag-check"></i></div>
                             </div>
-                        </Col>
-                        <Col md={3} sm={6}>
-                            <div className="kpi-card kpi-indigo">
-                                <div className="kpi-content">
-                                    <div className="kpi-label">Pedidos Entregados</div>
-                                    <div className="kpi-value">${calcularTotalPedidos().toLocaleString()}</div>
-                                    <div className="kpi-trend positive"><i className="bi bi-check-circle me-1"></i>Cobrado</div>
+
+                            {/* Lado Derecho: Tarjetas de detalles */}
+                            <div className="d-flex flex-column flex-md-row gap-3">
+                                {/* Tarjeta Ventas Ruta */}
+                                <div className="border p-3 d-flex flex-column justify-content-between bg-white" style={{ minWidth: '220px', borderRadius: '1rem' }}>
+                                    <div className="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <small className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>VENTAS RUTA</small>
+                                            <h4 className="fw-bolder mb-0 mt-1" style={{ color: '#1a1d2e' }}>${calcularTotalDia().toLocaleString()}</h4>
+                                        </div>
+                                        <div className="rounded d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', backgroundColor: '#eef2ff' }}>
+                                            <i className="bi bi-phone fs-5" style={{ color: '#4f46e5' }}></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="progress mb-2" style={{ height: '6px', borderRadius: '3px', backgroundColor: '#f3f4f6' }}>
+                                            <div className="progress-bar" role="progressbar" style={{ width: '100%', backgroundColor: '#4f46e5' }} aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>Transacciones</small>
+                                            <small className="fw-bold text-dark" style={{ fontSize: '0.75rem' }}>{ventas.length}</small>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="kpi-icon-wrapper"><i className="bi bi-truck"></i></div>
-                            </div>
-                        </Col>
-                        <Col md={3} sm={6}>
-                            <div className="kpi-card kpi-amber">
-                                <div className="kpi-content">
-                                    <div className="kpi-label">Cant. Pedidos</div>
-                                    <div className="kpi-value">{pedidosEntregados.length}</div>
-                                    <div className="kpi-trend neutral">Entregas</div>
+
+                                {/* Tarjeta Pedidos */}
+                                <div className="border p-3 d-flex flex-column justify-content-between bg-white" style={{ minWidth: '220px', borderRadius: '1rem' }}>
+                                    <div className="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <small className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>PEDIDOS ENTREGADOS</small>
+                                            <h4 className="fw-bolder mb-0 mt-1" style={{ color: '#1a1d2e' }}>${calcularTotalPedidos().toLocaleString()}</h4>
+                                        </div>
+                                        <div className="rounded d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', backgroundColor: '#ecfdf5' }}>
+                                            <i className="bi bi-truck fs-5" style={{ color: '#059669' }}></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="progress mb-2" style={{ height: '6px', borderRadius: '3px', backgroundColor: '#f3f4f6' }}>
+                                            <div className="progress-bar" role="progressbar" style={{ width: '100%', backgroundColor: '#059669' }} aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>Total Entregas</small>
+                                            <small className="fw-bold text-dark" style={{ fontSize: '0.75rem' }}>{pedidosEntregados.length}</small>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="kpi-icon-wrapper"><i className="bi bi-box-seam"></i></div>
                             </div>
-                        </Col>
-                    </Row>
+                        </div>
+                    </div>
 
                     {/* Tabla Ventas Moderna */}
                     <div className="modern-card">
@@ -587,9 +649,26 @@ ${productosHTML}
                                 <span className="kpi-icon-wrapper bg-light text-success me-2 border" style={{ width: '2.5rem', height: '2.5rem' }}><i className="bi bi-phone"></i></span>
                                 Ventas de Ruta (App Móvil)
                             </div>
-                            <Button variant="link" className="text-decoration-none text-primary fw-bold small p-0" onClick={cargarVentas}>
-                                <i className="bi bi-arrow-clockwise me-1"></i> Recargar
-                            </Button>
+                            <div className="d-flex gap-2 align-items-center">
+                                <Button
+                                    variant="link"
+                                    className="text-decoration-none text-primary fw-bold small p-0"
+                                    onClick={cargarVentas}
+                                    disabled={loading}
+                                >
+                                    <i className={`bi bi-arrow-clockwise me-1 ${loading ? 'reload-icon-spin' : ''}`}></i>
+                                    Recargar
+                                </Button>
+                                <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    className="fw-bold"
+                                    style={{ fontSize: '0.75rem', borderRadius: '0.5rem' }}
+                                    onClick={abrirModalAnuladas}
+                                >
+                                    <i className="bi bi-ban me-1"></i> Anuladas
+                                </Button>
+                            </div>
                         </div>
                         <div className="table-responsive">
                             <Table className="modern-table" hover>
@@ -601,7 +680,10 @@ ${productosHTML}
                                             <td className="fw-medium">{venta.vendedor_nombre}</td>
                                             <td>{venta.nombre_negocio || '-'}</td>
                                             <td className="text-muted small">{venta.cliente_nombre}</td>
-                                            <td className="fw-bold text-primary">${parseFloat(venta.total).toLocaleString()}</td>
+                                            <td className="fw-bold text-primary">
+                                                ${parseFloat(venta.total).toLocaleString()}
+                                                {venta.editada && <span className="badge bg-danger ms-2" style={{ fontSize: '0.6rem' }}>EDITADA</span>}
+                                            </td>
                                             <td className="text-end">
                                                 <button className="btn-icon-modern me-1" onClick={() => imprimirTicket(venta)} title="Imprimir Ticket"><i className="bi bi-printer"></i></button>
                                                 <button className="btn-icon-modern text-primary" onClick={() => { setSelectedVenta(venta); setShowModal(true); }} title="Ver Detalle"><i className="bi bi-eye"></i></button>
@@ -1024,10 +1106,16 @@ ${productosHTML}
 
             {/* MODAL DETALLE VENTA */}
             <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" scrollable>
-                <Modal.Header closeButton><Modal.Title>Detalle de Venta</Modal.Title></Modal.Header>
+                <Modal.Header closeButton><Modal.Title>Detalle de Venta {selectedVenta?.editada && <span className="badge bg-danger ms-2">EDITADA ✏️</span>}{selectedVenta?.estado === 'ANULADA' && <span className="badge bg-secondary ms-2">🚫 ANULADA</span>}</Modal.Title></Modal.Header>
                 <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                     {selectedVenta && (
                         <>
+                            {selectedVenta.editada && (
+                                <Alert variant="warning" className="mb-3 py-2">
+                                    <i className="bi bi-pencil-square me-2"></i>
+                                    <strong>Atención:</strong> Esta venta fue editada por el vendedor después de su creación.
+                                </Alert>
+                            )}
                             <Row className="mb-3">
                                 {selectedVenta.nombre_negocio && <Col xs={12} className="mb-2"><strong>Negocio:</strong> <span className="text-primary fw-bold">{selectedVenta.nombre_negocio}</span></Col>}
                                 <Col><strong>Cliente:</strong> {selectedVenta.cliente_nombre}</Col>
@@ -1052,43 +1140,55 @@ ${productosHTML}
                                 <div className="mt-4">
                                     <h6 className="text-danger border-bottom pb-2">⚠️ Productos Vencidos</h6>
                                     <Table striped bordered size="sm">
-                                        <thead className="table-danger"><tr><th>Producto</th><th>Cantidad</th><th>Evidencias</th></tr></thead>
-                                        <tbody>{selectedVenta.productos_vencidos.map((item, idx) => {
-                                            const evidencias = selectedVenta.evidencias?.filter(e => e.producto_id === item.id) || [];
-                                            return (
+                                        <thead className="table-danger">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th>Cantidad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedVenta.productos_vencidos.map((item, idx) => (
                                                 <tr key={idx}>
                                                     <td>{item.producto}</td>
                                                     <td>{item.cantidad}</td>
-                                                    <td>
-                                                        {evidencias.length > 0 ? (
-                                                            <div className="d-flex flex-wrap gap-2">
-                                                                {evidencias.map((ev, i) => (
-                                                                    <img
-                                                                        key={i}
-                                                                        src={ev.imagen.startsWith('http') ? ev.imagen : `http://localhost:8000${ev.imagen}`}
-                                                                        alt={`Evidencia ${i + 1}`}
-                                                                        style={{ maxWidth: '100px', maxHeight: '80px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #ddd' }}
-                                                                        onClick={() => window.open(ev.imagen.startsWith('http') ? ev.imagen : `http://localhost:8000${ev.imagen}`, '_blank')}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted">{item.motivo || 'Sin foto'}</span>
-                                                        )}
-                                                    </td>
                                                 </tr>
-                                            );
-                                        })}</tbody>
+                                            ))}
+                                        </tbody>
                                     </Table>
+
+                                    {/* Evidencia General de Vencidos */}
+                                    {selectedVenta.foto_vencidos && (
+                                        <div className="mt-3 p-3 bg-light border rounded">
+                                            <h7 className="d-block fw-bold text-secondary mb-2">📸 Evidencia Fotografica:</h7>
+                                            <div className="text-center">
+                                                <img
+                                                    src={selectedVenta.foto_vencidos.startsWith('http') ? selectedVenta.foto_vencidos : `http://localhost:8000${selectedVenta.foto_vencidos}`}
+                                                    alt="Evidencia Vencidos"
+                                                    style={{
+                                                        width: '200px',
+                                                        height: '200px',
+                                                        borderRadius: '12px',
+                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                                                        cursor: 'pointer',
+                                                        objectFit: 'cover',
+                                                        border: '3px solid white'
+                                                    }}
+                                                    onClick={() => window.open(selectedVenta.foto_vencidos.startsWith('http') ? selectedVenta.foto_vencidos : `http://localhost:8000${selectedVenta.foto_vencidos}`, '_blank')}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </>
                     )}
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="success" onClick={() => imprimirTicket(selectedVenta)}>
-                        <i className="bi bi-printer me-1"></i> Imprimir Ticket
-                    </Button>
+                    {selectedVenta?.estado !== 'ANULADA' && (
+                        <Button variant="success" onClick={() => imprimirTicket(selectedVenta)}>
+                            <i className="bi bi-printer me-1"></i> Imprimir Ticket
+                        </Button>
+                    )}
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Cerrar</Button>
                 </Modal.Footer>
             </Modal>
@@ -1220,6 +1320,93 @@ ${productosHTML}
                     </Modal.Footer>
                 </Form>
             </Modal>
+
+            {/* 🆕 MODAL VENTAS ANULADAS */}
+            <Modal show={showAnuladasModal} onHide={() => setShowAnuladasModal(false)} size="lg" scrollable>
+                <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #6c757d 0%, #495057 100%)', color: '#fff' }}>
+                    <Modal.Title>
+                        <i className="bi bi-ban me-2"></i>
+                        Ventas Anuladas
+                        <span className="ms-2 badge bg-light text-dark" style={{ fontSize: '0.75rem' }}>
+                            {filtros.fecha} {filtros.vendedor_id && `• ${vendedores.find(v => v.id_vendedor === filtros.vendedor_id)?.nombre || filtros.vendedor_id}`}
+                        </span>
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ padding: 0 }}>
+                    {loadingAnuladas ? (
+                        <div className="text-center p-5">
+                            <Spinner animation="border" variant="secondary" />
+                            <p className="text-muted mt-2 small">Cargando ventas anuladas...</p>
+                        </div>
+                    ) : ventasAnuladas.length === 0 ? (
+                        <div className="text-center p-5 text-muted">
+                            <i className="bi bi-check-circle fs-2 text-success d-block mb-2"></i>
+                            No hay ventas anuladas para este filtro
+                        </div>
+                    ) : (
+                        <>
+                            <Table className="modern-table m-0" hover>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Negocio</th>
+                                        <th>Cliente</th>
+                                        <th className="text-end">Total</th>
+                                        <th>Estado</th>
+                                        <th className="text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {ventasAnuladas.map(v => (
+                                        <tr key={v.id} style={{ opacity: 0.8 }}>
+                                            <td className="text-muted small">
+                                                {new Date(v.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                            </td>
+                                            <td className="fw-medium text-muted">
+                                                <s>{v.nombre_negocio || '-'}</s>
+                                            </td>
+                                            <td className="text-muted small">
+                                                <s>{v.cliente_nombre}</s>
+                                            </td>
+                                            <td className="text-end fw-bold text-muted">
+                                                <s>${parseFloat(v.total).toLocaleString()}</s>
+                                            </td>
+                                            <td>
+                                                <span className="badge bg-secondary">🚫 ANULADA</span>
+                                            </td>
+                                            <td className="text-end">
+                                                <button className="btn-icon-modern text-secondary" onClick={() => { setSelectedVenta(v); setShowModal(true); }} title="Ver Detalle">
+                                                    <i className="bi bi-eye"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot style={{ backgroundColor: '#f8f9fa' }}>
+                                    <tr>
+                                        <td colSpan="3" className="fw-bold text-muted">
+                                            <i className="bi bi-ban me-1"></i>
+                                            Total Anulado ({ventasAnuladas.length} {ventasAnuladas.length === 1 ? 'venta' : 'ventas'})
+                                        </td>
+                                        <td className="text-end fw-bold text-danger">
+                                            <s>${ventasAnuladas.reduce((s, v) => s + parseFloat(v.total || 0), 0).toLocaleString()}</s>
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </Table>
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowAnuladasModal(false)}>Cerrar</Button>
+                    <Button variant="outline-secondary" size="sm" onClick={cargarAnuladas} disabled={loadingAnuladas}>
+                        <i className={`bi bi-arrow-clockwise me-1 ${loadingAnuladas ? 'reload-icon-spin' : ''}`}></i>
+                        Recargar
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
         </Container >
     );
 };
