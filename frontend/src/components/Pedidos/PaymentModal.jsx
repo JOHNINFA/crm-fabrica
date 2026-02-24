@@ -44,6 +44,8 @@ const PaymentModal = ({
     const [showSuccess, setShowSuccess] = useState(false); // 🆕 Estado para pantalla de éxito interna
     const [showError, setShowError] = useState(false); // 🆕 Estado para pantalla de error
     const [errorMessage, setErrorMessage] = useState({ title: '', text: '' }); // 🆕 Datos del error
+    const [showDuplicateWarning, setShowDuplicateWarning] = useState(false); // 🆕 Estado para aviso duplicado
+    const [duplicateMessage, setDuplicateMessage] = useState("");
 
     // Cargar bancos desde localStorage
     useEffect(() => {
@@ -177,6 +179,9 @@ const PaymentModal = ({
         setTipoRemision("ENTREGA");
         setTransportadora("Propia");
         setPedidoCreado(null);
+        setShowDuplicateWarning(false); // 🚀 Limpieza forzada de alerta
+        setShowSuccess(false);
+        setShowError(false);
 
         // Resetear formulario completo y cerrar modal
         resetForm();
@@ -277,9 +282,43 @@ const PaymentModal = ({
         if (!destinatario.trim()) { alert('Debe especificar el destinatario'); return; }
         if (!direccionEntrega.trim()) { alert('Debe especificar la dirección de entrega'); return; }
 
-        // ✅ Permitir múltiples pedidos para el mismo cliente en la misma fecha
-        // Cada pedido tendrá su propio número de pedido único
-        // Validación de duplicados ELIMINADA para permitir pedidos múltiples (mañana/tarde/noche)
+        setProcessing(true);
+        try {
+            // Verificar duplicados para el mismo día y cliente
+            const queryParams = new URLSearchParams({
+                fecha_entrega: fechaEntrega
+            });
+            const url = `${API_URL}/pedidos/?${queryParams.toString()}`;
+            const response = await fetch(url);
+            let yaExiste = false;
+
+            if (response.ok) {
+                const data = await response.json();
+                const pedidos = data.results || data; // Soporte para repuesta paginada o directa
+
+                // Buscar si existe un pedido no anulado para el mismo destinatario
+                const destinatarioNorm = destinatario.trim().toLowerCase();
+                const pedidosValidos = Array.isArray(pedidos) ? pedidos.filter(p =>
+                    p.estado !== 'ANULADA' &&
+                    p.destinatario &&
+                    p.destinatario.trim().toLowerCase() === destinatarioNorm
+                ) : [];
+
+                if (pedidosValidos.length > 0) {
+                    yaExiste = true;
+                }
+            }
+
+            if (yaExiste) {
+                setDuplicateMessage(`El cliente "${destinatario}" ya tiene un pedido programado para el día ${fechaEntrega}.`);
+                setShowDuplicateWarning(true);
+                setProcessing(false);
+                return;
+            }
+        } catch (err) {
+            console.warn("⚠️ Error validando duplicados (posible offline):", err);
+            // Si hay error (offline o de red), continuaremos para no bloquear creación de pedido
+        }
 
         // Crear pedido directamente
         await executeCreation();
@@ -638,6 +677,80 @@ const PaymentModal = ({
                         >
                             Entendido
                         </button>
+                    </div>
+                )}
+
+                {/* 🆕 Pantalla de Alerta por Pedido Duplicado (Overlay) */}
+                {showDuplicateWarning && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: '8px',
+                        zIndex: 40,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '30px',
+                        animation: 'fadeIn 0.2s ease-in-out',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            backgroundColor: '#fff3cd',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '20px'
+                        }}>
+                            <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '40px', color: '#856404' }}></i>
+                        </div>
+
+                        <h3 style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px' }}>Atención: Ya hay pedido creado</h3>
+
+                        <p style={{ fontSize: '16px', color: '#6c757d', marginBottom: '30px', whiteSpace: 'pre-line' }}>
+                            {duplicateMessage}<br /><br />
+                            ¿Deseas <strong>continuar</strong> y generar un pedido adicional, o <strong>cancelar</strong>?
+                        </p>
+
+                        <div className="d-flex gap-3">
+                            <button
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={() => {
+                                    setShowDuplicateWarning(false);
+                                    // 🚀 NUEVO: Al cancelar, limpiamos el carrito y cerramos el modal
+                                    if (typeof clearCart === 'function') clearCart();
+                                    handleCloseAndReset();
+                                }}
+                                style={{ padding: '10px 20px', fontSize: '16px', fontWeight: '500' }}
+                            >
+                                <i className="bi bi-x-lg"></i> Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-warning"
+                                onClick={() => {
+                                    // 1. Ocultamos la alerta inmediatamente
+                                    setShowDuplicateWarning(false);
+
+                                    // 2. Le damos un mini respiro a React (50ms) para que borre el modal de la pantalla.
+                                    // Así no se queda congelado visualmente mientras el servidor procesa el pedido.
+                                    setTimeout(() => {
+                                        executeCreation();
+                                    }, 50);
+                                }}
+                                style={{ padding: '10px 20px', fontSize: '16px', fontWeight: '500', color: '#856404' }}
+                            >
+                                <i className="bi bi-plus-lg"></i> Continuar y Crear
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
