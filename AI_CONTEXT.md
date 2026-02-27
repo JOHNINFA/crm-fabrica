@@ -3237,4 +3237,17 @@ Permitir que, desde el historial de reimpresión en App, el vendedor pueda cambi
 - Confirmacion operativa de que todos los vendedores ya usan APK nueva.
 - Si quedan equipos con APK antigua, se pospone el corte final para evitar fallos de autenticacion en ventas/pedidos/sugeridos.
 
+### Ejecucion en produccion (madrugada 27/02/2026)
+- Se descarto despliegue de un commit amplio por riesgo de mezclar cambios no relacionados.
+- Se aplico flujo seguro:
+  - `revert` del commit amplio en remoto,
+  - despliegue de hotfix minimo `9bb23ce`.
+- Hotfix aplicado en backend (`api/views.py`):
+  - tolera payload legacy de `foto_vencidos` en reintentos offline,
+  - evita bloquear `POST /api/ventas-ruta/` por validacion de archivo invalido.
+- Resultado reportado en campo:
+  - ventas offline sincronizaron al volver internet (prueba manual de 5 ventas),
+  - disminuye riesgo de pendientes pegadas en barra naranja para caso ID5.
+- Migraciones `0090-0094` siguen pendientes para ventana nocturna cuando toda la fuerza comercial este en APK nueva.
+
 **Última actualización global**: 27 de Febrero de 2026

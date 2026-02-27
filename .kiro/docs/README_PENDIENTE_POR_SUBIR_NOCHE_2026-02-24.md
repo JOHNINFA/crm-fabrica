@@ -96,3 +96,18 @@ El corte de compatibilidad debe hacerse solo despues de confirmar que todos actu
   - APK nueva instalada en todos los IDs,
   - login/token operativo en todos los equipos,
   - no quedan equipos activos con APK legacy.
+
+### Bitacora de ejecucion real (2026-02-27 madrugada)
+- Se detecto que un commit amplio (`7fab481`) incluia cambios adicionales no deseados para produccion.
+- Se revirtio en remoto con `4e736c2` para volver a estado seguro.
+- Se publico hotfix minimo `9bb23ce` (solo tolerancia de `foto_vencidos` legacy en `POST /api/ventas-ruta/` + documentacion).
+- En VPS:
+  - `git pull --rebase origin main` (quedo en `9bb23ce`),
+  - `docker compose -f docker-compose.prod.yml up -d --build backend`,
+  - backend levantado OK, sin migraciones nuevas aplicadas (sigue hasta `0089`).
+- Validacion operativa reportada:
+  - pruebas de ventas offline/online exitosas (5 ventas sincronizadas),
+  - pendientes se enviaron al reconectar internet.
+- Observacion de impresion:
+  - primer ticket offline sin logo/titulo completo,
+  - siguientes tickets correctos tras reconexion; probable cache de configuracion de impresion.
