@@ -22,60 +22,37 @@ Subir en la noche los cambios pendientes de backend + migraciones + seguridad, c
 ### Frontend web relacionado con backend (pendiente)
 - `frontend/src/components/common/Herramientas.jsx`
 
-### Documentacion (opcional pero recomendado)
-- `.kiro/docs/ULTIMO_TRABAJO_CARGUE.md`
-- `.kiro/docs/MODAL_AUDITORIA_LIQUIDACION.md`
-- `.kiro/docs/SEGUIMIENTO_SEGURIDAD_AP_GUERRERO_2026-02-23.md`
-- `.kiro/docs/TRABAJOS_REALIZADOS_AP_GUERRERO_2026-02-17.md`
-
-## No subir (ruido)
-- `api/__pycache__/models.cpython-310.pyc`
-- `api/__pycache__/serializers.cpython-310.pyc`
-- `api/__pycache__/views.cpython-310.pyc`
-- `frontend/src/components/Cargue/MenuSheets.jsx` (solo espacios, revisar antes)
-- `.kiro/steering/rag-context.md` (borrado, confirmar si fue intencional)
-
 ## Plan de subida nocturna (orden recomendado)
-
 1. Confirmar APK nueva distribuida en todos los IDs.
 2. Hacer backup de BD en VPS.
-3. Hacer commit/push local solo de archivos pendientes utiles.
+3. Hacer commit/push local solo de archivos pendientes útiles.
 4. En VPS:
    - `git pull origin main`
-   - `docker exec crm_backend_prod python manage.py migrate`
    - `docker compose -f docker-compose.prod.yml up -d --build backend`
+   - `docker exec -i crm_backend_prod python manage.py migrate`
    - `docker compose -f docker-compose.prod.yml up -d --build frontend`
 5. Pruebas de humo:
    - App: login, sugeridos, cargue, ventas ruta, cierre de turno.
-   - Web: herramientas/sesiones moviles, ventas ruta, pedidos.
-
-## Checklist de validacion APK nueva
-- Puede iniciar sesion.
-- Puede enviar sugeridos.
-- Puede revisar cargue del dia.
-- Puede vender y sincronizar (online/offline).
-- Reimpresion de ticket funciona.
+   - Web: herramientas/sesiones móviles, ventas ruta, pedidos.
 
 ## Nota operativa
-Mientras no se despliegue backend con reglas estrictas nuevas, conviven APK vieja y APK nueva.  
-El corte de compatibilidad debe hacerse solo despues de confirmar que todos actualizaron.
+Mientras no se despliegue backend con reglas estrictas nuevas, conviven APK vieja y APK nueva.
+El corte de compatibilidad debe hacerse solo después de confirmar que todos actualizaron.
 
 ---
 
-## Actualizacion Operativa - 2026-02-27 (ID5, ventas pendientes)
+## Actualización operativa - 2026-02-27
 
-### Hallazgo en produccion (2026-02-26)
-- En VPS se observaron multiples `POST /api/ventas-ruta/` con `400`.
-- En `SyncLog` para `ID5` quedaron reintentos sobre los mismos `id_local` con error:
-  - `foto_vencidos`: "La informacion enviada no era un archivo..."
-- Impacto: ventas pendientes en barra naranja y diferencia entre total de Cargue vs `Ventas Ruta`.
+### Incidente detectado (ID5)
+- En VPS se observaron múltiples `POST /api/ventas-ruta/` con `400`.
+- En `SyncLog` se repitió el error de validación de `foto_vencidos` en reintentos offline.
+- Resultado: ventas pendientes pegadas en barra naranja y diferencias entre Cargue vs Ventas Ruta.
 
-### Decision de despliegue (transicion segura)
-1. **No aplicar aun el corte completo de compatibilidad** (`0090-0094` + endurecimiento total) mientras existan APK antiguas en calle.
-2. Aplicar **hotfix transitorio** compatible (backend) para que no se caigan ventas por `foto_vencidos` mal serializado:
-   - Si `foto_vencidos` llega invalido/no archivo en flujo legacy, no bloquear la venta.
-   - Mantener registro de `productos_vencidos` y permitir sincronizacion.
-3. Cuando todos tengan APK nueva (Expo build actual), ejecutar despliegue final nocturno con migraciones y reglas completas.
+### Medida transitoria aplicada
+- Se aplica un hotfix backend compatible con APK vieja:
+  - si `foto_vencidos` llega en formato legacy/no archivo, se ignora la foto inválida;
+  - la venta sí se guarda para no bloquear sincronización.
+- Este hotfix no aplica migraciones de corte (`0090-0094`) todavía.
 
 ### Fase 1 (ahora, para estabilizar operacion de manana)
 - Deploy de hotfix transitorio (sin migraciones nuevas de corte).
