@@ -3168,4 +3168,12 @@ En `/#/clientes` aparecía overlay rojo con:
 
 ---
 
-**Última actualización global**: 24 de Febrero de 2026
+---
+
+## Operacion Produccion - Nota Transitoria (27 Feb 2026)
+
+- Se detectó en VPS (caso ID5, 26/02/2026) múltiples `400` en `POST /api/ventas-ruta/` por validación de `foto_vencidos` durante reintentos offline.
+- Se aplicará hotfix transitorio backend para tolerar payload legacy de `foto_vencidos` y no bloquear sincronización de ventas.
+- Migraciones `0090` a `0094` quedan pendientes para despliegue nocturno cuando todos los vendedores estén en APK nueva.
+
+**Última actualización global**: 27 de Febrero de 2026

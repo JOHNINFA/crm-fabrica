@@ -3912,6 +3912,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         import json
+        from django.core.files.base import ContentFile
         from .models import Vendedor, EvidenciaVenta, SyncLog
         from rest_framework import status
         from django.http import QueryDict
@@ -4032,6 +4033,49 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         print(f"total: {data.get('total')}")
         print(f"detalles type: {type(data.get('detalles'))}, valor: {data.get('detalles')}")
         print(f"productos_vencidos type: {type(data.get('productos_vencidos'))}, valor: {data.get('productos_vencidos')}")
+
+        # 🩹 HOTFIX TRANSITORIO:
+        # En algunos reintentos offline, foto_vencidos llega como JSON/base64 legado
+        # y el serializer lo rechaza porque espera archivo. Si no logramos convertirlo,
+        # se ignora la foto para no bloquear la sincronización de la venta.
+        def _iterar_fotos(raw):
+            if isinstance(raw, str):
+                yield raw
+                return
+            if isinstance(raw, list):
+                for item in raw:
+                    yield from _iterar_fotos(item)
+                return
+            if isinstance(raw, dict):
+                for value in raw.values():
+                    yield from _iterar_fotos(value)
+
+        foto_file = request.FILES.get('foto_vencidos')
+        if foto_file:
+            data['foto_vencidos'] = foto_file
+        else:
+            foto_raw = data.get('foto_vencidos')
+            if isinstance(foto_raw, str):
+                try:
+                    foto_raw = json.loads(foto_raw)
+                except Exception:
+                    # Si no es JSON, igual intentamos parsearlo como data URL
+                    pass
+
+            data.pop('foto_vencidos', None)
+            for posible in _iterar_fotos(foto_raw):
+                if not isinstance(posible, str) or ';base64,' not in posible:
+                    continue
+                try:
+                    formato, imgstr = posible.split(';base64,', 1)
+                    ext = (formato.split('/')[-1].split(';')[0] or 'jpg').strip()
+                    data['foto_vencidos'] = ContentFile(
+                        base64.b64decode(imgstr),
+                        name=f"vencidas_{uuid.uuid4().hex[:8]}.{ext}"
+                    )
+                    break
+                except Exception as e:
+                    print(f"⚠️ foto_vencidos inválida ignorada: {e}")
 
         
         serializer = self.get_serializer(data=data)
