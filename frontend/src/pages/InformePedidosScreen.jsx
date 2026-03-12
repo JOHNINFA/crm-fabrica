@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Modal, Button } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Container, Row, Col, Card, Table, Badge, Modal, Button, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { pedidoService } from '../services/api';
 import { ModalProvider } from '../context/ModalContext';
@@ -8,6 +8,8 @@ import Sidebar from '../components/Pedidos/Sidebar';
 import Topbar from '../components/Pedidos/Topbar';
 import TicketPreviewModal from '../components/Print/TicketPreviewModal';
 import usePageTitle from '../hooks/usePageTitle';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 function InformePedidosContent() {
     usePageTitle('Informe de Pedidos');
@@ -29,16 +31,57 @@ function InformePedidosContent() {
 
     // Estados para filtros
     const [filtroBusqueda, setFiltroBusqueda] = useState('');
-    const [fechaFiltro, setFechaFiltro] = useState('');
+    
+    // Estados para los calendarios (Mes Actual por defecto)
+    const [fechaInicial, setFechaInicial] = useState(() => {
+        const d = new Date();
+        d.setDate(1); // Primer día del mes
+        d.setHours(0, 0, 0, 0);
+        return d;
+    });
+    const [fechaFinal, setFechaFinal] = useState(() => {
+        const d = new Date();
+        d.setHours(23, 59, 59, 999);
+        return d;
+    });
+    
+    const [horaInicial, setHoraInicial] = useState('00:00');
+    const [horaFinal, setHoraFinal] = useState('23:59');
+
+    const [showCalendarInicial, setShowCalendarInicial] = useState(false);
+    const [showCalendarFinal, setShowCalendarFinal] = useState(false);
+    const calendarInicialRef = useRef(null);
+    const calendarFinalRef = useRef(null);
+
+    // Cerrar calendarios al hacer clic fuera
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (calendarInicialRef.current && !calendarInicialRef.current.contains(event.target)) {
+                setShowCalendarInicial(false);
+            }
+            if (calendarFinalRef.current && !calendarFinalRef.current.contains(event.target)) {
+                setShowCalendarFinal(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         cargarPedidos();
     }, []);
 
     const cargarPedidos = async () => {
+        setLoading(true);
         try {
-            const data = await pedidoService.getAll();
+            // Preparar parámetros de fecha para el backend
+            const params = {
+                fecha_inicio: fechaInicial.toISOString().split('T')[0],
+                fecha_fin: fechaFinal.toISOString().split('T')[0]
+            };
 
+            const data = await pedidoService.getAll(params);
             setPedidos(data || []);
         } catch (error) {
             console.error('Error cargando pedidos:', error);
@@ -141,36 +184,37 @@ function InformePedidosContent() {
         }
     };
 
-    // Filtrar pedidos según búsqueda y fechas
-    const pedidosFiltrados = pedidos.filter(pedido => {
-        // Filtro de búsqueda de texto
-        if (filtroBusqueda.trim()) {
-            const busqueda = filtroBusqueda.toLowerCase();
-            const matchNumero = (pedido.numero_pedido || '').toLowerCase().includes(busqueda);
-            const matchDestinatario = (pedido.destinatario || '').toLowerCase().includes(busqueda);
-            const matchVendedor = (pedido.vendedor || '').toLowerCase().includes(busqueda);
+    // Filtrar pedidos según búsqueda y fechas usando useMemo
+    const pedidosFiltrados = useMemo(() => {
+        return pedidos.filter(pedido => {
+            // 1. Filtro de búsqueda de texto
+            if (filtroBusqueda.trim()) {
+                const busqueda = filtroBusqueda.toLowerCase();
+                const matchNumero = (pedido.numero_pedido || '').toLowerCase().includes(busqueda);
+                const matchDestinatario = (pedido.destinatario || '').toLowerCase().includes(busqueda);
+                const matchVendedor = (pedido.vendedor || '').toLowerCase().includes(busqueda);
 
-            if (!matchNumero && !matchDestinatario && !matchVendedor) {
-                return false;
-            }
-        }
-
-        // Filtro de fecha exacta (fecha de entrega)
-        if (fechaFiltro) {
-            // Normalizar fecha de entrega del pedido a YYYY-MM-DD
-            let fechaEntregaStr = '';
-            if (pedido.fecha_entrega) {
-                // Tomar los primeros 10 caracteres (YYYY-MM-DD) sea string ISO o string simple
-                fechaEntregaStr = String(pedido.fecha_entrega).substring(0, 10);
+                if (!matchNumero && !matchDestinatario && !matchVendedor) {
+                    return false;
+                }
             }
 
-            if (fechaEntregaStr !== fechaFiltro) {
-                return false;
-            }
-        }
+            // 2. Filtro de Rango de Fecha y Hora
+            const fechaEntrega = new Date(pedido.fecha_entrega || pedido.fecha);
+            
+            // Preparar limite inferior
+            const inicio = new Date(fechaInicial);
+            const [hIni, mIni] = horaInicial.split(':');
+            inicio.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
+            
+            // Preparar limite superior
+            const fin = new Date(fechaFinal);
+            const [hFin, mFin] = horaFinal.split(':');
+            fin.setHours(parseInt(hFin), parseInt(mFin), 59, 999);
 
-        return true;
-    });
+            return fechaEntrega >= inicio && fechaEntrega <= fin;
+        });
+    }, [pedidos, filtroBusqueda, fechaInicial, fechaFinal, horaInicial, horaFinal]);
 
     return (
         <div className="d-flex">
@@ -179,6 +223,41 @@ function InformePedidosContent() {
                     .table-row-hover:hover {
                         background-color: #f8f9fa !important;
                         transition: background-color 0.2s ease;
+                    }
+
+                    .date-time-group {
+                        display: inline-flex;
+                        align-items: center;
+                        background: white;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        padding: 4px 12px;
+                        transition: all 0.2s ease;
+                        height: 40px;
+                    }
+
+                    .date-time-group:hover {
+                        border-color: #cbd5e1;
+                        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+                    }
+
+                    .date-time-group:focus-within {
+                        border-color: #28a745;
+                        box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
+                    }
+
+                    /* Estilos para el calendario react-calendar */
+                    .react-calendar {
+                        border: none;
+                        font-family: Arial, sans-serif;
+                        background: white;
+                    }
+                    .react-calendar__tile--active {
+                        background: #28a745 !important;
+                        color: white !important;
+                    }
+                    .react-calendar__tile--now {
+                        background: #e8f5e9;
                     }
                 `}
             </style>
@@ -238,102 +317,112 @@ function InformePedidosContent() {
                                             {/* Filtros */}
                                             <div className="p-3 border-bottom bg-light">
                                                 <Row className="g-3">
-                                                    <Col md={6}>
-                                                        <div className="d-flex align-items-center gap-2">
-                                                            <button
-                                                                className="btn btn-light"
-                                                                style={{ borderRadius: '12px', padding: '8px 12px' }}
-                                                                title="Buscar"
-                                                            >
-                                                                <span className="material-icons" style={{ fontSize: '20px' }}>search</span>
-                                                            </button>
-
-                                                            <input
-                                                                className="form-control"
-                                                                style={{
-                                                                    flex: 1,
-                                                                    borderRadius: '12px',
-                                                                    height: '40px',
-                                                                    padding: '8px 16px'
-                                                                }}
-                                                                type="text"
-                                                                value={filtroBusqueda}
-                                                                onChange={(e) => setFiltroBusqueda(e.target.value)}
-                                                                placeholder="Buscar por N° Pedido, Destinatario o Vendedor..."
-                                                                autoComplete="off"
-                                                                onFocus={(e) => {
-                                                                    e.target.style.borderColor = '#28a745';
-                                                                    e.target.style.borderWidth = '1px';
-                                                                    e.target.style.boxShadow = 'none';
-                                                                    e.target.style.outline = 'none';
-                                                                }}
-                                                                onBlur={(e) => {
-                                                                    e.target.style.borderColor = '#dee2e6';
-                                                                    e.target.style.borderWidth = '1px';
-                                                                    e.target.style.boxShadow = 'none';
-                                                                    e.target.style.outline = 'none';
-                                                                }}
-                                                            />
-
-                                                            {filtroBusqueda && (
+                                                    <Col md={12}>
+                                                        <div className="d-flex align-items-center flex-wrap gap-3">
+                                                            {/* Buscador */}
+                                                            <div className="d-flex align-items-center flex-grow-1" style={{ minWidth: '300px' }}>
                                                                 <button
-                                                                    onClick={() => setFiltroBusqueda('')}
                                                                     className="btn btn-light"
-                                                                    style={{
-                                                                        borderRadius: '12px',
-                                                                        padding: '8px 12px'
-                                                                    }}
-                                                                    title="Limpiar búsqueda"
+                                                                    style={{ borderRadius: '12px 0 0 12px', padding: '8px 12px', border: '1px solid #dee2e6', borderRight: 'none' }}
                                                                 >
-                                                                    <span className="material-icons" style={{ fontSize: '20px' }}>close</span>
+                                                                    <span className="material-icons" style={{ fontSize: '20px' }}>search</span>
                                                                 </button>
-                                                            )}
-                                                        </div>
-                                                    </Col>
-
-                                                    <Col md={6}>
-                                                        <div className="d-flex align-items-center gap-2">
-                                                            <div className="d-flex align-items-center gap-2 flex-grow-1">
-                                                                <label className="text-nowrap mb-0" style={{ fontSize: '14px' }}>Fecha Entrega:</label>
                                                                 <input
-                                                                    type="date"
                                                                     className="form-control"
-                                                                    style={{ borderRadius: '12px', height: '40px' }}
-                                                                    value={fechaFiltro}
-                                                                    onChange={(e) => setFechaFiltro(e.target.value)}
-                                                                    onFocus={(e) => {
-                                                                        e.target.style.borderColor = '#28a745';
-                                                                        e.target.style.borderWidth = '1px';
-                                                                        e.target.style.boxShadow = 'none';
-                                                                        e.target.style.outline = 'none';
+                                                                    style={{
+                                                                        borderRadius: '0 12px 12px 0',
+                                                                        height: '40px',
+                                                                        borderLeft: 'none'
                                                                     }}
-                                                                    onBlur={(e) => {
-                                                                        e.target.style.borderColor = '#dee2e6';
-                                                                        e.target.style.borderWidth = '1px';
-                                                                        e.target.style.boxShadow = 'none';
-                                                                        e.target.style.outline = 'none';
-                                                                    }}
+                                                                    type="text"
+                                                                    value={filtroBusqueda}
+                                                                    onChange={(e) => setFiltroBusqueda(e.target.value)}
+                                                                    placeholder="Buscar N°, Cliente o Vendedor..."
                                                                 />
                                                             </div>
-                                                            {fechaFiltro && (
-                                                                <button
-                                                                    onClick={() => setFechaFiltro('')}
-                                                                    className="btn btn-light"
-                                                                    style={{ borderRadius: '12px', padding: '8px 12px' }}
-                                                                    title="Limpiar fecha"
-                                                                >
-                                                                    <span className="material-icons" style={{ fontSize: '20px' }}>close</span>
-                                                                </button>
-                                                            )}
+
+                                                            {/* Selector DESDE */}
+                                                            <div className="d-flex align-items-center">
+                                                                <span className="me-2 fw-bold" style={{ color: '#475569', fontSize: '13px' }}>Desde:</span>
+                                                                <div className="date-time-group">
+                                                                    <div className="position-relative" ref={calendarInicialRef}>
+                                                                        <input
+                                                                            type="text"
+                                                                            className="border-0 bg-transparent"
+                                                                            value={fechaInicial.toLocaleDateString('es-CO')}
+                                                                            onClick={() => setShowCalendarInicial(!showCalendarInicial)}
+                                                                            readOnly
+                                                                            style={{ width: '90px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', outline: 'none' }}
+                                                                        />
+                                                                        {showCalendarInicial && (
+                                                                            <div style={{ position: 'absolute', top: '120%', left: 0, zIndex: 1000, boxShadow: '0 10px 25px rgba(0,0,0,0.1)', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                                                                                <Calendar onChange={(d) => { setFechaInicial(d); setShowCalendarInicial(false); }} value={fechaInicial} locale="es-ES" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="mx-2" style={{ width: '1px', height: '18px', background: '#e2e8f0' }}></div>
+                                                                    <div className="d-flex align-items-center">
+                                                                        <span className="me-1" style={{ fontSize: '14px' }}>🕒</span>
+                                                                        <input
+                                                                            type="time"
+                                                                            className="border-0 bg-transparent p-0"
+                                                                            value={horaInicial}
+                                                                            onChange={(e) => setHoraInicial(e.target.value)}
+                                                                            style={{ width: '100px', fontSize: '13px', fontWeight: '500', outline: 'none' }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Selector HASTA */}
+                                                            <div className="d-flex align-items-center">
+                                                                <span className="me-2 fw-bold" style={{ color: '#475569', fontSize: '13px' }}>Hasta:</span>
+                                                                <div className="date-time-group">
+                                                                    <div className="position-relative" ref={calendarFinalRef}>
+                                                                        <input
+                                                                            type="text"
+                                                                            className="border-0 bg-transparent"
+                                                                            value={fechaFinal.toLocaleDateString('es-CO')}
+                                                                            onClick={() => setShowCalendarFinal(!showCalendarFinal)}
+                                                                            readOnly
+                                                                            style={{ width: '90px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', outline: 'none' }}
+                                                                        />
+                                                                        {showCalendarFinal && (
+                                                                            <div style={{ position: 'absolute', top: '120%', left: 0, zIndex: 1000, boxShadow: '0 10px 25px rgba(0,0,0,0.1)', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                                                                                <Calendar onChange={(d) => { setFechaFinal(d); setShowCalendarFinal(false); }} value={fechaFinal} locale="es-ES" minDate={fechaInicial} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="mx-2" style={{ width: '1px', height: '18px', background: '#e2e8f0' }}></div>
+                                                                    <div className="d-flex align-items-center">
+                                                                        <span className="me-1" style={{ fontSize: '14px' }}>🕒</span>
+                                                                        <input
+                                                                            type="time"
+                                                                            className="border-0 bg-transparent p-0"
+                                                                            value={horaFinal}
+                                                                            onChange={(e) => setHoraFinal(e.target.value)}
+                                                                            style={{ width: '100px', fontSize: '13px', fontWeight: '500', outline: 'none' }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <button 
+                                                                className="btn btn-success btn-sm" 
+                                                                style={{ height: '35px', borderRadius: '10px', fontSize: '13px', padding: '0 15px' }} 
+                                                                onClick={cargarPedidos}
+                                                            >
+                                                                <i className="bi bi-search me-1"></i> Consultar
+                                                            </button>
                                                         </div>
                                                     </Col>
                                                 </Row>
 
                                                 {/* Contador de resultados */}
-                                                {(filtroBusqueda || fechaFiltro) && (
+                                                {(filtroBusqueda || fechaInicial) && (
                                                     <div className="mt-2">
                                                         <small className="text-muted">
-                                                            Mostrando <strong>{pedidosFiltrados.length}</strong> de <strong>{pedidos.length}</strong> pedidos
+                                                            Mostrando <strong>{pedidosFiltrados.length}</strong> de <strong>{pedidos.length}</strong> pedidos registrados.
                                                         </small>
                                                     </div>
                                                 )}
@@ -430,11 +519,10 @@ function InformePedidosContent() {
                         </Col>
                     </Row>
                 </Container>
-            </div >
+            </div>
 
             {/* Modal de Detalle de Pedido */}
-            < Modal show={showDetailModal} onHide={() => setShowDetailModal(false)
-            } size="lg" centered >
+            <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg" centered>
                 <Modal.Header closeButton>
                     <Modal.Title>
                         <i className="bi bi-receipt me-2"></i>

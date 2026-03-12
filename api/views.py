@@ -11,16 +11,120 @@ import base64
 import re
 import uuid
 import csv
+import json
+import secrets
+import unicodedata
+from datetime import timedelta
 from api.services.ai_assistant_service import AIAssistant
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, ReportePlaneacion, CargueResumen, TipoNegocio
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
     LoteSerializer, MovimientoInventarioSerializer, RegistroInventarioSerializer,
     VentaSerializer, DetalleVentaSerializer, ClienteSerializer, ProductosFrecuentesSerializer, ListaPrecioSerializer, PrecioProductoSerializer,
     CargueID1Serializer, CargueID2Serializer, CargueID3Serializer, CargueID4Serializer, CargueID5Serializer, CargueID6Serializer, ProduccionSerializer, ProduccionSolicitadaSerializer, PedidoSerializer, DetallePedidoSerializer, VendedorSerializer, DomiciliarioSerializer, MovimientoCajaSerializer, ArqueoCajaSerializer, ConfiguracionImpresionSerializer,
-    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer, CargueResumenSerializer, TipoNegocioSerializer
+    RutaSerializer, ClienteRutaSerializer, VentaRutaSerializer, CarguePagosSerializer, RutaOrdenSerializer, CargueResumenSerializer, TipoNegocioSerializer,
+    ClienteOcasionalSerializer
 )
+
+
+def _extraer_token_request(request):
+    auth_header = request.headers.get('Authorization', '') or ''
+    if auth_header.lower().startswith('bearer '):
+        return auth_header.split(' ', 1)[1].strip()
+
+    token_header = request.headers.get('X-App-Token') or request.headers.get('x-app-token')
+    if token_header:
+        return str(token_header).strip()
+
+    token_query = request.query_params.get('token') if hasattr(request, 'query_params') else None
+    if token_query:
+        return str(token_query).strip()
+
+    token_body = request.data.get('token') if hasattr(request, 'data') else None
+    if token_body:
+        return str(token_body).strip()
+
+    return ''
+
+
+def _normalizar_id_vendedor(vendedor_raw):
+    if vendedor_raw is None:
+        return None, None
+
+    vendedor_txt = str(vendedor_raw).strip().upper()
+    if not vendedor_txt:
+        return None, None
+
+    if vendedor_txt.startswith('ID'):
+        vendedor_num_txt = vendedor_txt[2:]
+        vendedor_id_txt = vendedor_txt
+    else:
+        vendedor_num_txt = vendedor_txt
+        vendedor_id_txt = f"ID{vendedor_num_txt}"
+
+    if not vendedor_num_txt.isdigit():
+        return None, None
+
+    return vendedor_id_txt, int(vendedor_num_txt)
+
+
+def _obtener_vendedor_sesion_movil(request):
+    token = _extraer_token_request(request)
+    if not token:
+        return None, Response({'error': 'Token requerido'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    sesion = VendedorSesionToken.objects.select_related('vendedor').filter(
+        token=token,
+        activo=True,
+        expira_en__gt=timezone.now(),
+        vendedor__activo=True
+    ).first()
+
+    if not sesion:
+        return None, Response({'error': 'Sesión inválida o expirada'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    sesion.ultimo_uso = timezone.now()
+    sesion.save(update_fields=['ultimo_uso'])
+    return sesion.vendedor, None
+
+
+def _validar_vendedor_token(request, vendedor_raw=None, campo='vendedor_id'):
+    vendedor, error_response = _obtener_vendedor_sesion_movil(request)
+    if error_response:
+        return None, None, error_response
+
+    vendedor_token_id, vendedor_token_num = _normalizar_id_vendedor(vendedor.id_vendedor)
+    if not vendedor_token_id:
+        return None, None, Response({'error': 'Vendedor inválido en sesión'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if vendedor_raw is not None and str(vendedor_raw).strip() != '':
+        vendedor_req_id, vendedor_req_num = _normalizar_id_vendedor(vendedor_raw)
+        if not vendedor_req_id:
+            return None, None, Response({'error': f'{campo} inválido'}, status=status.HTTP_400_BAD_REQUEST)
+        if vendedor_req_id != vendedor_token_id:
+            return None, None, Response({'error': 'Token no autorizado para este vendedor'}, status=status.HTTP_403_FORBIDDEN)
+        return vendedor, vendedor_req_num, None
+
+    return vendedor, vendedor_token_num, None
+
+
+def _pedido_pertenece_a_vendedor(pedido, vendedor):
+    vendedor_id = (vendedor.id_vendedor or '').strip().upper()
+    pedido_asignado = (pedido.asignado_a_id or '').strip().upper()
+    pedido_vendedor = (pedido.vendedor or '').strip()
+
+    if pedido_asignado and pedido_asignado == vendedor_id:
+        return True
+
+    if pedido_vendedor:
+        if pedido_vendedor.upper() == vendedor_id:
+            return True
+        if (vendedor.nombre or '').strip().lower() == pedido_vendedor.lower():
+            return True
+
+    return False
+
 
 class CargueResumenViewSet(viewsets.ModelViewSet):
     """API para gestionar resúmenes de cargue y estados"""
@@ -2199,27 +2303,22 @@ class PedidoViewSet(viewsets.ModelViewSet):
         Busca por asignado_a_id o asignado por nombre (campo vendedor)
         """
         v_id_param = request.query_params.get('vendedor_id')
-        fecha = request.query_params.get('fecha')
-        
-        if not v_id_param or not fecha:
-            return Response({'error': 'Faltan parámetros: vendedor_id y fecha'}, status=400)
+        vendedor, _, auth_error = _validar_vendedor_token(request, v_id_param, campo='vendedor_id')
+        if auth_error:
+            return auth_error
 
-        # Normalizar ID (si es número "1" -> "ID1")
-        vendedor_id = f"ID{v_id_param}" if v_id_param.isdigit() else v_id_param
+        fecha = request.query_params.get('fecha')
+
+        if not fecha:
+            return Response({'error': 'Falta parámetro: fecha'}, status=status.HTTP_400_BAD_REQUEST)
+
+        vendedor_id = vendedor.id_vendedor
             
         print(f"📦 Backend: Buscando pedidos para {vendedor_id} en {fecha}")
         
-        # Buscar nombre del vendedor para coincidencia por texto
-        from .models import Vendedor
         from django.db.models import Q
         
-        nombre_vendedor = ""
-        try:
-            v_obj = Vendedor.objects.filter(id_vendedor=vendedor_id).first()
-            if v_obj:
-                nombre_vendedor = v_obj.nombre
-        except Exception:
-            pass
+        nombre_vendedor = vendedor.nombre or ""
 
         # Filtro final (Fecha Y No Cancelado/Anulado)
         # 🔧 Incluir ENTREGADO para que la app móvil pueda mostrar check verde
@@ -2239,7 +2338,13 @@ class PedidoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def marcar_entregado(self, request, pk=None):
         """Marcar pedido como entregado desde la App"""
+        vendedor, _, auth_error = _validar_vendedor_token(request)
+        if auth_error:
+            return auth_error
+
         pedido = self.get_object()
+        if not _pedido_pertenece_a_vendedor(pedido, vendedor):
+            return Response({'error': 'Pedido no autorizado para este vendedor'}, status=status.HTTP_403_FORBIDDEN)
         
         # 🆕 Obtener y guardar el método de pago
         metodo_pago = request.data.get('metodo_pago', 'EFECTIVO')
@@ -2250,8 +2355,13 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido.estado = 'ENTREGADO'  # Cambiado de ENTREGADA a ENTREGADO
         
         # Agregar nota con la hora y método
-        nota_entrega = f"Entregado vía App Móvil ({pedido.metodo_pago}) el {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+        from django.utils import timezone
+        ahora = timezone.now()
+        nota_entrega = f"Entregado vía App Móvil ({pedido.metodo_pago}) el {ahora.strftime('%Y-%m-%d %H:%M')}"
         pedido.nota = f"{pedido.nota or ''} | {nota_entrega}".strip()
+        
+        # Guardar la fecha real en fecha_actualizacion para tener exactitud a nivel de segundos
+        pedido.fecha_actualizacion = ahora
         
         # 🔧 NO cambiar fecha_entrega para que siga apareciendo en su día original
         pedido.save()
@@ -2264,7 +2374,14 @@ class PedidoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def marcar_no_entregado(self, request, pk=None):
         """Reportar que un pedido no pudo ser entregado"""
+        vendedor, _, auth_error = _validar_vendedor_token(request)
+        if auth_error:
+            return auth_error
+
         pedido = self.get_object()
+        if not _pedido_pertenece_a_vendedor(pedido, vendedor):
+            return Response({'error': 'Pedido no autorizado para este vendedor'}, status=status.HTTP_403_FORBIDDEN)
+
         motivo = request.data.get('motivo', 'Sin motivo especificado')
         
         # Marcar como ANULADA (o un estado que indique no gestión exitosa)
@@ -2273,6 +2390,57 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido.save()
         
         return Response({'status': 'novedad reportada'})
+
+    @action(detail=True, methods=['patch'])
+    def actualizar_app(self, request, pk=None):
+        """
+        Actualización de pedido usada por App Móvil (edición de entrega).
+        Requiere token de vendedor y valida propiedad del pedido.
+        """
+        vendedor, _, auth_error = _validar_vendedor_token(request)
+        if auth_error:
+            return auth_error
+
+        pedido = self.get_object()
+        if not _pedido_pertenece_a_vendedor(pedido, vendedor):
+            return Response({'error': 'Pedido no autorizado para este vendedor'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 🆕 Bloqueo de solo 1 edición (como Clientes de Ruta)
+        if pedido.editada:
+            return Response(
+                {
+                    'error': 'Este pedido ya fue modificado una vez. No se permiten más cambios.',
+                    'codigo': 'VENTA_YA_MODIFICADA'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data = request.data.copy()
+        campos_bloqueados = {
+            'id',
+            'numero_pedido',
+            'vendedor',
+            'asignado_a_tipo',
+            'asignado_a_id',
+            'inventario_afectado',
+            'fecha_creacion',
+            # 'fecha_actualizacion',  # Quitamos esto para que se actualice la hora de edición de pago
+        }
+        for campo in campos_bloqueados:
+            data.pop(campo, None)
+
+        serializer = self.get_serializer(pedido, data=data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
+        # Guardar la fecha real en fecha_actualizacion para subirla al tope del historial
+        from django.utils import timezone
+        serializer.save(fecha_actualizacion=timezone.now(), editada=True)
+
+        return Response({
+            'success': True,
+            'message': 'Pedido actualizado correctamente',
+            'pedido': serializer.data
+        })
 
 class DetallePedidoViewSet(viewsets.ModelViewSet):
     """API para detalles de pedidos"""
@@ -2497,12 +2665,15 @@ class VendedorViewSet(viewsets.ModelViewSet):
         try:
             id_vendedor = request.data.get('id_vendedor')
             password = request.data.get('password')
+            dispositivo_id = (request.data.get('dispositivo_id') or '').strip()
             
             if not id_vendedor or not password:
                 return Response(
                     {'error': 'id_vendedor y password son requeridos'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            id_vendedor = str(id_vendedor).strip().upper()
             
             # Buscar vendedor
             try:
@@ -2520,6 +2691,25 @@ class VendedorViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
             
+            # Invalidar tokens expirados o tokens previos del MISMO dispositivo
+            VendedorSesionToken.objects.filter(
+                models.Q(expira_en__lte=timezone.now()) | 
+                models.Q(dispositivo_id=dispositivo_id) if dispositivo_id else models.Q(pk=None),
+                vendedor=vendedor,
+                activo=True
+            ).update(activo=False)
+
+            # Crear token de sesión (30 días)
+            token_value = secrets.token_urlsafe(48)
+            expira_en = timezone.now() + timedelta(days=30)
+            sesion = VendedorSesionToken.objects.create(
+                vendedor=vendedor,
+                token=token_value,
+                dispositivo_id=dispositivo_id,
+                expira_en=expira_en,
+                activo=True
+            )
+
             # Login exitoso
             return Response({
                 'success': True,
@@ -2529,6 +2719,9 @@ class VendedorViewSet(viewsets.ModelViewSet):
                     'ruta': vendedor.ruta or '',
                     'activo': vendedor.activo
                 },
+                'token': sesion.token,
+                'token_type': 'Bearer',
+                'expires_at': sesion.expira_en.isoformat(),
                 'message': 'Login exitoso'
             })
             
@@ -2537,6 +2730,140 @@ class VendedorViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['get'], url_path='sesiones-movil')
+    def sesiones_movil(self, request):
+        """
+        Lista sesiones móviles (tokens) para monitorear equipos conectados.
+        Query params opcionales:
+        - id_vendedor: ID1, ID2, ...
+        - incluir_inactivas: true|false (default false)
+        """
+        try:
+            id_vendedor_raw = request.query_params.get('id_vendedor')
+            incluir_inactivas = str(request.query_params.get('incluir_inactivas', 'false')).lower() == 'true'
+
+            sesiones_qs = VendedorSesionToken.objects.select_related('vendedor').all()
+
+            if id_vendedor_raw:
+                id_vendedor_norm, _ = _normalizar_id_vendedor(id_vendedor_raw)
+                if not id_vendedor_norm:
+                    return Response(
+                        {'error': 'id_vendedor inválido'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                sesiones_qs = sesiones_qs.filter(vendedor__id_vendedor=id_vendedor_norm)
+
+            ahora = timezone.now()
+            if not incluir_inactivas:
+                sesiones_qs = sesiones_qs.filter(
+                    activo=True,
+                    expira_en__gt=ahora,
+                    vendedor__activo=True
+                )
+
+            sesiones = []
+            for sesion in sesiones_qs.order_by('vendedor__id_vendedor', '-ultimo_uso', '-creado_en')[:300]:
+                if sesion.activo and sesion.expira_en > ahora:
+                    estado = 'ACTIVA'
+                elif sesion.expira_en <= ahora:
+                    estado = 'EXPIRADA'
+                else:
+                    estado = 'INACTIVA'
+
+                sesiones.append({
+                    'id': sesion.id,
+                    'vendedor_id': sesion.vendedor.id_vendedor,
+                    'vendedor_nombre': sesion.vendedor.nombre,
+                    'dispositivo_id': sesion.dispositivo_id or 'SIN_DISPOSITIVO',
+                    'creado_en': sesion.creado_en.isoformat() if sesion.creado_en else None,
+                    'ultimo_uso': sesion.ultimo_uso.isoformat() if sesion.ultimo_uso else None,
+                    'expira_en': sesion.expira_en.isoformat() if sesion.expira_en else None,
+                    'activo': sesion.activo,
+                    'estado': estado
+                })
+
+            return Response({
+                'success': True,
+                'count': len(sesiones),
+                'sesiones': sesiones
+            })
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['post'], url_path='desactivar-sesion-movil')
+    def desactivar_sesion_movil(self, request):
+        """
+        Desactiva sesiones móviles activas.
+        Soporta:
+        - sesion_id (desactivar una sesión puntual)
+        - id_vendedor + dispositivo_id (desactivar sesiones de ese equipo)
+        - id_vendedor + desactivar_todas=true (desactivar todo el vendedor)
+        """
+        try:
+            sesion_id = request.data.get('sesion_id')
+            id_vendedor_raw = request.data.get('id_vendedor')
+            dispositivo_id = str(request.data.get('dispositivo_id') or '').strip()
+            desactivar_todas_raw = request.data.get('desactivar_todas', False)
+            desactivar_todas = str(desactivar_todas_raw).lower() in ['1', 'true', 'si', 'yes']
+
+            sesiones_qs = VendedorSesionToken.objects.filter(activo=True)
+
+            if sesion_id:
+                sesiones_qs = sesiones_qs.filter(id=sesion_id)
+            else:
+                id_vendedor_norm, _ = _normalizar_id_vendedor(id_vendedor_raw)
+                if not id_vendedor_norm:
+                    return Response(
+                        {'error': 'Debes enviar sesion_id o id_vendedor válido'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                sesiones_qs = sesiones_qs.filter(vendedor__id_vendedor=id_vendedor_norm)
+
+                if desactivar_todas:
+                    pass
+                elif dispositivo_id:
+                    sesiones_qs = sesiones_qs.filter(dispositivo_id=dispositivo_id)
+                else:
+                    return Response(
+                        {'error': 'Para desactivar por vendedor debes enviar dispositivo_id o desactivar_todas=true'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            actualizadas = sesiones_qs.update(activo=False)
+
+            return Response({
+                'success': True,
+                'desactivadas': actualizadas,
+                'message': 'Sesiones desactivadas correctamente' if actualizadas else 'No había sesiones activas para desactivar'
+            })
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['post'])
+    def logout(self, request):
+        """Invalida el token móvil actual."""
+        auth_header = request.headers.get('Authorization', '') or ''
+        token = ''
+        if auth_header.lower().startswith('bearer '):
+            token = auth_header.split(' ', 1)[1].strip()
+        if not token:
+            token = (request.data.get('token') or '').strip()
+
+        if not token:
+            return Response({'error': 'Token requerido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated = VendedorSesionToken.objects.filter(token=token, activo=True).update(activo=False)
+        if updated == 0:
+            return Response({'success': True, 'message': 'Token ya estaba inactivo'})
+
+        return Response({'success': True, 'message': 'Sesión cerrada'})
 
 
 class DomiciliarioViewSet(viewsets.ModelViewSet):
@@ -2932,6 +3259,25 @@ def guardar_sugerido(request):
         vendedor_id = data.get('vendedor_id') # Ej: "ID1"
         dia_raw = data.get('dia', '').upper() # Ej: "LUNES" o "SÁBADO"
         fecha_raw = data.get('fecha') # Ej: "2025-11-29" o "2025-11-29T..."
+
+        # 🔒 Seguridad por fases (transición sin romper app):
+        # - Si SECURE_SUGERIDOS_REQUIRE_TOKEN=True: token obligatorio.
+        # - Si False: se acepta legado, pero si hay token válido se usa SIEMPRE su vendedor.
+        secure_sugeridos_require_token = bool(getattr(settings, 'SECURE_SUGERIDOS_REQUIRE_TOKEN', False))
+        vendedor_token, auth_error = _obtener_vendedor_sesion_movil(request)
+        if auth_error:
+            if secure_sugeridos_require_token:
+                return auth_error
+            print(f"⚠️ [SUGERIDOS][TRANSICION] Request sin token válido para vendedor payload={vendedor_id}")
+        else:
+            vendedor_payload_norm, _ = _normalizar_id_vendedor(vendedor_id)
+            vendedor_token_norm, _ = _normalizar_id_vendedor(vendedor_token.id_vendedor)
+            if vendedor_payload_norm and vendedor_token_norm and vendedor_payload_norm != vendedor_token_norm:
+                print(
+                    f"⚠️ [SUGERIDOS][TRANSICION] vendedor_id payload ({vendedor_payload_norm}) "
+                    f"difiere del token ({vendedor_token_norm}); se usará token."
+                )
+            vendedor_id = vendedor_token.id_vendedor
         
         # Normalizar día (quitar tildes para consistencia)
         dias_sin_tilde = {
@@ -3631,6 +3977,17 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
         ruta_id = self.request.query_params.get('ruta', None)
         dia = self.request.query_params.get('dia', None)
         vendedor_id = self.request.query_params.get('vendedor_id', None)
+        search = self.request.query_params.get('search', None)
+        
+        # 🆕 Búsqueda Global
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(nombre_negocio__icontains=search) |
+                Q(nombre_contacto__icontains=search) |
+                Q(telefono__icontains=search) |
+                Q(direccion__icontains=search)
+            )
         
         # Filtrar por vendedor (busca la ruta del vendedor)
         if vendedor_id:
@@ -3652,6 +4009,46 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
             # 🆕 Ordenar según RutaOrden si existe para esta ruta + día
             # Si viene vendedor_id, aplicar orden combinado de todas las rutas
             if vendedor_id and not ruta_id:
+                vendedor_norm, _ = _normalizar_id_vendedor(vendedor_id)
+
+                # 1) Prioridad: orden global exacto por vendedor + día (App móvil)
+                if vendedor_norm:
+                    orden_global = RutaOrdenVendedor.objects.filter(
+                        vendedor__id_vendedor=vendedor_norm,
+                        dia=dia_upper
+                    ).first()
+
+                    if orden_global and isinstance(orden_global.clientes_ids, list) and orden_global.clientes_ids:
+                        ids_globales = []
+                        for raw_id in orden_global.clientes_ids:
+                            try:
+                                ids_globales.append(int(raw_id))
+                            except (TypeError, ValueError):
+                                continue
+
+                        if ids_globales:
+                            from django.db.models import Case, When, Value, IntegerField
+
+                            ordering_cases = [When(id=pk, then=Value(pos)) for pos, pk in enumerate(ids_globales)]
+                            queryset = queryset.annotate(
+                                orden_dia=Case(
+                                    *ordering_cases,
+                                    default=Value(999999),
+                                    output_field=IntegerField()
+                                )
+                            ).order_by('orden_dia', 'ruta__id', 'orden', 'id')
+
+                            # 🚀 OPTIMIZACIÓN: Pre-computar listas de precios en masa para evitar N+1 queries
+                            from .models import Cliente
+                            nombres_mostrar = list(queryset.values_list('nombre_negocio', flat=True))
+                            clientes_admin = Cliente.objects.filter(nombre_completo__in=nombres_mostrar).values('nombre_completo', 'tipo_lista_precio')
+                            precios_map = {c['nombre_completo']: c['tipo_lista_precio'] for c in clientes_admin}
+                            
+                            for c in queryset:
+                                c.precomputed_lista_precio = precios_map.get(c.nombre_negocio)
+
+                            return queryset.filter(activo=True)
+
                 # Obtener todas las órdenes guardadas para este día (ordenadas por más reciente)
                 rutas_vendedor = Ruta.objects.filter(vendedor__id_vendedor=vendedor_id, activo=True)
                 ordenes = RutaOrden.objects.filter(
@@ -3678,15 +4075,15 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
                     queryset = queryset.annotate(
                         orden_dia=Case(
                             *ordering_cases,
-                            default=Value(999),  # Clientes no en la lista van al final
+                            default=Value(999999),  # Clientes no en la lista van al final
                             output_field=IntegerField()
                         )
-                    ).order_by('orden_dia')
+                    ).order_by('orden_dia', 'ruta__id', 'orden', 'id')
                     
                     return queryset.filter(activo=True)
                 
                 # Si no hay orden personalizado, usar orden por defecto
-                return queryset.filter(activo=True).order_by('ruta__id', 'orden')
+                return queryset.filter(activo=True).order_by('ruta__id', 'orden', 'id')
             
             if ruta_id:
                 try:
@@ -3704,16 +4101,16 @@ class ClienteRutaViewSet(viewsets.ModelViewSet):
                         queryset = queryset.annotate(
                             orden_dia=Case(
                                 *ordering_cases,
-                                default=Value(999),  # Clientes no en la lista van al final
+                                default=Value(999999),  # Clientes no en la lista van al final
                                 output_field=IntegerField()
                             )
-                        ).order_by('orden_dia')
+                        ).order_by('orden_dia', 'orden', 'id')
                         
                         return queryset.filter(activo=True)
                 except RutaOrden.DoesNotExist:
                     pass  # No hay orden personalizado, usar orden por defecto
             
-        return queryset.filter(activo=True).order_by('orden')
+        return queryset.filter(activo=True).order_by('orden', 'id')
     
     def _ordenar_dias_semana(self, dias_string):
         """
@@ -3817,9 +4214,456 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         
         # Ordenar por fecha descendente (más recientes primero)
         return queryset.order_by('-fecha')
+
+    def _extraer_token_request(self, request):
+        auth_header = request.headers.get('Authorization', '') or ''
+        if auth_header.lower().startswith('bearer '):
+            return auth_header.split(' ', 1)[1].strip()
+        return (request.headers.get('X-App-Token') or '').strip()
+
+    def _validar_sesion_movil(self, request):
+        token = self._extraer_token_request(request)
+        if not token:
+            return None
+
+        sesion = VendedorSesionToken.objects.select_related('vendedor').filter(
+            token=token,
+            activo=True,
+            expira_en__gt=timezone.now(),
+            vendedor__activo=True
+        ).first()
+
+        if sesion:
+            sesion.ultimo_uso = timezone.now()
+            sesion.save(update_fields=['ultimo_uso'])
+            return sesion.vendedor
+
+        return None
     
+    @staticmethod
+    def _to_int(value, default=0):
+        try:
+            if value is None:
+                return default
+            return int(float(str(value).strip()))
+        except Exception:
+            return default
+
+    @staticmethod
+    def _to_float(value, default=0.0):
+        try:
+            if value is None:
+                return default
+            return float(str(value).strip())
+        except Exception:
+            return default
+
+    @staticmethod
+    def _normalizar_nombre_producto_cargue(nombre_producto):
+        texto = str(nombre_producto or '').strip()
+        if not texto:
+            return ''
+
+        texto = unicodedata.normalize('NFD', texto)
+        texto = ''.join(ch for ch in texto if unicodedata.category(ch) != 'Mn')
+        texto = texto.upper()
+        texto = re.sub(r'[^A-Z0-9#]+', ' ', texto)
+        texto = re.sub(r'\s+', ' ', texto).strip()
+
+        tokens = []
+        for token in texto.split():
+            if len(token) > 3 and token.endswith('S'):
+                token = token[:-1]
+            tokens.append(token)
+
+        return ' '.join(tokens)
+
+    def _resolver_registro_cargue(self, ModeloCargue, fecha_venta, nombre_producto):
+        if not ModeloCargue or not fecha_venta or not nombre_producto:
+            return None
+
+        queryset = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True)
+
+        # Ruta rápida: coincidencia exacta habitual
+        registro = queryset.filter(producto__iexact=nombre_producto).first()
+        if registro:
+            return registro
+
+        nombre_norm = self._normalizar_nombre_producto_cargue(nombre_producto)
+        if not nombre_norm:
+            return None
+
+        # Fallback tolerante: diferencias menores de nombre (plural, espacios, tildes)
+        for candidato in queryset.only('id', 'producto'):
+            if self._normalizar_nombre_producto_cargue(candidato.producto) == nombre_norm:
+                return candidato
+
+        return None
+
+    def _buscar_producto_catalogo(self, nombre_producto):
+        if not nombre_producto:
+            return None
+
+        producto = Producto.objects.filter(nombre__iexact=nombre_producto).first()
+        if producto:
+            return producto
+
+        nombre_norm = self._normalizar_nombre_producto_cargue(nombre_producto)
+        if not nombre_norm:
+            return None
+
+        for candidato in Producto.objects.only('id', 'nombre', 'precio', 'precio_cargue'):
+            if self._normalizar_nombre_producto_cargue(candidato.nombre) == nombre_norm:
+                return candidato
+
+        return None
+
+    def _crear_registro_cargue_on_the_fly(self, ModeloCargue, fecha_venta, nombre_producto, *, vendidas=0, vencidas=0):
+        ref_cargue = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True).first()
+        if not ref_cargue:
+            return None
+
+        prod_obj = self._buscar_producto_catalogo(nombre_producto)
+        nombre_real = prod_obj.nombre if prod_obj else nombre_producto
+        precio_prod = 0
+        if prod_obj:
+            precio_prod = prod_obj.precio_cargue or prod_obj.precio or 0
+
+        return ModeloCargue.objects.create(
+            fecha=fecha_venta,
+            dia=ref_cargue.dia,
+            responsable=ref_cargue.responsable,
+            usuario='Sistema',
+            ruta=ref_cargue.ruta if hasattr(ref_cargue, 'ruta') else '',
+            producto=nombre_real,
+            valor=precio_prod,
+            cantidad=0,
+            vendidas=vendidas,
+            vencidas=vencidas,
+            activo=True
+        )
+
+    def _normalizar_detalles(self, detalles_raw):
+        if isinstance(detalles_raw, str):
+            try:
+                detalles_raw = json.loads(detalles_raw)
+            except Exception:
+                detalles_raw = []
+
+        if not isinstance(detalles_raw, list):
+            return [], 0.0
+
+        detalles_normalizados = []
+        total_calculado = 0.0
+
+        for item in detalles_raw:
+            if not isinstance(item, dict):
+                continue
+
+            cantidad = self._to_int(item.get('cantidad'), 0)
+            if cantidad <= 0:
+                continue
+
+            nombre = (item.get('nombre') or item.get('producto') or '').strip()
+            producto = (item.get('producto') or nombre).strip()
+            if not nombre and producto:
+                nombre = producto
+            if not nombre:
+                continue
+
+            precio = self._to_float(
+                item.get('precio', item.get('precio_unitario', item.get('valor_unitario', 0))),
+                0.0
+            )
+            if precio < 0:
+                precio = 0.0
+
+            subtotal = round(precio * cantidad, 2)
+
+            item_normalizado = dict(item)
+            item_normalizado['nombre'] = nombre
+            item_normalizado['producto'] = producto or nombre
+            item_normalizado['cantidad'] = cantidad
+            item_normalizado['precio'] = precio
+            item_normalizado['subtotal'] = subtotal
+
+            detalles_normalizados.append(item_normalizado)
+            total_calculado += subtotal
+
+        return detalles_normalizados, round(total_calculado, 2)
+
+    def _normalizar_productos_vencidos(self, productos_raw):
+        if isinstance(productos_raw, str):
+            try:
+                productos_raw = json.loads(productos_raw)
+            except Exception:
+                productos_raw = []
+
+        if not isinstance(productos_raw, list):
+            return []
+
+        normalizados = []
+        for item in productos_raw:
+            if not isinstance(item, dict):
+                continue
+            producto = (item.get('producto') or item.get('nombre') or '').strip()
+            cantidad = self._to_int(item.get('cantidad'), 0)
+            if not producto or cantidad <= 0:
+                continue
+
+            nuevo_item = {'producto': producto, 'cantidad': cantidad}
+            if item.get('motivo'):
+                nuevo_item['motivo'] = str(item.get('motivo')).strip()
+            if item.get('id') is not None:
+                nuevo_item['id'] = item.get('id')
+            normalizados.append(nuevo_item)
+
+        return normalizados
+    
+    # ===== 🆕 ACTION: ANULAR VENTA RUTA =====
+    @action(detail=True, methods=['post'])
+    def anular(self, request, pk=None):
+        """
+        Anula una VentaRuta:
+        1. Verifica que no esté ya anulada
+        2. Descuenta las 'vendidas' del CargueIDx por cada producto
+        3. Marca estado = 'ANULADA'
+        """
+        try:
+            vendedor_auth = self._validar_sesion_movil(request)
+            if not vendedor_auth:
+                return Response({'error': 'No autorizado. Inicia sesión nuevamente.'}, status=401)
+
+            venta = self.get_object()
+            if venta.vendedor_id != vendedor_auth.id_vendedor:
+                return Response({'error': 'No autorizado para anular esta venta.'}, status=403)
+
+            if venta.estado == 'ANULADA':
+                return Response({'error': 'Esta venta ya fue anulada'}, status=400)
+
+            id_vendedor = venta.vendedor.id_vendedor  # ID1, ID2, etc.
+            fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+
+            modelo_map = {
+                'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+                'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
+            }
+            ModeloCargue = modelo_map.get(id_vendedor)
+
+            # Revertir vendidas y vencidas en CargueIDx
+            if ModeloCargue and venta.detalles:
+                from django.db.models import F
+                for item in venta.detalles:
+                    nombre = item.get('nombre') or item.get('producto', '')
+                    cantidad = int(item.get('cantidad', 0))
+                    if nombre and cantidad > 0:
+                        registro_cargue = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre)
+                        if registro_cargue:
+                            updated = ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
+                                vendidas=F('vendidas') - cantidad
+                            )
+                            print(
+                                f"✅ Anulación: {nombre} -> {registro_cargue.producto} "
+                                f"vendidas -= {cantidad} (registros: {updated})"
+                            )
+                        else:
+                            print(f"⚠️ Anulación: no se encontró registro de cargue para {nombre}")
+
+            # 🆕 Revertir vencidas reportadas en la venta anulada
+            if ModeloCargue and venta.productos_vencidos:
+                from django.db.models import F
+                from django.db.models.functions import Greatest
+
+                for item_vencido in (venta.productos_vencidos or []):
+                    nombre = (item_vencido.get('nombre') or item_vencido.get('producto') or '').strip()
+                    cantidad_vencida = int(item_vencido.get('cantidad', 0) or 0)
+                    if not nombre or cantidad_vencida <= 0:
+                        continue
+
+                    registro_cargue = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre)
+                    if registro_cargue:
+                        updated = ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
+                            vencidas=Greatest(F('vencidas') - cantidad_vencida, 0)
+                        )
+                        print(
+                            f"✅ Anulación: {nombre} -> {registro_cargue.producto} "
+                            f"vencidas -= {cantidad_vencida} (registros: {updated})"
+                        )
+                    else:
+                        print(f"⚠️ Anulación: no se encontró registro de cargue para vencida {nombre}")
+
+            venta.estado = 'ANULADA'
+            venta.save()
+
+            return Response({
+                'success': True,
+                'mensaje': f'Venta #{venta.id} anulada correctamente',
+                'venta_id': venta.id,
+                'estado': 'ANULADA'
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=500)
+
+    # ===== 🆕 ACTION: EDITAR VENTA RUTA =====
+    @action(detail=True, methods=['patch'])
+    def editar(self, request, pk=None):
+        """
+        Edita una VentaRuta:
+        - Recibe nuevos detalles [{nombre, cantidad, precio}]
+        - Calcula diferencias vs detalles anteriores y ajusta vendidas en CargueIDx
+        - Actualiza total y marca editada = True
+        """
+        try:
+            vendedor_auth = self._validar_sesion_movil(request)
+            if not vendedor_auth:
+                return Response({'error': 'No autorizado. Inicia sesión nuevamente.'}, status=401)
+
+            venta = self.get_object()
+            if venta.vendedor_id != vendedor_auth.id_vendedor:
+                return Response({'error': 'No autorizado para editar esta venta.'}, status=403)
+
+            if venta.estado == 'ANULADA':
+                return Response({'error': 'No se puede editar una venta anulada'}, status=400)
+
+            if venta.editada:
+                return Response(
+                    {
+                        'error': 'Esta venta ya fue modificada una vez. No se permiten más ediciones ni cambios de método de pago.',
+                        'codigo': 'VENTA_YA_MODIFICADA'
+                    },
+                    status=400
+                )
+
+            detalles_raw = request.data.get('detalles', None)
+            actualizar_detalles = detalles_raw is not None
+
+            metodo_pago_raw = request.data.get('metodo_pago', None)
+            metodo_pago_normalizado = None
+            if metodo_pago_raw is not None:
+                metodo_pago_normalizado = str(metodo_pago_raw).strip().upper()
+                metodos_validos = {'EFECTIVO', 'NEQUI', 'DAVIPLATA', 'TARJETA', 'TRANSFERENCIA'}
+                if metodo_pago_normalizado not in metodos_validos:
+                    return Response(
+                        {'error': f'Método de pago inválido: {metodo_pago_normalizado}'},
+                        status=400
+                    )
+
+            if not actualizar_detalles and metodo_pago_normalizado is None:
+                return Response(
+                    {'error': 'Debes enviar detalles o metodo_pago para editar la venta'},
+                    status=400
+                )
+
+            if actualizar_detalles:
+                nuevos_detalles, nuevo_total = self._normalizar_detalles(detalles_raw)
+                if not nuevos_detalles:
+                    return Response({'error': 'Se requieren los nuevos detalles'}, status=400)
+            else:
+                nuevos_detalles = venta.detalles or []
+                nuevo_total = float(venta.total or 0)
+
+            id_vendedor = venta.vendedor.id_vendedor
+            fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+
+            modelo_map = {
+                'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+                'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
+            }
+            ModeloCargue = modelo_map.get(id_vendedor)
+
+            if actualizar_detalles:
+                # Construir mapa de cantidades anteriores
+                detalles_anteriores = venta.detalles or []
+                mapa_anterior = {}
+                for item in detalles_anteriores:
+                    nombre = item.get('nombre') or item.get('producto', '')
+                    if nombre:
+                        mapa_anterior[nombre.lower()] = int(item.get('cantidad', 0))
+
+                # Construir mapa de cantidades nuevas
+                mapa_nuevo = {}
+                for item in nuevos_detalles:
+                    nombre = item.get('nombre') or item.get('producto', '')
+                    if nombre:
+                        mapa_nuevo[nombre.lower()] = {
+                            'nombre_real': nombre,
+                            'cantidad': int(item.get('cantidad', 0)),
+                            'precio': float(item.get('precio', 0))
+                        }
+
+                # Ajustar vendidas en CargueIDx solo por las diferencias
+                if ModeloCargue:
+                    from django.db.models import F
+
+                    # Productos que existían antes
+                    for nombre_key, cant_anterior in mapa_anterior.items():
+                        nuevo = mapa_nuevo.get(nombre_key)
+                        cant_nueva = nuevo['cantidad'] if nuevo else 0
+                        diferencia = cant_nueva - cant_anterior  # positivo = más, negativo = devuelve
+                        nombre_real = nuevo['nombre_real'] if nuevo else nombre_key
+
+                        if diferencia != 0:
+                            registro_cargue = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre_real)
+                            if registro_cargue:
+                                ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
+                                    vendidas=F('vendidas') + diferencia
+                                )
+                                print(
+                                    f"✅ Edición: {nombre_real} -> {registro_cargue.producto} "
+                                    f"vendidas {'+' if diferencia > 0 else ''}{diferencia}"
+                                )
+                            else:
+                                print(f"⚠️ Edición: no se encontró registro de cargue para {nombre_real}")
+
+                    # Productos nuevos que no estaban antes
+                    for nombre_key, datos in mapa_nuevo.items():
+                        if nombre_key not in mapa_anterior:
+                            cant_nueva = datos['cantidad']
+                            if cant_nueva > 0:
+                                registro_cargue = self._resolver_registro_cargue(
+                                    ModeloCargue, fecha_venta, datos['nombre_real']
+                                )
+                                if registro_cargue:
+                                    ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
+                                        vendidas=F('vendidas') + cant_nueva
+                                    )
+                                    print(
+                                        f"✅ Edición (nuevo): {datos['nombre_real']} -> {registro_cargue.producto} "
+                                        f"vendidas += {cant_nueva}"
+                                    )
+                                else:
+                                    print(f"⚠️ Edición (nuevo): no se encontró registro de cargue para {datos['nombre_real']}")
+
+            # Actualizar la venta
+            if actualizar_detalles:
+                venta.detalles = nuevos_detalles
+                venta.total = nuevo_total
+            if metodo_pago_normalizado is not None:
+                venta.metodo_pago = metodo_pago_normalizado
+            venta.editada = True
+            venta.save()
+
+            return Response({
+                'success': True,
+                'mensaje': f'Venta #{venta.id} editada correctamente',
+                'venta_id': venta.id,
+                'nuevo_total': nuevo_total,
+                'metodo_pago': venta.metodo_pago,
+                'detalles_actualizados': actualizar_detalles,
+                'editada': True
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=500)
+
     @action(detail=False, methods=['get'])
     def reportes(self, request):
+
         """Endpoint para reportes de ventas por período"""
         from django.db.models import Sum, Count
         from django.db.models.functions import TruncDate, TruncMonth
@@ -3911,12 +4755,14 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         })
 
     def create(self, request, *args, **kwargs):
-        import json
-        from django.core.files.base import ContentFile
         from .models import Vendedor, EvidenciaVenta, SyncLog
         from rest_framework import status
         from django.http import QueryDict
         from django.db import transaction, IntegrityError
+
+        vendedor_auth = self._validar_sesion_movil(request)
+        if not vendedor_auth:
+            return Response({'error': 'No autorizado. Inicia sesión nuevamente.'}, status=status.HTTP_401_UNAUTHORIZED)
         
         # 🆕 Obtener IP del cliente
         def _get_client_ip(request):
@@ -3995,22 +4841,47 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 )
         
         
-        # Crear un QueryDict mutable o dict regular
+        # Crear un dict plano (evita efectos de QueryDict en JSONField al validar serializer)
         if isinstance(request.data, QueryDict):
-            data = request.data.copy()
+            data = {k: request.data.get(k) for k in request.data.keys()}
         else:
             data = dict(request.data)
+
+        # 🔒 Endurecimiento: campos sensibles no se aceptan desde cliente en creación de venta
+        for campo_bloqueado in ('sincronizado', 'ip_origen', 'editada'):
+            data.pop(campo_bloqueado, None)
+        # Estado inicial siempre controlado por backend
+        data['estado'] = 'ACTIVA'
         
         # NO parsear campos JSON aquí - el JSONField del serializer lo hace automáticamente
         # Solo necesitamos ajustar el vendedor
         
-        # Ajustar vendedor si viene solo el ID
-        if 'vendedor' in data and isinstance(data['vendedor'], str) and data['vendedor'].startswith('ID'):
-             try:
-                 vendedor = Vendedor.objects.get(id_vendedor=data['vendedor'])
-                 data['vendedor'] = vendedor.pk
-             except Vendedor.DoesNotExist:
-                 pass
+        # Ajustar vendedor si viene como string (normaliza ID1/id1/ ID1 )
+        if 'vendedor' in data and isinstance(data['vendedor'], str):
+             data['vendedor'] = data['vendedor'].strip().upper()
+             if data['vendedor'].startswith('ID'):
+                 try:
+                     vendedor = Vendedor.objects.get(id_vendedor=data['vendedor'])
+                     data['vendedor'] = vendedor.pk
+                 except Vendedor.DoesNotExist:
+                     pass
+
+        # 🔒 vendedor siempre se toma del token autenticado
+        data['vendedor'] = vendedor_auth.id_vendedor
+
+        # 🔒 Validar vendedor activo
+        vendedor_ref = data.get('vendedor')
+        if not vendedor_ref or not Vendedor.objects.filter(pk=vendedor_ref, activo=True).exists():
+            return Response({'error': 'Vendedor inválido o inactivo'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 🔒 Validar y normalizar detalle de venta (total se calcula en backend)
+        detalles_normalizados, total_calculado = self._normalizar_detalles(data.get('detalles', []))
+        productos_vencidos_normalizados = self._normalizar_productos_vencidos(data.get('productos_vencidos', []))
+        if not detalles_normalizados and not productos_vencidos_normalizados:
+            return Response({'error': 'La venta debe incluir al menos un producto válido'}, status=status.HTTP_400_BAD_REQUEST)
+        data['detalles'] = detalles_normalizados
+        data['total'] = total_calculado if detalles_normalizados else 0
+        data['productos_vencidos'] = productos_vencidos_normalizados
 
         # Extraer fotos de evidencia antes de crear la venta
         evidencias_data = []
@@ -4034,50 +4905,61 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         print(f"detalles type: {type(data.get('detalles'))}, valor: {data.get('detalles')}")
         print(f"productos_vencidos type: {type(data.get('productos_vencidos'))}, valor: {data.get('productos_vencidos')}")
 
-        # 🩹 HOTFIX TRANSITORIO:
-        # En algunos reintentos offline, foto_vencidos llega como JSON/base64 legado
-        # y el serializer lo rechaza porque espera archivo. Si no logramos convertirlo,
-        # se ignora la foto para no bloquear la sincronización de la venta.
-        def _iterar_fotos(raw):
+        
+        
+        # 🆕 Hotfix transitorio: tolerar foto_vencidos legacy/offline para no bloquear sincronización.
+        # Si no podemos convertir a archivo válido, simplemente se ignora la foto y se guarda la venta.
+        def _iterar_posibles_imagenes(raw):
             if isinstance(raw, str):
                 yield raw
                 return
             if isinstance(raw, list):
                 for item in raw:
-                    yield from _iterar_fotos(item)
+                    yield from _iterar_posibles_imagenes(item)
                 return
             if isinstance(raw, dict):
                 for value in raw.values():
-                    yield from _iterar_fotos(value)
+                    yield from _iterar_posibles_imagenes(value)
+                return
 
+        foto_vencidos_data = data.get('foto_vencidos')
+        if isinstance(foto_vencidos_data, str):
+            import json
+            try:
+                foto_vencidos_data = json.loads(foto_vencidos_data)
+            except Exception:
+                # Si llega string no JSON/base64, no debe romper creación.
+                pass
+
+        # Limpiar siempre el campo para evitar que llegue valor no-file al serializer.
+        data.pop('foto_vencidos', None)
+
+        # 1) Priorizar archivo real si viene en multipart.
         foto_file = request.FILES.get('foto_vencidos')
         if foto_file:
             data['foto_vencidos'] = foto_file
         else:
-            foto_raw = data.get('foto_vencidos')
-            if isinstance(foto_raw, str):
-                try:
-                    foto_raw = json.loads(foto_raw)
-                except Exception:
-                    # Si no es JSON, igual intentamos parsearlo como data URL
-                    pass
+            # 2) Intentar convertir primer base64 encontrado dentro de estructuras legacy.
+            import base64
+            import uuid
+            from django.core.files.base import ContentFile
 
-            data.pop('foto_vencidos', None)
-            for posible in _iterar_fotos(foto_raw):
-                if not isinstance(posible, str) or ';base64,' not in posible:
+            for candidata in _iterar_posibles_imagenes(foto_vencidos_data):
+                if not isinstance(candidata, str):
+                    continue
+                if ';base64,' not in candidata:
                     continue
                 try:
-                    formato, imgstr = posible.split(';base64,', 1)
-                    ext = (formato.split('/')[-1].split(';')[0] or 'jpg').strip()
+                    formato, imgstr = candidata.split(';base64,', 1)
+                    ext = formato.split('/')[-1].split(';')[0] or 'jpg'
                     data['foto_vencidos'] = ContentFile(
                         base64.b64decode(imgstr),
-                        name=f"vencidas_{uuid.uuid4().hex[:8]}.{ext}"
+                        name=f'vencidas_{uuid.uuid4().hex[:8]}.{ext}'
                     )
                     break
                 except Exception as e:
-                    print(f"⚠️ foto_vencidos inválida ignorada: {e}")
-
-        
+                    print(f"⚠️ Foto vencidos inválida ignorada: {e}")
+            
         serializer = self.get_serializer(data=data)
         
         if not serializer.is_valid():
@@ -4189,52 +5071,31 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                         
                         if nombre_producto and cantidad_vencida > 0:
                             # Buscar el producto en el cargue
-                            cargue = ModeloCargue.objects.filter(
-                                fecha=fecha_venta,
-                                producto__iexact=nombre_producto,
-                                activo=True
-                            ).first()
+                            cargue = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre_producto)
                             
                             if cargue:
                                 # 🔥 OPTIMIZADO: Usar F() para evitar race conditions
                                 from django.db.models import F
-                                ModeloCargue.objects.filter(
-                                    fecha=fecha_venta,
-                                    producto__iexact=nombre_producto,
-                                    activo=True
-                                ).update(vencidas=F('vencidas') + cantidad_vencida)
-                                print(f"   ✅ {nombre_producto}: vencidas += {cantidad_vencida}")
+                                ModeloCargue.objects.filter(pk=cargue.pk).update(
+                                    vencidas=F('vencidas') + cantidad_vencida
+                                )
+                                print(f"   ✅ {nombre_producto} -> {cargue.producto}: vencidas += {cantidad_vencida}")
                             else:
                                 print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
-                                # Intentar buscar un registro de referencia del mismo día para copiar metadatos
-                                ref_cargue = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True).first()
-                                
-                                if ref_cargue:
-                                    # Buscar precio del producto original
-                                    from .models import Producto
-                                    prod_obj = Producto.objects.filter(nombre__iexact=nombre_producto).first()
-                                    precio_prod = prod_obj.precio_base if prod_obj else 0
-                                    nombre_real = prod_obj.nombre if prod_obj else nombre_producto
-
-                                    try:
-                                        cargue = ModeloCargue.objects.create(
-                                            fecha=fecha_venta,
-                                            dia=ref_cargue.dia,
-                                            responsable=ref_cargue.responsable,
-                                            usuario='Sistema', # Oref_cargue.usuario
-                                            ruta=ref_cargue.ruta if hasattr(ref_cargue, 'ruta') else '',
-                                            producto=nombre_real,
-                                            precio=precio_prod,
-                                            cantidad=0, # No se cargó inicialmente
-                                            vendidas=0,
-                                            vencidas=cantidad_vencida, # Asignar la vencida directamente
-                                            activo=True
-                                        )
-                                        print(f"   ✨ Registro creado exitosamente para vencida: {nombre_real}")
-                                    except Exception as create_error:
-                                        print(f"   ❌ Error creando registro on-the-fly: {create_error}")
-                                else:
-                                    print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
+                                try:
+                                    cargue = self._crear_registro_cargue_on_the_fly(
+                                        ModeloCargue,
+                                        fecha_venta,
+                                        nombre_producto,
+                                        vendidas=0,
+                                        vencidas=cantidad_vencida
+                                    )
+                                    if cargue:
+                                        print(f"   ✨ Registro creado exitosamente para vencida: {cargue.producto}")
+                                    else:
+                                        print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
+                                except Exception as create_error:
+                                    print(f"   ❌ Error creando registro on-the-fly: {create_error}")
                 else:
                     print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
                     
@@ -4283,53 +5144,32 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                         
                         if nombre_producto and cantidad_vendida > 0:
                             # Buscar el producto en el cargue
-                            cargue = ModeloCargue.objects.filter(
-                                fecha=fecha_venta,
-                                producto__iexact=nombre_producto,
-                                activo=True
-                            ).first()
+                            cargue = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre_producto)
                             
                             if cargue:
                                 # 🔥 OPTIMIZADO: Usar F() para evitar race conditions
                                 from django.db.models import F
-                                ModeloCargue.objects.filter(
-                                    fecha=fecha_venta,
-                                    producto__iexact=nombre_producto,
-                                    activo=True
-                                ).update(
+                                ModeloCargue.objects.filter(pk=cargue.pk).update(
                                     vendidas=F('vendidas') + cantidad_vendida,
                                     vencidas=F('vencidas')  # Mantener valor actual
                                 )
-                                print(f"   ✅ {nombre_producto}: vendidas += {cantidad_vendida}")
+                                print(f"   ✅ {nombre_producto} -> {cargue.producto}: vendidas += {cantidad_vendida}")
                             else:
                                 print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
-                                ref_cargue = ModeloCargue.objects.filter(fecha=fecha_venta, activo=True).first()
-                                
-                                if ref_cargue:
-                                    from .models import Producto
-                                    prod_obj = Producto.objects.filter(nombre__iexact=nombre_producto).first()
-                                    precio_prod = prod_obj.precio_base if prod_obj else 0
-                                    nombre_real = prod_obj.nombre if prod_obj else nombre_producto
-
-                                    try:
-                                        cargue = ModeloCargue.objects.create(
-                                            fecha=fecha_venta,
-                                            dia=ref_cargue.dia,
-                                            responsable=ref_cargue.responsable,
-                                            usuario='Sistema',
-                                            ruta=ref_cargue.ruta if hasattr(ref_cargue, 'ruta') else '',
-                                            producto=nombre_real,
-                                            precio=precio_prod,
-                                            cantidad=0,
-                                            vendidas=cantidad_vendida, # Registrar venta
-                                            vencidas=0,
-                                            activo=True
-                                        )
-                                        print(f"   ✨ Registro creado exitosamente para venta: {nombre_real}")
-                                    except Exception as create_error:
-                                        print(f"   ❌ Error creando registro on-the-fly: {create_error}")
-                                else:
-                                    print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
+                                try:
+                                    cargue = self._crear_registro_cargue_on_the_fly(
+                                        ModeloCargue,
+                                        fecha_venta,
+                                        nombre_producto,
+                                        vendidas=cantidad_vendida,
+                                        vencidas=0
+                                    )
+                                    if cargue:
+                                        print(f"   ✨ Registro creado exitosamente para venta: {cargue.producto}")
+                                    else:
+                                        print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
+                                except Exception as create_error:
+                                    print(f"   ❌ Error creando registro on-the-fly: {create_error}")
                 else:
                     print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
         except Exception as e:
@@ -4375,6 +5215,115 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        """
+        🆕 EDICIÓN DE VENTA RUTA
+        Al editar una venta:
+        1. Guarda detalles anteriores (para revertir Cargue)
+        2. Hace el update normal
+        3. Ajusta el Cargue IDx: resta vendidas viejas, suma vendidas nuevas
+        Protegido con try/except — si el Cargue falla, la venta igual se edita.
+        """
+        import json as json_lib
+        from django.db.models import F
+
+        # ─── Obtener la instancia ANTES de editar (para revertir Cargue) ───
+        instancia_anterior = self.get_object()
+        detalles_anteriores = instancia_anterior.detalles or []
+        id_vendedor_anterior = None
+        fecha_venta_anterior = None
+        try:
+            id_vendedor_anterior = instancia_anterior.vendedor.id_vendedor
+            fecha_venta_anterior = instancia_anterior.fecha.date()
+        except Exception:
+            pass
+
+        if instancia_anterior.estado == 'ANULADA':
+            return Response(
+                {'error': 'No se puede editar una venta anulada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if instancia_anterior.editada:
+            return Response(
+                {
+                    'error': 'Esta venta ya fue modificada una vez. No se permiten más ediciones ni cambios de método de pago.',
+                    'codigo': 'VENTA_YA_MODIFICADA'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ─── Hacer el update normal (heredado) ───
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(instancia_anterior, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        venta_actualizada = serializer.save(editada=True)
+
+
+        # ─── Marcar como editada ───
+        # Guardar flag en el campo detalles no es ideal, pero evitamos migración.
+        # En cambio, retornamos el campo en la respuesta.
+        
+        # ─── Sincronizar Cargue IDx (revertir antigua + aplicar nueva) ───
+        try:
+            modelo_map = {
+                'ID1': CargueID1,
+                'ID2': CargueID2,
+                'ID3': CargueID3,
+                'ID4': CargueID4,
+                'ID5': CargueID5,
+                'ID6': CargueID6,
+            }
+
+            if id_vendedor_anterior and fecha_venta_anterior:
+                ModeloCargue = modelo_map.get(id_vendedor_anterior)
+
+                if ModeloCargue:
+                    # 1) REVERTIR cantidades anteriores
+                    print(f"↩️ Revirtiendo {len(detalles_anteriores)} productos de venta editada en Cargue {id_vendedor_anterior}")
+                    for item in detalles_anteriores:
+                        nombre = item.get('nombre', '') or item.get('producto', '')
+                        cantidad = int(item.get('cantidad', 0))
+                        if nombre and cantidad > 0:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_venta_anterior,
+                                producto__iexact=nombre,
+                                activo=True
+                            ).update(vendidas=F('vendidas') - cantidad)
+                            print(f"   ↩️ {nombre}: vendidas -= {cantidad}")
+
+                    # 2) APLICAR cantidades nuevas
+                    nuevos_detalles = venta_actualizada.detalles or []
+                    if isinstance(nuevos_detalles, str):
+                        try:
+                            nuevos_detalles = json_lib.loads(nuevos_detalles)
+                        except Exception:
+                            nuevos_detalles = []
+
+                    fecha_nueva = venta_actualizada.fecha.date()
+                    print(f"✅ Aplicando {len(nuevos_detalles)} productos nuevos en Cargue {id_vendedor_anterior}")
+                    for item in nuevos_detalles:
+                        nombre = item.get('nombre', '') or item.get('producto', '')
+                        cantidad = int(item.get('cantidad', 0))
+                        if nombre and cantidad > 0:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_nueva,
+                                producto__iexact=nombre,
+                                activo=True
+                            ).update(vendidas=F('vendidas') + cantidad)
+                            print(f"   ✅ {nombre}: vendidas += {cantidad}")
+
+        except Exception as e:
+            print(f"⚠️ Error ajustando Cargue en edición de venta (la venta sí se editó): {e}")
+            import traceback
+            traceback.print_exc()
+
+        # Retornar la venta actualizada con flag editada=True
+        data = serializer.data
+        data_con_flag = dict(data)
+        data_con_flag['editada'] = True
+        return Response(data_con_flag)
 
 
 
@@ -4922,21 +5871,17 @@ def verificar_turno_activo(request):
         from .models import TurnoVendedor, CargueProductos, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
         from datetime import date
         
-        vendedor_id = request.query_params.get('vendedor_id')
+        vendedor_id_param = request.query_params.get('vendedor_id')
+        vendedor, vendedor_id_numerico, auth_error = _validar_vendedor_token(
+            request,
+            vendedor_id_param,
+            campo='vendedor_id'
+        )
+        if auth_error:
+            return auth_error
+
+        vendedor_id = vendedor.id_vendedor
         fecha_param = request.query_params.get('fecha')
-        
-        if not vendedor_id:
-            return Response({
-                'error': 'vendedor_id es requerido'
-            }, status=400)
-        
-        # Convertir ID de vendedor a numérico y string
-        if vendedor_id.upper().startswith('ID'):
-            vendedor_id_numerico = int(vendedor_id[2:])
-            vendedor_id_str = vendedor_id.upper()
-        else:
-            vendedor_id_numerico = int(vendedor_id)
-            vendedor_id_str = f"ID{vendedor_id_numerico}"
         
         # Fecha (hoy por defecto)
         if fecha_param:
@@ -5024,22 +5969,25 @@ def abrir_turno(request):
         from datetime import datetime
         
         vendedor_id = request.data.get('vendedor_id')
-        vendedor_nombre = request.data.get('vendedor_nombre', '')
+        vendedor, vendedor_id_numerico, auth_error = _validar_vendedor_token(
+            request,
+            vendedor_id,
+            campo='vendedor_id'
+        )
+        if auth_error:
+            return auth_error
+
+        vendedor_id = vendedor.id_vendedor
+        vendedor_nombre = vendedor.nombre or request.data.get('vendedor_nombre', '')
         dia = request.data.get('dia', '').upper()
         fecha_str = request.data.get('fecha')
         dispositivo = request.data.get('dispositivo', '')
         forzar = request.data.get('forzar', False)
         
-        if not vendedor_id or not dia or not fecha_str:
+        if not dia or not fecha_str:
             return Response({
-                'error': 'vendedor_id, dia y fecha son requeridos'
+                'error': 'dia y fecha son requeridos'
             }, status=400)
-        
-        # Convertir ID de vendedor a numérico
-        if str(vendedor_id).upper().startswith('ID'):
-            vendedor_id_numerico = int(vendedor_id[2:])
-        else:
-            vendedor_id_numerico = int(vendedor_id)
         
         # Parsear fecha
         fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
@@ -5083,7 +6031,7 @@ def abrir_turno(request):
                 turno_existente.save()
                 
                 # 🆕 Limpiar devoluciones del cargue para restaurar stock
-                vendedor_id_str = f"ID{vendedor_id_numerico}" if not str(vendedor_id).upper().startswith('ID') else str(vendedor_id).upper()
+                vendedor_id_str = vendedor.id_vendedor
                 modelo_map = {
                     'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
                     'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
@@ -5157,18 +6105,20 @@ def cerrar_turno_estado(request):
         from datetime import datetime
         
         vendedor_id = request.data.get('vendedor_id')
+        _, vendedor_id_numerico, auth_error = _validar_vendedor_token(
+            request,
+            vendedor_id,
+            campo='vendedor_id'
+        )
+        if auth_error:
+            return auth_error
+
         fecha_str = request.data.get('fecha')
         
-        if not vendedor_id or not fecha_str:
+        if not fecha_str:
             return Response({
-                'error': 'vendedor_id y fecha son requeridos'
+                'error': 'fecha es requerido'
             }, status=400)
-        
-        # Convertir ID de vendedor a numérico
-        if str(vendedor_id).upper().startswith('ID'):
-            vendedor_id_numerico = int(vendedor_id[2:])
-        else:
-            vendedor_id_numerico = int(vendedor_id)
         
         # Parsear fecha
         fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
@@ -5636,7 +6586,8 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
     def guardar_orden_vendedor(self, request):
         """
         Guardar orden de clientes para un vendedor en un día específico
-        Distribuye automáticamente los clientes por sus rutas correspondientes
+        y mantenerlo por vendedor+día (orden global app móvil).
+        Además, distribuye automáticamente por rutas para compatibilidad del panel web.
         
         POST /api/ruta-orden/guardar-orden-vendedor/
         Body: {
@@ -5647,14 +6598,51 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
         """
         vendedor_id = request.data.get('vendedor_id')
         dia = request.data.get('dia', '').upper()
-        clientes_ids = request.data.get('clientes_ids', [])
+        clientes_ids_raw = request.data.get('clientes_ids', [])
         
         if not vendedor_id or not dia:
             return Response({'error': 'Se requiere vendedor_id y dia'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Obtener todos los clientes con sus rutas
-            clientes = ClienteRuta.objects.filter(id__in=clientes_ids).select_related('ruta')
+            vendedor_norm, _ = _normalizar_id_vendedor(vendedor_id)
+            if not vendedor_norm:
+                return Response({'error': 'vendedor_id inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+            vendedor = Vendedor.objects.filter(id_vendedor=vendedor_norm, activo=True).first()
+            if not vendedor:
+                return Response({'error': 'Vendedor no encontrado o inactivo'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Normalizar IDs (enteros únicos, manteniendo orden)
+            clientes_ids = []
+            ids_vistos = set()
+            if isinstance(clientes_ids_raw, list):
+                for raw_id in clientes_ids_raw:
+                    try:
+                        cid = int(raw_id)
+                    except (TypeError, ValueError):
+                        continue
+                    if cid <= 0 or cid in ids_vistos:
+                        continue
+                    ids_vistos.add(cid)
+                    clientes_ids.append(cid)
+
+            rutas_vendedor_qs = Ruta.objects.filter(vendedor=vendedor, activo=True)
+
+            # Obtener clientes válidos (solo del vendedor)
+            clientes = ClienteRuta.objects.filter(
+                id__in=clientes_ids,
+                ruta__in=rutas_vendedor_qs
+            ).select_related('ruta')
+
+            ids_validos = set(clientes.values_list('id', flat=True))
+            clientes_ids_validos = [cid for cid in clientes_ids if cid in ids_validos]
+
+            # 1) Guardar orden global exacto por vendedor+día (fuente para app)
+            RutaOrdenVendedor.objects.update_or_create(
+                vendedor=vendedor,
+                dia=dia,
+                defaults={'clientes_ids': clientes_ids_validos}
+            )
             
             # Agrupar clientes por ruta
             clientes_por_ruta = {}
@@ -5668,7 +6656,7 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
             ordenes_guardadas = []
             for ruta_id, ids in clientes_por_ruta.items():
                 # Mantener el orden original de clientes_ids
-                ids_ordenados = [cid for cid in clientes_ids if cid in ids]
+                ids_ordenados = [cid for cid in clientes_ids_validos if cid in ids]
                 
                 obj, created = RutaOrden.objects.update_or_create(
                     ruta_id=ruta_id,
@@ -5684,13 +6672,126 @@ class RutaOrdenViewSet(viewsets.ModelViewSet):
             
             return Response({
                 'success': True,
-                'vendedor_id': vendedor_id,
+                'vendedor_id': vendedor_norm,
                 'dia': dia,
+                'clientes_recibidos': len(clientes_ids_raw) if isinstance(clientes_ids_raw, list) else 0,
+                'clientes_validos': len(clientes_ids_validos),
                 'ordenes_guardadas': ordenes_guardadas
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
             print(f"❌ Error guardando orden: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ===== VIEWSET CLIENTES OCASIONALES =====
+
+class ClienteOcasionalViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestión de clientes ocasionales (ventas en calle).
+    Completamente independiente de ClienteRuta."""
+    queryset = ClienteOcasional.objects.select_related('vendedor', 'cliente_ruta').all()
+    serializer_class = ClienteOcasionalSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = ClienteOcasional.objects.select_related('vendedor', 'cliente_ruta').all()
+        vendedor_id = self.request.query_params.get('vendedor_id', None)
+        activo = self.request.query_params.get('activo', None)
+        convertido = self.request.query_params.get('convertido', None)
+        
+        if vendedor_id:
+            queryset = queryset.filter(vendedor__id_vendedor=vendedor_id)
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+        if convertido is not None:
+            queryset = queryset.filter(convertido=convertido.lower() == 'true')
+        
+        return queryset.order_by('-fecha_creacion')
+    
+    def destroy(self, request, *args, **kwargs):
+        """Eliminar un cliente ocasional."""
+        try:
+            instance = self.get_object()
+            self.perform_destroy(instance)
+            return Response({"message": "Cliente ocasional eliminado correctamente"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def convertir(self, request, pk=None):
+        """
+        Convertir un cliente ocasional a cliente de ruta normal.
+        POST /api/clientes-ocasionales/{id}/convertir/
+        Body: {
+            "ruta_id": 1,
+            "dia_visita": "LUNES,MARTES",
+            "tipo_negocio": "Tienda"
+        }
+        """
+        try:
+            cliente_ocasional = self.get_object()
+            
+            if cliente_ocasional.convertido:
+                return Response(
+                    {'error': 'Este cliente ya fue convertido a cliente de ruta'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            ruta_id = request.data.get('ruta_id')
+            dia_visita = request.data.get('dia_visita', '')
+            tipo_negocio = request.data.get('tipo_negocio', '')
+            
+            if not ruta_id:
+                return Response(
+                    {'error': 'Se requiere ruta_id para convertir'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            ruta = Ruta.objects.filter(id=ruta_id, activo=True).first()
+            if not ruta:
+                return Response(
+                    {'error': 'Ruta no encontrada o inactiva'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Calcular orden
+            from django.db.models import Max
+            max_orden = ClienteRuta.objects.filter(ruta=ruta).aggregate(
+                Max('orden')
+            )['orden__max'] or 0
+            
+            # Crear ClienteRuta
+            nuevo_cliente = ClienteRuta.objects.create(
+                ruta=ruta,
+                nombre_negocio=cliente_ocasional.nombre,
+                nombre_contacto=cliente_ocasional.nombre,
+                direccion=cliente_ocasional.direccion or '',
+                telefono=cliente_ocasional.telefono or '',
+                tipo_negocio=tipo_negocio or 'Cliente | OCASIONAL',
+                dia_visita=dia_visita or 'LUNES',
+                orden=max_orden + 1,
+                activo=True,
+                nota=f'Convertido desde cliente ocasional #{cliente_ocasional.id}'
+            )
+            
+            # Marcar como convertido
+            cliente_ocasional.convertido = True
+            cliente_ocasional.cliente_ruta = nuevo_cliente
+            cliente_ocasional.save()
+            
+            print(f"✅ Cliente ocasional '{cliente_ocasional.nombre}' convertido a ClienteRuta #{nuevo_cliente.id}")
+            
+            return Response({
+                'success': True,
+                'mensaje': f'Cliente convertido exitosamente a ruta {ruta.nombre}',
+                'cliente_ruta_id': nuevo_cliente.id,
+                'cliente_ocasional': ClienteOcasionalSerializer(cliente_ocasional).data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"❌ Error convirtiendo cliente ocasional: {str(e)}")
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

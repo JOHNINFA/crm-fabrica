@@ -95,6 +95,39 @@ const rutasService = {
             clientes_ids: clientesIds
         });
         return response.data;
+    },
+
+    // 🆕 Toggle permitir crear cliente desde app
+    toggleCrearCliente: async (rutaId, permitir) => {
+        const response = await axios.patch(`${API_URL}/rutas/${rutaId}/`, {
+            permitir_crear_cliente: permitir
+        });
+        return response.data;
+    },
+
+    // 🆕 Toggle permitir venta rápida desde app
+    toggleVentaRapida: async (rutaId, permitir) => {
+        const response = await axios.patch(`${API_URL}/rutas/${rutaId}/`, {
+            permitir_venta_rapida: permitir
+        });
+        return response.data;
+    },
+
+    // 🆕 Clientes ocasionales
+    obtenerClientesOcasionales: async (vendedorId) => {
+        let url = `${API_URL}/clientes-ocasionales/`;
+        if (vendedorId) url += `?vendedor_id=${vendedorId}`;
+        const response = await axios.get(url);
+        return response.data;
+    },
+
+    convertirClienteOcasional: async (clienteId, datos) => {
+        const response = await axios.post(`${API_URL}/clientes-ocasionales/${clienteId}/convertir/`, datos);
+        return response.data;
+    },
+    eliminarClienteOcasional: async (id) => {
+        const response = await axios.delete(`${API_URL}/clientes-ocasionales/${id}/`);
+        return response.data;
     }
 };
 

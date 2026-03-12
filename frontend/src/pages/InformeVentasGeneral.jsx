@@ -23,8 +23,21 @@ const InformeVentasGeneral = () => {
   const [busqueda, setBusqueda] = useState('');
 
   // Estados para los calendarios
-  const [fechaInicial, setFechaInicial] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [fechaFinal, setFechaFinal] = useState(new Date());
+  const [fechaInicial, setFechaInicial] = useState(() => {
+    const d = new Date();
+    d.setDate(1); // Primer día del mes
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [fechaFinal, setFechaFinal] = useState(() => {
+    const d = new Date();
+    d.setHours(23, 59, 59, 999);
+    return d;
+  });
+  
+  const [horaInicial, setHoraInicial] = useState('00:00');
+  const [horaFinal, setHoraFinal] = useState('23:59');
+
   const [showCalendarInicial, setShowCalendarInicial] = useState(false);
   const [showCalendarFinal, setShowCalendarFinal] = useState(false);
   const calendarInicialRef = useRef(null);
@@ -112,8 +125,13 @@ const InformeVentasGeneral = () => {
   }, []);
 
   // Formatear fecha para mostrar
-  const formatearFecha = (fecha) => {
-    return fecha.toLocaleString('es-CO', {
+  const formatearFecha = (fecha, hora = null) => {
+    const d = new Date(fecha);
+    if (hora) {
+      const [h, m] = hora.split(':');
+      d.setHours(parseInt(h), parseInt(m));
+    }
+    return d.toLocaleString('es-CO', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -126,15 +144,22 @@ const InformeVentasGeneral = () => {
   // Filtrar ventas por rango de fechas usando useMemo
   const ventasFiltradas = useMemo(() => {
     return ventas.filter(venta => {
+      // 1. Preparar fecha de la venta
       const fechaVenta = new Date(venta.fecha);
-      const inicioDelDia = new Date(fechaInicial);
-      inicioDelDia.setHours(0, 0, 0, 0);
-      const finDelDia = new Date(fechaFinal);
-      finDelDia.setHours(23, 59, 59, 999);
+      
+      // 2. Preparar limite inferior (Fecha + Hora seleccionada)
+      const inicio = new Date(fechaInicial);
+      const [hIni, mIni] = horaInicial.split(':');
+      inicio.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
+      
+      // 3. Preparar limite superior (Fecha + Hora seleccionada)
+      const fin = new Date(fechaFinal);
+      const [hFin, mFin] = horaFinal.split(':');
+      fin.setHours(parseInt(hFin), parseInt(mFin), 59, 999);
 
-      return fechaVenta >= inicioDelDia && fechaVenta <= finDelDia;
+      return fechaVenta >= inicio && fechaVenta <= fin;
     });
-  }, [ventas, fechaInicial, fechaFinal]);
+  }, [ventas, fechaInicial, fechaFinal, horaInicial, horaFinal]);
 
   // Recalcular métricas cuando cambien las ventas filtradas
   useEffect(() => {
@@ -645,6 +670,26 @@ const InformeVentasGeneral = () => {
           .react-calendar__navigation button:enabled:hover {
             background-color: #e8f4fd;
           }
+
+          .date-time-group {
+            display: inline-flex;
+            align-items: center;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 2px 8px;
+            transition: all 0.2s ease;
+          }
+
+          .date-time-group:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+          }
+
+          .date-time-group:focus-within {
+            border-color: #0c2c53;
+            box-shadow: 0 0 0 2px rgba(12, 44, 83, 0.1);
+          }
         `}
       </style>
       {/* Header de navegación */}
@@ -693,85 +738,125 @@ const InformeVentasGeneral = () => {
                 <option>Principal</option>
               </Form.Select>
 
-              <span className="me-2">Fecha inicial:</span>
-              <div className="position-relative me-3 mb-2 mb-md-0" ref={calendarInicialRef}>
-                <Form.Control
-                  type="text"
-                  size="sm"
-                  value={formatearFecha(fechaInicial)}
-                  onClick={() => setShowCalendarInicial(!showCalendarInicial)}
-                  readOnly
-                  style={{ width: '200px', paddingRight: '28px', cursor: 'pointer' }}
-                />
-                <span
-                  className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setShowCalendarInicial(!showCalendarInicial)}
-                >
-                  📅
-                </span>
-                {showCalendarInicial && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    zIndex: 1000,
-                    marginTop: '5px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    borderRadius: '8px',
-                    overflow: 'hidden'
-                  }}>
-                    <Calendar
-                      onChange={(date) => {
-                        setFechaInicial(date);
-                        setShowCalendarInicial(false);
-                      }}
-                      value={fechaInicial}
-                      locale="es-ES"
-                    />
-                  </div>
-                )}
+              <span className="me-2 fw-bold" style={{ color: '#475569' }}>Desde:</span>
+              <div className="date-time-group me-4 mb-2 mb-md-0">
+                {/* Contenedor de Fecha */}
+                <div className="position-relative" ref={calendarInicialRef}>
+                  <Form.Control
+                    type="text"
+                    size="sm"
+                    className="border-0 bg-transparent"
+                    value={fechaInicial.toLocaleDateString('es-CO')}
+                    onClick={() => setShowCalendarInicial(!showCalendarInicial)}
+                    readOnly
+                    style={{ width: '100px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}
+                  />
+                  <span
+                    className="position-absolute end-0 top-50 translate-middle-y me-1"
+                    style={{ cursor: 'pointer', fontSize: '14px', color: '#64748b' }}
+                    onClick={() => setShowCalendarInicial(!showCalendarInicial)}
+                  >
+                    📅
+                  </span>
+                  {showCalendarInicial && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '120%',
+                      left: 0,
+                      zIndex: 1000,
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <Calendar
+                        onChange={(date) => {
+                          setFechaInicial(date);
+                          setShowCalendarInicial(false);
+                        }}
+                        value={fechaInicial}
+                        locale="es-ES"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Divisor Vertical */}
+                <div className="mx-2" style={{ width: '1px', height: '20px', background: '#e2e8f0' }}></div>
+
+                {/* Contenedor de Hora */}
+                <div className="d-flex align-items-center">
+                  <span className="me-1" style={{ color: '#94a3b8', fontSize: '14px' }}>🕒</span>
+                  <Form.Control
+                    type="time"
+                    size="sm"
+                    className="border-0 bg-transparent p-0"
+                    value={horaInicial}
+                    onChange={(e) => setHoraInicial(e.target.value)}
+                    style={{ width: '110px', fontSize: '13px', fontWeight: '500', outline: 'none', boxShadow: 'none' }}
+                  />
+                </div>
               </div>
 
-              <span className="me-2">Fecha Final:</span>
-              <div className="position-relative me-3 mb-2 mb-md-0" ref={calendarFinalRef}>
-                <Form.Control
-                  type="text"
-                  size="sm"
-                  value={formatearFecha(fechaFinal)}
-                  onClick={() => setShowCalendarFinal(!showCalendarFinal)}
-                  readOnly
-                  style={{ width: '200px', paddingRight: '28px', cursor: 'pointer' }}
-                />
-                <span
-                  className="position-absolute end-0 top-50 translate-middle-y me-2 user-select-none"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setShowCalendarFinal(!showCalendarFinal)}
-                >
-                  📅
-                </span>
-                {showCalendarFinal && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    zIndex: 1000,
-                    marginTop: '5px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    borderRadius: '8px',
-                    overflow: 'hidden'
-                  }}>
-                    <Calendar
-                      onChange={(date) => {
-                        setFechaFinal(date);
-                        setShowCalendarFinal(false);
-                      }}
-                      value={fechaFinal}
-                      locale="es-ES"
-                      minDate={fechaInicial}
-                    />
-                  </div>
-                )}
+              <span className="me-2 fw-bold" style={{ color: '#475569' }}>Hasta:</span>
+              <div className="date-time-group me-4 mb-2 mb-md-0">
+                {/* Contenedor de Fecha */}
+                <div className="position-relative" ref={calendarFinalRef}>
+                  <Form.Control
+                    type="text"
+                    size="sm"
+                    className="border-0 bg-transparent"
+                    value={fechaFinal.toLocaleDateString('es-CO')}
+                    onClick={() => setShowCalendarFinal(!showCalendarFinal)}
+                    readOnly
+                    style={{ width: '100px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}
+                  />
+                  <span
+                    className="position-absolute end-0 top-50 translate-middle-y me-1"
+                    style={{ cursor: 'pointer', fontSize: '14px', color: '#64748b' }}
+                    onClick={() => setShowCalendarFinal(!showCalendarFinal)}
+                  >
+                    📅
+                  </span>
+                  {showCalendarFinal && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '120%',
+                      left: 0,
+                      zIndex: 1000,
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <Calendar
+                        onChange={(date) => {
+                          setFechaFinal(date);
+                          setShowCalendarFinal(false);
+                        }}
+                        value={fechaFinal}
+                        locale="es-ES"
+                        minDate={fechaInicial}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Divisor Vertical */}
+                <div className="mx-2" style={{ width: '1px', height: '20px', background: '#e2e8f0' }}></div>
+
+                {/* Contenedor de Hora */}
+                <div className="d-flex align-items-center">
+                  <span className="me-1" style={{ color: '#94a3b8', fontSize: '14px' }}>🕒</span>
+                  <Form.Control
+                    type="time"
+                    size="sm"
+                    className="border-0 bg-transparent p-0"
+                    value={horaFinal}
+                    onChange={(e) => setHoraFinal(e.target.value)}
+                    style={{ width: '110px', fontSize: '13px', fontWeight: '500', outline: 'none', boxShadow: 'none' }}
+                  />
+                </div>
               </div>
 
               <Button

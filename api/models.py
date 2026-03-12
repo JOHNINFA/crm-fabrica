@@ -393,6 +393,7 @@ class Cliente(models.Model):
     TIPO_IDENTIFICACION_CHOICES = [
         ('CC', 'Cédula de ciudadanía'),
         ('NIT', 'NIT'),
+        ('RUT', 'RUT'),
         ('CE', 'Cédula de extranjería'),
         ('PASAPORTE', 'Pasaporte'),
     ]
@@ -1763,7 +1764,9 @@ class Pedido(models.Model):
     # Estado y control
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     nota = models.TextField(blank=True, null=True)
+    productos_vencidos = models.JSONField(default=list, blank=True) # 🆕 Para trazabilidad en entregas
     novedades = models.JSONField(default=list, blank=True)
+    editada = models.BooleanField(default=False, verbose_name='Editado desde App') # 🆕 solo una edición permitida
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
@@ -1867,6 +1870,7 @@ class Vendedor(models.Model):
 
     def save(self, *args, **kwargs):
         # Verificar si es una actualización y el nombre cambió
+        password_cambiada = False
         if self.pk:
             try:
                 old_instance = Vendedor.objects.get(pk=self.pk)
@@ -1885,10 +1889,43 @@ class Vendedor(models.Model):
                         vendedor_asignado=old_instance.nombre
                     ).update(vendedor_asignado=self.nombre)
                     print(f"✅ Nombre de vendedor actualizado en clientes: {old_instance.nombre} -> {self.nombre}")
+                if old_instance.password != self.password:
+                    password_cambiada = True
             except Exception as e:
                 print(f"⚠️ Error actualizando nombre en pedidos/clientes: {e}")
         
         super().save(*args, **kwargs)
+
+        # Si cambia contraseña, invalidar sesiones móviles activas
+        if password_cambiada:
+            try:
+                self.sesiones_movil.filter(activo=True).update(activo=False)
+            except Exception as e:
+                print(f"⚠️ Error invalidando sesiones móviles del vendedor {self.id_vendedor}: {e}")
+
+
+class VendedorSesionToken(models.Model):
+    """Token de sesión para App Móvil (autenticación de endpoints críticos)."""
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='sesiones_movil')
+    token = models.CharField(max_length=96, unique=True, db_index=True)
+    dispositivo_id = models.CharField(max_length=120, blank=True, default='')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    expira_en = models.DateTimeField(db_index=True)
+    activo = models.BooleanField(default=True, db_index=True)
+    ultimo_uso = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Sesion movil vendedor"
+        verbose_name_plural = "Sesiones moviles vendedores"
+        ordering = ['-creado_en']
+        indexes = [
+            models.Index(fields=['vendedor', 'activo']),
+            models.Index(fields=['token', 'activo']),
+        ]
+
+    def __str__(self):
+        estado = "Activa" if self.activo else "Inactiva"
+        return f"{self.vendedor_id} - {estado} - {self.creado_en:%Y-%m-%d %H:%M}"
 
 
 class Domiciliario(models.Model):
@@ -1926,6 +1963,12 @@ class Ruta(models.Model):
     vendedor = models.ForeignKey(Vendedor, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutas_asignadas')
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
+    # 🆕 Control de creación de clientes desde app
+    permitir_crear_cliente = models.BooleanField(default=True, help_text='Habilitar/deshabilitar crear cliente desde la app móvil')
+    # 🆕 Tope de venta para clientes ocasionales
+    tope_cliente_ocasional = models.DecimalField(max_digits=12, decimal_places=2, default=60000, help_text='Tope máximo de venta para clientes ocasionales')
+    # 🆕 Control de venta rápida (cliente ocasional) desde app
+    permitir_venta_rapida = models.BooleanField(default=True, help_text='Habilitar/deshabilitar venta rápida (cliente ocasional) desde la app')
     
     def __str__(self):
         return self.nombre
@@ -1986,6 +2029,24 @@ class VentaRuta(models.Model):
     productos_vencidos = models.JSONField(default=list, blank=True) # [{producto: "Arepa", cantidad: 5, motivo: "Hongo"}, ...]
     foto_vencidos = models.ImageField(upload_to='vencidos/%Y/%m/%d/', null=True, blank=True)
     sincronizado = models.BooleanField(default=False)
+    editada = models.BooleanField(default=False)  # 🆕 True si la venta fue modificada después de crearse
+    estado = models.CharField(
+        max_length=20,
+        default='ACTIVA',
+        choices=[('ACTIVA', 'Activa'), ('ANULADA', 'Anulada')],
+        help_text='Estado de la venta: ACTIVA o ANULADA'
+    )  # 🆕 Para trazabilidad de anulaciones
+    
+    # 🆕 Referencia opcional a cliente ocasional
+    cliente_ocasional = models.ForeignKey(
+        'ClienteOcasional',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ventas',
+        help_text='Si la venta fue a un cliente ocasional'
+    )
+
     
     def __str__(self):
         return f"Venta {self.vendedor} - {self.cliente_nombre} - {self.fecha.strftime('%Y-%m-%d')}"
@@ -2016,6 +2077,38 @@ class EvidenciaPedido(models.Model):
 
     def __str__(self):
         return f"Evidencia Pedido {self.pedido.numero_pedido} - {self.producto_nombre}"
+
+
+
+# ===== MÓDULO CLIENTES OCASIONALES =====
+
+class ClienteOcasional(models.Model):
+    """Cliente de paso / ocasional que se acerca al vendedor en la calle.
+    Separado completamente de ClienteRuta para no mezclar datos."""
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='clientes_ocasionales')
+    nombre = models.CharField(max_length=200)
+    telefono = models.CharField(max_length=50, blank=True, null=True)
+    direccion = models.CharField(max_length=255, blank=True, null=True)
+    tope_venta = models.DecimalField(max_digits=12, decimal_places=2, default=60000, help_text='Tope máximo de venta para este cliente')
+    convertido = models.BooleanField(default=False, help_text='True si fue convertido a cliente de ruta')
+    cliente_ruta = models.ForeignKey(
+        ClienteRuta,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='origen_ocasional',
+        help_text='Referencia al ClienteRuta si fue convertido'
+    )
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"[OCASIONAL] {self.nombre}"
+    
+    class Meta:
+        verbose_name = 'Cliente Ocasional'
+        verbose_name_plural = 'Clientes Ocasionales'
+        ordering = ['-fecha_creacion']
 
 
 # ========================================
@@ -2138,6 +2231,29 @@ class RutaOrden(models.Model):
         verbose_name = "Orden de Ruta"
         verbose_name_plural = "Ordenes de Rutas"
         unique_together = ['ruta', 'dia']  # Un orden por ruta + día
+
+
+class RutaOrdenVendedor(models.Model):
+    """Orden global de clientes por vendedor y día (App móvil)."""
+    vendedor = models.ForeignKey(
+        Vendedor,
+        on_delete=models.CASCADE,
+        related_name='ordenes_clientes_dia'
+    )
+    dia = models.CharField(max_length=20)  # LUNES, MARTES, ...
+    clientes_ids = models.JSONField(default=list)  # Orden completo del día para ese vendedor
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.vendedor_id} - {self.dia} - {len(self.clientes_ids)} clientes"
+
+    class Meta:
+        verbose_name = "Orden de Vendedor por Día"
+        verbose_name_plural = "Ordenes de Vendedores por Día"
+        unique_together = ['vendedor', 'dia']
+        indexes = [
+            models.Index(fields=['vendedor', 'dia']),
+        ]
 
 
 class AgentSession(models.Model):

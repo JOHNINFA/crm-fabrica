@@ -447,50 +447,50 @@ export default function MenuSheets() {
                         datosLocal.productos = datosLocal.productos.map(producto => {
                           const datosProductoServidor = datosServidor[producto.producto];
                           if (datosProductoServidor) {
-                            const vAnterior = producto.vendedor;
-                            const vNuevo = datosProductoServidor.v || false;
+                            // 🚀 LÓGICA DE MEZCLA (Merge) REFINADA
+                             // 1. Mercancía: PROTEGIDA (No se borra si el despachador escribió algo)
+                             const cantFinal = Math.max(producto.cantidad || 0, datosProductoServidor.cantidad || 0);
+                             const adicFinal = Math.max(producto.adicional || 0, datosProductoServidor.adicional || 0);
+                             const dctosFinal = Math.max(producto.dctos || 0, datosProductoServidor.dctos || 0);
+                             
+                             // 2. Reporte de App: Devoluciones y Vencidas (Lo que dice el vendedor manda inicialmente)
+                             const devolFinal = datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : (producto.devoluciones || 0);
+                             const vencFinal = datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : (producto.vencidas || 0);
 
-                            // Detectar cambios en cualquier campo importante
-                            const huboCambios =
-                              vAnterior !== vNuevo ||
-                              (producto.vendidas || 0) !== (datosProductoServidor.vendidas || 0) ||
-                              (producto.vencidas || 0) !== (datosProductoServidor.vencidas || 0) ||
-                              (producto.devoluciones || 0) !== (datosProductoServidor.devoluciones || 0) ||
-                              (producto.cantidad || 0) !== (datosProductoServidor.cantidad || 0);
+                             const vAnterior = producto.vendedor;
+                             const vNuevo = datosProductoServidor.v || false;
+                             const vendidasFinal = datosProductoServidor.vendidas !== undefined ? datosProductoServidor.vendidas : (producto.vendidas || 0);
 
-                            if (huboCambios) {
-                              console.log(`✅ ${id} - ${producto.producto}: Actualizando datos desde servidor`);
-                              checksActualizados++;
-                            }
+                             // Detectar cambios para el contador
+                             const huboCambios =
+                               vAnterior !== vNuevo ||
+                               (producto.vendidas || 0) !== vendidasFinal ||
+                               (producto.vencidas || 0) !== vencFinal ||
+                               (producto.devoluciones || 0) !== devolFinal ||
+                               (producto.cantidad || 0) !== cantFinal ||
+                               (producto.dctos || 0) !== dctosFinal;
 
-                            return {
-                              ...producto,
-                              cantidad: datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad,
-                              adicional: datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional,
-                              devoluciones: datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones,
-                              vendidas: datosProductoServidor.vendidas !== undefined ? datosProductoServidor.vendidas : producto.vendidas,
-                              vencidas: datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas,
-                              vendedor: vNuevo,
-                              despachador: datosProductoServidor.d || producto.despachador,
-                              // 🆕 RECALCULAR TOTALES EN LOCALSTORAGE
-                              total: (() => {
-                                const cant = datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad;
-                                const dctos = producto.dctos || 0;
-                                const adic = datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional;
-                                const devol = datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones;
-                                const venc = datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas;
-                                return (cant || 0) - (dctos || 0) + (adic || 0) - (devol || 0) - (venc || 0);
-                              })(),
-                              neto: (() => {
-                                const cant = datosProductoServidor.cantidad !== undefined ? datosProductoServidor.cantidad : producto.cantidad;
-                                const dctos = producto.dctos || 0;
-                                const adic = datosProductoServidor.adicional !== undefined ? datosProductoServidor.adicional : producto.adicional;
-                                const devol = datosProductoServidor.devoluciones !== undefined ? datosProductoServidor.devoluciones : producto.devoluciones;
-                                const venc = datosProductoServidor.vencidas !== undefined ? datosProductoServidor.vencidas : producto.vencidas;
-                                const total = (cant || 0) - (dctos || 0) + (adic || 0) - (devol || 0) - (venc || 0);
-                                return Math.round(total * (producto.valor || 0));
-                              })()
-                            };
+                             if (huboCambios) {
+                               checksActualizados++;
+                             }
+
+                             // 🧮 CALCULO DE TOTALES (Usando valores mergeados)
+                             const totalFinal = cantFinal - dctosFinal + adicFinal - devolFinal - vencFinal;
+                             const netoFinal = Math.round(totalFinal * (producto.valor || 0));
+
+                             return {
+                               ...producto,
+                               cantidad: cantFinal,
+                               adicional: adicFinal,
+                               dctos: dctosFinal,
+                               devoluciones: devolFinal,
+                               vencidas: vencFinal,
+                               vendidas: vendidasFinal,
+                               vendedor: vNuevo,
+                               despachador: datosProductoServidor.d || producto.despachador,
+                               total: totalFinal,
+                               neto: netoFinal
+                             };
                           }
                           return producto;
                         });

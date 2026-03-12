@@ -666,7 +666,7 @@ class PedidoSerializer(serializers.ModelSerializer):
             'id', 'numero_pedido', 'fecha', 'vendedor', 'destinatario',
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
             'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
-            'descuentos', 'total', 'estado', 'nota', 'metodo_pago', 'novedades',
+            'descuentos', 'total', 'estado', 'nota', 'metodo_pago', 'productos_vencidos', 'novedades', 'editada',
             'fecha_creacion', 'fecha_actualizacion', 'detalles', 'detalles_info',
             'evidencias',  # 🆕 Fotos de evidencia
             # Nuevos campos
@@ -908,17 +908,29 @@ class PedidoSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         from django.db import transaction
-        from .models import DetallePedido
+        from .models import DetallePedido, EvidenciaPedido, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6
+        import base64
+        import uuid
+        from django.core.files.base import ContentFile
         
+        # Extraer datos adicionales del request
         detalles_data = self.context['request'].data.get('detalles')
+        productos_vencidos_data = self.context['request'].data.get('productos_vencidos')
+        foto_vencidos_base64 = self.context['request'].data.get('foto_vencidos')
         
         with transaction.atomic():
             # Actualizar campos del pedido
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
+            
+            # Guardar productos_vencidos si vienen en el request (no están en validated_data si no son del modelo)
+            # Pero ahora YA están en el modelo.
+            if productos_vencidos_data is not None:
+                instance.productos_vencidos = productos_vencidos_data
+                
             instance.save()
             
-            # Si vienen detalles, reemplazar todos
+            # 1. Si vienen detalles, reemplazar todos
             if detalles_data is not None:
                 instance.detalles.all().delete()
                 for detalle_data in detalles_data:
@@ -928,6 +940,76 @@ class PedidoSerializer(serializers.ModelSerializer):
                         cantidad=detalle_data['cantidad'],
                         precio_unitario=detalle_data['precio_unitario']
                     )
+            
+            # 2. 🆕 MANEJO DE VENCIDAS Y STOCK (CargueIDx)
+            if productos_vencidos_data and len(productos_vencidos_data) > 0:
+                print(f"🔄 Procesando {len(productos_vencidos_data)} vencidas para Pedido #{instance.numero_pedido}")
+                
+                id_vendedor = instance.vendedor # Suele ser 'ID1', 'ID2', etc.
+                if not id_vendedor.startswith('ID'):
+                    # Intentar buscar el ID en el perfil si vendedor es nombre
+                    from .models import Vendedor
+                    v_obj = Vendedor.objects.filter(nombre__icontains=id_vendedor).first()
+                    if v_obj:
+                        id_vendedor = v_obj.id_vendedor
+
+                fecha_ref = instance.fecha_entrega or instance.fecha.date()
+                
+                modelo_map = {
+                    'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
+                    'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
+                }
+                ModeloCargue = modelo_map.get(id_vendedor)
+                
+                if ModeloCargue:
+                    from django.db.models import F
+                    for item in productos_vencidos_data:
+                        nombre_prod = item.get('producto') or item.get('nombre', '')
+                        cantidad = int(item.get('cantidad', 0))
+                        
+                        if nombre_prod and cantidad > 0:
+                            updated = ModeloCargue.objects.filter(
+                                fecha=fecha_ref,
+                                producto__iexact=nombre_prod,
+                                activo=True
+                            ).update(vencidas=F('vencidas') + cantidad)
+                            print(f"   ✅ {nombre_prod}: vencidas += {cantidad} (registros: {updated})")
+
+            # 3. 🆕 MANEJO DE FOTOS (EvidenciaPedido)
+            if foto_vencidos_base64 and isinstance(foto_vencidos_base64, dict):
+                print(f"📸 Procesando fotos de evidencia para Pedido #{instance.numero_pedido}")
+                for prod_id_key, pics in foto_vencidos_base64.items():
+                    if not pics or not isinstance(pics, list): continue
+                    
+                    for pic_base64 in pics:
+                        if ',' in pic_base64:
+                            try:
+                                format, imgstr = pic_base64.split(';base64,')
+                                ext = format.split('/')[-1]
+                                data = ContentFile(base64.b64decode(imgstr), name=f"pedido_{instance.id}_{uuid.uuid4().hex[:6]}.{ext}")
+                                
+                                # Buscar nombre del producto si el ID es numérico
+                                prod_nombre = ""
+                                try:
+                                    if str(prod_id_key).isdigit():
+                                        from .models import Producto
+                                        p_obj = Producto.objects.filter(id=int(prod_id_key)).first()
+                                        if p_obj: prod_nombre = p_obj.nombre
+                                    else:
+                                        prod_nombre = str(prod_id_key) # Tal vez es 'general'
+                                except:
+                                    pass
+
+                                EvidenciaPedido.objects.create(
+                                    pedido=instance,
+                                    producto_nombre=prod_nombre,
+                                    imagen=data,
+                                    motivo='Vencida reportada en entrega'
+                                )
+                                print(f"   ✅ Evidencia guardada para: {prod_nombre}")
+                            except Exception as e:
+                                print(f"   ❌ Error guardando foto: {e}")
+
         return instance
 class PlaneacionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -1017,7 +1099,7 @@ class ConfiguracionImpresionSerializer(serializers.ModelSerializer):
 
 
 # ===== SERIALIZERS RUTAS Y VENTAS RUTA =====
-from .models import Ruta, ClienteRuta, VentaRuta, EvidenciaVenta
+from .models import Ruta, ClienteRuta, VentaRuta, EvidenciaVenta, ClienteOcasional
 
 class RutaSerializer(serializers.ModelSerializer):
     vendedor_nombre = serializers.CharField(source='vendedor.nombre', read_only=True)
@@ -1049,25 +1131,15 @@ class ClienteRutaSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def get_lista_precio_nombre(self, obj):
-        """Buscar si este cliente tiene una lista de precios asignada en el sistema administrativo"""
+        """Optimizado para evitar consultas N+1 durante la serialización en masa."""
+        # ⚡ Si ya fue inyectado por el ViewSet, usarlo (MÁXIMO RENDIMIENTO)
+        if hasattr(obj, 'precomputed_lista_precio'):
+            return obj.precomputed_lista_precio
+            
+        # Fallback para consultas individuales
         try:
-            from django.db.models import Q
             from .models import Cliente
-            
-            # Normalizar nombre para búsqueda
-            nombre_busqueda = obj.nombre_negocio.strip()
-            
-            # Buscar coincidencia exacta o parcial en nombre, contacto o alias
-            cliente_admin = Cliente.objects.filter(
-                Q(nombre_completo__iexact=nombre_busqueda) |
-                Q(contacto__iexact=nombre_busqueda) |
-                Q(alias__iexact=nombre_busqueda) |
-                Q(nombre_completo__icontains=nombre_busqueda)
-            ).first()
-            
-            if cliente_admin and cliente_admin.tipo_lista_precio:
-                return cliente_admin.tipo_lista_precio
-                
+            return Cliente.objects.filter(nombre_completo__iexact=obj.nombre_negocio.strip()).values_list('tipo_lista_precio', flat=True).first()
         except Exception:
             pass
         return None
@@ -1086,6 +1158,27 @@ class VentaRutaSerializer(serializers.ModelSerializer):
         model = VentaRuta
         fields = '__all__'  # Incluye automáticamente dispositivo_id e ip_origen
         # read_only_fields = ('fecha',)  # FECHA debe ser editable para permitir simular días anteriores
+
+class ClienteOcasionalSerializer(serializers.ModelSerializer):
+    """Serializer para clientes ocasionales (ventas en calle)"""
+    vendedor_nombre = serializers.CharField(source='vendedor.nombre', read_only=True)
+    total_ventas = serializers.SerializerMethodField()
+    cantidad_ventas = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ClienteOcasional
+        fields = '__all__'
+    
+    def get_total_ventas(self, obj):
+        """Sumar total de ventas asociadas a este cliente ocasional"""
+        from django.db.models import Sum
+        return float(obj.ventas.filter(estado='ACTIVA').aggregate(
+            total=Sum('total')
+        )['total'] or 0)
+    
+    def get_cantidad_ventas(self, obj):
+        """Cantidad de ventas realizadas a este cliente"""
+        return obj.ventas.filter(estado='ACTIVA').count()
 
 
 # ===== SERIALIZER PARA LOGS DE SINCRONIZACIÓN =====

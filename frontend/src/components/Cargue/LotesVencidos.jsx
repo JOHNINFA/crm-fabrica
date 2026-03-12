@@ -7,7 +7,7 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
   // Agregar nuevo lote
   const agregarLote = () => {
     if (disabled) return; // 🔒 No permitir agregar si está deshabilitado
-    const nuevosLotes = [...lotes, { lote: '', motivo: '' }];
+    const nuevosLotes = [...lotes, { lote: '', motivo: '', cantidad: '' }];
     onLotesChange(nuevosLotes);
     setMostrarLotes(true);
   };
@@ -80,8 +80,9 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
             }}>
               {lotes.map((lote, index) => (
                 <div key={index} style={{
-                  display: 'flex',
-                  gap: '4px',
+                  display: 'grid',
+                  gridTemplateColumns: '80px 80px 18px',
+                  columnGap: '4px',
                   marginBottom: '4px',
                   alignItems: 'center'
                 }}>
@@ -103,7 +104,17 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
                   />
                   <select
                     value={lote.motivo}
-                    onChange={(e) => actualizarLote(index, 'motivo', e.target.value)}
+                    onChange={(e) => {
+                      const nuevoMotivo = e.target.value;
+                      const nuevosLotes = [...lotes];
+                      nuevosLotes[index] = {
+                        ...nuevosLotes[index],
+                        motivo: nuevoMotivo,
+                        // Si se limpia el motivo, limpiar cantidad para evitar datos huérfanos.
+                        cantidad: nuevoMotivo ? (nuevosLotes[index]?.cantidad ?? '') : ''
+                      };
+                      onLotesChange(nuevosLotes);
+                    }}
                     disabled={disabled}
                     style={{
                       width: '80px',
@@ -124,6 +135,7 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
                     onClick={() => eliminarLote(index)}
                     disabled={disabled}
                     style={{
+                      gridColumn: '3 / 4',
                       background: 'none',
                       border: 'none',
                       color: disabled ? '#6c757d' : '#dc3545',
@@ -139,7 +151,7 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
               ))}
 
               {/* Botones de acción */}
-              <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {!disabled && (
                   <Button
                     variant="outline-primary"
@@ -158,6 +170,30 @@ const LotesVencidos = ({ lotes = [], onLotesChange, disabled = false }) => {
                 >
                   Cerrar
                 </Button>
+
+                {lotes.map((item, idx) =>
+                  String(item?.motivo || '').trim() !== '' ? (
+                    <input
+                      key={`cant-lote-${idx}`}
+                      type="number"
+                      min="0"
+                      placeholder="Cant."
+                      value={item.cantidad ?? ''}
+                      onChange={(e) => actualizarLote(idx, 'cantidad', e.target.value)}
+                      disabled={disabled}
+                      style={{
+                        width: '52px',
+                        fontSize: '11px',
+                        padding: '2px 4px',
+                        border: '1px solid #ccc',
+                        borderRadius: '2px',
+                        backgroundColor: disabled ? '#f8f9fa' : 'white',
+                        cursor: disabled ? 'not-allowed' : 'text'
+                      }}
+                      title={`Cantidad ${String(item?.motivo || '').trim().toUpperCase()} (${item.lote || `Lote ${idx + 1}`})`}
+                    />
+                  ) : null
+                )}
               </div>
             </div>
           )}

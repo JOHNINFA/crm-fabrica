@@ -12,7 +12,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     const [pedidosClientes, setPedidosClientes] = useState([]); // Pedidos individuales por cliente
     const [loading, setLoading] = useState(false);
     const [nombreVendedor, setNombreVendedor] = useState('');
-    const [activeTab, setActiveTab] = useState('resumen');
+    const [activeTab, setActiveTab] = useState('clientes');
     const [pedidoExpandido, setPedidoExpandido] = useState(null); // Para ver detalle de un pedido
 
     // Estados para anulación
@@ -166,7 +166,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         }
 
         setShowModal(true);
-        setActiveTab('resumen');
+        setActiveTab('clientes');
         setPedidoExpandido(null);
         // Eliminado: setCheckedItems({}); // Permitir persistencia
         cargarPedidos();
@@ -329,13 +329,13 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 <div style={{ borderBottom: '1px solid #e0e0e0', padding: '0 24px' }}>
                     <Nav variant="tabs" activeKey={activeTab} onSelect={(k) => { setActiveTab(k); setPedidoExpandido(null); }}>
                         <Nav.Item>
-                            <Nav.Link eventKey="resumen" style={{ fontWeight: activeTab === 'resumen' ? '600' : '400' }}>
-                                📦 Resumen Productos
+                            <Nav.Link eventKey="clientes" style={{ fontWeight: activeTab === 'clientes' ? '600' : '400' }}>
+                                👥 Pedidos Clientes ({pedidosClientes.length})
                             </Nav.Link>
                         </Nav.Item>
                         <Nav.Item>
-                            <Nav.Link eventKey="clientes" style={{ fontWeight: activeTab === 'clientes' ? '600' : '400' }}>
-                                👥 Pedidos Clientes ({pedidosClientes.length})
+                            <Nav.Link eventKey="resumen" style={{ fontWeight: activeTab === 'resumen' ? '600' : '400' }}>
+                                📦 Resumen Productos
                             </Nav.Link>
                         </Nav.Item>
                         <Nav.Item>
@@ -430,6 +430,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                         {pedidosClientes.map((pedido, index) => {
                                             const tieneNovedades = pedido.novedades && pedido.novedades.length > 0;
                                             const esEntregado = pedido.estado === 'ENTREGADO' || pedido.estado === 'ENTREGADA';
+                                            const puedeModificarPedido = !esEntregado;
 
                                             // Estilos condicionales
                                             const borderColor = tieneNovedades
@@ -523,28 +524,48 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                                     <i className={`bi ${pedidoExpandido === pedido.id ? 'bi-chevron-up' : 'bi-eye'}`}></i>
                                                                 </button>
 
-                                                                {/* Botón Anular - Rojo */}
-                                                                <button
-                                                                    onClick={(e) => handleAnularClick(e, pedido)}
-                                                                    style={{
-                                                                        background: 'transparent',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer',
-                                                                        padding: '8px',
-                                                                        color: '#ef4444',
-                                                                        fontSize: '18px',
-                                                                        borderRadius: '50%',
-                                                                        transition: 'background-color 0.2s'
-                                                                    }}
-                                                                    title="Anular pedido"
-                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
-                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                                >
-                                                                    <i className="bi bi-trash"></i>
-                                                                </button>
+                                                                {/* Botón Anular / Bloqueado */}
+                                                                {puedeModificarPedido ? (
+                                                                    <button
+                                                                        onClick={(e) => handleAnularClick(e, pedido)}
+                                                                        style={{
+                                                                            background: 'transparent',
+                                                                            border: 'none',
+                                                                            cursor: 'pointer',
+                                                                            padding: '8px',
+                                                                            color: '#ef4444',
+                                                                            fontSize: '18px',
+                                                                            borderRadius: '50%',
+                                                                            transition: 'background-color 0.2s'
+                                                                        }}
+                                                                        title="Anular pedido"
+                                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                    >
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        disabled
+                                                                        style={{
+                                                                            background: 'transparent',
+                                                                            border: 'none',
+                                                                            cursor: 'not-allowed',
+                                                                            padding: '8px',
+                                                                            color: '#9ca3af',
+                                                                            fontSize: '18px',
+                                                                            borderRadius: '50%',
+                                                                            opacity: 0.75
+                                                                        }}
+                                                                        title="Pedido entregado: no se puede anular"
+                                                                    >
+                                                                        <i className="bi bi-lock-fill"></i>
+                                                                    </button>
+                                                                )}
                                                                 {/* 🆕 Selector de Método de Pago */}
                                                                 <select
                                                                     value={pedido.metodo_pago || 'EFECTIVO'}
+                                                                    disabled={!puedeModificarPedido}
                                                                     onChange={(e) => {
                                                                         e.stopPropagation();
                                                                         handleCambiarMetodoPago(pedido.id, e.target.value);
@@ -567,9 +588,11 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                                                 pedido.metodo_pago === 'NEQUI' ? '#9d174d' :
                                                                                     pedido.metodo_pago === 'DAVIPLATA' ? '#dc2626' :
                                                                                         '#6b7280',
-                                                                        cursor: 'pointer',
-                                                                        minWidth: '100px'
+                                                                        cursor: puedeModificarPedido ? 'pointer' : 'not-allowed',
+                                                                        minWidth: '100px',
+                                                                        opacity: puedeModificarPedido ? 1 : 0.65
                                                                     }}
+                                                                    title={puedeModificarPedido ? 'Cambiar método de pago' : 'Pedido entregado: no se puede editar'}
                                                                 >
                                                                     <option value="EFECTIVO">Efectivo</option>
                                                                     <option value="NEQUI">Nequi</option>
