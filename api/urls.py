@@ -11,7 +11,7 @@ from .views import (
     PedidoViewSet, DetallePedidoViewSet, MovimientoCajaViewSet, ConfiguracionImpresionViewSet,
     PrediccionIAView, guardar_sugerido, corregir_cantidad_cargue, obtener_cargue, obtener_rendimiento_cargue, actualizar_check_vendedor, verificar_estado_dia,
     calcular_devoluciones_automaticas, ventas_tiempo_real, cerrar_turno_vendedor,
-    RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet,
+    RutaViewSet, ClienteRutaViewSet, VentaRutaViewSet, ClienteOcasionalViewSet,
     RegistrosPlaneacionDiaViewSet,
     CarguePagosViewSet, RutaOrdenViewSet, ReportePlaneacionViewSet,
     obtener_estado_cargue, actualizar_estado_cargue, verificar_actualizaciones,
@@ -75,6 +75,7 @@ router.register(r'domiciliarios', DomiciliarioViewSet, basename='domiciliarios')
 # Rutas y Ventas Ruta
 router.register(r'rutas', RutaViewSet, basename='rutas')
 router.register(r'clientes-ruta', ClienteRutaViewSet, basename='clientes-ruta')
+router.register(r'clientes-ocasionales', ClienteOcasionalViewSet, basename='clientes-ocasionales')
 router.register(r'ventas-ruta', VentaRutaViewSet, basename='ventas-ruta')
 
 # Configuración
@@ -173,4 +174,3 @@ urlpatterns = router.urls + [
     path('turno/abrir-manual/', abrir_turno_manual, name='abrir-turno-manual'),
     path('vendedores-cargue/', listar_vendedores_cargue, name='listar-vendedores-cargue'),
 ]
-

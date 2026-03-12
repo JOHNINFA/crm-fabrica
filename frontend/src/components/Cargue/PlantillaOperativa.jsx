@@ -1978,6 +1978,15 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
                                 fechaSeleccionada={fechaSeleccionada}
                             />
 
+                            <button
+                                className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+                                onClick={() => { window.location.hash = '/otros?module=ventas_ruta'; }}
+                                title="Ir a Ventas de Ruta"
+                                style={{ color: '#198754', fontWeight: '500' }}
+                            >
+                                <>📱 Ventas</>
+                            </button>
+
 
                         </div>
                         <div className="text-muted small">
