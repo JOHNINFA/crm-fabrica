@@ -1980,7 +1980,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
                             <button
                                 className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
-                                onClick={() => { window.location.hash = '/otros?module=ventas_ruta'; }}
+                                onClick={() => { window.open('/#/otros?module=ventas_ruta', '_blank', 'noopener,noreferrer'); }}
                                 title="Ir a Ventas de Ruta"
                                 style={{ color: '#198754', fontWeight: '500' }}
                             >

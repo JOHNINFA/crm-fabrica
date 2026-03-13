@@ -10,15 +10,32 @@ import ReporteVentasRuta from '../components/rutas/ReporteVentasRuta';
 import ChatIA from '../components/ChatIA/ChatIA';
 import GestionIA from '../components/common/GestionIA';
 import usePageTitle from '../hooks/usePageTitle';
+import { useAuth } from '../context/AuthContext';
 
 const OtrosScreen = () => {
     usePageTitle('Otros');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { esAdmin } = useAuth();
     const [activeModule, setActiveModule] = useState(searchParams.get('module') || '');
+    const esAdministrador = esAdmin();
 
-    // Actualizar URL cuando cambia el módulo
+    useEffect(() => {
+        setActiveModule(searchParams.get('module') || '');
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (!esAdministrador && activeModule !== 'ventas_ruta') {
+            navigate('/pos', { replace: true });
+        }
+    }, [activeModule, esAdministrador, navigate]);
+
     const handleModuleChange = (moduleId) => {
+        if (!esAdministrador && moduleId !== 'ventas_ruta') {
+            navigate('/pos', { replace: true });
+            return;
+        }
+
         setActiveModule(moduleId);
         if (moduleId) {
             setSearchParams({ module: moduleId });
@@ -128,7 +145,6 @@ const OtrosScreen = () => {
 
     return (
         <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-            {/* Header */}
             <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #dee2e6', padding: '1rem 0' }}>
                 <Container fluid style={{ paddingLeft: '1rem', paddingRight: '1rem' }}>
                     <Row className="align-items-center">
@@ -152,50 +168,46 @@ const OtrosScreen = () => {
                             </div>
                         </Col>
                         <Col xs="auto">
-                            <div className="d-flex align-items-center gap-2">
-                                <Button
-                                    variant="outline-secondary"
-                                    size="sm"
-                                    onClick={() => navigate('/')}
-                                >
-                                    <span className="material-icons me-1" style={{ fontSize: 16 }}>
-                                        arrow_back
-                                    </span>
-                                    Regresar al Inicio
-                                </Button>
-                                {activeModule && (
+                            {esAdministrador && (
+                                <div className="d-flex align-items-center gap-2">
                                     <Button
-                                        variant="outline-primary"
+                                        variant="outline-secondary"
                                         size="sm"
-                                        onClick={() => handleModuleChange('')}
+                                        onClick={() => navigate('/')}
                                     >
                                         <span className="material-icons me-1" style={{ fontSize: 16 }}>
                                             arrow_back
                                         </span>
-                                        Volver al Menú de Otros
+                                        Regresar al Inicio
                                     </Button>
-                                )}
-                            </div>
+                                    {activeModule && (
+                                        <Button
+                                            variant="outline-primary"
+                                            size="sm"
+                                            onClick={() => handleModuleChange('')}
+                                        >
+                                            <span className="material-icons me-1" style={{ fontSize: 16 }}>
+                                                arrow_back
+                                            </span>
+                                            Volver al Menú de Otros
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
                         </Col>
                     </Row>
                 </Container>
             </div>
 
-            {/* Contenido principal */}
             {activeModule === 'rutas' ? (
                 <Container fluid style={{ padding: 0 }}>
                     <GestionRutas />
                 </Container>
             ) : (
                 <Container className="py-4">
-                    {/* Mostrar módulo activo o menú principal */}
                     {activeModule === 'sucursales' ? (
                         <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
+                            <Button variant="outline-secondary" className="mb-3" onClick={() => handleModuleChange('')}>
                                 <i className="bi bi-arrow-left me-2"></i>
                                 Volver al Menú de Otros
                             </Button>
@@ -203,11 +215,7 @@ const OtrosScreen = () => {
                         </div>
                     ) : activeModule === 'usuarios' ? (
                         <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
+                            <Button variant="outline-secondary" className="mb-3" onClick={() => handleModuleChange('')}>
                                 <i className="bi bi-arrow-left me-2"></i>
                                 Volver al Menú de Otros
                             </Button>
@@ -215,11 +223,7 @@ const OtrosScreen = () => {
                         </div>
                     ) : activeModule === 'vendedores' ? (
                         <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
+                            <Button variant="outline-secondary" className="mb-3" onClick={() => handleModuleChange('')}>
                                 <i className="bi bi-arrow-left me-2"></i>
                                 Volver al Menú de Otros
                             </Button>
@@ -227,11 +231,7 @@ const OtrosScreen = () => {
                         </div>
                     ) : activeModule === 'herramientas' ? (
                         <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
+                            <Button variant="outline-secondary" className="mb-3" onClick={() => handleModuleChange('')}>
                                 <i className="bi bi-arrow-left me-2"></i>
                                 Volver al Menú de Otros
                             </Button>
@@ -239,23 +239,17 @@ const OtrosScreen = () => {
                         </div>
                     ) : activeModule === 'ventas_ruta' ? (
                         <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
-                                <i className="bi bi-arrow-left me-2"></i>
-                                Volver al Menú de Otros
-                            </Button>
+                            {esAdministrador && (
+                                <Button variant="outline-secondary" className="mb-3" onClick={() => handleModuleChange('')}>
+                                    <i className="bi bi-arrow-left me-2"></i>
+                                    Volver al Menú de Otros
+                                </Button>
+                            )}
                             <ReporteVentasRuta />
                         </div>
                     ) : activeModule === 'ia_manager' ? (
                         <div>
-                            <Button
-                                variant="outline-secondary"
-                                className="mb-3"
-                                onClick={() => handleModuleChange('')}
-                            >
+                            <Button variant="outline-secondary" className="mb-3" onClick={() => handleModuleChange('')}>
                                 <i className="bi bi-arrow-left me-2"></i>
                                 Volver al Menú de Otros
                             </Button>
@@ -263,17 +257,14 @@ const OtrosScreen = () => {
                         </div>
                     ) : activeModule === 'ia' ? (
                         <ChatIA onBack={() => handleModuleChange('')} />
-                    ) : (
+                    ) : esAdministrador ? (
                         <>
                             <Row>
                                 {modules.map(module => (
                                     <Col md={6} lg={4} key={module.id} className="mb-4">
                                         <Card
                                             className="h-100 shadow-sm"
-                                            style={{
-                                                cursor: 'pointer',
-                                                transition: 'transform 0.2s, box-shadow 0.2s'
-                                            }}
+                                            style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
                                             onMouseEnter={(e) => {
                                                 e.currentTarget.style.transform = 'translateY(-5px)';
                                                 e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
@@ -286,23 +277,13 @@ const OtrosScreen = () => {
                                         >
                                             <Card.Body className="text-center p-4">
                                                 <div className="mb-3">
-                                                    <span
-                                                        className={`material-icons text-${module.color}`}
-                                                        style={{ fontSize: 48 }}
-                                                    >
+                                                    <span className={`material-icons text-${module.color}`} style={{ fontSize: 48 }}>
                                                         {module.icon}
                                                     </span>
                                                 </div>
-                                                <Card.Title className="h5 mb-3">
-                                                    {module.title}
-                                                </Card.Title>
-                                                <Card.Text className="text-muted">
-                                                    {module.description}
-                                                </Card.Text>
-                                                <Button
-                                                    variant={`outline-${module.color}`}
-                                                    size="sm"
-                                                >
+                                                <Card.Title className="h5 mb-3">{module.title}</Card.Title>
+                                                <Card.Text className="text-muted">{module.description}</Card.Text>
+                                                <Button variant={`outline-${module.color}`} size="sm">
                                                     Acceder
                                                     <span className="material-icons ms-2" style={{ fontSize: 16 }}>
                                                         arrow_forward
@@ -314,7 +295,6 @@ const OtrosScreen = () => {
                                 ))}
                             </Row>
 
-                            {/* Información del sistema */}
                             <Row className="mt-5">
                                 <Col>
                                     <Card>
@@ -350,12 +330,10 @@ const OtrosScreen = () => {
 
                                             <div className="alert alert-info mt-3">
                                                 <div className="d-flex align-items-center">
-                                                    <span className="material-icons me-2">
-                                                        lightbulb
-                                                    </span>
+                                                    <span className="material-icons me-2">lightbulb</span>
                                                     <div>
                                                         <strong>Diferencia clave:</strong>
-                                                        Los usuarios de POS funcionan como vendedores con capacidad de facturación,
+                                                        {' '}Los usuarios de POS funcionan como vendedores con capacidad de facturación,
                                                         mientras que los de Pedidos solo gestionan pedidos sin función de venta.
                                                     </div>
                                                 </div>
@@ -363,12 +341,10 @@ const OtrosScreen = () => {
 
                                             <div className="alert alert-success mt-2">
                                                 <div className="d-flex align-items-center">
-                                                    <span className="material-icons me-2">
-                                                        check_circle
-                                                    </span>
+                                                    <span className="material-icons me-2">check_circle</span>
                                                     <div>
                                                         <strong>Flujo recomendado:</strong>
-                                                        1. Crear sucursales → 2. Crear usuarios → 3. Asignar módulos (POS/Pedidos/Ambos)
+                                                        {' '}1. Crear sucursales → 2. Crear usuarios → 3. Asignar módulos (POS/Pedidos/Ambos)
                                                     </div>
                                                 </div>
                                             </div>
@@ -377,7 +353,7 @@ const OtrosScreen = () => {
                                 </Col>
                             </Row>
                         </>
-                    )}
+                    ) : null}
                 </Container>
             )}
         </div>
