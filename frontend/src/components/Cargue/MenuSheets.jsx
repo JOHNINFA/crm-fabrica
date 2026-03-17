@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { VendedoresProvider, useVendedores } from "../../context/VendedoresContext";
 import { responsableStorage } from "../../utils/responsableStorage";
@@ -93,6 +93,24 @@ const productosPorDiaYId = {
 // Para restaurar: cambiar a ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6", "PRODUCCION"]
 const ids = ["ID1", "ID2", "ID3", "ID4", "ID5", "ID6"];
 
+const cargueTabletColumns = [
+  { key: "v", label: "V" },
+  { key: "d", label: "D" },
+  { key: "productos", label: "PRODUCTOS" },
+  { key: "cantidad", label: "CANTIDAD" },
+  { key: "dctos", label: "DCTOS." },
+  { key: "adicional", label: "ADICIONAL" },
+  { key: "devoluciones", label: "DEVOLUCIONES" },
+  { key: "vencidas", label: "VENCIDAS" },
+  { key: "lotes", label: "LOTES VENCIDOS" },
+  { key: "total", label: "TOTAL" },
+  { key: "valor", label: "VALOR" },
+  { key: "neto", label: "NETO" }
+];
+
+const TABLET_LAYOUT_MEDIA_QUERY =
+  "(max-width: 1024px), ((pointer: coarse) and (max-height: 820px) and (orientation: landscape))";
+
 export default function MenuSheets() {
   // Capturamos el parámetro :dia de la URL
   const { dia } = useParams();
@@ -103,6 +121,19 @@ export default function MenuSheets() {
   const [showModal, setShowModal] = useState(false);
   const [sincronizando, setSincronizando] = useState(false); // 🔄 Estado para spinner de sincronización
   const [tempNombre, setTempNombre] = useState("");
+  const [isTabletLayout, setIsTabletLayout] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(TABLET_LAYOUT_MEDIA_QUERY).matches : false
+  );
+  const [showTabletHeader, setShowTabletHeader] = useState(false);
+  const [tabletHeaderLayout, setTabletHeaderLayout] = useState({
+    left: 0,
+    width: 0,
+    columns: []
+  });
+  const tabletViewportRef = useRef(null);
+  const tabletHeaderAnchorRef = useRef(null);
+  const tabletTableScrollRef = useRef(null);
+  const tabletFixedHeaderScrollRef = useRef(null);
   // Función para calcular la fecha según el día de la semana
   const calcularFechaPorDia = (diaSeleccionado) => {
     const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
@@ -140,6 +171,138 @@ export default function MenuSheets() {
     console.log(`📅 FECHA CALCULADA para ${dia}: ${nuevaFecha}`);
     setFechaSeleccionada(nuevaFecha);
   }, [dia]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const mediaQuery = window.matchMedia(TABLET_LAYOUT_MEDIA_QUERY);
+    const handleMediaChange = (event) => {
+      setIsTabletLayout(event.matches);
+    };
+
+    setIsTabletLayout(mediaQuery.matches);
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleMediaChange);
+      return () => mediaQuery.removeEventListener("change", handleMediaChange);
+    }
+
+    mediaQuery.addListener(handleMediaChange);
+    return () => mediaQuery.removeListener(handleMediaChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isTabletLayout || typeof window === "undefined") {
+      setShowTabletHeader(false);
+      return undefined;
+    }
+
+    const updateTabletHeaderVisibility = () => {
+      const anchorEl = tabletHeaderAnchorRef.current;
+      const scrollEl = tabletTableScrollRef.current;
+      if (!anchorEl || !scrollEl) {
+        setShowTabletHeader(false);
+        return;
+      }
+
+      const anchorRect = anchorEl.getBoundingClientRect();
+      const tableRect = scrollEl.getBoundingClientRect();
+      const shouldShowStickyBars = anchorRect.top <= 0 && tableRect.bottom > 56;
+      setShowTabletHeader(shouldShowStickyBars);
+    };
+
+    const frameId = window.requestAnimationFrame(updateTabletHeaderVisibility);
+    window.addEventListener("scroll", updateTabletHeaderVisibility, { passive: true });
+    document.addEventListener("scroll", updateTabletHeaderVisibility, {
+      passive: true,
+      capture: true
+    });
+    window.addEventListener("resize", updateTabletHeaderVisibility, { passive: true });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", updateTabletHeaderVisibility);
+      document.removeEventListener("scroll", updateTabletHeaderVisibility, true);
+      window.removeEventListener("resize", updateTabletHeaderVisibility);
+    };
+  }, [isTabletLayout, idSeleccionado, fechaSeleccionada]);
+
+  useEffect(() => {
+    if (!isTabletLayout || typeof window === "undefined") {
+      setTabletHeaderLayout({ left: 0, width: 0, columns: [] });
+      return undefined;
+    }
+
+    const measureTabletHeaderLayout = () => {
+      const scrollEl = tabletTableScrollRef.current;
+      const headerCells = scrollEl?.querySelectorAll("thead th");
+
+      if (!scrollEl || !headerCells || headerCells.length === 0) {
+        setTabletHeaderLayout({ left: 0, width: 0, columns: [] });
+        return;
+      }
+
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const visibleRight = Math.min(scrollRect.right, window.innerWidth);
+      const leftOffset = 1;
+      const columns = Array.from(headerCells).map((cell) => cell.getBoundingClientRect().width);
+
+      setTabletHeaderLayout({
+        left: Math.round(scrollRect.left) - leftOffset,
+        width: Math.max(0, Math.round(visibleRight - scrollRect.left) + leftOffset),
+        columns
+      });
+    };
+
+    const frameId = window.requestAnimationFrame(measureTabletHeaderLayout);
+    window.addEventListener("resize", measureTabletHeaderLayout, { passive: true });
+
+    const scrollEl = tabletTableScrollRef.current;
+    const tableEl = scrollEl?.querySelector("table");
+    const headerRowEl = scrollEl?.querySelector("thead tr");
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            measureTabletHeaderLayout();
+          })
+        : null;
+
+    if (resizeObserver) {
+      if (scrollEl) resizeObserver.observe(scrollEl);
+      if (tableEl) resizeObserver.observe(tableEl);
+      if (headerRowEl) resizeObserver.observe(headerRowEl);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", measureTabletHeaderLayout);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [isTabletLayout, idSeleccionado, fechaSeleccionada]);
+
+  useEffect(() => {
+    if (!isTabletLayout) return undefined;
+
+    const scrollEl = tabletTableScrollRef.current;
+    const headerScrollEl = tabletFixedHeaderScrollRef.current;
+
+    if (!scrollEl || !headerScrollEl) return undefined;
+
+    const syncScroll = () => {
+      if (tabletFixedHeaderScrollRef.current) {
+        tabletFixedHeaderScrollRef.current.scrollLeft = scrollEl.scrollLeft;
+      }
+    };
+
+    syncScroll();
+    scrollEl.addEventListener("scroll", syncScroll, { passive: true });
+
+    return () => {
+      scrollEl.removeEventListener("scroll", syncScroll);
+    };
+  }, [isTabletLayout, idSeleccionado, fechaSeleccionada]);
 
   // Estado independiente para cada ID
   const [datosIds, setDatosIds] = useState({
@@ -360,10 +523,49 @@ export default function MenuSheets() {
     setTempNombre("");
   };
 
-
-
   // Plantilla inicial según día e ID
   const registrosIniciales = productosPorDiaYId[dia]?.[idSeleccionado] || [];
+
+  const bottomBarContent = (
+    <>
+      <span className="text-muted small me-3">Vendedores:</span>
+      <div className="d-flex cargue-bottom-bar-buttons">
+        {ids.map((i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setIdSeleccionado(i)}
+            className={`btn btn-sm me-1 ${i === idSeleccionado
+              ? ''
+              : 'btn-outline-secondary'
+              }`}
+            style={{
+              minWidth: '50px',
+              fontSize: '0.8rem',
+              padding: '0.25rem 0.5rem',
+              ...(i === idSeleccionado && {
+                backgroundColor: '#0c2c53',
+                borderColor: '#0c2c53',
+                color: 'white'
+              })
+            }}
+          >
+            {i}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
+  const bottomBar = (
+    <div className="cargue-bottom-bar">
+      <div className="container-fluid cargue-bottom-bar-inner">
+        <div className="d-flex align-items-center py-2 cargue-bottom-bar-content">
+          {bottomBarContent}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <VendedoresProvider>
@@ -376,7 +578,61 @@ export default function MenuSheets() {
           }
         `}
       </style>
-      <div className="container-fluid" style={{ paddingBottom: '60px' }}>
+      <div
+        ref={tabletViewportRef}
+        className="container-fluid cargue-tablet-viewport"
+        style={{
+          paddingBottom: isTabletLayout
+            ? 'calc(96px + env(safe-area-inset-bottom, 0px))'
+            : 'calc(72px + env(safe-area-inset-bottom, 0px))'
+        }}
+      >
+        <div className="cargue-tablet-fixed-ids">
+          <div className="cargue-bottom-bar-inner">
+            <div className="d-flex align-items-center py-2 cargue-bottom-bar-content">
+              {bottomBarContent}
+            </div>
+          </div>
+        </div>
+
+        {isTabletLayout && (
+          <div
+            className={`cargue-tablet-fixed-header ${showTabletHeader ? 'is-visible' : ''}`}
+            aria-hidden="true"
+          >
+            <div
+              className="cargue-tablet-fixed-header-shell"
+              style={{
+                left: `${tabletHeaderLayout.left}px`,
+                width: `${tabletHeaderLayout.width}px`
+              }}
+            >
+              <div
+                ref={tabletFixedHeaderScrollRef}
+                className="cargue-tablet-fixed-header-scroll"
+              >
+                <div
+                  className="cargue-tablet-fixed-header-grid"
+                  style={{
+                    gridTemplateColumns: tabletHeaderLayout.columns.length
+                      ? tabletHeaderLayout.columns.map((width) => `${width}px`).join(" ")
+                      : undefined
+                  }}
+                >
+                  {cargueTabletColumns.map((column) => (
+                    <div
+                      key={column.key}
+                      className="cargue-tablet-fixed-header-cell"
+                    >
+                      {column.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header compacto */}
         <div className="d-flex justify-content-between align-items-center py-2" style={{ position: 'relative' }}>
           <div className="d-flex align-items-center gap-3">
@@ -569,44 +825,11 @@ export default function MenuSheets() {
               idUsuario={id_usuario}
               onEditarNombre={abrirModal}
               fechaSeleccionada={fechaSeleccionada}
+              tabletHeaderAnchorRef={tabletHeaderAnchorRef}
+              tabletTableScrollRef={tabletTableScrollRef}
               key={`${idSeleccionado}_${fechaSeleccionada}`}
             />
           )}
-        </div>
-
-
-        {/* Barra fija inferior con IDs */}
-        <div className="fixed-bottom bg-white border-top shadow-sm">
-          <div className="container-fluid">
-            <div className="d-flex align-items-center py-2">
-              <span className="text-muted small me-3">Vendedores:</span>
-              <div className="d-flex">
-                {ids.map((i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setIdSeleccionado(i)}
-                    className={`btn btn-sm me-1 ${i === idSeleccionado
-                      ? ''
-                      : 'btn-outline-secondary'
-                      }`}
-                    style={{
-                      minWidth: '50px',
-                      fontSize: '0.8rem',
-                      padding: '0.25rem 0.5rem',
-                      ...(i === idSeleccionado && {
-                        backgroundColor: '#0c2c53',
-                        borderColor: '#0c2c53',
-                        color: 'white'
-                      })
-                    }}
-                  >
-                    {i}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Modal para editar nombre */}
@@ -650,6 +873,7 @@ export default function MenuSheets() {
           </div>
         )}
       </div>
+      {bottomBar}
     </VendedoresProvider >
   );
 }

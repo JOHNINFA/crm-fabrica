@@ -2,6 +2,28 @@
    PLANTILLA OPERATIVA - RESPONSIVE & SCALABLE
    ============================================ */
 
+/* 🔧 FIX CRÍTICO: Permitir sticky en Cargue (overflow-x: hidden lo bloquea) */
+/* Forzar overflow visible en TODA la jerarquía */
+body:has(.plantilla-operativa) .main-content,
+.plantilla-operativa {
+    overflow: visible !important;
+}
+
+/* Asegurar que TODOS los contenedores permitan sticky y NO tengan scroll propio */
+.plantilla-operativa .row,
+.plantilla-operativa .col-12,
+.plantilla-operativa .tabla-productos-container {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+}
+
+/* La tabla NO debe tener scroll propio */
+.plantilla-operativa .tabla-productos {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
 /* Variables personalizadas para Cargue */
 .plantilla-operativa {
     --cargue-primary: #06386d;
@@ -9,6 +31,28 @@
     --cargue-header-bg: #e2efda;
     --cargue-row-odd: #e8f5e8;
     --cargue-row-even: #ffffff;
+}
+
+.plantilla-operativa-shell {
+    min-width: 1900px;
+    padding-right: 150px;
+}
+
+.plantilla-operativa-main-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.plantilla-operativa-table-column {
+    flex: 1 1 auto;
+}
+
+.plantilla-operativa-resumen-column {
+    flex: 0 0 450px;
+}
+
+.tabla-productos-scroll-shell {
+    width: 100%;
 }
 
 /* Botones Primary con color personalizado */
@@ -88,9 +132,14 @@ input[type="checkbox"]:focus {
 }
 
 /* ==================== TABLA DE PRODUCTOS ==================== */
+table.tabla-productos,
+.tabla-productos.table,
 .tabla-productos {
     font-size: 0.75rem;
     white-space: nowrap;
+    border-collapse: separate !important;
+    /* Requerido para sticky en Chrome */
+    border-spacing: 0 !important;
 }
 
 .tabla-productos .table-header {
@@ -490,6 +539,159 @@ input[type="checkbox"]:focus {
 }
 
 /* Responsive - Pantallas Pequeñas */
+@media (max-width: 1024px), (pointer: coarse) and (max-height: 820px) and (orientation: landscape) {
+    .cargue-tablet-viewport {
+        height: auto;
+        min-height: 100%;
+        overflow: visible;
+    }
+
+    .plantilla-operativa-shell {
+        min-width: 100%;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .plantilla-operativa .row {
+        --bs-gutter-x: 0;
+    }
+
+    .plantilla-operativa .col-12 {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .plantilla-operativa .text-muted.small {
+        display: none;
+    }
+
+    .plantilla-operativa button[title="Ver Auditoría de Liquidación vs App"] {
+        display: none !important;
+    }
+
+    .plantilla-operativa-main-layout {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .plantilla-operativa-table-column,
+    .plantilla-operativa-resumen-column {
+        width: 100%;
+        flex: 1 1 auto;
+    }
+
+    .plantilla-operativa-table-column {
+        min-width: 0;
+    }
+
+    .tabla-productos-scroll-shell {
+        position: relative;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 3.25rem;
+    }
+
+    .tabla-productos-scroll-shell::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .tabla-productos-scroll-shell::before {
+        content: "";
+        position: sticky;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        display: block;
+        background: rgba(255, 255, 255, 0.9);
+        pointer-events: none;
+        z-index: 3;
+    }
+
+    .tabla-productos th:nth-child(3) {
+        min-width: 16rem;
+        max-width: 18rem;
+    }
+
+    .tabla-productos td:nth-child(3) {
+        min-width: 16rem;
+        max-width: 18rem;
+    }
+
+    .plantilla-operativa-resumen-column .resumen-container {
+        max-width: 100%;
+        width: 100%;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .cargue-tablet-fixed-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1120;
+        padding-top: 0.25rem;
+        background: rgba(255, 255, 255, 0.96);
+        border-bottom: 1px solid rgba(142, 142, 142, 0.7);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        transform: translateY(-100%);
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+        pointer-events: none;
+    }
+
+    .cargue-tablet-fixed-header.is-visible {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .cargue-tablet-fixed-header-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cargue-tablet-fixed-header-scroll {
+        overflow-x: hidden;
+        scrollbar-width: none;
+    }
+
+    .cargue-tablet-fixed-header-scroll::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cargue-tablet-fixed-header-grid {
+        display: grid;
+        width: max-content;
+    }
+
+    .cargue-tablet-fixed-header-cell {
+        box-sizing: border-box;
+        background-color: var(--cargue-header-bg);
+        color: #000;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-align: center;
+        white-space: nowrap;
+        border-top: 1px solid #8e8e8e;
+        border-bottom: 1px solid #8e8e8e;
+        border-left: 1px solid #8e8e8e;
+        border-right: none;
+        padding: 0.4rem 0.5rem;
+        line-height: 1.4;
+        min-height: 2.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .cargue-tablet-fixed-header-cell:last-child {
+        border-right: 1px solid #8e8e8e;
+    }
+
+}
+
 @media (max-width: 768px) {
     .tabla-productos {
         font-size: 0.7rem;
@@ -502,11 +704,14 @@ input[type="checkbox"]:focus {
     .responsable-title {
         font-size: 1.1rem !important;
     }
+}
 
-    .resumen-container {
-        margin-left: 0;
-        margin-right: 0;
-        max-width: 100%;
+/* Sticky original de la tabla */
+@media (min-width: 1025px) and (hover: hover) {
+    .tabla-productos thead {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1020 !important;
     }
 }
 
@@ -529,4 +734,106 @@ input[type="checkbox"]:focus {
 .btn-sincronizar:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+/* Barra inferior de IDs siempre visible en Cargue */
+.cargue-bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1100;
+    background: #ffffff;
+    border-top: 1px solid #d9d9d9;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.cargue-bottom-bar-inner {
+    width: 100%;
+}
+
+.cargue-bottom-bar-content {
+    flex-wrap: nowrap;
+}
+
+.cargue-bottom-bar-buttons {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.cargue-tablet-fixed-ids {
+    display: none;
+}
+
+@media (max-width: 1024px), (pointer: coarse) and (max-height: 820px) and (orientation: landscape) {
+    .cargue-bottom-bar {
+        display: none !important;
+    }
+
+    .cargue-bottom-bar-inner {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.2rem);
+        background: #ffffff;
+    }
+
+    .cargue-bottom-bar-inner::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cargue-bottom-bar-content {
+        width: max-content;
+        min-width: 100%;
+        gap: 0.35rem;
+        padding-top: 0.2rem !important;
+        padding-bottom: 0.2rem !important;
+        justify-content: flex-start;
+    }
+
+    .cargue-bottom-bar-content > span {
+        margin-right: 0.25rem !important;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .cargue-bottom-bar-buttons {
+        gap: 0.2rem;
+        justify-content: flex-start;
+    }
+
+    .cargue-bottom-bar-buttons .btn {
+        min-width: 44px !important;
+        font-size: 0.72rem !important;
+        padding: 0.18rem 0.45rem !important;
+        margin-right: 0 !important;
+        white-space: nowrap;
+    }
+
+    .cargue-tablet-fixed-ids {
+        display: block;
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: calc(100vh - 38px - env(safe-area-inset-bottom, 0px));
+        top: calc(100dvh - 38px - env(safe-area-inset-bottom, 0px));
+        bottom: auto;
+        z-index: 1210;
+        background: #ffffff;
+        border-top: 1px solid #d9d9d9;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+        pointer-events: none;
+    }
+
+    .cargue-tablet-fixed-ids .cargue-bottom-bar-inner {
+        width: 100%;
+    }
+
+    .cargue-tablet-fixed-ids .cargue-bottom-bar-buttons,
+    .cargue-tablet-fixed-ids .cargue-bottom-bar-buttons .btn {
+        pointer-events: auto;
+    }
 }

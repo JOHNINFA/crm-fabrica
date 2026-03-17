@@ -52,6 +52,12 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
         e.target.select();
     };
 
+    const focusInput = (element) => {
+        if (!element) return;
+        element.focus();
+        setTimeout(() => element.select(), 0);
+    };
+
     const handleKeyDown = (e, index, campo) => {
         if (onInteractionStart) onInteractionStart();
         const columnas = ['dctos', 'adicional', 'devoluciones', 'vencidas'];
@@ -61,8 +67,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
             const nextId = `input-${campo}-${index + direction}`;
             const nextElement = document.getElementById(nextId);
             if (nextElement) {
-                nextElement.focus();
-                setTimeout(() => nextElement.select(), 0);
+                focusInput(nextElement);
             }
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             const currentIndex = columnas.indexOf(campo);
@@ -75,12 +80,19 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                     const nextElement = document.getElementById(nextId);
                     if (nextElement && !nextElement.disabled) {
                         e.preventDefault();
-                        nextElement.focus();
-                        setTimeout(() => nextElement.select(), 0);
+                        focusInput(nextElement);
                     }
                 }
             }
         }
+    };
+
+    const sharedNumericInputProps = {
+        autoComplete: 'off',
+        autoCorrect: 'off',
+        autoCapitalize: 'off',
+        spellCheck: false,
+        inputMode: 'numeric'
     };
 
     const formatValor = (valor) => {
@@ -101,7 +113,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                 </div>
             )}
 
-            <Table bordered hover className="tabla-productos">
+            <Table bordered hover className="tabla-productos" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                 <thead className="table-header">
                     <tr>
                         <th style={{ textAlign: 'center' }}>V</th>
@@ -152,6 +164,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     onFocus={handleFocus}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={true} readOnly={true}
+                                    {...sharedNumericInputProps}
                                     style={{ backgroundColor: 'transparent', cursor: 'not-allowed', color: 'black', border: 'none' }}
                                     title="Solo se puede modificar desde la App Móvil"
                                 />
@@ -163,6 +176,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'dctos')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || camposBloqueados}
+                                    {...sharedNumericInputProps}
                                     style={(esCompletado || camposBloqueados) ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
                                 />
                             </td>
@@ -173,6 +187,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'adicional')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || camposBloqueados}
+                                    {...sharedNumericInputProps}
                                     style={(esCompletado || camposBloqueados) ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed', opacity: 0.6 } : {}}
                                 />
                             </td>
@@ -183,6 +198,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'devoluciones')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || botonAlistamientoHabilitado}
+                                    {...sharedNumericInputProps}
                                     style={(esCompletado || botonAlistamientoHabilitado) ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                                 />
                             </td>
@@ -193,6 +209,7 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'vencidas')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || botonAlistamientoHabilitado}
+                                    {...sharedNumericInputProps}
                                     style={(esCompletado || botonAlistamientoHabilitado) ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
                                 />
                             </td>
