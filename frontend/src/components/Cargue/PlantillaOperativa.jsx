@@ -21,7 +21,16 @@ import './PlantillaOperativa.css';
 // URL de la API (usa variable de entorno en desarrollo, /api en producción)
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
-const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuario, onEditarNombre, fechaSeleccionada }) => {
+const PlantillaOperativa = ({
+    responsable = "RESPONSABLE",
+    dia,
+    idSheet,
+    idUsuario,
+    onEditarNombre,
+    fechaSeleccionada,
+    tabletHeaderAnchorRef,
+    tabletTableScrollRef
+}) => {
     const { products: allProducts, getProductsByModule } = useProducts();
 
     // 🔧 Formatear fecha para localStorage (YYYY-MM-DD)
@@ -1925,7 +1934,7 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
     const productosFiltradosAudit = productosOperativos.filter(p => (parseInt(p.vendidas) || 0) > 0);
 
     return (
-        <div className="container-fluid plantilla-operativa" style={{ minWidth: '1900px', paddingRight: '150px' }}>
+        <div className="container-fluid plantilla-operativa plantilla-operativa-shell">
             {/* 👤 CAMPO RESPONSABLE EDITABLE */}
             <div className="row mb-3">
                 <div className="col-12">
@@ -1998,16 +2007,26 @@ const PlantillaOperativa = ({ responsable = "RESPONSABLE", dia, idSheet, idUsuar
 
             <div className="row">
                 <div className="col-12">
-                    <div style={{ display: 'flex', gap: '20px' }}>
-                        <div className="tabla-productos-container" style={{ flex: '1 1 auto' }}>
-                            <TablaProductos
-                                productos={productosOperativos}
-                                onActualizarProducto={actualizarProducto}
-                                dia={dia}
-                                fechaSeleccionada={fechaSeleccionada}
+                    <div className="plantilla-operativa-main-layout">
+                        <div className="tabla-productos-container plantilla-operativa-table-column">
+                            <div
+                                ref={tabletHeaderAnchorRef}
+                                className="cargue-tablet-header-anchor"
+                                aria-hidden="true"
                             />
+                            <div
+                                ref={tabletTableScrollRef}
+                                className="tabla-productos-scroll-shell"
+                            >
+                                <TablaProductos
+                                    productos={productosOperativos}
+                                    onActualizarProducto={actualizarProducto}
+                                    dia={dia}
+                                    fechaSeleccionada={fechaSeleccionada}
+                                />
+                            </div>
                         </div>
-                        <div style={{ flex: '0 0 450px' }}>
+                        <div className="plantilla-operativa-resumen-column">
                             <ResumenVentas
                                 datos={datosResumen}
                                 productos={productosOperativos}
