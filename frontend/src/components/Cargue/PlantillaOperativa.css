@@ -818,8 +818,8 @@ table.tabla-productos,
         position: fixed;
         left: 0;
         right: 0;
-        top: calc(100vh - 38px - env(safe-area-inset-bottom, 0px));
-        top: calc(100dvh - 38px - env(safe-area-inset-bottom, 0px));
+        top: calc(100vh - 34px - env(safe-area-inset-bottom, 0px));
+        top: calc(100dvh - 34px - env(safe-area-inset-bottom, 0px));
         bottom: auto;
         z-index: 1210;
         background: #ffffff;
