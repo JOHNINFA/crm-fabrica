@@ -49,6 +49,14 @@ const PlantillaOperativa = ({
         () => `cargue_pending_${dia}_${idSheet}_${fechaFormateadaLS}`,
         [dia, idSheet, fechaFormateadaLS]
     );
+    const despachadorOverridesStorageKey = useMemo(
+        () => `cargue_despachador_overrides_${dia}_${idSheet}_${fechaFormateadaLS}`,
+        [dia, idSheet, fechaFormateadaLS]
+    );
+    const auditoriaFisicoStorageKey = useMemo(
+        () => `auditoria_fisico_${dia}_${idSheet}_${fechaFormateadaLS}`,
+        [dia, idSheet, fechaFormateadaLS]
+    );
 
     // 🚀 OPTIMIZACIÓN: Memoizar productos para evitar bucles infinitos
     const products = useMemo(() => {
@@ -134,6 +142,9 @@ const PlantillaOperativa = ({
     // 🆕 Estado para modal de vendidas
     const [mostrarModalVendidas, setMostrarModalVendidas] = useState(false);
     const [sincronizandoAuditoria, setSincronizandoAuditoria] = useState(false);
+    const [productosAuditoria, setProductosAuditoria] = useState([]);
+    const [auditoriaFisico, setAuditoriaFisico] = useState({});
+    const [despachadorOverrides, setDespachadorOverrides] = useState({});
 
     // 🧮 Función para recalcular totales correctamente
     const recalcularTotales = (productos) => {
@@ -162,6 +173,191 @@ const PlantillaOperativa = ({
                 neto
             };
         });
+    };
+
+    const normalizarProductoAuditoria = (nombre) => (
+        (nombre || '')
+            .toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase()
+            .replace(/\s+/g, ' ')
+            .trim()
+    );
+
+    const obtenerVencidasAppPorProducto = (ventasRuta = [], pedidos = [], fechaFormateada = '') => {
+        const acumulado = {};
+        const sumarProducto = (nombreProducto, cantidad) => {
+            const nombreNormalizado = normalizarProductoAuditoria(nombreProducto);
+            if (!nombreNormalizado) return;
+            acumulado[nombreNormalizado] = (acumulado[nombreNormalizado] || 0) + (parseInt(cantidad) || 0);
+        };
+
+        (ventasRuta || []).forEach((venta) => {
+            const fechaVenta = (venta?.fecha || '').split('T')[0];
+            if (fechaFormateada && fechaVenta !== fechaFormateada) return;
+            if (String(venta?.estado || '').toUpperCase() === 'ANULADA') return;
+            (venta?.productos_vencidos || []).forEach((item) => {
+                sumarProducto(item?.producto || item?.nombre, item?.cantidad);
+            });
+        });
+
+        (pedidos || []).forEach((pedido) => {
+            const fechaPedido = (pedido?.fecha_entrega || pedido?.fecha || '').split('T')[0];
+            if (fechaFormateada && fechaPedido !== fechaFormateada) return;
+            if (String(pedido?.estado || '').toUpperCase() === 'ANULADA') return;
+
+            const vendedorPedido = normalizarProductoAuditoria(pedido?.vendedor);
+            const vendedorResponsable = normalizarProductoAuditoria(nombreResponsable);
+            const asignadoPedido = String(pedido?.asignado_a_id || '').toUpperCase().trim();
+            const perteneceAlVendedor = asignadoPedido === idSheet || vendedorPedido === idSheet || (vendedorResponsable && vendedorPedido === vendedorResponsable);
+            if (!perteneceAlVendedor) return;
+
+            (pedido?.productos_vencidos || []).forEach((item) => {
+                sumarProducto(item?.producto || item?.nombre, item?.cantidad);
+            });
+        });
+
+        return acumulado;
+    };
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(auditoriaFisicoStorageKey);
+            setAuditoriaFisico(saved ? JSON.parse(saved) : {});
+        } catch (error) {
+            console.error('Error cargando físico de auditoría:', error);
+            setAuditoriaFisico({});
+        }
+    }, [auditoriaFisicoStorageKey]);
+
+    useEffect(() => {
+        try {
+            if (auditoriaFisico && Object.keys(auditoriaFisico).length > 0) {
+                localStorage.setItem(auditoriaFisicoStorageKey, JSON.stringify(auditoriaFisico));
+            } else {
+                localStorage.removeItem(auditoriaFisicoStorageKey);
+            }
+        } catch (error) {
+            console.error('Error guardando físico de auditoría:', error);
+        }
+    }, [auditoriaFisico, auditoriaFisicoStorageKey]);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(despachadorOverridesStorageKey);
+            setDespachadorOverrides(saved ? JSON.parse(saved) : {});
+        } catch (error) {
+            console.error('Error cargando overrides del despachador:', error);
+            setDespachadorOverrides({});
+        }
+    }, [despachadorOverridesStorageKey]);
+
+    useEffect(() => {
+        try {
+            if (despachadorOverrides && Object.keys(despachadorOverrides).length > 0) {
+                localStorage.setItem(
+                    despachadorOverridesStorageKey,
+                    JSON.stringify(despachadorOverrides)
+                );
+            } else {
+                localStorage.removeItem(despachadorOverridesStorageKey);
+            }
+        } catch (error) {
+            console.error('Error guardando overrides del despachador:', error);
+        }
+    }, [despachadorOverrides, despachadorOverridesStorageKey]);
+
+    const actualizarFisicoAuditoria = (producto, value) => {
+        const productoKey = normalizarProductoAuditoria(producto);
+        const nextValue = String(value ?? '').replace(/[^\d]/g, '');
+
+        setAuditoriaFisico((prev) => {
+            const next = { ...prev };
+            if (!nextValue) {
+                delete next[productoKey];
+            } else {
+                next[productoKey] = parseInt(nextValue, 10);
+            }
+            return next;
+        });
+    };
+
+    const obtenerFisicoAutomaticoAuditoria = (producto) => {
+        const devoluciones = parseInt(producto?.devoluciones) || 0;
+        return devoluciones > 0 ? devoluciones : null;
+    };
+
+    const obtenerFisicoAuditoriaProducto = (producto) => {
+        const productoKey = normalizarProductoAuditoria(producto?.producto);
+        const fisicoManual = auditoriaFisico[productoKey];
+        const tieneFisicoManual = fisicoManual !== undefined && fisicoManual !== null && fisicoManual !== '';
+
+        if (tieneFisicoManual) {
+            return {
+                valor: parseInt(fisicoManual, 10) || 0,
+                esManual: true
+            };
+        }
+
+        return {
+            valor: obtenerFisicoAutomaticoAuditoria(producto),
+            esManual: false
+        };
+    };
+
+    const debeMostrarseEnAuditoria = (producto) => {
+        const vendidasApp = parseInt(producto?.vendidas_app ?? producto?.vendidas) || 0;
+        const vencidasApp = parseInt(producto?.vencidas_app ?? producto?.vencidas) || 0;
+        const devoluciones = parseInt(producto?.devoluciones) || 0;
+        const vencidasCargue = parseInt(producto?.vencidas_cargue ?? producto?.vencidas) || 0;
+        const { valor: fisicoRecibido } = obtenerFisicoAuditoriaProducto(producto);
+        const tieneFisico = fisicoRecibido !== undefined && fisicoRecibido !== null && fisicoRecibido !== '';
+
+        return vendidasApp > 0 || vencidasApp > 0 || devoluciones > 0 || vencidasCargue > 0 || tieneFisico;
+    };
+
+    const actualizarOverrideDespachador = (producto, campo, valorOriginal, nuevoValor) => {
+        if (!producto || !['devoluciones', 'vencidas'].includes(campo)) return;
+
+        const originalNormalizado = parseInt(valorOriginal) || 0;
+        const nuevoNormalizado = parseInt(nuevoValor) || 0;
+
+        setDespachadorOverrides((prev) => {
+            const next = { ...prev };
+            const productoActual = { ...(next[producto] || {}) };
+            const overrideExistente = productoActual[campo];
+            const originalReferencia = overrideExistente?.original ?? originalNormalizado;
+
+            if (nuevoNormalizado === originalReferencia) {
+                delete productoActual[campo];
+                if (Object.keys(productoActual).length === 0) {
+                    delete next[producto];
+                } else {
+                    next[producto] = productoActual;
+                }
+                return next;
+            }
+
+            productoActual[campo] = {
+                original: originalReferencia,
+                value: nuevoNormalizado
+            };
+            next[producto] = productoActual;
+            return next;
+        });
+    };
+
+    const estaEnFaseDespachador = () => {
+        const estadoGlobal = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) || 'ALISTAMIENTO';
+        const estadoPorId = localStorage.getItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`) || '';
+        const estadoDespachoId = localStorage.getItem(`estado_despacho_${dia}_${idSheet}_${fechaFormateadaLS}`) || '';
+
+        return (
+            estadoGlobal === 'DESPACHO' ||
+            estadoPorId === 'FINALIZAR' ||
+            estadoDespachoId === 'DESPACHO'
+        );
     };
 
     // 🔍 DEBUG: Monitorear cambios en nombreResponsable
@@ -1744,6 +1940,19 @@ const PlantillaOperativa = ({
         // Verificar estado del botón para actualización en tiempo real
         const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) || 'ALISTAMIENTO';
 
+        if (
+            estaEnFaseDespachador() &&
+            (campo === 'devoluciones' || campo === 'vencidas') &&
+            productoActual?.producto
+        ) {
+            actualizarOverrideDespachador(
+                productoActual.producto,
+                campo,
+                productoActual[campo],
+                valorProcesado
+            );
+        }
+
         setProductosOperativos(prev =>
             prev.map(p => {
                 if (p.id === id) {
@@ -2160,28 +2369,95 @@ const PlantillaOperativa = ({
             }
 
             // Consultar datos reales de la BD del día
-            const url = `${API_URL}/obtener-cargue/?vendedor_id=${idSheet}&dia=${dia}&fecha=${fechaFormateada}`;
-            const res = await fetch(url);
+            const [resCargue, resVentasRuta, resPedidos] = await Promise.all([
+                fetch(`${API_URL}/obtener-cargue/?vendedor_id=${idSheet}&dia=${dia}&fecha=${fechaFormateada}`),
+                fetch(`${API_URL}/ventas-ruta/?vendedor_id=${idSheet}&fecha=${fechaFormateada}`),
+                fetch(`${API_URL}/pedidos/?fecha_entrega=${fechaFormateada}`)
+            ]);
 
-            if (res.ok) {
-                const data = await res.json();
+            if (resCargue.ok) {
+                const data = await resCargue.json();
+                const ventasRuta = resVentasRuta.ok ? await resVentasRuta.json() : [];
+                const pedidos = resPedidos.ok ? await resPedidos.json() : [];
+                const vencidasAppPorProducto = obtenerVencidasAppPorProducto(ventasRuta, pedidos, fechaFormateada);
+
                 if (data && !data.error) {
-                    setProductosOperativos(prev => prev.map(p => {
+                    const productosEnriquecidos = productosOperativos.map(p => {
                         const ds = data[p.producto] || data[p.producto.trim()];
-                        if (ds) return { ...p, vendidas: ds.vendidas !== undefined ? ds.vendidas : (p.vendidas || 0) };
-                        return p;
-                    }));
+                        if (!ds) {
+                            const totalLiquidable = parseInt(p.total) || 0;
+                            const vendidas = parseInt(p.vendidas) || 0;
+                            const vencidasCargue = parseInt(p.vencidas) || 0;
+                            const vencidasApp = vencidasAppPorProducto[normalizarProductoAuditoria(p.producto)] || 0;
+                            return {
+                                ...p,
+                                total_liquidable: totalLiquidable,
+                                vendidas_app: vendidas,
+                                vencidas_app: vencidasApp,
+                                vencidas_cargue: vencidasCargue,
+                                vencidas_no_reportadas: Math.max(0, vencidasCargue - vencidasApp),
+                                restante_esperado: Math.max(0, totalLiquidable - vendidas),
+                            };
+                        }
+
+                        const totalLiquidable = parseInt(ds.total ?? p.total) || 0;
+                        const vendidas = parseInt(ds.vendidas ?? p.vendidas) || 0;
+                        const vencidasCargue = parseInt(ds.vencidas ?? p.vencidas) || 0;
+                        const vencidasApp = vencidasAppPorProducto[normalizarProductoAuditoria(p.producto)] || 0;
+
+                        return {
+                            ...p,
+                            cantidad: ds.cantidad ?? p.cantidad,
+                            dctos: ds.dctos ?? p.dctos,
+                            adicional: ds.adicional ?? p.adicional,
+                            devoluciones: ds.devoluciones ?? p.devoluciones,
+                            vencidas: vencidasCargue,
+                            vendidas: vendidas,
+                            total: totalLiquidable,
+                            total_liquidable: totalLiquidable,
+                            vendidas_app: vendidas,
+                            vencidas_app: vencidasApp,
+                            vencidas_cargue: vencidasCargue,
+                            vencidas_no_reportadas: Math.max(0, vencidasCargue - vencidasApp),
+                            restante_esperado: Math.max(0, totalLiquidable - vendidas),
+                        };
+                    });
+
+                    setProductosAuditoria(
+                        productosEnriquecidos.filter(debeMostrarseEnAuditoria)
+                    );
                 }
             }
         } catch (error) {
             console.error("Error obteniendo datos para auditoría:", error);
+            setProductosAuditoria(
+                productosOperativos
+                    .map(p => {
+                        const totalLiquidable = parseInt(p.total) || 0;
+                        const vendidas = parseInt(p.vendidas) || 0;
+                        const vencidas = parseInt(p.vencidas) || 0;
+                        return {
+                            ...p,
+                            total_liquidable: totalLiquidable,
+                            vendidas_app: vendidas,
+                            vencidas_app: 0,
+                            vencidas_cargue: vencidas,
+                            vencidas_no_reportadas: vencidas,
+                            restante_esperado: Math.max(0, totalLiquidable - vendidas),
+                        };
+                    })
+                    .filter(debeMostrarseEnAuditoria)
+            );
         } finally {
             setSincronizandoAuditoria(false);
             setMostrarModalVendidas(true);
         }
     };
 
-    const productosFiltradosAudit = productosOperativos.filter(p => (parseInt(p.vendidas) || 0) > 0);
+    const productosFiltradosAudit = useMemo(
+        () => productosAuditoria.filter(debeMostrarseEnAuditoria),
+        [productosAuditoria, auditoriaFisico]
+    );
 
     return (
         <div className="container-fluid plantilla-operativa plantilla-operativa-shell">
@@ -2273,6 +2549,7 @@ const PlantillaOperativa = ({
                                     onActualizarProducto={actualizarProducto}
                                     dia={dia}
                                     fechaSeleccionada={fechaSeleccionada}
+                                    despachadorOverrides={despachadorOverrides}
                                 />
                             </div>
                         </div>
@@ -2346,11 +2623,11 @@ const PlantillaOperativa = ({
                     <style>{`
                         .modal-auditoria-bg {
                             display: flex !important;
-                            align-items: center;
+                            align-items: flex-start;
                             justify-content: center;
                             background-color: rgba(15, 23, 42, 0.6);
                             backdrop-filter: blur(4px);
-                            padding: 1rem;
+                            padding: 0.75rem 1rem 1rem;
                         }
                         @media (min-width: 992px) {
                             /* En pantallas de PC o mayores esquiva el menú lateral */
@@ -2358,9 +2635,39 @@ const PlantillaOperativa = ({
                                 padding-left: 170px !important;
                             }
                         }
+                        .tabla-auditoria-compacta {
+                            width: 100%;
+                            table-layout: fixed;
+                        }
+                        .tabla-auditoria-compacta th,
+                        .tabla-auditoria-compacta td {
+                            word-wrap: break-word;
+                            overflow-wrap: anywhere;
+                        }
+                        .tabla-auditoria-compacta .col-producto {
+                            width: 32%;
+                        }
+                        .tabla-auditoria-compacta .col-num {
+                            width: 12%;
+                        }
+                        .tabla-auditoria-compacta .col-estado {
+                            width: 20%;
+                        }
+                        .badge-auditoria-estado {
+                            white-space: normal;
+                            line-height: 1.15;
+                            justify-content: center;
+                        }
+                        .input-fisico-auditoria {
+                            max-width: 78px;
+                            min-width: 64px;
+                            text-align: center;
+                            font-size: 0.78rem;
+                            padding: 0.18rem 0.3rem;
+                        }
                     `}</style>
                     <div className="modal show modal-auditoria-bg" tabIndex="-1">
-                        <div className="modal-dialog modal-dialog-scrollable m-0" style={{ width: '100%', maxWidth: '960px' }}>
+                        <div className="modal-dialog modal-dialog-scrollable m-0" style={{ width: '100%', maxWidth: '1120px' }}>
                             <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden w-100" style={{ backgroundColor: '#ffffff', maxHeight: '90vh' }}>
                                 {/* Header */}
                                 <div className="modal-header border-bottom py-3 px-4" style={{ borderColor: '#f1f5f9' }}>
@@ -2370,7 +2677,7 @@ const PlantillaOperativa = ({
                                             Auditoría de Liquidación <span className="text-secondary opacity-75 fw-normal ms-2" style={{ fontSize: '0.9rem' }}>| {dia} {fechaSeleccionada?.split ? fechaSeleccionada.split('T')[0] : fechaSeleccionada}</span>
                                         </h5>
                                         <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>
-                                            Muestra los productos que el vendedor reportó como vendidos en la App Móvil.
+                                            Referencia operativa basada en datos de App Móvil y cargue liquidable. No corresponde a conteo físico del despachador.
                                         </p>
                                     </div>
                                     <button
@@ -2381,22 +2688,23 @@ const PlantillaOperativa = ({
                                 </div>
 
                                 {/* Body */}
-                                <div className="modal-body p-4 bg-white" style={{ overflowY: 'hidden' }}>
-                                    <div className="border rounded-3" style={{ borderColor: '#e2e8f0', overflow: 'auto', maxHeight: '55vh' }}>
-                                        <table className="table mb-0 align-middle">
+                                <div className="modal-body p-3 bg-white" style={{ overflowY: 'hidden' }}>
+                                    <div className="border rounded-3" style={{ borderColor: '#e2e8f0', overflowY: 'auto', overflowX: 'hidden', maxHeight: '55vh' }}>
+                                        <table className="table table-sm mb-0 align-middle tabla-auditoria-compacta">
                                             <thead style={{ backgroundColor: '#f8fafc', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}>
                                                 <tr className="text-center text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px', color: '#475569' }}>
-                                                    <th className="text-start py-3 px-4 border-bottom-0 fw-semibold bg-transparent">PRODUCTO</th>
-                                                    <th className="py-3 px-3 border-bottom-0 fw-semibold text-center bg-transparent" style={{ width: '15%' }}>FÍSICO</th>
-                                                    <th className="py-3 px-3 border-bottom-0 fw-semibold text-center bg-transparent" style={{ width: '15%' }}>APP (VENDIDAS)</th>
-                                                    <th className="py-3 px-3 border-bottom-0 fw-semibold text-center bg-transparent" style={{ width: '15%' }}>DIFERENCIA</th>
-                                                    <th className="py-3 px-4 border-bottom-0 fw-semibold text-center bg-transparent text-nowrap" style={{ width: '20%' }}>ESTADO</th>
+                                                    <th className="text-start py-3 px-3 border-bottom-0 fw-semibold bg-transparent col-producto">PRODUCTO</th>
+                                                    <th className="py-3 px-2 border-bottom-0 fw-semibold text-center bg-transparent col-num">TOTAL LIQ.</th>
+                                                    <th className="py-3 px-2 border-bottom-0 fw-semibold text-center bg-transparent col-num">APP VEND.</th>
+                                                    <th className="py-3 px-2 border-bottom-0 fw-semibold text-center bg-transparent col-num">APP VENC.</th>
+                                                    <th className="py-3 px-2 border-bottom-0 fw-semibold text-center bg-transparent col-num">RESTANTE</th>
+                                                    <th className="py-3 px-2 border-bottom-0 fw-semibold text-center bg-transparent col-estado">DEV. FIS. / ESTADO</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white">
                                                 {productosFiltradosAudit.length === 0 && (
                                                     <tr>
-                                                        <td colSpan="3" className="text-center text-muted py-5 border-0 bg-light">
+                                                        <td colSpan="6" className="text-center text-muted py-5 border-0 bg-light">
                                                             <i className="bi bi-inbox fs-2 d-block mb-3 text-secondary"></i>
                                                             No hay productos registrados para esta vista.
                                                         </td>
@@ -2404,62 +2712,95 @@ const PlantillaOperativa = ({
                                                 )}
                                                 {productosFiltradosAudit
                                                     .map((p, idx) => {
-                                                        const fisico = parseInt(p.total) || 0;
-                                                        const app = parseInt(p.vendidas) || 0;
-                                                        const diferencia = app - fisico;
+                                                        const totalLiquidable = parseInt(p.total_liquidable ?? p.total) || 0;
+                                                        const vendidasApp = parseInt(p.vendidas_app ?? p.vendidas) || 0;
+                                                        const vencidasApp = parseInt(p.vencidas_app ?? p.vencidas) || 0;
+                                                        const vencidasNoReportadas = parseInt(p.vencidas_no_reportadas) || 0;
+                                                        const restanteEsperado = Math.max(0, parseInt(p.restante_esperado) || 0);
+                                                        const { valor: fisicoRecibido, esManual: fisicoEsManual } = obtenerFisicoAuditoriaProducto(p);
+                                                        const tieneFisico = fisicoRecibido !== undefined && fisicoRecibido !== null && fisicoRecibido !== '';
+                                                        const diferenciaFisica = tieneFisico ? (parseInt(fisicoRecibido, 10) - restanteEsperado) : null;
+                                                        const ajusteManualDespachador = Boolean(
+                                                            despachadorOverrides?.[p.producto]?.devoluciones ||
+                                                            despachadorOverrides?.[p.producto]?.vencidas
+                                                        );
 
                                                         let estadoBadge = null;
-                                                        let difBadge = null;
+                                                        let restanteBadge = null;
                                                         let rowBg = 'transparent';
+                                                        if (restanteEsperado === 0) {
+                                                            restanteBadge = <span className="text-secondary fw-medium">0</span>;
+                                                        } else {
+                                                            rowBg = '#fffbeb';
+                                                            restanteBadge = (
+                                                                <span className="d-inline-flex align-items-center px-2 py-1 rounded-pill fw-bold" style={{ fontSize: '0.72rem', backgroundColor: '#fee2e2', color: '#b91c1c' }}>
+                                                                    {restanteEsperado}
+                                                                </span>
+                                                            );
+                                                        }
 
-                                                        if (diferencia === 0) {
-                                                            difBadge = <span className="text-secondary fw-medium">-</span>;
+                                                        if (vencidasNoReportadas > 0 && ajusteManualDespachador) {
                                                             estadoBadge = (
-                                                                <span className="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}>
-                                                                    <i className="bi bi-check-circle-fill" style={{ color: '#94a3b8' }}></i> Cuadra
+                                                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#fff7ed', color: '#b45309', border: '1px solid #fdba74' }}>
+                                                                    <i className="bi bi-pencil-square"></i> Ajusto dev. y vencida
                                                                 </span>
                                                             );
-                                                        } else if (diferencia < 0) {
-                                                            rowBg = '#fef2f2'; // hover red-50 appx
-                                                            difBadge = (
-                                                                <span className="d-inline-flex align-items-center px-3 py-1 rounded-pill fw-bold" style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#b91c1c' }}>
-                                                                    {diferencia}
+                                                        } else if (vencidasNoReportadas > 0) {
+                                                            estadoBadge = (
+                                                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fcd34d' }}>
+                                                                    <i className="bi bi-exclamation-circle-fill"></i> No reporto vencida
                                                                 </span>
                                                             );
+                                                        } else if (ajusteManualDespachador) {
                                                             estadoBadge = (
-                                                                <span className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
+                                                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#fff7ed', color: '#b45309', border: '1px solid #fdba74' }}>
+                                                                    <i className="bi bi-pencil-square"></i> Ajustado manualmente
+                                                                </span>
+                                                            );
+                                                        } else if (restanteEsperado > 0) {
+                                                            estadoBadge = (
+                                                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
                                                                     <span className="rounded-circle spinner-grow spinner-grow-sm" style={{ backgroundColor: '#dc2626', width: '6px', height: '6px' }}></span>
-                                                                    Faltante
+                                                                    Pendiente
                                                                 </span>
                                                             );
                                                         } else {
-                                                            rowBg = '#fffbeb';
-                                                            difBadge = (
-                                                                <span className="d-inline-flex align-items-center px-3 py-1 rounded-pill fw-bold" style={{ fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#b45309' }}>
-                                                                    +{diferencia}
-                                                                </span>
-                                                            );
                                                             estadoBadge = (
-                                                                <span className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
-                                                                    <span className="rounded-circle" style={{ backgroundColor: '#d97706', width: '6px', height: '6px' }}></span>
-                                                                    Sobrante
+                                                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                                                                    <i className="bi bi-check-circle-fill" style={{ color: '#94a3b8' }}></i> OK
                                                                 </span>
                                                             );
                                                         }
 
                                                         return (
                                                             <tr key={idx} style={{ backgroundColor: rowBg, borderBottom: '1px solid #f1f5f9' }}>
-                                                                <td className="px-4 py-3 border-0">
-                                                                    <span className="fw-medium" style={{ color: '#0f172a', fontSize: '0.875rem' }}>{p.producto}</span>
+                                                                <td className="px-3 py-3 border-0">
+                                                                    <span className="fw-medium" style={{ color: '#0f172a', fontSize: '0.82rem', lineHeight: '1.2' }}>{p.producto}</span>
                                                                 </td>
-                                                                <td className="text-center py-3 border-0">
-                                                                    <span style={{ color: '#475569', fontSize: '0.875rem' }}>{fisico}</span>
+                                                                <td className="text-center py-3 px-2 border-0">
+                                                                    <span style={{ color: '#475569', fontSize: '0.82rem' }}>{totalLiquidable}</span>
                                                                 </td>
-                                                                <td className="text-center py-3 border-0">
-                                                                    <span style={{ color: '#475569', fontSize: '0.875rem', fontWeight: 'bold' }}>{app}</span>
+                                                                <td className="text-center py-3 px-2 border-0">
+                                                                    <span style={{ color: '#475569', fontSize: '0.82rem', fontWeight: 'bold' }}>{vendidasApp}</span>
                                                                 </td>
-                                                                <td className="text-center py-3 border-0">{difBadge}</td>
-                                                                <td className="text-center py-3 border-0 text-nowrap">{estadoBadge}</td>
+                                                                <td className="text-center py-3 px-2 border-0">
+                                                                    <span style={{ color: '#475569', fontSize: '0.82rem' }}>{vencidasApp}</span>
+                                                                </td>
+                                                                <td className="text-center py-3 px-2 border-0">{restanteBadge}</td>
+                                                                <td className="text-center py-3 px-2 border-0">
+                                                                    <div className="d-flex flex-column align-items-center gap-1">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            className="form-control form-control-sm input-fisico-auditoria"
+                                                                            placeholder="Dev."
+                                                                            value={tieneFisico ? fisicoRecibido : ''}
+                                                                            onChange={(e) => actualizarFisicoAuditoria(p.producto, e.target.value)}
+                                                                            title={fisicoEsManual ? 'Conteo físico ajustado manualmente' : 'Calculado automáticamente desde devoluciones'}
+                                                                        />
+                                                                        {estadoBadge}
+                                                                    </div>
+                                                                </td>
                                                             </tr>
                                                         );
                                                     })}
@@ -2468,21 +2809,16 @@ const PlantillaOperativa = ({
                                                 <tr>
                                                     <td className="text-end pe-4 py-3 fw-bold text-uppercase bg-transparent" style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Unidades:</td>
                                                     <td className="text-center fw-bold py-3 bg-transparent" style={{ color: '#0f172a' }}>
-                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.total) || 0), 0)}
+                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.total_liquidable ?? p.total) || 0), 0)}
                                                     </td>
                                                     <td className="text-center fw-bold py-3 bg-transparent" style={{ color: '#0f172a' }}>
-                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.vendidas) || 0), 0)}
+                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.vendidas_app ?? p.vendidas) || 0), 0)}
+                                                    </td>
+                                                    <td className="text-center fw-bold py-3 bg-transparent" style={{ color: '#0f172a' }}>
+                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.vencidas_app ?? p.vencidas) || 0), 0)}
                                                     </td>
                                                     <td className="text-center fw-bold py-3 bg-transparent" colSpan="2">
-                                                        {/* Total de diferencias si se desea mostrar, o dejar vacío */}
-                                                        {(() => {
-                                                            const diffTotal = productosFiltradosAudit.reduce((sum, p) => sum + ((parseInt(p.vendidas) || 0) - (parseInt(p.total) || 0)), 0);
-                                                            return diffTotal !== 0 ? (
-                                                                <span className={diffTotal > 0 ? 'text-warning' : 'text-danger'}>
-                                                                    {diffTotal > 0 ? '+' : ''}{diffTotal}
-                                                                </span>
-                                                            ) : '-';
-                                                        })()}
+                                                        {productosFiltradosAudit.reduce((sum, p) => sum + (parseInt(p.restante_esperado) || 0), 0)}
                                                     </td>
                                                 </tr>
                                             </tfoot>
@@ -2491,19 +2827,7 @@ const PlantillaOperativa = ({
                                 </div>
 
                                 {/* Footer */}
-                                <div className="modal-footer d-flex justify-content-between align-items-center py-3 px-4 rounded-bottom-4" style={{ backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
-                                    <div>
-                                        {productosFiltradosAudit.some(p => ((parseInt(p.vendidas) || 0) - (parseInt(p.total) || 0)) < 0) ? (
-                                            <span className="d-flex align-items-center text-danger" style={{ fontSize: '0.875rem', fontWeight: '500' }}>
-                                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                                Discrepancia crítica detectada (Faltantes)
-                                            </span>
-                                        ) : (
-                                            <span className="text-muted" style={{ fontSize: '0.875rem' }}>
-                                                No se detectan faltantes críticos.
-                                            </span>
-                                        )}
-                                    </div>
+                                <div className="modal-footer d-flex justify-content-end align-items-center py-2 px-4 rounded-bottom-4" style={{ backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
                                     <div className="d-flex gap-2">
                                         <button
                                             type="button"

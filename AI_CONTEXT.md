@@ -841,7 +841,7 @@ Logs clave en consola:
 
 ### ¿Qué es?
 
-El Modal de Auditoría es una vista especial dentro de `PlantillaOperativa.jsx` que el despachador puede abrir para revisar, **en tiempo real**, qué unidades registró el vendedor como vendidas en la App Móvil (`vendidas`). Se abre con el botón **"⚖️ Auditoría"** en el encabezado de la plantilla.
+El Modal de Auditoría es una vista especial dentro de `PlantillaOperativa.jsx` que el despachador puede abrir para revisar, **en tiempo real**, una referencia operativa entre el cargue liquidable y lo reportado por la App Móvil. Se abre con el botón **"⚖️ Auditoría"** en el encabezado de la plantilla.
 
 ### Flujo al Abrir el Modal
 
@@ -849,33 +849,41 @@ Al hacer clic en "⚖️ Auditoría", se ejecuta `abrirAuditoria()`:
 
 1. El botón muestra un spinner "Sincronizando..." y se deshabilita
 2. Hace `fetch` a `/api/obtener-cargue/?vendedor_id=IDx&dia=...&fecha=...`
-3. Actualiza **solo el campo `vendidas`** en `productosOperativos` con los datos frescos del servidor
-4. Abre el modal con datos al 100% actualizados
+3. Construye `productosAuditoria` con datos frescos del servidor (`total`, `vendidas`, `vencidas`, etc.)
+4. Calcula `restante_esperado = total_liquidable - vendidas_app`
+5. Abre el modal con una referencia consistente entre App y cargue
 
 ```javascript
 const abrirAuditoria = async () => {
     setSincronizandoAuditoria(true);
     // ... fetch al servidor ...
-    setProductosOperativos(prev => prev.map(p => {
-        const ds = datosServidor[p.producto];
-        if (ds) return { ...p, vendidas: ds.vendidas ?? p.vendidas ?? 0 };
-        return p;
-    }));
+    setProductosAuditoria(productosEnriquecidos);
     setMostrarModalVendidas(true);
 };
 ```
 
 ### Vista del Modal
 
-- Solo muestra productos donde **`vendidas > 0`** (lo que el vendedor reportó como vendido)
-- Columnas: PRODUCTO | FÍSICO (total cargado) | APP (vendidas) | DIFERENCIA | ESTADO
-- Badge de estado semántico: 🔴 Faltante / 🟢 Cuadra / 🟡 Sobrante
+- Muestra productos donde **`vendidas > 0`** o **`vencidas > 0`**
+- Columnas actuales:
+  - PRODUCTO
+  - TOTAL LIQ. (`total` que ya descuenta vencidas/devoluciones/dctos/adicional)
+  - APP (VEND.)
+  - APP (VENC.)
+  - RESTANTE
+  - ESTADO
+- Importante:
+  - ya no se presenta `total` como “FÍSICO”, porque ese modal no usa conteo físico real del despachador
+  - el modal sirve como **referencia operativa** entre cargue liquidable y App, no como auditoría física definitiva
+- Badge de estado semántico:
+  - `Liquidado` si `restante_esperado = 0`
+  - `Pendiente por entregar` si `restante_esperado > 0`
 - `thead` y `tfoot` con `position: sticky` para scroll interno sin perder encabezados ni totales
-- Footer muestra "Discrepancia crítica detectada" si hay faltantes
+- Footer muestra si aún hay unidades pendientes por cerrar según App + cargue liquidable
 
 ### Protección del Polling
 
-Mientras el modal está abierto, el polling (3 seg) está pausado para evitar que `cargarDatosGuardados()` sobreescriba `vendidas` con valores viejos de localStorage:
+Mientras el modal está abierto, el polling (3 seg) está pausado para evitar que `cargarDatosGuardados()` sobreescriba la referencia de auditoría con valores viejos de localStorage:
 
 ```javascript
 const pollingInterval = setInterval(async () => {
@@ -890,6 +898,50 @@ El `useEffect` del polling incluye `mostrarModalVendidas` en sus dependencias pa
 
 Se inyecta un `<style>` dinámico con media query para esquivar el menú lateral:
 
+### Ajustes posteriores (19 Mar 2026)
+
+- El modal dejó de usar semántica engañosa tipo `FÍSICO vs APP`; ahora el foco operativo es:
+  - `TOTAL LIQ.`
+  - `APP VEND.`
+  - `APP VENC.`
+  - `RESTANTE`
+  - `DEV. FIS. / ESTADO`
+- El campo de físico del modal terminó enfocado en `devoluciones físicas`, no en un “físico total” ambiguo.
+  - el input se autocompleta desde `devoluciones`
+  - puede sobreescribirse manualmente si el despachador quiere corregirlo
+- La auditoría ya no intenta explicar todo con múltiples badges por fila.
+  - se simplificó a un solo estado principal por producto para lectura rápida
+  - la idea operativa final es detectar si el `ID` está reportando bien o no, sin recargar el modal
+- Estado principal final por fila:
+  - `OK`: el flujo reportado por app/cargue cuadra para esa fila
+  - `Pendiente`: todavía hay restante por cerrar, pero sin evidencia clara de mala reportería
+  - `Ajustado manualmente`: el despachador corrigió manualmente `devoluciones` o `vencidas` en esa fila
+  - `No reporto vencida`: la app no reportó la vencida y esta apareció en CRM/cargue
+  - `Ajusto dev. y vencida`: caso combinado donde la app no reportó vencida y además el despachador ajustó manualmente la devolución/vencida
+- Regla de lectura acordada con usuario:
+  - el modal no necesita acusar explícitamente `No reporto venta`
+  - si en la tabla principal de Cargue el número quedó en rojo, eso ya indica que el despachador intervino manualmente esa fila
+  - con esa combinación:
+    - `rojo en Cargue` = el despachador tocó la fila
+    - `No reporto vencida` = la app omitió la vencida
+    - `Ajusto dev. y vencida` = el despachador corrigió ambas
+    - `Pendiente` = aún falta clasificar/cerrar algo
+    - `OK` = cuadra
+- El modal también se abrió para incluir filas donde la app no reportó nada, pero sí existen:
+  - `devoluciones`
+  - `vencidas`
+  - o conteo/ajuste manual del despachador
+  Esto evita que queden invisibles productos que el despachador sí recibió/corrigió.
+- Se compactó la UI del modal para escritorio/tablet horizontal:
+  - ancho mayor,
+  - tabla más compacta,
+  - estado corto y único por fila,
+  - posición más arriba en pantalla.
+- Se agregó una marca visual en la tabla principal de Cargue:
+  - si el despachador cambia manualmente `devoluciones` o `vencidas` durante la fase operativa de despacho/finalización, ese input se pinta en rojo.
+  - La marca se guarda en `localStorage` con la clave `cargue_despachador_overrides_<dia>_<id>_<fecha>`.
+  - Si el valor vuelve al original, la marca roja se elimina.
+
 ```css
 @media (min-width: 992px) {
     .modal-auditoria-bg { padding-left: 170px !important; }
@@ -903,7 +955,8 @@ Se inyecta un `<style>` dinámico con media query para esquivar el menú lateral
 |---|---|---|
 | `mostrarModalVendidas` | `boolean` | Controla visibilidad del modal |
 | `sincronizandoAuditoria` | `boolean` | Controla spinner del botón |
-| `productosFiltradosAudit` | computed | `productosOperativos.filter(p => vendidas > 0)` |
+| `productosAuditoria` | `array` | Snapshot enriquecido desde backend para el modal |
+| `productosFiltradosAudit` | computed | `productosAuditoria.filter(p => vendidas > 0 || vencidas > 0)` |
 | `abrirAuditoria()` | `async function` | Sincroniza servidor y abre modal |
 
 ### Impacto en Plantilla Principal
@@ -3251,8 +3304,14 @@ Garantizar que los datos manuales del módulo de Cargue:
   - recarga con datos editados,
   - preservación de columnas editables,
   - compilación frontend OK (`npm run build`).
+- Validado también en VPS/producción:
+  - se desplegó el commit `a6aec81` (`feat(cargue): preserve local edits during outages`) solo en frontend,
+  - en pruebas reales de `Cargue`, al cortar internet los datos editados siguieron visibles,
+  - al restaurar la conexión, los datos continuaron presentes y no se borraron de las columnas editables,
+  - con esto se da por corregido el reporte principal de despachadores sobre borrado intermitente de datos en columnas editables.
 - Pendiente/variable según operación real:
-  - prueba E2E completa mezclando CRM Web + App Móvil `AP GUERRERO` + finalizar jornada en entorno real/VPS.
+  - seguir observando uso normal de despachadores en producción para detectar casos residuales no reproducidos,
+  - la línea aparte de trabajo sobre coherencia App Guerrero vs Auditoría de Liquidación sigue separada de esta corrección.
 
 ### Ajuste adicional detectado en pruebas App vs Auditoría (19 Mar 2026)
 - Síntoma observado:
@@ -3352,6 +3411,37 @@ Mejorar feedback visual cuando el usuario recarga datos en `Ventas Ruta`.
 ### Alcance
 - Solo cambio visual/UI.
 - No cambia consultas, filtros ni cálculos del módulo.
+
+---
+
+## 🏷️ Ventas Ruta - Badge de Vencidas en listado principal (19 Mar 2026)
+
+### Objetivo
+Hacer visible desde la tabla principal de `Ventas de Ruta` cuándo una venta reportó `productos_vencidos`, sin obligar a abrir el detalle.
+
+### Implementación
+- Archivo: `frontend/src/components/rutas/ReporteVentasRuta.jsx`
+  - Se agregó helper `obtenerTotalVencidasVenta(venta)`.
+  - En la columna `TOTAL` se muestra badge `VENCIDAS X` cuando la venta trae `productos_vencidos`.
+  - El badge `EDITADA` existente se mantiene.
+  - Total + badges quedaron en layout horizontal con `wrap`, para convivir sin montarse.
+- Archivo: `frontend/src/components/rutas/ReporteVentasRuta.css`
+  - Se agregaron estilos de soporte para la celda del total:
+    - `ventas-ruta-total-cell`
+    - `ventas-ruta-total-wrap`
+    - `ventas-ruta-total-amount`
+    - `ventas-ruta-total-badges`
+
+### Lectura operativa
+- `EDITADA`:
+  la venta fue modificada luego de creada.
+- `VENCIDAS X`:
+  esa venta reportó vencidas y la cantidad total es visible desde el listado.
+
+### Alcance
+- Solo frontend web CRM.
+- No cambia backend ni API.
+- No requiere APK nueva.
 
 ---
 

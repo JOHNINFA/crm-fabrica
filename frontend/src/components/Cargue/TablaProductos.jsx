@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Table } from 'react-bootstrap';
 import LotesVencidos from './LotesVencidos';
 
-const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionada, onInteractionStart }) => {
+const TablaProductos = ({
+    productos,
+    onActualizarProducto,
+    dia,
+    fechaSeleccionada,
+    onInteractionStart,
+    despachadorOverrides = {}
+}) => {
     const [estadoBoton, setEstadoBoton] = useState('ALISTAMIENTO');
     const [esCompletado, setEsCompletado] = useState(false);
     const camposBloqueados = false;
@@ -105,6 +112,20 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
         return '$' + Math.round(neto).toLocaleString();
     };
 
+    const getInputStyle = (productoNombre, campo, baseStyle = {}) => {
+        const overrideActivo = Boolean(despachadorOverrides?.[productoNombre]?.[campo]);
+        if (!overrideActivo) return baseStyle;
+
+        return {
+            ...baseStyle,
+            color: '#c62828',
+            fontWeight: 700,
+            borderColor: '#e57373',
+            backgroundColor: 'transparent',
+            boxShadow: 'none'
+        };
+    };
+
     return (
         <div>
             {esCompletado && (
@@ -199,7 +220,13 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || botonAlistamientoHabilitado}
                                     {...sharedNumericInputProps}
-                                    style={(esCompletado || botonAlistamientoHabilitado) ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                                    style={getInputStyle(
+                                        p.producto,
+                                        'devoluciones',
+                                        (esCompletado || botonAlistamientoHabilitado)
+                                            ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' }
+                                            : {}
+                                    )}
                                 />
                             </td>
                             <td>
@@ -210,7 +237,13 @@ const TablaProductos = ({ productos, onActualizarProducto, dia, fechaSeleccionad
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || botonAlistamientoHabilitado}
                                     {...sharedNumericInputProps}
-                                    style={(esCompletado || botonAlistamientoHabilitado) ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' } : {}}
+                                    style={getInputStyle(
+                                        p.producto,
+                                        'vencidas',
+                                        (esCompletado || botonAlistamientoHabilitado)
+                                            ? { backgroundColor: '#f8f9fa', cursor: 'not-allowed' }
+                                            : {}
+                                    )}
                                 />
                             </td>
                             <td colSpan="2" style={{ position: 'relative', width: '120px', padding: '4px' }}>

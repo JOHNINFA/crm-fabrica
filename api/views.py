@@ -16,7 +16,7 @@ import secrets
 import unicodedata
 from datetime import timedelta
 from api.services.ai_assistant_service import AIAssistant
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional, recalcular_totales_cargue_queryset
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
@@ -4473,6 +4473,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             if ModeloCargue and venta.productos_vencidos:
                 from django.db.models import F
                 from django.db.models.functions import Greatest
+                registros_recalculados = []
 
                 for item_vencido in (venta.productos_vencidos or []):
                     nombre = (item_vencido.get('nombre') or item_vencido.get('producto') or '').strip()
@@ -4485,12 +4486,19 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                         updated = ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
                             vencidas=Greatest(F('vencidas') - cantidad_vencida, 0)
                         )
+                        if updated:
+                            registros_recalculados.append(registro_cargue.pk)
                         print(
                             f"✅ Anulación: {nombre} -> {registro_cargue.producto} "
                             f"vencidas -= {cantidad_vencida} (registros: {updated})"
                         )
                     else:
                         print(f"⚠️ Anulación: no se encontró registro de cargue para vencida {nombre}")
+
+                if registros_recalculados:
+                    recalcular_totales_cargue_queryset(
+                        ModeloCargue.objects.filter(pk__in=registros_recalculados)
+                    )
 
             venta.estado = 'ANULADA'
             venta.save()
@@ -5048,6 +5056,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 # Obtener ID del vendedor y fecha
                 id_vendedor = venta.vendedor.id_vendedor  # ID1, ID2, etc.
                 fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+                registros_recalculados = []
                 
                 print(f"🔄 Sincronizando vencidas a CargueIDx: {id_vendedor} - {fecha_venta}")
                 print(f"   Productos vencidos: {productos_vencidos}")
@@ -5079,6 +5088,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                 ModeloCargue.objects.filter(pk=cargue.pk).update(
                                     vencidas=F('vencidas') + cantidad_vencida
                                 )
+                                registros_recalculados.append(cargue.pk)
                                 print(f"   ✅ {nombre_producto} -> {cargue.producto}: vencidas += {cantidad_vencida}")
                             else:
                                 print(f"   ⚠️ No se encontró cargue para: {nombre_producto} - Intentando crear...")
@@ -5096,6 +5106,11 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                         print(f"   ❌ No hay referencia de cargue para el día {fecha_venta}, imposible crear.")
                                 except Exception as create_error:
                                     print(f"   ❌ Error creando registro on-the-fly: {create_error}")
+
+                    if registros_recalculados:
+                        recalcular_totales_cargue_queryset(
+                            ModeloCargue.objects.filter(pk__in=registros_recalculados)
+                        )
                 else:
                     print(f"   ⚠️ Modelo de cargue no encontrado para: {id_vendedor}")
                     
@@ -5812,6 +5827,9 @@ def cerrar_turno_vendedor(request):
             # 🚀 EJECUTAR BULK UPDATE (Optimización Clave: 1 Query SQL)
             if cargues_a_actualizar:
                 ModeloCargue.objects.bulk_update(cargues_a_actualizar, ['vencidas', 'devoluciones'])
+                recalcular_totales_cargue_queryset(
+                    ModeloCargue.objects.filter(pk__in=[c.pk for c in cargues_a_actualizar])
+                )
                 print(f"✅ {len(cargues_a_actualizar)} productos actualizados vía bulk_update")
             
             # --- CERRAR TURNO EN BD ---
@@ -6040,6 +6058,10 @@ def abrir_turno(request):
                 if ModeloCargue:
                     cargues_con_devoluciones = ModeloCargue.objects.filter(fecha=fecha, activo=True, devoluciones__gt=0)
                     cantidad_limpiada = cargues_con_devoluciones.update(devoluciones=0)
+                    if cantidad_limpiada > 0:
+                        recalcular_totales_cargue_queryset(
+                            ModeloCargue.objects.filter(fecha=fecha, activo=True)
+                        )
                     if cantidad_limpiada > 0:
                         print(f"🧹 Devoluciones limpiadas: {cantidad_limpiada} productos de {vendedor_id_str} en {fecha}")
                 
@@ -8399,6 +8421,10 @@ def abrir_turno_manual(request):
                     # Resetear devoluciones y vencidas a 0 para esta fecha
                     cargues_afectados = ModeloCargue.objects.filter(fecha=turno.fecha, activo=True)
                     registros_limpiados = cargues_afectados.update(devoluciones=0, vencidas=0)
+                    if registros_limpiados > 0:
+                        recalcular_totales_cargue_queryset(
+                            ModeloCargue.objects.filter(fecha=turno.fecha, activo=True)
+                        )
                     print(f"🧹 Limpieza exitosa: {registros_limpiados} registros reseteados en {codigo_vendedor} para {turno.fecha}")
             
             print(f"✅ Turno reabierto: ID {turno.id} - {turno.vendedor_nombre} - {turno.fecha}")

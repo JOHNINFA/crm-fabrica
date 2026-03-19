@@ -7,7 +7,8 @@ from .models import (
     CargueProductos, CargueResumen, CarguePagos, CargueCumplimiento,  # Nuevos modelos normalizados
     Produccion, ProduccionSolicitada, Sucursal, Cajero, Turno, VentaCajero, 
     ArqueoCaja, MovimientoCaja, Pedido, DetallePedido, Vendedor, Domiciliario, 
-    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden, ReportePlaneacion, TipoNegocio
+    ConfiguracionImpresion, RegistrosPlaneacionDia, RutaOrden, ReportePlaneacion, TipoNegocio,
+    recalcular_totales_cargue_queryset,
 )
 
 
@@ -973,6 +974,14 @@ class PedidoSerializer(serializers.ModelSerializer):
                                 producto__iexact=nombre_prod,
                                 activo=True
                             ).update(vencidas=F('vencidas') + cantidad)
+                            if updated:
+                                recalcular_totales_cargue_queryset(
+                                    ModeloCargue.objects.filter(
+                                        fecha=fecha_ref,
+                                        producto__iexact=nombre_prod,
+                                        activo=True,
+                                    )
+                                )
                             print(f"   ✅ {nombre_prod}: vencidas += {cantidad} (registros: {updated})")
 
             # 3. 🆕 MANEJO DE FOTOS (EvidenciaPedido)

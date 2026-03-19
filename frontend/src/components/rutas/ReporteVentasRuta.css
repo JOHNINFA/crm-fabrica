@@ -179,6 +179,28 @@
     border-bottom: none;
 }
 
+.ventas-ruta-total-cell {
+    min-width: 190px;
+}
+
+.ventas-ruta-total-wrap {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ventas-ruta-total-amount {
+    white-space: nowrap;
+}
+
+.ventas-ruta-total-badges {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
 /* Badges Modernos */
 .badge-modern {
     display: inline-flex;

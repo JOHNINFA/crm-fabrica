@@ -1151,6 +1151,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       localStorage.removeItem(pendingKey);
       console.log(`🗑️ ${idVendedor} - Eliminado: ${pendingKey}`);
 
+      const despachadorOverridesKey = `cargue_despachador_overrides_${dia}_${idVendedor}_${fechaStorage}`;
+      localStorage.removeItem(despachadorOverridesKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${despachadorOverridesKey}`);
+
       const resumenPendingKey = `resumen_pending_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(resumenPendingKey);
       console.log(`🗑️ ${idVendedor} - Eliminado: ${resumenPendingKey}`);

@@ -63,6 +63,12 @@ const ReporteVentasRuta = () => {
         cargarVentas();
     }, []);
 
+    const obtenerTotalVencidasVenta = (venta) => (
+        Array.isArray(venta?.productos_vencidos)
+            ? venta.productos_vencidos.reduce((sum, item) => sum + (parseInt(item?.cantidad) || 0), 0)
+            : 0
+    );
+
     // 🆕 Auto-consultar análisis cuando cambian filtros rápidos
     useEffect(() => {
         if (selectedRutaId && periodoAnalisis !== 'personalizado') {
@@ -680,9 +686,28 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                             <td className="fw-medium">{venta.vendedor_nombre}</td>
                                             <td>{venta.nombre_negocio || '-'}</td>
                                             <td className="text-muted small">{venta.cliente_nombre}</td>
-                                            <td className="fw-bold text-primary">
-                                                ${parseFloat(venta.total).toLocaleString()}
-                                                {venta.editada && <span className="badge bg-danger ms-2" style={{ fontSize: '0.6rem' }}>EDITADA</span>}
+                                            <td className="fw-bold text-primary ventas-ruta-total-cell">
+                                                <div className="ventas-ruta-total-wrap">
+                                                    <span className="ventas-ruta-total-amount">${parseFloat(venta.total).toLocaleString()}</span>
+                                                    {(venta.editada || obtenerTotalVencidasVenta(venta) > 0) && (
+                                                        <div className="ventas-ruta-total-badges">
+                                                            {venta.editada && (
+                                                                <span className="badge bg-danger" style={{ fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
+                                                                    EDITADA
+                                                                </span>
+                                                            )}
+                                                            {obtenerTotalVencidasVenta(venta) > 0 && (
+                                                                <span
+                                                                    className="badge-modern badge-warning-modern border"
+                                                                    title={`Esta venta reporto ${obtenerTotalVencidasVenta(venta)} unidad(es) vencidas`}
+                                                                    style={{ fontSize: '0.55rem', padding: '0.18rem 0.42rem' }}
+                                                                >
+                                                                    VENCIDAS {obtenerTotalVencidasVenta(venta)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="text-end">
                                                 <button className="btn-icon-modern me-1" onClick={() => imprimirTicket(venta)} title="Imprimir Ticket"><i className="bi bi-printer"></i></button>

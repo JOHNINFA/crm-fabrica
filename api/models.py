@@ -1,6 +1,29 @@
 from django.db import models
 from django.utils import timezone
 
+
+def recalcular_totales_cargue_queryset(queryset):
+    """
+    Recalcula `total` y `neto` para querysets de CargueIDx.
+    Los `update()` y `bulk_update()` no ejecutan `save()`, así que este helper
+    evita que `total` quede desfasado frente a `vencidas` y `devoluciones`.
+    """
+    total_expr = (
+        models.F('cantidad')
+        - models.F('dctos')
+        + models.F('adicional')
+        - models.F('devoluciones')
+        - models.F('vencidas')
+    )
+
+    return queryset.update(
+        total=total_expr,
+        neto=models.ExpressionWrapper(
+            total_expr * models.F('valor'),
+            output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        ),
+    )
+
 class Categoria(models.Model):
     """Modelo para categorías de productos"""
     nombre = models.CharField(max_length=100, unique=True)
