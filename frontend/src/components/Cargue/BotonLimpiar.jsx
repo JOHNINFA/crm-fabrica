@@ -1128,30 +1128,59 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
   };
 
+  const normalizarFechaStorage = (fecha) => {
+    if (fecha instanceof Date) {
+      return fecha.toISOString().split('T')[0];
+    }
+    return fecha || '';
+  };
+
   // 🚀 NUEVA FUNCIÓN: Limpiar localStorage de un ID específico
   const limpiarLocalStorageDelID = (fechaAUsar, idVendedor) => {
     try {
+      const fechaStorage = normalizarFechaStorage(fechaAUsar);
       console.log(`🧹 ${idVendedor} - LIMPIANDO LOCALSTORAGE...`);
 
       // Limpiar datos del ID específico
-      const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
+      const key = `cargue_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(key);
       console.log(`🗑️ ${idVendedor} - Eliminado: ${key}`);
 
+      // Limpiar cambios pendientes de columnas editables offline
+      const pendingKey = `cargue_pending_${dia}_${idVendedor}_${fechaStorage}`;
+      localStorage.removeItem(pendingKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${pendingKey}`);
+
+      const resumenPendingKey = `resumen_pending_${dia}_${idVendedor}_${fechaStorage}`;
+      localStorage.removeItem(resumenPendingKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${resumenPendingKey}`);
+
+      const cumplimientoPendingKey = `cumplimiento_pending_${dia}_${idVendedor}_${fechaStorage}`;
+      localStorage.removeItem(cumplimientoPendingKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${cumplimientoPendingKey}`);
+
+      const lotesPendingKey = `lotes_pending_${dia}_${idVendedor}_${fechaStorage}`;
+      localStorage.removeItem(lotesPendingKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${lotesPendingKey}`);
+
       // Limpiar cumplimiento específico del ID
-      const cumplimientoKey = `cumplimiento_${dia}_${idVendedor}_${fechaAUsar}`;
+      const cumplimientoKey = `cumplimiento_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(cumplimientoKey);
       console.log(`🗑️ ${idVendedor} - Eliminado: ${cumplimientoKey}`);
 
       // 🚀 CORREGIDO: Limpiar conceptos específicos del ID
-      const conceptosKey = `conceptos_pagos_${dia}_${idVendedor}_${fechaAUsar}`;
+      const conceptosKey = `conceptos_pagos_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(conceptosKey);
       console.log(`🗑️ ${idVendedor} - Eliminado: ${conceptosKey}`);
 
       // 🚀 CORREGIDO: Limpiar base caja específica del ID
-      const baseCajaKey = `base_caja_${dia}_${idVendedor}_${fechaAUsar}`;
+      const baseCajaKey = `base_caja_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(baseCajaKey);
       console.log(`🗑️ ${idVendedor} - Eliminado: ${baseCajaKey}`);
+
+      const lotesKey = `lotes_${dia}_${idVendedor}_${fechaStorage}`;
+      localStorage.removeItem(lotesKey);
+      console.log(`🗑️ ${idVendedor} - Eliminado: ${lotesKey}`);
 
       console.log(`✅ ${idVendedor} - LocalStorage limpiado completamente`);
     } catch (error) {
@@ -1162,41 +1191,42 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // Limpiar localStorage después de guardar (FUNCIÓN ORIGINAL - mantener para compatibilidad)
   const limpiarLocalStorage = (fechaAUsar, idsVendedores) => {
     try {
+      const fechaStorage = normalizarFechaStorage(fechaAUsar);
 
 
       // Limpiar datos de cada ID usando funciones específicas
       for (const id of idsVendedores) {
-        limpiarLocalStorageDelID(fechaAUsar, id);
+        limpiarLocalStorageDelID(fechaStorage, id);
       }
 
       // Limpiar datos adicionales
       const clavesALimpiar = [
-        `estado_boton_${dia}_${fechaAUsar}`,
-        `estado_despacho_${dia}_${fechaAUsar}`,
-        `produccion_congelada_${dia}_${fechaAUsar}`,
-        `produccion_${dia}_${fechaAUsar}`,
+        `estado_boton_${dia}_${fechaStorage}`,
+        `estado_despacho_${dia}_${fechaStorage}`,
+        `produccion_congelada_${dia}_${fechaStorage}`,
+        `produccion_${dia}_${fechaStorage}`,
 
         // 🚀 CORREGIDO: Limpiar conceptos específicos por ID
-        `conceptos_pagos_${dia}_ID1_${fechaAUsar}`,
-        `conceptos_pagos_${dia}_ID2_${fechaAUsar}`,
-        `conceptos_pagos_${dia}_ID3_${fechaAUsar}`,
-        `conceptos_pagos_${dia}_ID4_${fechaAUsar}`,
-        `conceptos_pagos_${dia}_ID5_${fechaAUsar}`,
-        `conceptos_pagos_${dia}_ID6_${fechaAUsar}`,
+        `conceptos_pagos_${dia}_ID1_${fechaStorage}`,
+        `conceptos_pagos_${dia}_ID2_${fechaStorage}`,
+        `conceptos_pagos_${dia}_ID3_${fechaStorage}`,
+        `conceptos_pagos_${dia}_ID4_${fechaStorage}`,
+        `conceptos_pagos_${dia}_ID5_${fechaStorage}`,
+        `conceptos_pagos_${dia}_ID6_${fechaStorage}`,
         // 🚀 CORREGIDO: Limpiar base caja específica por ID
-        `base_caja_${dia}_ID1_${fechaAUsar}`,
-        `base_caja_${dia}_ID2_${fechaAUsar}`,
-        `base_caja_${dia}_ID3_${fechaAUsar}`,
-        `base_caja_${dia}_ID4_${fechaAUsar}`,
-        `base_caja_${dia}_ID5_${fechaAUsar}`,
-        `base_caja_${dia}_ID6_${fechaAUsar}`,
+        `base_caja_${dia}_ID1_${fechaStorage}`,
+        `base_caja_${dia}_ID2_${fechaStorage}`,
+        `base_caja_${dia}_ID3_${fechaStorage}`,
+        `base_caja_${dia}_ID4_${fechaStorage}`,
+        `base_caja_${dia}_ID5_${fechaStorage}`,
+        `base_caja_${dia}_ID6_${fechaStorage}`,
         // ✅ Limpiar datos de cumplimiento para todos los IDs
-        `cumplimiento_${dia}_ID1_${fechaAUsar}`,
-        `cumplimiento_${dia}_ID2_${fechaAUsar}`,
-        `cumplimiento_${dia}_ID3_${fechaAUsar}`,
-        `cumplimiento_${dia}_ID4_${fechaAUsar}`,
-        `cumplimiento_${dia}_ID5_${fechaAUsar}`,
-        `cumplimiento_${dia}_ID6_${fechaAUsar}`
+        `cumplimiento_${dia}_ID1_${fechaStorage}`,
+        `cumplimiento_${dia}_ID2_${fechaStorage}`,
+        `cumplimiento_${dia}_ID3_${fechaStorage}`,
+        `cumplimiento_${dia}_ID4_${fechaStorage}`,
+        `cumplimiento_${dia}_ID5_${fechaStorage}`,
+        `cumplimiento_${dia}_ID6_${fechaStorage}`
       ];
 
       clavesALimpiar.forEach(clave => {

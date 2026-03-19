@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './ControlCumplimiento.css';
 
@@ -6,6 +6,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
   const [cumplimiento, setCumplimiento] = useState({});
   const [loading, setLoading] = useState(false);
   const [cargaInicial, setCargaInicial] = useState(true);
+  const pendingSyncInProgressRef = useRef(false);
 
   const items = [
     { key: 'licencia_transporte', label: 'Licencia de transporte' },
@@ -19,22 +20,111 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
     { key: 'desinfeccion', label: 'Desinfección' }
   ];
 
+  const fechaFormateadaLS = useMemo(() => {
+    if (fechaSeleccionada instanceof Date) {
+      return fechaSeleccionada.toISOString().split('T')[0];
+    }
+    return fechaSeleccionada || '';
+  }, [fechaSeleccionada]);
+
+  const cumplimientoStorageKey = useMemo(
+    () => `cumplimiento_${dia}_${idSheet}_${fechaFormateadaLS}`,
+    [dia, idSheet, fechaFormateadaLS]
+  );
+
+  const pendingCumplimientoStorageKey = useMemo(
+    () => `cumplimiento_pending_${dia}_${idSheet}_${fechaFormateadaLS}`,
+    [dia, idSheet, fechaFormateadaLS]
+  );
+
+  const readPendingFieldChanges = () => {
+    try {
+      const raw = localStorage.getItem(pendingCumplimientoStorageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      console.error('❌ Error leyendo cumplimiento pendiente:', error);
+      return {};
+    }
+  };
+
+  const writePendingFieldChanges = (pendingChanges) => {
+    const entries = Object.entries(pendingChanges || {}).filter(([, value]) => value && typeof value === 'object');
+    if (entries.length === 0) {
+      localStorage.removeItem(pendingCumplimientoStorageKey);
+      return;
+    }
+
+    localStorage.setItem(
+      pendingCumplimientoStorageKey,
+      JSON.stringify(Object.fromEntries(entries))
+    );
+  };
+
+  const markPendingFieldChange = (campo, valor) => {
+    if (!campo) return;
+
+    const pendingChanges = readPendingFieldChanges();
+    pendingChanges[campo] = {
+      value: valor || null,
+      updatedAt: Date.now()
+    };
+
+    writePendingFieldChanges(pendingChanges);
+  };
+
+  const clearPendingFieldChange = (campo, expectedValue = undefined) => {
+    if (!campo) return;
+
+    const pendingChanges = readPendingFieldChanges();
+    const pendingCampo = pendingChanges[campo];
+
+    if (!pendingCampo) return;
+    if (expectedValue !== undefined && pendingCampo.value !== expectedValue) return;
+
+    delete pendingChanges[campo];
+    writePendingFieldChanges(pendingChanges);
+  };
+
+  const applyPendingFieldChanges = (baseCumplimiento = {}) => {
+    const pendingChanges = readPendingFieldChanges();
+    if (Object.keys(pendingChanges).length === 0) {
+      return baseCumplimiento;
+    }
+
+    const cumplimientoProtegido = { ...baseCumplimiento };
+    Object.entries(pendingChanges).forEach(([campo, meta]) => {
+      cumplimientoProtegido[campo] = meta?.value ?? null;
+    });
+
+    return cumplimientoProtegido;
+  };
+
+  const sincronizarCampoCumplimiento = async (campo, valor) => {
+    const result = await cargueRealtimeService.actualizarCampoGlobal(
+      idSheet,
+      dia,
+      fechaFormateadaLS,
+      campo,
+      valor || null,
+      'Sistema'
+    );
+
+    if (result.success && result.action !== 'pending_sync') {
+      clearPendingFieldChange(campo, valor || null);
+      console.log(`✅ Cumplimiento sincronizado: ${campo} = ${valor} (${result.action})`);
+    } else if (result.success) {
+      console.log(`⏳ Cumplimiento pendiente de producto base: ${campo}`);
+    } else {
+      console.error(`❌ Error sincronizando cumplimiento:`, result.error);
+    }
+
+    return result;
+  };
+
   // 🚀 MEJORADO: Cargar datos según el estado (COMPLETADO = BD, otros = localStorage)
   const cargarDatos = async () => {
     try {
-      const fechaAUsar = fechaSeleccionada;
-      const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
-
-      // Convertir fecha a formato YYYY-MM-DD para la API
-      let fechaParaBD;
-      if (fechaSeleccionada instanceof Date) {
-        const year = fechaSeleccionada.getFullYear();
-        const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-        const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-        fechaParaBD = `${year}-${month}-${day}`;
-      } else {
-        fechaParaBD = fechaSeleccionada;
-      }
+      const fechaParaBD = fechaFormateadaLS;
 
       // 🚀 NUEVO: Si está COMPLETADO, cargar SIEMPRE desde BD
       if (estadoCompletado) {
@@ -82,7 +172,7 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
             });
 
 
-            setCumplimiento(cumplimientoData);
+            setCumplimiento(applyPendingFieldChanges(cumplimientoData));
             setCargaInicial(false);
             return;
           } else {
@@ -100,12 +190,12 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
 
       // Lógica original para días no completados
       // 1. Intentar cargar desde localStorage primero
-      const datosLocal = localStorage.getItem(keyLocal);
+      const datosLocal = localStorage.getItem(cumplimientoStorageKey);
       if (datosLocal) {
         try {
           const cumplimientoLocal = JSON.parse(datosLocal);
 
-          setCumplimiento(cumplimientoLocal);
+          setCumplimiento(applyPendingFieldChanges(cumplimientoLocal));
           setCargaInicial(false);
           return; // Si hay datos locales, usarlos
         } catch (error) {
@@ -154,19 +244,20 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
           });
 
           if (Object.keys(cumplimientoData).length > 0) {
-            setCumplimiento(cumplimientoData);
+            const cumplimientoProtegido = applyPendingFieldChanges(cumplimientoData);
+            setCumplimiento(cumplimientoProtegido);
             // Guardar en localStorage para próxima vez
-            localStorage.setItem(keyLocal, JSON.stringify(cumplimientoData));
+            localStorage.setItem(cumplimientoStorageKey, JSON.stringify(cumplimientoProtegido));
             console.log(`💾 CUMPLIMIENTO - Datos de BD guardados en localStorage`);
           } else {
-            setCumplimiento({});
+            setCumplimiento(applyPendingFieldChanges({}));
           }
         } else {
-          setCumplimiento({});
+          setCumplimiento(applyPendingFieldChanges({}));
         }
       } else {
         console.log('❌ CUMPLIMIENTO - Error en response:', response.status);
-        setCumplimiento({});
+        setCumplimiento(applyPendingFieldChanges({}));
       }
 
       setCargaInicial(false);
@@ -182,12 +273,8 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
 
     setLoading(true);
     try {
-      const fechaAUsar = fechaSeleccionada;
-      const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
-
       // Solo guardar en localStorage - el BotonLimpiar se encargará de enviar todo junto
-      localStorage.setItem(keyLocal, JSON.stringify(nuevosCumplimientos));
-
+      localStorage.setItem(cumplimientoStorageKey, JSON.stringify(nuevosCumplimientos));
 
     } catch (error) {
       console.error('❌ Error guardando cumplimiento:', error);
@@ -208,7 +295,46 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
     if (Object.keys(cumplimiento).length > 0 && !cargaInicial) {
       guardarDatos(cumplimiento);
     }
-  }, [cumplimiento, cargaInicial]);
+  }, [cumplimiento, cargaInicial, cumplimientoStorageKey]);
+
+  useEffect(() => {
+    if (!fechaFormateadaLS || typeof window === 'undefined') return undefined;
+
+    const flushPendingFieldChanges = async () => {
+      if (pendingSyncInProgressRef.current) return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+      const pendingChanges = readPendingFieldChanges();
+      const entries = Object.entries(pendingChanges);
+      if (entries.length === 0) return;
+
+      pendingSyncInProgressRef.current = true;
+
+      try {
+        for (const [campo, meta] of entries) {
+          await sincronizarCampoCumplimiento(campo, meta?.value ?? null);
+        }
+      } catch (error) {
+        console.error('❌ Error reintentando cumplimiento pendiente:', error);
+      } finally {
+        pendingSyncInProgressRef.current = false;
+      }
+    };
+
+    const handleOnline = () => {
+      console.log(`🌐 ${idSheet} - Reintentando cumplimiento pendiente...`);
+      flushPendingFieldChanges();
+    };
+
+    const intervalId = window.setInterval(flushPendingFieldChanges, 10000);
+    window.addEventListener('online', handleOnline);
+    flushPendingFieldChanges();
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [dia, idSheet, fechaFormateadaLS, pendingCumplimientoStorageKey]);
 
   const handleSeleccion = (itemKey, valor) => {
     const nuevosCumplimientos = {
@@ -219,36 +345,10 @@ const ControlCumplimiento = ({ dia, idSheet, fechaSeleccionada, estadoCompletado
     setCumplimiento(nuevosCumplimientos);
 
     // Guardar inmediatamente en localStorage
-    const fechaAUsar = fechaSeleccionada;
-    const keyLocal = `cumplimiento_${dia}_${idSheet}_${fechaAUsar}`;
-    localStorage.setItem(keyLocal, JSON.stringify(nuevosCumplimientos));
+    localStorage.setItem(cumplimientoStorageKey, JSON.stringify(nuevosCumplimientos));
+    markPendingFieldChange(itemKey, valor || null);
 
-    // 🆕 SINCRONIZACIÓN EN TIEMPO REAL CON BD
-    // Convertir fecha a formato YYYY-MM-DD si es objeto Date
-    let fechaParaBD;
-    if (fechaSeleccionada instanceof Date) {
-      const year = fechaSeleccionada.getFullYear();
-      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-      fechaParaBD = `${year}-${month}-${day}`;
-    } else {
-      fechaParaBD = fechaSeleccionada;
-    }
-
-    cargueRealtimeService.actualizarCampoGlobal(
-      idSheet,
-      dia,
-      fechaParaBD,
-      itemKey,
-      valor || null,
-      'Sistema'
-    ).then(result => {
-      if (result.success) {
-        console.log(`✅ Cumplimiento sincronizado: ${itemKey} = ${valor} (${result.action})`);
-      } else {
-        console.error(`❌ Error sincronizando cumplimiento:`, result.error);
-      }
-    }).catch(err => {
+    sincronizarCampoCumplimiento(itemKey, valor || null).catch(err => {
       console.error(`❌ Error en sincronización cumplimiento:`, err);
     });
   };

@@ -20,6 +20,7 @@ import './PlantillaOperativa.css';
 
 // URL de la API (usa variable de entorno en desarrollo, /api en producción)
 const API_URL = process.env.REACT_APP_API_URL || '/api';
+const EDITABLE_MANUAL_FIELDS = ['dctos', 'adicional', 'devoluciones', 'vencidas'];
 
 const PlantillaOperativa = ({
     responsable = "RESPONSABLE",
@@ -40,6 +41,14 @@ const PlantillaOperativa = ({
         }
         return fechaSeleccionada || '';
     }, [fechaSeleccionada]);
+    const cargueStorageKey = useMemo(
+        () => `cargue_${dia}_${idSheet}_${fechaFormateadaLS}`,
+        [dia, idSheet, fechaFormateadaLS]
+    );
+    const pendingChangesStorageKey = useMemo(
+        () => `cargue_pending_${dia}_${idSheet}_${fechaFormateadaLS}`,
+        [dia, idSheet, fechaFormateadaLS]
+    );
 
     // 🚀 OPTIMIZACIÓN: Memoizar productos para evitar bucles infinitos
     const products = useMemo(() => {
@@ -256,32 +265,42 @@ const PlantillaOperativa = ({
             const preciosCacheados = cachePreciosStr ? JSON.parse(cachePreciosStr) : {};
 
             // Verificar si el día está COMPLETADO
-            const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+            const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
             if (estadoBoton === 'COMPLETADO') {
                 console.log(`⚡ INIT ${idSheet} - Día COMPLETADO, iniciando vacío`);
                 return [];
             }
 
             // Cargar datos desde localStorage
-            const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
-            const datosLocalString = localStorage.getItem(key);
+            const datosLocalString = localStorage.getItem(cargueStorageKey);
 
             if (datosLocalString) {
                 const datos = JSON.parse(datosLocalString);
-                if (datos && datos.productos && datos.productos.length > 0) {
+                if (datos && datos.fecha === fechaFormateadaLS && datos.productos && datos.productos.length > 0) {
+                    let pendingChanges = {};
+                    const pendingRaw = localStorage.getItem(pendingChangesStorageKey);
+                    if (pendingRaw) {
+                        try {
+                            pendingChanges = JSON.parse(pendingRaw) || {};
+                        } catch (error) {
+                            console.error(`❌ ${idSheet} - Error leyendo pendientes en init:`, error);
+                        }
+                    }
+
                     console.log(`⚡ INIT ${idSheet} - Carga inmediata con precios cacheados:`, datos.productos.length, 'productos');
 
                     const productosBase = datos.productos.map(p => {
                         // Usar precio cacheado si existe, sino usar el valor guardado
                         const precioCacheado = preciosCacheados[p.id];
+                        const cambiosPendientes = pendingChanges[p.producto] || {};
                         return {
                             id: p.id || `temp_${Math.random()}`,
                             producto: p.producto,
                             cantidad: p.cantidad || 0,
-                            dctos: p.dctos || 0,
-                            adicional: p.adicional || 0,
-                            devoluciones: p.devoluciones || 0,
-                            vencidas: p.vencidas || 0,
+                            dctos: cambiosPendientes.dctos?.value ?? p.dctos ?? 0,
+                            adicional: cambiosPendientes.adicional?.value ?? p.adicional ?? 0,
+                            devoluciones: cambiosPendientes.devoluciones?.value ?? p.devoluciones ?? 0,
+                            vencidas: cambiosPendientes.vencidas?.value ?? p.vencidas ?? 0,
                             lotesVencidos: p.lotesVencidos || [],
                             total: p.total || 0,
                             valor: precioCacheado !== undefined ? precioCacheado : (p.valor || 0),
@@ -593,6 +612,218 @@ const PlantillaOperativa = ({
         cargarClientes();
     }, []); // Una sola vez al montar
 
+    const productosOperativosRef = useRef(productosOperativos);
+    const nombreResponsableRef = useRef(nombreResponsable);
+    const pendingSyncInProgressRef = useRef(false);
+
+    useEffect(() => {
+        productosOperativosRef.current = productosOperativos;
+    }, [productosOperativos]);
+
+    useEffect(() => {
+        nombreResponsableRef.current = nombreResponsable;
+    }, [nombreResponsable]);
+
+    const readPendingFieldChanges = () => {
+        try {
+            const raw = localStorage.getItem(pendingChangesStorageKey);
+            return raw ? JSON.parse(raw) : {};
+        } catch (error) {
+            console.error(`❌ ${idSheet} - Error leyendo cambios pendientes:`, error);
+            return {};
+        }
+    };
+
+    const readCurrentLocalSnapshot = () => {
+        try {
+            const raw = localStorage.getItem(cargueStorageKey);
+            if (!raw) return null;
+
+            const parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.productos) || parsed.productos.length === 0) {
+                return null;
+            }
+
+            if (parsed.dia !== dia || parsed.idSheet !== idSheet) {
+                return null;
+            }
+
+            if ((parsed.fecha || '') !== fechaFormateadaLS) {
+                console.warn(`⚠️ ${idSheet} - Snapshot local ignorado por fecha distinta:`, parsed.fecha, fechaFormateadaLS);
+                return null;
+            }
+
+            return {
+                ...parsed,
+                productos: applyPendingFieldChangesToProductos(parsed.productos)
+            };
+        } catch (error) {
+            console.error(`❌ ${idSheet} - Error leyendo snapshot local actual:`, error);
+            return null;
+        }
+    };
+
+    const writePendingFieldChanges = (pendingChanges) => {
+        const entries = Object.entries(pendingChanges || {}).filter(([, fields]) => (
+            fields && Object.keys(fields).length > 0
+        ));
+
+        if (entries.length === 0) {
+            localStorage.removeItem(pendingChangesStorageKey);
+            return;
+        }
+
+        localStorage.setItem(
+            pendingChangesStorageKey,
+            JSON.stringify(Object.fromEntries(entries))
+        );
+    };
+
+    const markPendingFieldChange = (productoNombre, campo, valor) => {
+        if (!EDITABLE_MANUAL_FIELDS.includes(campo) || !productoNombre) return;
+
+        const pendingChanges = readPendingFieldChanges();
+        if (!pendingChanges[productoNombre]) {
+            pendingChanges[productoNombre] = {};
+        }
+
+        pendingChanges[productoNombre][campo] = {
+            value: valor,
+            updatedAt: Date.now()
+        };
+
+        writePendingFieldChanges(pendingChanges);
+    };
+
+    const clearPendingFieldChange = (productoNombre, campo, expectedValue = undefined) => {
+        if (!EDITABLE_MANUAL_FIELDS.includes(campo) || !productoNombre) return;
+
+        const pendingChanges = readPendingFieldChanges();
+        const pendingProducto = pendingChanges[productoNombre];
+        const pendingCampo = pendingProducto?.[campo];
+
+        if (!pendingCampo) return;
+        if (expectedValue !== undefined && pendingCampo.value !== expectedValue) return;
+
+        delete pendingProducto[campo];
+        if (Object.keys(pendingProducto).length === 0) {
+            delete pendingChanges[productoNombre];
+        }
+
+        writePendingFieldChanges(pendingChanges);
+    };
+
+    const applyPendingFieldChangesToProductos = (productos) => {
+        if (!Array.isArray(productos) || productos.length === 0) return productos;
+
+        const pendingChanges = readPendingFieldChanges();
+        const productosProtegidos = Object.keys(pendingChanges).length === 0
+            ? productos
+            : productos.map(producto => {
+                const cambiosPendientes = pendingChanges[producto.producto];
+                if (!cambiosPendientes) return producto;
+
+                let actualizado = null;
+
+                EDITABLE_MANUAL_FIELDS.forEach((campo) => {
+                    if (!cambiosPendientes[campo]) return;
+                    if (!actualizado) actualizado = { ...producto };
+                    actualizado[campo] = cambiosPendientes[campo].value;
+                });
+
+                return actualizado || producto;
+            });
+
+        return recalcularTotales(productosProtegidos);
+    };
+
+    const persistEditableFieldToLocalStorage = (productoId, campo, valor) => {
+        if (!EDITABLE_MANUAL_FIELDS.includes(campo)) return;
+
+        try {
+            const datosGuardados = localStorage.getItem(cargueStorageKey);
+            if (!datosGuardados) return;
+
+            const datos = JSON.parse(datosGuardados);
+            if (!Array.isArray(datos.productos)) return;
+
+            const productosActualizados = datos.productos.map(producto => (
+                producto.id === productoId ? { ...producto, [campo]: valor } : producto
+            ));
+
+            datos.productos = recalcularTotales(productosActualizados);
+            datos.timestamp = Date.now();
+            datos.sincronizado = false;
+            datos.fecha = fechaFormateadaLS;
+
+            localStorage.setItem(cargueStorageKey, JSON.stringify(datos));
+        } catch (error) {
+            console.error(`❌ ${idSheet} - Error guardando cambio local inmediato:`, error);
+        }
+    };
+
+    useEffect(() => {
+        if (!fechaFormateadaLS || typeof window === 'undefined') return undefined;
+
+        const flushPendingFieldChanges = async () => {
+            if (pendingSyncInProgressRef.current) return;
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+            const pendingChanges = readPendingFieldChanges();
+            const productosPendientes = Object.entries(pendingChanges);
+
+            if (productosPendientes.length === 0) return;
+
+            pendingSyncInProgressRef.current = true;
+
+            try {
+                for (const [productoNombre, camposPendientes] of productosPendientes) {
+                    const productoActual = productosOperativosRef.current.find(
+                        (producto) => producto.producto === productoNombre
+                    );
+
+                    for (const [campo, meta] of Object.entries(camposPendientes)) {
+                        const result = await cargueRealtimeService.actualizarCampoProducto(
+                            idSheet,
+                            dia,
+                            fechaFormateadaLS,
+                            productoNombre,
+                            campo,
+                            meta.value,
+                            productoActual?.valor || 0,
+                            nombreResponsableRef.current || 'Sistema'
+                        );
+
+                        if (result.success) {
+                            clearPendingFieldChange(productoNombre, campo, meta.value);
+                            console.log(`✅ ${idSheet} - Cambio pendiente sincronizado: ${productoNombre}.${campo} = ${meta.value}`);
+                        } else {
+                            console.warn(`⚠️ ${idSheet} - Cambio pendiente sigue en cola: ${productoNombre}.${campo}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn(`⚠️ ${idSheet} - Reintento de cambios pendientes falló:`, error);
+            } finally {
+                pendingSyncInProgressRef.current = false;
+            }
+        };
+
+        const handleOnline = () => {
+            console.log(`🌐 ${idSheet} - Conexión restablecida, reintentando cambios pendientes...`);
+            flushPendingFieldChanges();
+        };
+
+        const intervalId = window.setInterval(flushPendingFieldChanges, 10000);
+        window.addEventListener('online', handleOnline);
+        flushPendingFieldChanges();
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('online', handleOnline);
+        };
+    }, [dia, idSheet, fechaFormateadaLS, pendingChangesStorageKey]);
+
     // 🚀 NUEVO: Actualización automática de pedidos en tiempo real (Polling cada 15s)
     useEffect(() => {
         let isMounted = true;
@@ -769,7 +1000,7 @@ const PlantillaOperativa = ({
 
             // 🧮 CRÍTICO: Normalizar SIEMPRE totales/netos al cargar desde BD para evitar "rebote" visual
             if (productosDesdeDB.length > 0) {
-                productosDesdeDB = recalcularTotales(productosDesdeDB);
+                productosDesdeDB = applyPendingFieldChangesToProductos(productosDesdeDB);
             }
 
             // 🚀 LÓGICA ROBUSTA: Intentar mostrar datos siempre
@@ -863,11 +1094,10 @@ const PlantillaOperativa = ({
     // Cargar datos desde localStorage
     const cargarDatosGuardados = async () => {
         try {
-            // ✅ CORREGIDO: Usar siempre fechaSeleccionada sin fallback
-            const fechaAUsar = fechaSeleccionada;
-            const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
+            const fechaAUsar = fechaFormateadaLS;
+            const snapshotLocalActual = readCurrentLocalSnapshot();
 
-            console.log(`🔍 CARGANDO ${idSheet} - Key: ${key}`);
+            console.log(`🔍 CARGANDO ${idSheet} - Key: ${cargueStorageKey}`);
             console.log(`🔄 RECARGA SOLICITADA - Timestamp: ${Date.now()}`);
 
             let datos = null;
@@ -905,7 +1135,10 @@ const PlantillaOperativa = ({
 
                 if (!response.ok) {
                     console.warn(`⚠️ ${idSheet} - Error HTTP ${response.status}`);
-                    // No hacer return, continuar para cargar productos desde contexto
+                    if (snapshotLocalActual) {
+                        console.log(`📦 ${idSheet} - Usando snapshot local por error HTTP`);
+                        datos = snapshotLocalActual;
+                    }
                 }
 
                 const registros = response.ok ? await response.json() : [];
@@ -917,7 +1150,7 @@ const PlantillaOperativa = ({
                 }
 
                 // Convertir registros de BD al formato del frontend
-                const productosDesdeDB = registros.map(reg => {
+                let productosDesdeDB = registros.map(reg => {
                     // Parsear lotes_vencidos si es string JSON
                     let lotesVencidos = [];
                     if (reg.lotes_vencidos) {
@@ -948,6 +1181,8 @@ const PlantillaOperativa = ({
                     };
                 });
 
+                productosDesdeDB = applyPendingFieldChangesToProductos(productosDesdeDB);
+
                 console.log(`✅ ${idSheet} - Productos convertidos: ${productosDesdeDB.length}`);
 
                 // 🆕 LOG: Mostrar productos con devoluciones/vencidas
@@ -967,7 +1202,7 @@ const PlantillaOperativa = ({
                     fromServer: true
                 };
 
-                localStorage.setItem(key, JSON.stringify(datosParaLS));
+                localStorage.setItem(cargueStorageKey, JSON.stringify(datosParaLS));
                 console.log(`💾 ${idSheet} - Datos guardados en localStorage desde BD`);
 
                 // Actualizar estado con datos de BD
@@ -975,10 +1210,18 @@ const PlantillaOperativa = ({
 
             } catch (error) {
                 console.error(`❌ ${idSheet} - Error cargando desde BD:`, error);
-                // No hacer return, continuar para cargar productos desde contexto
+                if (snapshotLocalActual) {
+                    console.log(`📦 ${idSheet} - Backend no disponible, usando snapshot local exacto`);
+                    datos = snapshotLocalActual;
+                }
             }
 
             if (datos && datos.productos) {
+                datos = {
+                    ...datos,
+                    productos: applyPendingFieldChangesToProductos(datos.productos)
+                };
+
                 console.log(`🔍 ${idSheet} - Estructura de datos:`, datos.productos.slice(0, 2)); // Mostrar primeros 2 productos
                 console.log(`🔍 ${idSheet} - Total productos en datos:`, datos.productos.length);
                 console.log(`🔍 ${idSheet} - Datos completado:`, datos.completado);
@@ -1095,6 +1338,12 @@ const PlantillaOperativa = ({
                 return;
             }
 
+            if (snapshotLocalActual) {
+                console.log(`📦 ${idSheet} - Sin datos remotos, usando snapshot local exacto`);
+                setProductosOperativos(recalcularTotales(snapshotLocalActual.productos));
+                return;
+            }
+
             // Ya no se usa ordenEspecifico hardcodeado, se usa el campo 'orden' de la BD
 
             // Ordenar por el campo 'orden' si existe, sino por ID
@@ -1193,7 +1442,7 @@ const PlantillaOperativa = ({
 
     // 🚀 MEJORADO: Cargar datos al montar - SIEMPRE consulta servidor primero
     useEffect(() => {
-        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
         // 🆕 CAMBIO: Cargar desde BD tanto en DESPACHO como en COMPLETADO
         if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
@@ -1204,7 +1453,7 @@ const PlantillaOperativa = ({
             console.log(`🔍 ${idSheet} - Componente montado, cargando datos...`);
             cargarDatosGuardados();
         }
-    }, []); // Solo al montar
+    }, [dia, idSheet, fechaFormateadaLS]);
 
     // 🚀 NUEVO: Cargar pedidos del vendedor cuando cambia la fecha
     useEffect(() => {
@@ -1249,7 +1498,7 @@ const PlantillaOperativa = ({
 
     // ✅ RECALCULAR RESUMEN: Cuando cambian los productos operativos (solo si NO está completado)
     useEffect(() => {
-        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
 
         // 🆕 CAMBIO: No recalcular automáticamente si está DESPACHO o COMPLETADO (usar valores de BD)
         if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
@@ -1289,7 +1538,7 @@ const PlantillaOperativa = ({
         } else {
             console.log(`🧮 ${idSheet} - No hay productos operativos para calcular resumen`);
         }
-    }, [productosOperativos, idSheet, dia, fechaSeleccionada]);
+    }, [productosOperativos, idSheet, dia, fechaFormateadaLS]);
 
     // ✅ ACTUALIZACIÓN CON CONTEXTO: Solo cuando hay contexto válido y productos operativos
     useEffect(() => {
@@ -1342,7 +1591,7 @@ const PlantillaOperativa = ({
                     return;
                 }
                 console.log(`👁️ ${idSheet} - Pestaña visible, recargando datos...`);
-                const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`);
+                const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`);
                 if (estadoBoton === 'COMPLETADO' || estadoBoton === 'DESPACHO') {
                     cargarDatosDesdeDB();
                 } else {
@@ -1437,6 +1686,17 @@ const PlantillaOperativa = ({
         // 🚩 MARCAR QUE HUBO CAMBIO MANUAL DEL USUARIO
         cambioManualRef.current = true;
         console.log(`✏️ ${idSheet} - Cambio manual detectado en campo: ${campo}`);
+        const productoActual = productosOperativosRef.current.find(p => p.id === id);
+        const valorProcesado = (campo === 'vendedor' || campo === 'despachador')
+            ? valor
+            : campo === 'lotesVencidos'
+                ? valor
+                : parseInt(valor) || 0;
+
+        if (EDITABLE_MANUAL_FIELDS.includes(campo) && productoActual?.producto) {
+            markPendingFieldChange(productoActual.producto, campo, valorProcesado);
+            persistEditableFieldToLocalStorage(id, campo, valorProcesado);
+        }
 
         // 🆕 FIX: Actualizar localStorage INMEDIATAMENTE para checks (vendedor/despachador)
         // Esto evita que el polling sobrescriba los checks marcados
@@ -1482,25 +1742,12 @@ const PlantillaOperativa = ({
         }
 
         // Verificar estado del botón para actualización en tiempo real
-        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO';
+        const estadoBoton = localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) || 'ALISTAMIENTO';
 
         setProductosOperativos(prev =>
             prev.map(p => {
                 if (p.id === id) {
                     // Manejar diferentes tipos de campos
-                    let valorProcesado;
-
-                    if (campo === 'vendedor' || campo === 'despachador') {
-                        // Campos booleanos
-                        valorProcesado = valor;
-                    } else if (campo === 'lotesVencidos') {
-                        // Array de lotes vencidos
-                        valorProcesado = valor;
-                    } else {
-                        // Campos numéricos
-                        valorProcesado = parseInt(valor) || 0;
-                    }
-
                     const updated = { ...p, [campo]: valorProcesado };
                     const valorAnterior = p[campo] || 0;
 
@@ -1593,7 +1840,6 @@ const PlantillaOperativa = ({
         }
 
         // Obtener nombre del producto
-        const productoActual = productosOperativos.find(p => p.id === id);
         console.log(`🔍 DEBUG - Buscando producto ID=${id} en productosOperativos (${productosOperativos.length} productos)`);
         console.log(`🔍 DEBUG - Producto encontrado:`, productoActual ? productoActual.producto : 'NO ENCONTRADO');
         console.log(`🔍 DEBUG - Campo a sincronizar: ${campo}, Valor: ${valor}`);
@@ -1648,6 +1894,9 @@ const PlantillaOperativa = ({
                 ).then(result => {
                     if (result.success) {
                         console.log(`✅ BD sincronizada: ${productoActual.producto} | ${campoBackend} = ${valorParaBD} (${result.action})`);
+                        if (EDITABLE_MANUAL_FIELDS.includes(campo)) {
+                            clearPendingFieldChange(productoActual.producto, campo, valorProcesado);
+                        }
 
                         // 🆕 Cancelar reset anterior y programar uno nuevo
                         const tiempoReset = (campo === 'despachador' || campo === 'vendedor') ? 9000 : 2500;
@@ -1730,10 +1979,9 @@ const PlantillaOperativa = ({
             actualizarDatosVendedor(idSheet, productosOperativos);
             console.log(`✅ Datos actualizados para ${idSheet} en contexto.`);
 
-            const fechaAUsar = fechaSeleccionada;
+            const fechaAUsar = fechaFormateadaLS;
 
             // 🚩 SIEMPRE guardar en localStorage
-            const key = `cargue_${dia}_${idSheet}_${fechaAUsar}`;
             const datos = {
                 dia,
                 idSheet,
@@ -1743,8 +1991,8 @@ const PlantillaOperativa = ({
                 timestamp: Date.now(),
                 sincronizado: false
             };
-            localStorage.setItem(key, JSON.stringify(datos));
-            console.log(`💾 Guardado en localStorage (${key}).`);
+            localStorage.setItem(cargueStorageKey, JSON.stringify(datos));
+            console.log(`💾 Guardado en localStorage (${cargueStorageKey}).`);
 
             // 🚩 NUEVO: Solo sincronizar al servidor si hubo CAMBIO MANUAL
             if (!cambioManualRef.current) {
@@ -1769,15 +2017,13 @@ const PlantillaOperativa = ({
             window.dispatchEvent(evento);
             console.log(`🔔 Evento cargueDataChanged disparado para ${idSheet}`);
         }
-    }, [productosOperativos, idSheet, dia, fechaSeleccionada, cargueApiConfig.USAR_API, nombreResponsable]);
+    }, [productosOperativos, idSheet, dia, fechaFormateadaLS, cargueStorageKey, cargueApiConfig.USAR_API, nombreResponsable]);
 
     // 🚀 NUEVO: Escuchar solicitud de guardado forzado (desde BotonLimpiar)
     useEffect(() => {
         const handleSolicitudGuardado = () => {
             console.log(`💾 ${idSheet} - Solicitud de guardado forzado recibida`);
             if (productosOperativos.length > 0) {
-                const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
-
                 // 🔍 DEBUG: Mostrar productos con devoluciones/vencidas
                 const productosConDevVenc = productosOperativos.filter(p =>
                     p.devoluciones > 0 || p.vencidas > 0 || (p.lotesVencidos && p.lotesVencidos.length > 0)
@@ -1797,7 +2043,7 @@ const PlantillaOperativa = ({
                 // Obtener responsable actual
                 let responsableAGuardar = nombreResponsable;
                 if (!responsableAGuardar || responsableAGuardar === 'RESPONSABLE') {
-                    const datosExistentes = localStorage.getItem(key);
+                    const datosExistentes = localStorage.getItem(cargueStorageKey);
                     if (datosExistentes) {
                         try {
                             const parsed = JSON.parse(datosExistentes);
@@ -1809,33 +2055,35 @@ const PlantillaOperativa = ({
                 const datos = {
                     dia,
                     idSheet,
-                    fecha: fechaSeleccionada,
+                    fecha: fechaFormateadaLS,
                     responsable: responsableAGuardar,
                     productos: productosOperativos,
                     timestamp: Date.now(),
                     sincronizado: false
                 };
-                localStorage.setItem(key, JSON.stringify(datos));
+                localStorage.setItem(cargueStorageKey, JSON.stringify(datos));
                 console.log(`💾 ${idSheet} - Guardado forzado completado - ${productosOperativos.length} productos`);
             }
         };
 
         window.addEventListener('solicitarGuardado', handleSolicitudGuardado);
         return () => window.removeEventListener('solicitarGuardado', handleSolicitudGuardado);
-    }, [productosOperativos, dia, idSheet, fechaSeleccionada, nombreResponsable]);
+    }, [productosOperativos, dia, idSheet, fechaFormateadaLS, nombreResponsable, cargueStorageKey]);
 
     // 🔄 NUEVO: Escuchar evento de sincronización de checks V desde MenuSheets
     useEffect(() => {
         const handleChecksVActualizados = (e) => {
             const { dia: diaEvento, fecha: fechaEvento } = e.detail;
+            const fechaEventoNormalizada = fechaEvento instanceof Date
+                ? fechaEvento.toISOString().split('T')[0]
+                : fechaEvento;
 
             // Solo procesar si es para este día y fecha
-            if (diaEvento === dia && fechaEvento === fechaSeleccionada) {
+            if (diaEvento === dia && fechaEventoNormalizada === fechaFormateadaLS) {
                 console.log(`🔄 ${idSheet} - Evento checksVActualizados recibido, recargando datos...`);
 
                 // Recargar datos desde localStorage (que ya fue actualizado por MenuSheets)
-                const key = `cargue_${dia}_${idSheet}_${fechaSeleccionada}`;
-                const datosString = localStorage.getItem(key);
+                const datosString = localStorage.getItem(cargueStorageKey);
 
                 if (datosString) {
                     try {
@@ -1846,19 +2094,21 @@ const PlantillaOperativa = ({
                                 return prev.map(producto => {
                                     const productoActualizado = datos.productos.find(p => p.producto === producto.producto);
                                     if (productoActualizado) {
+                                        const cambiosPendientes = readPendingFieldChanges()[producto.producto] || {};
                                         // Tomar valores actualizados o mantener los existentes
                                         const cantidad = productoActualizado.cantidad ?? producto.cantidad ?? 0;
-                                        const dctos = productoActualizado.dctos ?? producto.dctos ?? 0;
-                                        const adicional = productoActualizado.adicional ?? producto.adicional ?? 0;
-                                        const devoluciones = productoActualizado.devoluciones ?? producto.devoluciones ?? 0;
+                                        const dctos = cambiosPendientes.dctos?.value ?? productoActualizado.dctos ?? producto.dctos ?? 0;
+                                        const adicional = cambiosPendientes.adicional?.value ?? productoActualizado.adicional ?? producto.adicional ?? 0;
+                                        const devoluciones = cambiosPendientes.devoluciones?.value ?? productoActualizado.devoluciones ?? producto.devoluciones ?? 0;
                                         const vencidas = productoActualizado.vencidas ?? producto.vencidas ?? 0;
+                                        const vencidasFinal = cambiosPendientes.vencidas?.value ?? vencidas;
                                         const valor = producto.valor || 0;
 
                                         // 🆕 RECALCULAR TOTAL y NETO
-                                        const total = cantidad - dctos + adicional - devoluciones - vencidas;
+                                        const total = cantidad - dctos + adicional - devoluciones - vencidasFinal;
                                         const neto = Math.round(total * valor);
 
-                                        console.log(`🧮 ${producto.producto}: ${cantidad} - ${dctos} + ${adicional} - ${devoluciones} - ${vencidas} = ${total}`);
+                                        console.log(`🧮 ${producto.producto}: ${cantidad} - ${dctos} + ${adicional} - ${devoluciones} - ${vencidasFinal} = ${total}`);
 
                                         return {
                                             ...producto,
@@ -1867,7 +2117,7 @@ const PlantillaOperativa = ({
                                             adicional,
                                             devoluciones,
                                             vendidas: productoActualizado.vendidas ?? producto.vendidas ?? 0,
-                                            vencidas,
+                                            vencidas: vencidasFinal,
                                             total,  // 🆕 TOTAL recalculado
                                             neto,   // 🆕 NETO recalculado
                                             vendedor: productoActualizado.vendedor || false,
@@ -1888,7 +2138,7 @@ const PlantillaOperativa = ({
 
         window.addEventListener('checksVActualizados', handleChecksVActualizados);
         return () => window.removeEventListener('checksVActualizados', handleChecksVActualizados);
-    }, [dia, idSheet, fechaSeleccionada]);
+    }, [dia, idSheet, fechaFormateadaLS]);
 
     // Función limpiarDatos deshabilitada para debug
     const limpiarDatos = () => {
@@ -2075,7 +2325,7 @@ const PlantillaOperativa = ({
                         idSheet={idSheet}
                         fechaSeleccionada={fechaSeleccionada}
                         productos={productosOperativos}
-                        estadoActual={localStorage.getItem(`estado_boton_${dia}_${fechaSeleccionada}`) || 'ALISTAMIENTO'}
+                        estadoActual={localStorage.getItem(`estado_boton_${dia}_${fechaFormateadaLS}`) || 'ALISTAMIENTO'}
                         onProductosActualizados={() => {
 
                             // Forzar recarga completa de datos

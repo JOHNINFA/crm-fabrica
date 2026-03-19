@@ -4,18 +4,22 @@ import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Tooltip from 'react-bootstrap/Tooltip';
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 
+const createEmptyPagoRow = () => ({
+  concepto: '',
+  descuentos: 0,
+  nequi: 0,
+  daviplata: 0
+});
+
+const createEmptyPagoRows = (count = 10) => Array(count).fill(null).map(() => createEmptyPagoRow());
+
 const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada, estadoCompletado = false }) => {
 
   // 🔍 DEBUG: Monitorear cambios en el prop datos
   useEffect(() => {
     console.log(`🔍 RESUMEN - Prop 'datos' cambió:`, datos);
   }, [datos]);
-  const [filas, setFilas] = useState(Array(10).fill().map(() => ({
-    concepto: '',
-    descuentos: 0,
-    nequi: 0,
-    daviplata: 0
-  })));
+  const [filas, setFilas] = useState(createEmptyPagoRows());
 
   const [baseCaja, setBaseCaja] = useState(0);
   const [mostrarModalFvto, setMostrarModalFvto] = useState(false);
@@ -24,6 +28,114 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   const [notaCargue, setNotaCargue] = useState('');
   const notaTimeoutRef = useRef(null);
   const notaEditandoRef = useRef(false); // 🔧 Flag para evitar sobrescritura mientras edita
+  const pendingResumenSyncInProgressRef = useRef(false);
+  const filasRef = useRef(filas);
+  const baseCajaRef = useRef(baseCaja);
+
+  const fechaFormateadaLS = useMemo(() => {
+    if (fechaSeleccionada instanceof Date) {
+      return fechaSeleccionada.toISOString().split('T')[0];
+    }
+    return fechaSeleccionada || '';
+  }, [fechaSeleccionada]);
+
+  const baseCajaStorageKey = useMemo(
+    () => `base_caja_${dia}_${idSheet}_${fechaFormateadaLS}`,
+    [dia, idSheet, fechaFormateadaLS]
+  );
+
+  const conceptosStorageKey = useMemo(
+    () => `conceptos_pagos_${dia}_${idSheet}_${fechaFormateadaLS}`,
+    [dia, idSheet, fechaFormateadaLS]
+  );
+
+  const pendingResumenStorageKey = useMemo(
+    () => `resumen_pending_${dia}_${idSheet}_${fechaFormateadaLS}`,
+    [dia, idSheet, fechaFormateadaLS]
+  );
+
+  const tieneDatosEnFilas = (rows = []) => rows.some(
+    (fila) => fila.concepto || fila.descuentos > 0 || fila.nequi > 0 || fila.daviplata > 0
+  );
+
+  const readPendingResumen = () => {
+    try {
+      const raw = localStorage.getItem(pendingResumenStorageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      console.error('❌ Error leyendo resumen pendiente:', error);
+      return {};
+    }
+  };
+
+  const writePendingResumen = (pendingResumen) => {
+    const cleaned = {};
+
+    if (Array.isArray(pendingResumen?.filas)) {
+      cleaned.filas = pendingResumen.filas;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(pendingResumen || {}, 'baseCaja')) {
+      cleaned.baseCaja = pendingResumen.baseCaja;
+    }
+
+    if (Object.keys(cleaned).length === 0) {
+      localStorage.removeItem(pendingResumenStorageKey);
+      return;
+    }
+
+    cleaned.updatedAt = Date.now();
+    localStorage.setItem(pendingResumenStorageKey, JSON.stringify(cleaned));
+  };
+
+  const markPendingResumenField = (field, value) => {
+    const pendingResumen = readPendingResumen();
+    pendingResumen[field] = value;
+    writePendingResumen(pendingResumen);
+  };
+
+  const clearPendingResumenField = (field, expectedValue = undefined) => {
+    const pendingResumen = readPendingResumen();
+    if (!Object.prototype.hasOwnProperty.call(pendingResumen, field)) return;
+
+    if (expectedValue !== undefined) {
+      const actualValue = pendingResumen[field];
+      if (JSON.stringify(actualValue) !== JSON.stringify(expectedValue)) {
+        return;
+      }
+    }
+
+    delete pendingResumen[field];
+    delete pendingResumen.updatedAt;
+    writePendingResumen(pendingResumen);
+  };
+
+  const applyPendingResumen = ({ filas: filasBase = createEmptyPagoRows(), baseCaja: baseCajaBase = 0 }) => {
+    const pendingResumen = readPendingResumen();
+
+    return {
+      filas: Array.isArray(pendingResumen.filas) ? pendingResumen.filas : filasBase,
+      baseCaja: Object.prototype.hasOwnProperty.call(pendingResumen, 'baseCaja')
+        ? pendingResumen.baseCaja
+        : baseCajaBase
+    };
+  };
+
+  const persistResumenRowsToLocal = (rows) => {
+    localStorage.setItem(conceptosStorageKey, JSON.stringify(rows));
+  };
+
+  const persistBaseCajaToLocal = (value) => {
+    localStorage.setItem(baseCajaStorageKey, `${value || 0}`);
+  };
+
+  useEffect(() => {
+    filasRef.current = filas;
+  }, [filas]);
+
+  useEffect(() => {
+    baseCajaRef.current = baseCaja;
+  }, [baseCaja]);
 
   // 🆕 Cargar nota desde BD
   useEffect(() => {
@@ -122,6 +234,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   // 🆕 Helper para cargar base caja desde BD
   const cargarBaseCajaDesdeDB = async (fechaActual) => {
     try {
+      let baseCajaDB = 0;
       const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
         idSheet === 'ID2' ? 'cargue-id2' :
           idSheet === 'ID3' ? 'cargue-id3' :
@@ -136,22 +249,24 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
         if (Array.isArray(dataCargue) && dataCargue.length > 0) {
           for (const item of dataCargue) {
             if (item.base_caja && parseFloat(item.base_caja) > 0) {
-              setBaseCaja(parseFloat(item.base_caja));
+              baseCajaDB = parseFloat(item.base_caja);
               console.log(`✅ RESUMEN - ${idSheet} Base caja cargada desde BD: ${item.base_caja}`);
               break;
             }
           }
         }
       }
+      return baseCajaDB;
     } catch (error) {
       console.error(`❌ RESUMEN - Error cargando base caja:`, error);
+      return 0;
     }
   };
 
   // 🚀 MEJORADO: Cargar datos según el estado (COMPLETADO = BD, otros = localStorage)
   const cargarDatos = async () => {
     try {
-      const fechaActual = fechaSeleccionada;
+      const fechaActual = fechaFormateadaLS;
 
       // 🆕 NUEVO: SIEMPRE intentar cargar desde BD primero (para modo incógnito)
       console.log(`🔍 RESUMEN - ${idSheet} Iniciando carga de datos desde BD...`);
@@ -189,14 +304,20 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
           console.log(`✅ RESUMEN - ${idSheet} Pagos cargados desde BD:`, conceptosFromDB.filter(f => f.concepto || f.nequi > 0 || f.daviplata > 0 || f.descuentos > 0));
 
           // Marcar que estamos cargando desde BD para evitar resincronización
+          const baseCajaDB = await cargarBaseCajaDesdeDB(fechaActual);
+          const resumenProtegido = applyPendingResumen({
+            filas: conceptosFromDB,
+            baseCaja: baseCajaDB
+          });
           cargandoDesdeBD.current = true;
-          setFilas(conceptosFromDB);
+          setFilas(resumenProtegido.filas);
+          setBaseCaja(resumenProtegido.baseCaja);
+          persistResumenRowsToLocal(resumenProtegido.filas);
+          persistBaseCajaToLocal(resumenProtegido.baseCaja);
           setTimeout(() => {
             cargandoDesdeBD.current = false;
           }, 500);
 
-          // También cargar base caja desde CargueIDx
-          await cargarBaseCajaDesdeDB(fechaActual);
           return; // Datos cargados desde BD exitosamente
         }
       }
@@ -336,11 +457,14 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
               }
             }
 
-
-
-
-            setFilas(conceptosArray);
-            setBaseCaja(baseCajaDB);
+            const resumenProtegido = applyPendingResumen({
+              filas: conceptosArray,
+              baseCaja: baseCajaDB
+            });
+            setFilas(resumenProtegido.filas);
+            setBaseCaja(resumenProtegido.baseCaja);
+            persistResumenRowsToLocal(resumenProtegido.filas);
+            persistBaseCajaToLocal(resumenProtegido.baseCaja);
           }
         }
 
@@ -351,26 +475,29 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       console.log(`📂 RESUMEN - ${idSheet} Día no completado, cargando desde localStorage...`);
 
       // 🚀 CORREGIDO: Cargar BASE CAJA específica por ID
-      const baseCajaKey = `base_caja_${dia}_${idSheet}_${fechaActual}`;
-      const baseCajaGuardada = localStorage.getItem(baseCajaKey);
-      console.log(`📂 RESUMEN - ${idSheet} Buscando base caja en: ${baseCajaKey} = ${baseCajaGuardada}`);
+      const baseCajaGuardada = localStorage.getItem(baseCajaStorageKey);
+      console.log(`📂 RESUMEN - ${idSheet} Buscando base caja en: ${baseCajaStorageKey} = ${baseCajaGuardada}`);
 
+      let baseCajaLocal = 0;
       if (baseCajaGuardada) {
-        const baseCajaValor = parseInt(baseCajaGuardada.replace(/[^0-9]/g, '')) || 0;
-        console.log(`📂 RESUMEN - ${idSheet} Base caja cargada: ${baseCajaValor}`);
-        setBaseCaja(baseCajaValor);
+        baseCajaLocal = parseInt(baseCajaGuardada.replace(/[^0-9]/g, '')) || 0;
+        console.log(`📂 RESUMEN - ${idSheet} Base caja cargada: ${baseCajaLocal}`);
       }
 
       // 🚀 CORREGIDO: Cargar CONCEPTOS específicos por ID
-      const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fechaActual}`;
-      const conceptosGuardados = localStorage.getItem(conceptosKey);
-      console.log(`📂 RESUMEN - ${idSheet} Buscando conceptos en: ${conceptosKey}`);
+      const conceptosGuardados = localStorage.getItem(conceptosStorageKey);
+      console.log(`📂 RESUMEN - ${idSheet} Buscando conceptos en: ${conceptosStorageKey}`);
 
       if (conceptosGuardados) {
         try {
           const conceptos = JSON.parse(conceptosGuardados);
           console.log(`📂 RESUMEN - ${idSheet} Conceptos cargados:`, conceptos);
-          setFilas(conceptos);
+          const resumenProtegido = applyPendingResumen({
+            filas: Array.isArray(conceptos) ? conceptos : createEmptyPagoRows(),
+            baseCaja: baseCajaLocal
+          });
+          setFilas(resumenProtegido.filas);
+          setBaseCaja(resumenProtegido.baseCaja);
         } catch (error) {
           console.error(`❌ RESUMEN - ${idSheet} Error cargando conceptos:`, error);
         }
@@ -413,37 +540,21 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
               // 🆕 IMPORTANTE: Marcar que estamos cargando desde BD para evitar resincronización
               cargandoDesdeBD.current = true;
-              setFilas(conceptosFromDB);
               // Desactivar el flag después de que React procese el cambio
               setTimeout(() => {
                 cargandoDesdeBD.current = false;
               }, 500);
 
               // Guardar en localStorage para próximas cargas
-              localStorage.setItem(conceptosKey, JSON.stringify(conceptosFromDB));
-
-              // También cargar base caja desde CargueIDx
-              const endpoint = idSheet === 'ID1' ? 'cargue-id1' :
-                idSheet === 'ID2' ? 'cargue-id2' :
-                  idSheet === 'ID3' ? 'cargue-id3' :
-                    idSheet === 'ID4' ? 'cargue-id4' :
-                      idSheet === 'ID5' ? 'cargue-id5' : 'cargue-id6';
-
-              const urlCargue = `/api/${endpoint}/?dia=${dia.toUpperCase()}&fecha=${fechaActual}`;
-              const responseCargue = await fetch(urlCargue);
-
-              if (responseCargue.ok) {
-                const dataCargue = await responseCargue.json();
-                if (Array.isArray(dataCargue) && dataCargue.length > 0) {
-                  for (const item of dataCargue) {
-                    if (item.base_caja && parseFloat(item.base_caja) > 0) {
-                      setBaseCaja(parseFloat(item.base_caja));
-                      localStorage.setItem(baseCajaKey, item.base_caja.toString());
-                      break;
-                    }
-                  }
-                }
-              }
+              const baseCajaDB = await cargarBaseCajaDesdeDB(fechaActual);
+              const resumenProtegido = applyPendingResumen({
+                filas: conceptosFromDB,
+                baseCaja: baseCajaDB || baseCajaLocal
+              });
+              setFilas(resumenProtegido.filas);
+              setBaseCaja(resumenProtegido.baseCaja);
+              persistResumenRowsToLocal(resumenProtegido.filas);
+              persistBaseCajaToLocal(resumenProtegido.baseCaja);
 
               return;
             }
@@ -454,15 +565,21 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
 
         // Si no hay datos en cargue-pagos, inicializar vacío
         console.log(`📂 RESUMEN - ${idSheet} No hay datos, usando array vacío`);
-        setFilas(Array(10).fill().map(() => ({
-          concepto: '',
-          descuentos: 0,
-          nequi: 0,
-          daviplata: 0
-        })));
+        const resumenProtegido = applyPendingResumen({
+          filas: createEmptyPagoRows(),
+          baseCaja: baseCajaLocal
+        });
+        setFilas(resumenProtegido.filas);
+        setBaseCaja(resumenProtegido.baseCaja);
       }
     } catch (error) {
       console.error('❌ Error cargando datos de resumen:', error);
+      const resumenProtegido = applyPendingResumen({
+        filas: filasRef.current,
+        baseCaja: baseCajaRef.current
+      });
+      setFilas(resumenProtegido.filas);
+      setBaseCaja(resumenProtegido.baseCaja);
     }
   };
 
@@ -477,12 +594,7 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
     cambiandoIDRef.current = true;
 
     // Limpiar datos inmediatamente al cambiar de ID
-    setFilas(Array(10).fill().map(() => ({
-      concepto: '',
-      descuentos: 0,
-      nequi: 0,
-      daviplata: 0
-    })));
+    setFilas(createEmptyPagoRows());
     setBaseCaja(0);
     setNotaCargue('');
 
@@ -513,66 +625,144 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   const cargaInicialBaseCaja = useRef(true);
 
   useEffect(() => {
-    const fechaActual = fechaSeleccionada;
-
-    // 🚀 CORREGIDO: Guardar BASE CAJA específica por ID
-    if (baseCaja > 0 && idSheet) {
-      const baseCajaKey = `base_caja_${dia}_${idSheet}_${fechaActual}`;
-      localStorage.setItem(baseCajaKey, baseCaja.toString());
-      console.log(`💾 RESUMEN - ${idSheet} Base caja guardada: ${baseCajaKey} = ${baseCaja}`);
-
-      // 🆕 SINCRONIZACIÓN EN TIEMPO REAL (solo si no es carga inicial)
-      if (!cargaInicialBaseCaja.current) {
-        // Convertir fecha a formato YYYY-MM-DD si es objeto Date
-        let fechaParaBD;
-        if (fechaSeleccionada instanceof Date) {
-          const year = fechaSeleccionada.getFullYear();
-          const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-          const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-          fechaParaBD = `${year}-${month}-${day}`;
-        } else {
-          fechaParaBD = fechaSeleccionada;
-        }
-
-        cargueRealtimeService.actualizarCampoGlobal(
-          idSheet,
-          dia,
-          fechaParaBD,
-          'base_caja',
-          baseCaja,
-          'Sistema'
-        ).then(result => {
-          if (result.success) {
-            console.log(`✅ Base caja sincronizada: ${baseCaja} (${result.action})`);
-          }
-        }).catch(err => console.error(`❌ Error sincronizando base_caja:`, err));
-      }
-      cargaInicialBaseCaja.current = false;
-    }
-  }, [baseCaja, dia, idSheet, fechaSeleccionada]);
+    if (!idSheet || !fechaFormateadaLS) return;
+    persistBaseCajaToLocal(baseCaja);
+    console.log(`💾 RESUMEN - ${idSheet} Base caja guardada: ${baseCajaStorageKey} = ${baseCaja}`);
+    cargaInicialBaseCaja.current = false;
+  }, [baseCaja, idSheet, fechaFormateadaLS, baseCajaStorageKey]);
 
   // 🆕 Ref para evitar sincronización en carga inicial de conceptos
   const cargaInicialConceptos = useRef(true);
   // 🆕 NUEVO: Ref para indicar que estamos cargando datos desde BD (no sincronizar)
   const cargandoDesdeBD = useRef(false);
 
-  useEffect(() => {
-    const fechaActual = fechaSeleccionada;
+  const sincronizarBaseCaja = async (valorBaseCaja) => {
+    const result = await cargueRealtimeService.actualizarCampoGlobal(
+      idSheet,
+      dia,
+      fechaFormateadaLS,
+      'base_caja',
+      valorBaseCaja,
+      'Sistema'
+    );
 
-    // 🚀 CORREGIDO: Guardar CONCEPTOS específicos por ID
-    const hayDatos = filas.some(fila => fila.concepto || fila.descuentos > 0 || fila.nequi > 0 || fila.daviplata > 0);
-
-    console.log(`🔍 SYNC DEBUG - idSheet: ${idSheet}, hayDatos: ${hayDatos}, cargaInicial: ${cargaInicialConceptos.current}`);
-
-    if (hayDatos && idSheet) {
-      const conceptosKey = `conceptos_pagos_${dia}_${idSheet}_${fechaActual}`;
-      localStorage.setItem(conceptosKey, JSON.stringify(filas));
-      console.log(`💾 RESUMEN - ${idSheet} Conceptos guardados: ${conceptosKey}`, filas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0));
-
-      // 🚫 NO sincronizar aquí - solo en handleInputChange para evitar sobreescrituras
-      // La sincronización con BD solo debe ocurrir cuando el usuario EDITA manualmente
+    if (result.success && result.action !== 'pending_sync') {
+      clearPendingResumenField('baseCaja', valorBaseCaja);
+      console.log(`✅ Base caja sincronizada: ${valorBaseCaja} (${result.action})`);
+    } else if (result.success) {
+      console.log('⏳ Base caja pendiente de producto base para sincronizarse');
+    } else {
+      console.error(`❌ Error sincronizando base_caja:`, result.error);
     }
-  }, [filas, dia, idSheet, fechaSeleccionada]);
+
+    return result;
+  };
+
+  const sincronizarFilasPagos = async (rows) => {
+    const filasConDatos = rows.filter((fila) => (
+      fila.concepto || fila.descuentos > 0 || fila.nequi > 0 || fila.daviplata > 0
+    ));
+
+    const totalDescuentos = rows.reduce((sum, fila) => sum + (fila.descuentos || 0), 0);
+    const totalNequi = rows.reduce((sum, fila) => sum + (fila.nequi || 0), 0);
+    const totalDaviplata = rows.reduce((sum, fila) => sum + (fila.daviplata || 0), 0);
+    const conceptosTexto = rows.filter((fila) => fila.concepto).map((fila) => fila.concepto).join(', ');
+
+    const response = await fetch('/api/cargue-pagos/sync_pagos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendedor_id: idSheet,
+        dia: dia.toUpperCase(),
+        fecha: fechaFormateadaLS,
+        filas: filasConDatos,
+        usuario: 'CRM'
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      clearPendingResumenField('filas', rows);
+      console.log(`✅ Pagos sincronizados: ${result.message}`);
+    } else {
+      console.error(`❌ Error sincronizando pagos:`, result.error);
+    }
+
+    const camposASincronizar = {
+      concepto: conceptosTexto,
+      descuentos: totalDescuentos,
+      nequi: totalNequi,
+      daviplata: totalDaviplata
+    };
+
+    Object.entries(camposASincronizar).forEach(([campoSync, valor]) => {
+      cargueRealtimeService.actualizarCampoGlobal(
+        idSheet,
+        dia,
+        fechaFormateadaLS,
+        campoSync,
+        valor,
+        'Sistema'
+      ).catch(err => console.error(`❌ Error sincronizando ${campoSync}:`, err));
+    });
+
+    return result;
+  };
+
+  useEffect(() => {
+    if (!idSheet || !fechaFormateadaLS) return;
+
+    console.log(`🔍 SYNC DEBUG - idSheet: ${idSheet}, hayDatos: ${tieneDatosEnFilas(filas)}, cargaInicial: ${cargaInicialConceptos.current}`);
+    persistResumenRowsToLocal(filas);
+    console.log(`💾 RESUMEN - ${idSheet} Conceptos guardados: ${conceptosStorageKey}`, filas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0));
+    cargaInicialConceptos.current = false;
+  }, [filas, idSheet, fechaFormateadaLS, conceptosStorageKey]);
+
+  useEffect(() => {
+    if (!fechaFormateadaLS || typeof window === 'undefined') return undefined;
+
+    const flushPendingResumen = async () => {
+      if (pendingResumenSyncInProgressRef.current) return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+      const pendingResumen = readPendingResumen();
+      const hasFilasPendientes = Array.isArray(pendingResumen.filas);
+      const hasBaseCajaPendiente = Object.prototype.hasOwnProperty.call(pendingResumen, 'baseCaja');
+
+      if (!hasFilasPendientes && !hasBaseCajaPendiente) return;
+
+      pendingResumenSyncInProgressRef.current = true;
+
+      try {
+        if (hasFilasPendientes) {
+          await sincronizarFilasPagos(pendingResumen.filas);
+        }
+
+        if (hasBaseCajaPendiente) {
+          await sincronizarBaseCaja(pendingResumen.baseCaja);
+        }
+      } catch (error) {
+        console.error('❌ Error reintentando resumen pendiente:', error);
+      } finally {
+        pendingResumenSyncInProgressRef.current = false;
+      }
+    };
+
+    const handleOnline = () => {
+      console.log(`🌐 ${idSheet} - Reintentando resumen pendiente...`);
+      flushPendingResumen();
+    };
+
+    const intervalId = window.setInterval(flushPendingResumen, 10000);
+    window.addEventListener('online', handleOnline);
+    flushPendingResumen();
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [dia, idSheet, fechaFormateadaLS, pendingResumenStorageKey]);
 
   const formatCurrency = (amount) => {
     const num = Number(amount) || 0;
@@ -675,76 +865,9 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
       newFilas[index][campo] = numValue ? parseInt(numValue) : 0;
     }
     setFilas(newFilas);
-
-    // 🆕 SINCRONIZACIÓN INMEDIATA AL EDITAR
-    // Convertir fecha a formato YYYY-MM-DD
-    let fechaParaBD;
-    if (fechaSeleccionada instanceof Date) {
-      const year = fechaSeleccionada.getFullYear();
-      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-      fechaParaBD = `${year}-${month}-${day}`;
-    } else {
-      fechaParaBD = fechaSeleccionada;
-    }
-
-    // Calcular totales con las nuevas filas
-    const totalDescuentos = newFilas.reduce((sum, f) => sum + (f.descuentos || 0), 0);
-    const totalNequi = newFilas.reduce((sum, f) => sum + (f.nequi || 0), 0);
-    const totalDaviplata = newFilas.reduce((sum, f) => sum + (f.daviplata || 0), 0);
-    const conceptosTexto = newFilas.filter(f => f.concepto).map(f => f.concepto).join(', ');
-
-    console.log(`🔄 Sincronizando pagos: concepto=${conceptosTexto}, desc=${totalDescuentos}, nequi=${totalNequi}, davi=${totalDaviplata}`);
-
-    // 🆕 NUEVO: Sincronizar FILAS COMPLETAS con el endpoint dedicado
-    const filasConDatos = newFilas.filter(f => f.concepto || f.descuentos > 0 || f.nequi > 0 || f.daviplata > 0);
-
-    console.log(`🔄 Sincronizando ${filasConDatos.length} filas con BD...`);
-    console.log(`📤 PAYLOAD: vendedor=${idSheet}, dia=${dia.toUpperCase()}, fecha=${fechaParaBD}, filas:`, filasConDatos);
-
-    fetch('/api/cargue-pagos/sync_pagos/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vendedor_id: idSheet,
-        dia: dia.toUpperCase(),
-        fecha: fechaParaBD,
-        filas: filasConDatos,
-        usuario: 'CRM'
-      })
-    })
-      .then(response => response.json())
-      .then(result => {
-        if (result.success) {
-          console.log(`✅ Pagos sincronizados: ${result.message}`);
-        } else {
-          console.error(`❌ Error sincronizando pagos:`, result.error);
-        }
-      })
-      .catch(err => console.error(`❌ Error en fetch sync_pagos:`, err));
-
-    // También sincronizar TOTALES en CargueIDx (retrocompatibilidad)
-    const camposASincronizar = {
-      concepto: conceptosTexto,
-      descuentos: totalDescuentos,
-      nequi: totalNequi,
-      daviplata: totalDaviplata
-    };
-
-    Object.entries(camposASincronizar).forEach(([campoSync, valor]) => {
-      cargueRealtimeService.actualizarCampoGlobal(
-        idSheet,
-        dia,
-        fechaParaBD,
-        campoSync,
-        valor,
-        'Sistema'
-      ).then(result => {
-        if (result.success) {
-          console.log(`✅ Total sincronizado: ${campoSync} = ${valor}`);
-        }
-      }).catch(err => console.error(`❌ Error sincronizando ${campoSync}:`, err));
-    });
+    persistResumenRowsToLocal(newFilas);
+    markPendingResumenField('filas', newFilas);
+    sincronizarFilasPagos(newFilas).catch(err => console.error(`❌ Error en fetch sync_pagos:`, err));
   };
 
   const calcularTotal = (campo) => {
@@ -754,7 +877,11 @@ const ResumenVentas = ({ datos, productos = [], dia, idSheet, fechaSeleccionada,
   const handleBaseCajaChange = (e) => {
     const value = e.target.value;
     const numValue = value.replace(/[^0-9]/g, '');
-    setBaseCaja(numValue ? parseInt(numValue) : 0);
+    const nuevoValor = numValue ? parseInt(numValue) : 0;
+    setBaseCaja(nuevoValor);
+    persistBaseCajaToLocal(nuevoValor);
+    markPendingResumenField('baseCaja', nuevoValor);
+    sincronizarBaseCaja(nuevoValor).catch(err => console.error(`❌ Error sincronizando base_caja:`, err));
   };
 
   const calcularTotalDespacho = () => {

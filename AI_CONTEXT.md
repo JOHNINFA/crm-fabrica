@@ -3150,6 +3150,148 @@ Al cambiar entre pestañas de vendedor (ID1..ID6), la tabla y el panel de totale
 
 ---
 
+## 🔒 Cargue - Persistencia Offline y Protección Anti-Borrado (19 Mar 2026)
+
+### Problema atacado
+Despachadores reportaban que, cuando fallaba internet o el backend quedaba temporalmente inaccesible, algunos datos escritos en CRM Web se “borraban” visualmente o eran reemplazados por valores viejos al recargar, al hacer polling o al reconectar.
+
+### Objetivo de la corrección
+Garantizar que los datos manuales del módulo de Cargue:
+- se guarden localmente al instante,
+- sobrevivan refresh / pérdida de internet / caída de backend,
+- no sufran “rebote” cuando llega data remota vieja,
+- se reintenten sincronizar automáticamente al volver la conexión,
+- y se limpien correctamente al finalizar la jornada.
+
+### Alcance implementado
+
+#### 1. PlantillaOperativa.jsx
+- Archivo: `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+- Se normalizó la fecha a `YYYY-MM-DD` para todas las claves locales.
+- Se consolidó la clave principal:
+  - `cargue_${dia}_${idSheet}_${fecha}`
+- Se agregó cola pendiente por columnas editables:
+  - `cargue_pending_${dia}_${idSheet}_${fecha}`
+- Campos protegidos:
+  - `dctos`
+  - `adicional`
+  - `devoluciones`
+  - `vencidas`
+- Comportamiento nuevo:
+  - al editar, el valor se guarda de inmediato en snapshot local,
+  - además se marca como pendiente,
+  - al recargar o volver a leer desde backend, los pendientes se re-aplican antes de pintar,
+  - al volver internet, se reintenta sincronización cada 10s y también en evento `online`,
+  - si la sincronización responde OK, el pendiente se limpia.
+- También se protege el caso de `snapshot local exacto` cuando el backend falla o responde con error HTTP.
+
+#### 2. ResumenVentas.jsx
+- Archivo: `frontend/src/components/Cargue/ResumenVentas.jsx`
+- Se agregaron claves específicas por vendedor/fecha:
+  - `conceptos_pagos_${dia}_${idSheet}_${fecha}`
+  - `base_caja_${dia}_${idSheet}_${fecha}`
+- Se agregó cola pendiente del bloque completo:
+  - `resumen_pending_${dia}_${idSheet}_${fecha}`
+- Cobertura:
+  - `CONCEPTO`
+  - `DESCUENTOS`
+  - `NEQUI`
+  - `DAVIPLATA`
+  - `base_caja`
+- Comportamiento nuevo:
+  - snapshot local inmediato al editar,
+  - protección contra rebote al cargar desde `cargue-pagos` o desde `CargueIDx`,
+  - reintento automático al volver internet,
+  - sincronización de pagos al endpoint dedicado `/api/cargue-pagos/sync_pagos/`,
+  - sincronización retrocompatible de totales globales en `CargueIDx`.
+
+#### 3. ControlCumplimiento.jsx
+- Archivo: `frontend/src/components/Cargue/ControlCumplimiento.jsx`
+- Se mantuvo snapshot local:
+  - `cumplimiento_${dia}_${idSheet}_${fecha}`
+- Se agregó cola pendiente:
+  - `cumplimiento_pending_${dia}_${idSheet}_${fecha}`
+- Cada selección se guarda localmente, se protege contra rebote y se reintenta sincronizar automáticamente cuando vuelve internet.
+
+#### 4. RegistroLotes.jsx
+- Archivo: `frontend/src/components/Cargue/RegistroLotes.jsx`
+- Se mantuvo snapshot local:
+  - `lotes_${dia}_${idSheet}_${fecha}`
+- Se agregó cola pendiente:
+  - `lotes_pending_${dia}_${idSheet}_${fecha}`
+- Cada alta/borrado de lote:
+  - guarda local primero,
+  - se protege al recargar,
+  - se reintenta sincronizar solo cuando haya conexión.
+
+#### 5. BotonLimpiar.jsx
+- Archivo: `frontend/src/components/Cargue/BotonLimpiar.jsx`
+- Se corrigió limpieza con fecha normalizada `YYYY-MM-DD`.
+- Ahora al finalizar/limpiar también elimina:
+  - `cargue_pending_*`
+  - `resumen_pending_*`
+  - `cumplimiento_pending_*`
+  - `lotes_pending_*`
+  - además de snapshots locales asociados (`cargue_*`, `conceptos_pagos_*`, `base_caja_*`, `cumplimiento_*`, `lotes_*`).
+- Esto evita que reaparezcan valores pendientes viejos al reabrir el mismo día/ID.
+
+### Regla operativa actual
+- Mientras exista snapshot local, el frontend prioriza preservar lo editado manualmente.
+- La BD sigue siendo la fuente de verdad final, pero el navegador protege temporalmente los cambios manuales hasta poder confirmarlos contra backend.
+- El patrón aplicado es:
+  1. editar,
+  2. persistir local,
+  3. marcar pendiente,
+  4. rehidratar desde pendiente si backend todavía no refleja el cambio,
+  5. limpiar pendiente al sincronizar con éxito.
+
+### Estado de validación
+- Validado localmente en CRM Web:
+  - caída de backend,
+  - recarga con datos editados,
+  - preservación de columnas editables,
+  - compilación frontend OK (`npm run build`).
+- Pendiente/variable según operación real:
+  - prueba E2E completa mezclando CRM Web + App Móvil `AP GUERRERO` + finalizar jornada en entorno real/VPS.
+
+### Ajuste adicional detectado en pruebas App vs Auditoría (19 Mar 2026)
+- Síntoma observado:
+  - en `AP GUERRERO`, algunos productos seguían mostrando stock disponible como si las `vencidas` no se hubieran descontado,
+  - mientras la auditoría web mostraba el restante correcto según `total`.
+- Caso real detectado:
+  - ejemplo tipo `AREPA TIPO OBLEA`: app mostraba `5`, auditoría mostraba `3`,
+  - el desfase coincidía exactamente con `2` unidades reportadas como `vencidas`.
+- Causa raíz:
+  - en backend, varios flujos actualizaban `vencidas` o `devoluciones` con `update()` / `bulk_update()`,
+  - esos caminos NO ejecutan `save()` del modelo `CargueIDx`,
+  - por eso el campo `total` quedaba viejo aunque `vencidas`/`devoluciones` sí cambiaban.
+- Impacto:
+  - `obtener_cargue()` usa `reg.total - reg.vendidas` para enviar `quantity` a la app,
+  - si `total` no se recalcula, la app muestra más stock del real,
+  - la auditoría puede verse “mejor” o distinta si está trabajando con otro snapshot/estado local.
+- Corrección aplicada:
+  - se creó helper backend `recalcular_totales_cargue_queryset()` en `api/models.py`,
+  - ahora se recalculan `total` y `neto` después de cambios por `update()`/`bulk_update()` en:
+    - sincronización de vencidas desde ventas ruta,
+    - sincronización de vencidas desde pedidos,
+    - cierre de turno,
+    - anulación de ventas con vencidas,
+    - reapertura/reset de turno.
+- Validación técnica:
+  - `python3 manage.py check` OK.
+
+### Archivos clave tocados en esta línea de trabajo
+- `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+- `frontend/src/components/Cargue/ResumenVentas.jsx`
+- `frontend/src/components/Cargue/ControlCumplimiento.jsx`
+- `frontend/src/components/Cargue/RegistroLotes.jsx`
+- `frontend/src/components/Cargue/BotonLimpiar.jsx`
+- `api/models.py`
+- `api/views.py`
+- `api/serializers.py`
+
+---
+
 ## 📦 App Móvil - Filtro por Módulo en Productos (24 Feb 2026)
 
 ### Problema detectado

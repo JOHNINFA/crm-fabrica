@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
 import './RegistroLotes.css';
 
@@ -9,6 +9,89 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
     const [loteInput, setLoteInput] = useState('');
     const [lotes, setLotes] = useState([]);
     const [loading, setLoading] = useState(false);
+    const pendingSyncInProgressRef = useRef(false);
+
+    const fechaFormateadaLS = useMemo(() => {
+        if (fechaSeleccionada instanceof Date) {
+            return fechaSeleccionada.toISOString().split('T')[0];
+        }
+        return fechaSeleccionada || '';
+    }, [fechaSeleccionada]);
+
+    const lotesStorageKey = useMemo(
+        () => `lotes_${dia}_${idSheet}_${fechaFormateadaLS}`,
+        [dia, idSheet, fechaFormateadaLS]
+    );
+
+    const pendingLotesStorageKey = useMemo(
+        () => `lotes_pending_${dia}_${idSheet}_${fechaFormateadaLS}`,
+        [dia, idSheet, fechaFormateadaLS]
+    );
+
+    const readPendingLotes = () => {
+        try {
+            const raw = localStorage.getItem(pendingLotesStorageKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed?.lotes) ? parsed.lotes : null;
+        } catch (error) {
+            console.error('❌ Error leyendo lotes pendientes:', error);
+            return null;
+        }
+    };
+
+    const writePendingLotes = (nuevosLotes) => {
+        if (!Array.isArray(nuevosLotes)) {
+            localStorage.removeItem(pendingLotesStorageKey);
+            return;
+        }
+
+        localStorage.setItem(
+            pendingLotesStorageKey,
+            JSON.stringify({
+                lotes: nuevosLotes,
+                updatedAt: Date.now()
+            })
+        );
+    };
+
+    const clearPendingLotes = (expectedLotes = undefined) => {
+        const currentPending = readPendingLotes();
+        if (!currentPending) return;
+
+        if (expectedLotes !== undefined && JSON.stringify(currentPending) !== JSON.stringify(expectedLotes)) {
+            return;
+        }
+
+        localStorage.removeItem(pendingLotesStorageKey);
+    };
+
+    const applyPendingLotes = (lotesBase = []) => {
+        const pendingLotes = readPendingLotes();
+        return pendingLotes || lotesBase;
+    };
+
+    const sincronizarLotes = async (nuevosLotes) => {
+        const result = await cargueRealtimeService.actualizarCampoGlobal(
+            idSheet,
+            dia,
+            fechaFormateadaLS,
+            'lotes_produccion',
+            JSON.stringify(nuevosLotes),
+            'Sistema'
+        );
+
+        if (result.success && result.action !== 'pending_sync') {
+            clearPendingLotes(nuevosLotes);
+            console.log(`✅ LOTES sincronizados con BD (${result.action})`);
+        } else if (result.success) {
+            console.log('⏳ LOTES pendientes de producto base para sincronizarse');
+        } else {
+            console.error(`❌ Error sincronizando lotes:`, result.error);
+        }
+
+        return result;
+    };
 
     // Cargar lotes al montar el componente
     useEffect(() => {
@@ -19,18 +102,7 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
 
     const cargarLotes = async () => {
         try {
-            // Convertir fecha a formato YYYY-MM-DD para la API y localStorage
-            let fechaParaBD;
-            if (fechaSeleccionada instanceof Date) {
-                const year = fechaSeleccionada.getFullYear();
-                const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-                const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-                fechaParaBD = `${year}-${month}-${day}`;
-            } else {
-                fechaParaBD = fechaSeleccionada;
-            }
-
-            const keyLocal = `lotes_${dia}_${idSheet}_${fechaParaBD}`;
+            const fechaParaBD = fechaFormateadaLS;
 
             // Si está COMPLETADO, cargar desde BD
             if (estadoCompletado) {
@@ -58,8 +130,8 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                                         : registro.lotes_produccion;
 
                                     if (Array.isArray(lotesDB) && lotesDB.length > 0) {
-
-                                        setLotes(lotesDB);
+                                        const lotesProtegidos = applyPendingLotes(lotesDB);
+                                        setLotes(lotesProtegidos);
                                         return;
                                     }
                                 } catch (error) {
@@ -71,20 +143,20 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                 }
 
                 console.log('⚠️ LOTES - No se encontraron datos en BD');
-                setLotes([]);
+                setLotes(applyPendingLotes([]));
                 return;
             }
 
             // Cargar desde localStorage para días no completados
-            const datosLocal = localStorage.getItem(keyLocal);
+            const datosLocal = localStorage.getItem(lotesStorageKey);
             if (datosLocal) {
                 try {
                     const lotesLocal = JSON.parse(datosLocal);
 
-                    setLotes(Array.isArray(lotesLocal) ? lotesLocal : []);
+                    setLotes(applyPendingLotes(Array.isArray(lotesLocal) ? lotesLocal : []));
                 } catch (error) {
                     console.error('❌ Error parsing localStorage:', error);
-                    setLotes([]);
+                    setLotes(applyPendingLotes([]));
                 }
             } else {
                 // 🆕 NUEVO: Si localStorage está vacío, intentar cargar desde BD
@@ -114,9 +186,10 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
 
                                         if (Array.isArray(lotesDB) && lotesDB.length > 0) {
                                             console.log(`✅ LOTES - Cargados desde BD:`, lotesDB);
-                                            setLotes(lotesDB);
+                                            const lotesProtegidos = applyPendingLotes(lotesDB);
+                                            setLotes(lotesProtegidos);
                                             // Guardar en localStorage para próximas cargas
-                                            localStorage.setItem(keyLocal, JSON.stringify(lotesDB));
+                                            localStorage.setItem(lotesStorageKey, JSON.stringify(lotesProtegidos));
                                             return;
                                         }
                                     } catch (error) {
@@ -130,49 +203,60 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
                     console.error('❌ Error cargando lotes desde BD:', error);
                 }
 
-                setLotes([]);
+                setLotes(applyPendingLotes([]));
             }
         } catch (error) {
             console.error('❌ Error cargando lotes:', error);
-            setLotes([]);
+            setLotes(applyPendingLotes([]));
         }
     };
 
     const guardarLotes = (nuevosLotes) => {
-        // Convertir fecha a formato YYYY-MM-DD para consistencia
-        let fechaParaBD;
-        if (fechaSeleccionada instanceof Date) {
-            const year = fechaSeleccionada.getFullYear();
-            const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-            const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-            fechaParaBD = `${year}-${month}-${day}`;
-        } else {
-            fechaParaBD = fechaSeleccionada;
-        }
+        localStorage.setItem(lotesStorageKey, JSON.stringify(nuevosLotes));
+        writePendingLotes(nuevosLotes);
 
-        const keyLocal = `lotes_${dia}_${idSheet}_${fechaParaBD}`;
-        localStorage.setItem(keyLocal, JSON.stringify(nuevosLotes));
+        console.log(`🔄 LOTES - Sincronizando con BD: ${idSheet} | ${dia} | ${fechaFormateadaLS}`);
 
-
-        console.log(`🔄 LOTES - Sincronizando con BD: ${idSheet} | ${dia} | ${fechaParaBD}`);
-
-        cargueRealtimeService.actualizarCampoGlobal(
-            idSheet,
-            dia,
-            fechaParaBD,
-            'lotes_produccion',
-            JSON.stringify(nuevosLotes),
-            'Sistema'
-        ).then(result => {
-            if (result.success) {
-                console.log(`✅ LOTES sincronizados con BD (${result.action})`);
-            } else {
-                console.error(`❌ Error sincronizando lotes:`, result.error);
-            }
-        }).catch(err => {
+        sincronizarLotes(nuevosLotes).catch(err => {
             console.error(`❌ Error en sincronización lotes:`, err);
         });
     };
+
+    useEffect(() => {
+        if (!fechaFormateadaLS || typeof window === 'undefined') return undefined;
+
+        const flushPendingLotes = async () => {
+            if (pendingSyncInProgressRef.current) return;
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+            const lotesPendientes = readPendingLotes();
+            if (!lotesPendientes) return;
+
+            pendingSyncInProgressRef.current = true;
+
+            try {
+                await sincronizarLotes(lotesPendientes);
+            } catch (error) {
+                console.error('❌ Error reintentando lotes pendientes:', error);
+            } finally {
+                pendingSyncInProgressRef.current = false;
+            }
+        };
+
+        const handleOnline = () => {
+            console.log(`🌐 ${idSheet} - Reintentando lotes pendientes...`);
+            flushPendingLotes();
+        };
+
+        const intervalId = window.setInterval(flushPendingLotes, 10000);
+        window.addEventListener('online', handleOnline);
+        flushPendingLotes();
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('online', handleOnline);
+        };
+    }, [dia, idSheet, fechaFormateadaLS, pendingLotesStorageKey]);
 
     const agregarLote = () => {
         if (!loteInput.trim()) {
