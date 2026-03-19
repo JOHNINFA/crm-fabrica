@@ -414,6 +414,75 @@ Estado: ✅ Finalizado (Commit `2dccfbab`)
 5. Sincronización en tiempo real preserva datos entre ventanas
 ```
 
+### Modo Tablet en Cargue (Marzo 2026)
+
+#### Objetivo de la implementación
+- En tablet, la tabla de `Cargue` debía seguir siendo usable en horizontal y vertical sin perder contexto visual.
+- El enfoque actual separa la UX tablet de la UX desktop:
+  - desktop usa comportamiento más cercano al `sticky` tradicional del `thead`
+  - tablet usa capas fijas sincronizadas para evitar inconsistencias durante scroll táctil
+
+#### Arquitectura actual
+- `frontend/src/components/Cargue/MenuSheets.jsx`
+  - Detecta layout tablet con `TABLET_LAYOUT_MEDIA_QUERY`.
+  - Controla `isTabletLayout`, `showTabletHeader` y la medición de columnas de la tabla.
+  - Renderiza una **cabecera fija clonada** (`cargue-tablet-fixed-header`) solo en tablet.
+  - Renderiza una **barra inferior fija de IDs** (`cargue-tablet-fixed-ids`) solo en tablet.
+- `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+  - Expone el ancla visual `cargue-tablet-header-anchor`.
+  - Monta la tabla dentro de `tabla-productos-scroll-shell`, que es el contenedor real del scroll horizontal.
+- `frontend/src/components/Cargue/TablaProductos.jsx`
+  - Define la tabla real y el orden/anchos base de columnas consumidos por la cabecera visual tablet.
+- `frontend/src/components/Cargue/PlantillaOperativa.css`
+  - Contiene la media query de tablet.
+  - Define estilos de `tabla-productos-scroll-shell`, `cargue-tablet-fixed-header` y `cargue-tablet-fixed-ids`.
+
+#### Cómo funciona la cabecera superior en tablet
+- La cabecera que ve el usuario en tablet **no es el `thead` nativo pegado**.
+- `MenuSheets.jsx` mide las columnas reales del `thead` con `getBoundingClientRect()`.
+- Cuando el ancla superior sale de la pantalla y la tabla sigue visible, se activa `showTabletHeader`.
+- La cabecera clonada:
+  - se posiciona fija arriba
+  - replica el ancho de cada columna
+  - sincroniza su `scrollLeft` con el scroll horizontal de `tabla-productos-scroll-shell`
+- Esto evita perder títulos al hacer scroll vertical en tablets y mantiene alineación con la tabla real.
+
+#### Cómo funciona la barra inferior de IDs en tablet
+- La barra de IDs visible en tablet es una capa independiente de la barra inferior desktop.
+- Se usa para mantener siempre accesibles los botones `ID1` a `ID6` mientras se navega por la tabla.
+- En tablet, la barra desktop normal (`cargue-bottom-bar`) se oculta y se reemplaza por `cargue-tablet-fixed-ids`.
+- La barra permite interacción solo en sus botones (`pointer-events: auto`), manteniendo el contenedor externo aislado.
+
+#### Ajuste importante: rebote visual de la barra de IDs (producción Android)
+- Problema observado en tablets Android en producción:
+  - durante scroll táctil vertical, la barra inferior de IDs parecía “subir” o quedarse momentáneamente flotando
+  - luego regresaba a su posición inferior
+- Causa más probable:
+  - la barra estaba anclada con `position: fixed` usando `top: calc(100vh/100dvh - ...)`
+  - en Android, `vh/dvh` puede variar durante el gesto táctil y producir un salto visual
+- Solución aplicada:
+  - se eliminó el anclaje por `top: calc(...)`
+  - la barra quedó anclada con `bottom: 0` y `top: auto`
+- Archivo del fix:
+  - `frontend/src/components/Cargue/PlantillaOperativa.css`
+- Resultado esperado:
+  - la barra de IDs permanece estable en el borde inferior durante el scroll táctil
+  - se reduce el “rebote” o salto momentáneo en tablets Samsung/Android
+
+#### Regla práctica para futuros cambios
+- No tocar la UX tablet de `Cargue` asumiendo que funciona igual que desktop.
+- Si se modifica cualquiera de estos puntos, probar en tablet real:
+  - `tabla-productos-scroll-shell`
+  - `cargue-tablet-fixed-header`
+  - `cargue-tablet-fixed-ids`
+  - media query `TABLET_LAYOUT_MEDIA_QUERY`
+- Cualquier ajuste visual en tablet debe validarse con:
+  - scroll vertical largo
+  - scroll horizontal de la tabla
+  - cambio entre IDs
+  - interacción táctil real en Android
+  - presencia de barra del sistema / `safe-area-inset-bottom`
+
 ### Archivos Modificados
 
 - `frontend/src/components/Cargue/BotonLimpiar.jsx` - Lógica principal del flujo

@@ -565,10 +565,6 @@ table.tabla-productos,
         display: none;
     }
 
-    .plantilla-operativa button[title="Ver Auditoría de Liquidación vs App"] {
-        display: none !important;
-    }
-
     .plantilla-operativa-main-layout {
         flex-direction: column;
         gap: 1rem;
@@ -695,6 +691,10 @@ table.tabla-productos,
 @media (max-width: 768px) {
     .tabla-productos {
         font-size: 0.7rem;
+    }
+
+    .plantilla-operativa button[title="Ver Auditoría de Liquidación vs App"] {
+        display: none !important;
     }
 
     .tabla-productos input[type="number"] {
