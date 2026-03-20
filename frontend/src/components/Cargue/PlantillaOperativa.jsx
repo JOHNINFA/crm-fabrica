@@ -2717,6 +2717,7 @@ const PlantillaOperativa = ({
                                                         const vencidasApp = parseInt(p.vencidas_app ?? p.vencidas) || 0;
                                                         const vencidasNoReportadas = parseInt(p.vencidas_no_reportadas) || 0;
                                                         const restanteEsperado = Math.max(0, parseInt(p.restante_esperado) || 0);
+                                                        const excesoVendidasApp = Math.max(0, vendidasApp - totalLiquidable);
                                                         const { valor: fisicoRecibido, esManual: fisicoEsManual } = obtenerFisicoAuditoriaProducto(p);
                                                         const tieneFisico = fisicoRecibido !== undefined && fisicoRecibido !== null && fisicoRecibido !== '';
                                                         const diferenciaFisica = tieneFisico ? (parseInt(fisicoRecibido, 10) - restanteEsperado) : null;
@@ -2728,7 +2729,14 @@ const PlantillaOperativa = ({
                                                         let estadoBadge = null;
                                                         let restanteBadge = null;
                                                         let rowBg = 'transparent';
-                                                        if (restanteEsperado === 0) {
+                                                        if (excesoVendidasApp > 0) {
+                                                            rowBg = '#fff7ed';
+                                                            restanteBadge = (
+                                                                <span className="d-inline-flex align-items-center px-2 py-1 rounded-pill fw-bold" style={{ fontSize: '0.72rem', backgroundColor: '#ffedd5', color: '#c2410c' }}>
+                                                                    -{excesoVendidasApp}
+                                                                </span>
+                                                            );
+                                                        } else if (restanteEsperado === 0) {
                                                             restanteBadge = <span className="text-secondary fw-medium">0</span>;
                                                         } else {
                                                             rowBg = '#fffbeb';
@@ -2739,7 +2747,13 @@ const PlantillaOperativa = ({
                                                             );
                                                         }
 
-                                                        if (vencidasNoReportadas > 0 && ajusteManualDespachador) {
+                                                        if (excesoVendidasApp > 0) {
+                                                            estadoBadge = (
+                                                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fdba74' }}>
+                                                                    <i className="bi bi-exclamation-triangle-fill"></i> App sobre reporto {excesoVendidasApp}
+                                                                </span>
+                                                            );
+                                                        } else if (vencidasNoReportadas > 0 && ajusteManualDespachador) {
                                                             estadoBadge = (
                                                                 <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill badge-auditoria-estado" style={{ fontSize: '0.72rem', fontWeight: '600', backgroundColor: '#fff7ed', color: '#b45309', border: '1px solid #fdba74' }}>
                                                                     <i className="bi bi-pencil-square"></i> Ajusto dev. y vencida

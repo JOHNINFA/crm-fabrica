@@ -3313,6 +3313,66 @@ Garantizar que los datos manuales del módulo de Cargue:
   - seguir observando uso normal de despachadores en producción para detectar casos residuales no reproducidos,
   - la línea aparte de trabajo sobre coherencia App Guerrero vs Auditoría de Liquidación sigue separada de esta corrección.
 
+### Estado real actual en VPS (19 Mar 2026, tarde)
+- El VPS quedó estable con:
+  - commit activo en producción: `3854266`
+  - mensaje: `Revert "feat(cargue): improve audit tracking and route sale signals"`
+- Lectura práctica:
+  - sigue activo `a6aec81` (`feat(cargue): preserve local edits during outages`)
+  - NO quedó activo `a804259` en ese momento, porque fue revertido temporalmente durante la contingencia
+- Importante:
+  - esto preserva la corrección ya validada de persistencia offline/anti-borrado en `Cargue`
+  - la línea nueva de auditoría, badges y refuerzo backend quedó pausada momentáneamente hasta reactivarla de forma controlada
+
+### Incidente real detectado en producción al desplegar `a804259`
+- Síntoma observado:
+  - login mostraba `Error de conexión con el servidor`
+  - `Cargue` aparecía vacío o con valores default (`RESPONSABLE`, tablas en blanco, etc.)
+- Diagnóstico confirmado:
+  - el problema NO fue pérdida de datos ni daño directo del commit
+  - `crm_backend_prod` estaba arriba y Gunicorn arrancó normalmente
+  - `crm_nginx` quedó apuntando a una IP vieja del contenedor backend (`172.18.0.4:8000`)
+  - al recrearse `backend`, Docker cambió la IP interna y `nginx` siguió usando el upstream viejo
+- Evidencia en logs:
+  - `connect() failed (113: Host is unreachable) while connecting to upstream`
+  - múltiples respuestas `502`
+- Corrección operativa:
+  - reiniciar `nginx` después de recrear `backend`
+  - si no basta, forzar recreación de `nginx`
+- Comandos que resolvieron / deben ejecutarse después de un redeploy de frontend+backend:
+  - `docker compose -f docker-compose.prod.yml restart nginx`
+  - si sigue mal: `docker compose -f docker-compose.prod.yml up -d --force-recreate nginx`
+
+### Backup preventivo tomado en VPS antes de reactivar auditoría nueva
+- Se generó respaldo SQL directo de tablas de `Cargue` en producción:
+  - archivo: `backups/backup_cargue_2026-03-19.sql`
+  - tamaño validado: `~1.7M`
+- Tablas incluidas:
+  - `api_cargueid1`
+  - `api_cargueid2`
+  - `api_cargueid3`
+  - `api_cargueid4`
+  - `api_cargueid5`
+  - `api_cargueid6`
+  - `api_cargue_productos`
+  - `api_cargue_resumen`
+  - `api_cargue_pagos`
+  - `api_cargue_cumplimiento`
+- Objetivo:
+  - tener punto de recuperación antes de reactivar el commit `a804259`
+
+### Procedimiento seguro acordado para reactivar `a804259`
+- Si se quiere volver a activar la auditoría nueva en producción:
+  1. confirmar que el VPS siga sobre `3854266`
+  2. ejecutar `git revert --no-edit 3854266`
+  3. ejecutar `docker compose -f docker-compose.prod.yml up -d --build`
+  4. ejecutar inmediatamente `docker compose -f docker-compose.prod.yml restart nginx`
+  5. si aparece cualquier `502`, ejecutar `docker compose -f docker-compose.prod.yml up -d --force-recreate nginx`
+  6. validar login, `Cargue`, `Ventas Ruta` y modal de auditoría
+- Nota:
+  - no requiere migraciones
+  - no afecta la APK actual de `AP GUERRERO`
+
 ### Ajuste adicional detectado en pruebas App vs Auditoría (19 Mar 2026)
 - Síntoma observado:
   - en `AP GUERRERO`, algunos productos seguían mostrando stock disponible como si las `vencidas` no se hubieran descontado,
@@ -3442,6 +3502,30 @@ Hacer visible desde la tabla principal de `Ventas de Ruta` cuándo una venta rep
 - Solo frontend web CRM.
 - No cambia backend ni API.
 - No requiere APK nueva.
+
+### Estado de despliegue
+- Este bloque hace parte del commit `a804259` (`feat(cargue): improve audit tracking and route sale signals`).
+- Durante despliegue inicial en VPS coincidió con el incidente de `nginx` apuntando al upstream viejo del backend, por lo que no pudo validarse limpiamente en ese primer intento.
+- No quedó demostrado como fallo funcional propio del badge; el problema confirmado fue de infraestructura (`502` por upstream viejo).
+
+### Ajuste adicional en auditoría: detección de sobre-reporte de app (19 Mar 2026)
+- Problema detectado en pruebas reales:
+  - había filas donde `APP VEND.` quedaba por encima de `TOTAL LIQ.`
+  - ejemplo real observado: `TOTAL LIQ. = 100` y `APP VEND. = 200`
+  - el modal anterior recortaba `RESTANTE` a `0` y podía terminar mostrando `OK`, lo cual ocultaba una inconsistencia grave
+- Ajuste aplicado:
+  - en `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+  - se calculó `excesoVendidasApp = max(0, APP_VEND - TOTAL_LIQ)`
+  - si `excesoVendidasApp > 0`:
+    - `RESTANTE` se muestra en negativo (`-X`)
+    - el estado ya NO puede salir como `OK`
+    - el badge muestra `App sobre reporto X`
+- Lectura operativa:
+  - no implica automáticamente que la app sí permitiera vender físicamente más producto
+  - sí indica que la reportería/acumulado de ventas de app quedó por encima del total liquidable del cargue
+  - posibles causas: duplicidad, edición/anulación mal reflejada, histórico contaminado o acumulado inconsistente
+- Validación técnica:
+  - frontend compiló bien con `npm run build`
 
 ---
 
