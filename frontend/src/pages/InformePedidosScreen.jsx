@@ -682,7 +682,17 @@ function InformePedidosContent() {
                                             <p><strong># Pedido:</strong> {selectedPedido.numero_pedido}</p>
                                             <p><strong>Cliente:</strong> {selectedPedido.destinatario}</p>
                                             <p><strong>Vendedor:</strong> {selectedPedido.vendedor}</p>
-                                            <p><strong>Fecha:</strong> {formatFechaHoraCreacion(selectedPedido.fecha_creacion || selectedPedido.fecha)}</p>
+                                            {(() => {
+                                                const fechaCreacionDetalle = formatFechaHoraCreacion(selectedPedido.fecha_creacion || selectedPedido.fecha);
+                                                return (
+                                                    <p>
+                                                        <strong>Fecha:</strong>{' '}
+                                                        {typeof fechaCreacionDetalle === 'object'
+                                                            ? `${fechaCreacionDetalle.fecha} ${fechaCreacionDetalle.hora}`
+                                                            : fechaCreacionDetalle}
+                                                    </p>
+                                                );
+                                            })()}
                                             <p><strong>Entrega:</strong> {formatFecha(selectedPedido.fecha_entrega)}</p>
                                             <p><strong>Estado:</strong>
                                                 <Badge bg={
