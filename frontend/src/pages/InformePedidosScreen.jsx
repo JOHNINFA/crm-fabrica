@@ -32,10 +32,10 @@ function InformePedidosContent() {
     // Estados para filtros
     const [filtroBusqueda, setFiltroBusqueda] = useState('');
     
-    // Estados para los calendarios (Mes Actual por defecto)
+    // Estados para los calendarios (Últimos 3 días por defecto)
     const [fechaInicial, setFechaInicial] = useState(() => {
         const d = new Date();
-        d.setDate(1); // Primer día del mes
+        d.setDate(d.getDate() - 3);
         d.setHours(0, 0, 0, 0);
         return d;
     });
@@ -260,6 +260,78 @@ function InformePedidosContent() {
                     .react-calendar__tile--now {
                         background: #e8f5e9;
                     }
+
+                    .informe-pedidos-table {
+                        width: 100%;
+                        table-layout: fixed;
+                    }
+
+                    .informe-pedidos-table th,
+                    .informe-pedidos-table td {
+                        vertical-align: middle;
+                        padding: 10px 12px;
+                    }
+
+                    .informe-pedidos-table th:nth-child(1),
+                    .informe-pedidos-table td:nth-child(1) {
+                        width: 100px;
+                        white-space: nowrap;
+                    }
+
+                    .informe-pedidos-table th:nth-child(2),
+                    .informe-pedidos-table td:nth-child(2) {
+                        width: 105px;
+                        white-space: nowrap;
+                    }
+
+                    .informe-pedidos-table th:nth-child(3),
+                    .informe-pedidos-table td:nth-child(3) {
+                        width: 24%;
+                        white-space: normal;
+                        word-break: break-word;
+                    }
+
+                    .informe-pedidos-table th:nth-child(4),
+                    .informe-pedidos-table td:nth-child(4) {
+                        width: 18%;
+                        white-space: normal;
+                        word-break: break-word;
+                    }
+
+                    .informe-pedidos-table th:nth-child(5),
+                    .informe-pedidos-table td:nth-child(5) {
+                        width: 18%;
+                        white-space: normal;
+                        word-break: break-word;
+                    }
+
+                    .informe-pedidos-table th:nth-child(6),
+                    .informe-pedidos-table td:nth-child(6) {
+                        width: 110px;
+                        white-space: nowrap;
+                    }
+
+                    .informe-pedidos-table th:nth-child(7),
+                    .informe-pedidos-table td:nth-child(7) {
+                        width: 120px;
+                        white-space: nowrap;
+                    }
+
+                    .informe-pedidos-table th:nth-child(8),
+                    .informe-pedidos-table td:nth-child(8) {
+                        width: 102px;
+                        white-space: nowrap;
+                        padding-right: 6px;
+                    }
+
+                    .informe-pedidos-table th:nth-child(9),
+                    .informe-pedidos-table td:nth-child(9) {
+                        width: 100px;
+                        white-space: nowrap;
+                        text-align: right;
+                        padding-left: 6px;
+                        padding-right: 12px;
+                    }
                 `}
             </style>
             <Sidebar onWidthChange={setSidebarWidth} />
@@ -429,8 +501,8 @@ function InformePedidosContent() {
                                                 )}
                                             </div>
 
-                                            <div style={{ overflowX: 'auto' }}>
-                                                <Table hover className="mb-0" style={{ fontSize: '12px' }}>
+                                            <div className="informe-pedidos-table-wrapper" style={{ overflowX: 'auto' }}>
+                                                <Table hover className="mb-0 informe-pedidos-table" style={{ fontSize: '12px' }}>
                                                     <thead className="table-light">
                                                         <tr>
                                                             <th>N° Pedido</th>

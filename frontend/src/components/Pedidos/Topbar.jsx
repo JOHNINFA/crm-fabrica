@@ -40,17 +40,6 @@ export default function Topbar({ onOpenCategoryManager }) {
                         Informes de Pedidos
                     </button>
 
-                    {/* Botón Historial */}
-                    <button
-                        className="btn btn-light border"
-                        style={{ borderRadius: '8px', color: '#163864', fontSize: '15px', padding: '8px 16px' }}
-                        type="button"
-                        onClick={() => navigate('/pedidos/historial')}
-                        title="Historial de Pedidos"
-                    >
-                        <i className="bi bi-clock-history me-2" style={{ fontSize: '16px' }}></i>
-                        Historial
-                    </button>
 
                     {/* Botón Gestionar */}
                     <button
