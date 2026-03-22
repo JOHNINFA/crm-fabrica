@@ -80,9 +80,9 @@ function PedidosMainContent() {
                 if (clienteData.lista_precio) {
                     setPriceList(clienteData.lista_precio);
                 }
-                if (clienteData.fecha) {
-                    setDate(clienteData.fecha);
-                }
+                // No sobreescribir la fecha por defecto con la fecha de la ruta.
+                // El usuario quiere que por defecto sea la fecha real de hoy
+                // y moverla manualmente solo si desea programar otra entrega.
                 // Usar el vendedor del cliente si viene de Pedidos
                 if (clienteData.vendedor) {
 
@@ -97,12 +97,6 @@ function PedidosMainContent() {
                 }
             } catch (error) {
                 console.error('Error parseando datos del cliente:', error);
-            }
-        } else {
-            // 🆕 Si no hay cliente, revisar si vienen fecha/dia sueltos (desde "Ir a Pedidos")
-            const fechaParam = searchParams.get('fecha');
-            if (fechaParam) {
-                setDate(fechaParam);
             }
         }
     }, [searchParams, isAuthenticated, cajeroLogueado]);

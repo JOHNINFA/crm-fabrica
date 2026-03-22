@@ -31,6 +31,7 @@ function InformePedidosContent() {
 
     // Estados para filtros
     const [filtroBusqueda, setFiltroBusqueda] = useState('');
+    const [busquedaGlobalActiva, setBusquedaGlobalActiva] = useState(false);
     
     // Estados para los calendarios (Últimos 3 días por defecto)
     const [fechaInicial, setFechaInicial] = useState(() => {
@@ -75,14 +76,20 @@ function InformePedidosContent() {
     const cargarPedidos = async () => {
         setLoading(true);
         try {
+            const terminoBusqueda = filtroBusqueda.trim();
+            const usandoBusquedaGlobal = terminoBusqueda.length >= 2;
+
             // Preparar parámetros de fecha para el backend
-            const params = {
-                fecha_inicio: fechaInicial.toISOString().split('T')[0],
-                fecha_fin: fechaFinal.toISOString().split('T')[0]
-            };
+            const params = usandoBusquedaGlobal
+                ? { search: terminoBusqueda }
+                : {
+                    fecha_inicio: formatearFechaLocal(fechaInicial),
+                    fecha_fin: formatearFechaLocal(fechaFinal)
+                };
 
             const data = await pedidoService.getAll(params);
             setPedidos(data || []);
+            setBusquedaGlobalActiva(usandoBusquedaGlobal);
         } catch (error) {
             console.error('Error cargando pedidos:', error);
         } finally {
@@ -103,6 +110,27 @@ function InformePedidosContent() {
     const formatCurrency = (amount) => {
         const value = Number(amount || 0);
         return `$ ${value.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    };
+
+    const formatearFechaLocal = (fecha) => {
+        if (!(fecha instanceof Date) || Number.isNaN(fecha.getTime())) return '';
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const parseFechaPedidoParaFiltro = (pedido) => {
+        const fechaEntrega = pedido?.fecha_entrega;
+
+        if (typeof fechaEntrega === 'string') {
+            const fechaSoloDia = fechaEntrega.split('T')[0];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(fechaSoloDia)) {
+                return new Date(`${fechaSoloDia}T12:00:00`);
+            }
+        }
+
+        return new Date(fechaEntrega || pedido?.fecha);
     };
 
     const handleRowClick = (pedido) => {
@@ -200,8 +228,12 @@ function InformePedidosContent() {
                 }
             }
 
+            if (busquedaGlobalActiva && filtroBusqueda.trim()) {
+                return true;
+            }
+
             // 2. Filtro de Rango de Fecha y Hora
-            const fechaEntrega = new Date(pedido.fecha_entrega || pedido.fecha);
+            const fechaEntrega = parseFechaPedidoParaFiltro(pedido);
             
             // Preparar limite inferior
             const inicio = new Date(fechaInicial);
@@ -409,7 +441,12 @@ function InformePedidosContent() {
                                                                     }}
                                                                     type="text"
                                                                     value={filtroBusqueda}
-                                                                    onChange={(e) => setFiltroBusqueda(e.target.value)}
+                                                                    onChange={(e) => {
+                                                                        setFiltroBusqueda(e.target.value);
+                                                                        if (!e.target.value.trim()) {
+                                                                            setBusquedaGlobalActiva(false);
+                                                                        }
+                                                                    }}
                                                                     placeholder="Buscar N°, Cliente o Vendedor..."
                                                                 />
                                                             </div>
@@ -496,6 +533,7 @@ function InformePedidosContent() {
                                                     <div className="mt-2">
                                                         <small className="text-muted">
                                                             Mostrando <strong>{pedidosFiltrados.length}</strong> de <strong>{pedidos.length}</strong> pedidos registrados.
+                                                            {busquedaGlobalActiva ? ' Busqueda global por N° pedido, cliente o vendedor.' : ''}
                                                         </small>
                                                     </div>
                                                 )}

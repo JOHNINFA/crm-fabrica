@@ -1961,15 +1961,23 @@ class PedidoViewSet(viewsets.ModelViewSet):
         fecha_hasta = self.request.query_params.get('fecha_hasta') or self.request.query_params.get('fecha_fin')
         fecha_entrega = self.request.query_params.get('fecha_entrega') # 🆕 Filtrar por fecha de entrega
         transportadora = self.request.query_params.get('transportadora')
+        search = self.request.query_params.get('search')
         
         if destinatario:
             queryset = queryset.filter(destinatario__icontains=destinatario)
         if estado:
             queryset = queryset.filter(estado=estado.upper())
-        if fecha_desde:
-            queryset = queryset.filter(fecha__date__gte=fecha_desde)
-        if fecha_hasta:
-            queryset = queryset.filter(fecha__date__lte=fecha_hasta)
+        if search:
+            queryset = queryset.filter(
+                Q(numero_pedido__icontains=search) |
+                Q(destinatario__icontains=search) |
+                Q(vendedor__icontains=search)
+            )
+        else:
+            if fecha_desde:
+                queryset = queryset.filter(fecha__date__gte=fecha_desde)
+            if fecha_hasta:
+                queryset = queryset.filter(fecha__date__lte=fecha_hasta)
         if fecha_entrega: # 🆕 Aplicar filtro
             queryset = queryset.filter(fecha_entrega=fecha_entrega)
         if transportadora:
