@@ -1952,13 +1952,13 @@ class PedidoViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = Pedido.objects.all().order_by('-fecha_creacion')
+        queryset = Pedido.objects.all().prefetch_related('detalles__producto', 'evidencias').order_by('-fecha_creacion')
         
         # Filtros opcionales
         destinatario = self.request.query_params.get('destinatario')
         estado = self.request.query_params.get('estado')
-        fecha_desde = self.request.query_params.get('fecha_desde')
-        fecha_hasta = self.request.query_params.get('fecha_hasta')
+        fecha_desde = self.request.query_params.get('fecha_desde') or self.request.query_params.get('fecha_inicio')
+        fecha_hasta = self.request.query_params.get('fecha_hasta') or self.request.query_params.get('fecha_fin')
         fecha_entrega = self.request.query_params.get('fecha_entrega') # 🆕 Filtrar por fecha de entrega
         transportadora = self.request.query_params.get('transportadora')
         
