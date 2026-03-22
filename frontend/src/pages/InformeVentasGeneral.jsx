@@ -389,7 +389,8 @@ const InformeVentasGeneral = () => {
     }));
 
   const formatCurrency = (amount) => {
-    return `$ ${amount.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const numericAmount = Number(amount || 0);
+    return `$ ${numericAmount.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   const metricIconWrapperStyle = {
@@ -1020,8 +1021,8 @@ const InformeVentasGeneral = () => {
                                 <td>{transaccion.vendedor}</td>
                                 <td>{transaccion.creado_por}</td>
                                 <td>{transaccion.cliente}</td>
-                                <td>{formatCurrency(transaccion.facturado)}</td>
-                                <td>{formatCurrency(transaccion.abonado)}</td>
+                                <td className="text-center">{formatCurrency(transaccion.facturado)}</td>
+                                <td className="text-center">{formatCurrency(transaccion.abonado)}</td>
                               </tr>
                             ))
                           ) : (
