@@ -101,7 +101,8 @@ function InformePedidosContent() {
     };
 
     const formatCurrency = (amount) => {
-        return `$ ${amount.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const value = Number(amount || 0);
+        return `$ ${value.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     };
 
     const handleRowClick = (pedido) => {
