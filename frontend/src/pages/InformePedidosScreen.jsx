@@ -107,6 +107,20 @@ function InformePedidosContent() {
         return date.toLocaleDateString('es-CO');
     };
 
+    const formatFechaHoraCreacion = (fecha) => {
+        if (!fecha) return '-';
+        const date = new Date(fecha);
+        if (Number.isNaN(date.getTime())) return formatFecha(fecha);
+        return {
+            fecha: date.toLocaleDateString('es-CO'),
+            hora: date.toLocaleTimeString('es-CO', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            })
+        };
+    };
+
     const formatCurrency = (amount) => {
         const value = Number(amount || 0);
         return `$ ${value.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -121,16 +135,8 @@ function InformePedidosContent() {
     };
 
     const parseFechaPedidoParaFiltro = (pedido) => {
-        const fechaEntrega = pedido?.fecha_entrega;
-
-        if (typeof fechaEntrega === 'string') {
-            const fechaSoloDia = fechaEntrega.split('T')[0];
-            if (/^\d{4}-\d{2}-\d{2}$/.test(fechaSoloDia)) {
-                return new Date(`${fechaSoloDia}T12:00:00`);
-            }
-        }
-
-        return new Date(fechaEntrega || pedido?.fecha);
+        const fechaCreacion = pedido?.fecha_creacion || pedido?.fecha;
+        return new Date(fechaCreacion);
     };
 
     const handleRowClick = (pedido) => {
@@ -564,7 +570,18 @@ function InformePedidosContent() {
                                                                     onClick={() => handleRowClick(pedido)}
                                                                 >
                                                                     <td><strong>{pedido.numero_pedido}</strong></td>
-                                                                    <td>{formatFecha(pedido.fecha)}</td>
+                                                                    <td>
+                                                                        {(() => {
+                                                                            const fechaCreacion = formatFechaHoraCreacion(pedido.fecha_creacion || pedido.fecha);
+                                                                            if (typeof fechaCreacion === 'string') return fechaCreacion;
+                                                                            return (
+                                                                                <>
+                                                                                    <div>{fechaCreacion.fecha}</div>
+                                                                                    <small className="text-muted">{fechaCreacion.hora}</small>
+                                                                                </>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
                                                                     <td>{pedido.destinatario}</td>
                                                                     <td>{pedido.vendedor}</td>
                                                                     <td>{pedido.direccion_entrega || '-'}</td>
@@ -665,7 +682,7 @@ function InformePedidosContent() {
                                             <p><strong># Pedido:</strong> {selectedPedido.numero_pedido}</p>
                                             <p><strong>Cliente:</strong> {selectedPedido.destinatario}</p>
                                             <p><strong>Vendedor:</strong> {selectedPedido.vendedor}</p>
-                                            <p><strong>Fecha:</strong> {formatFecha(selectedPedido.fecha)}</p>
+                                            <p><strong>Fecha:</strong> {formatFechaHoraCreacion(selectedPedido.fecha_creacion || selectedPedido.fecha)}</p>
                                             <p><strong>Entrega:</strong> {formatFecha(selectedPedido.fecha_entrega)}</p>
                                             <p><strong>Estado:</strong>
                                                 <Badge bg={
