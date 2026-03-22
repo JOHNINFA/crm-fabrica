@@ -185,8 +185,8 @@ table.tabla-productos,
 
 /* Columna PRODUCTOS */
 .tabla-productos th:nth-child(3) {
-    min-width: 24rem;
-    max-width: 28rem;
+    min-width: 16rem;
+    max-width: 18rem;
     white-space: normal;
     text-align: center;
     padding: 0.4rem 0.8rem;
@@ -194,8 +194,8 @@ table.tabla-productos,
 }
 
 .tabla-productos td:nth-child(3) {
-    min-width: 24rem;
-    max-width: 28rem;
+    min-width: 16rem;
+    max-width: 18rem;
     white-space: normal;
     text-align: left;
     padding: 0.4rem 0.8rem;
@@ -240,8 +240,8 @@ table.tabla-productos,
 /* LOTES VENCIDOS */
 .tabla-productos th:nth-child(9),
 .tabla-productos td:nth-child(9) {
-    min-width: 10rem;
-    width: 10rem;
+    min-width: 7.5rem;
+    width: 7.5rem;
 }
 
 /* TOTAL */

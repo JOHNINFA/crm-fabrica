@@ -3553,6 +3553,249 @@ En `/#/clientes` aparecía overlay rojo con:
 
 ---
 
+## 🛡️ App Guerrero + Ventas Ruta - Ajuste quirúrgico anti-duplicados y modal de detalle (20 Mar 2026)
+
+### Problema detectado en pruebas locales
+- Se implementó un blindaje anti-duplicados para `AP GUERRERO`, pero la primera versión quedó demasiado agresiva.
+- Caso real de prueba:
+  - se hizo una venta válida a un cliente,
+  - luego otra venta válida al mismo cliente con el mismo producto,
+  - la segunda venta no aparecía en `Ventas Ruta`,
+  - pero el stock local sí se descontaba.
+- Conclusión:
+  - la app estaba reutilizando una `venta similar reciente` aunque fuera una segunda venta legítima,
+  - el stock se seguía descontando desde `VentasScreen`, generando desface visual/operativo.
+
+### Hallazgo técnico
+- Archivo: `AP GUERRERO/services/ventasService.js`
+  - existía una búsqueda de `venta local similar reciente` basada en una huella (`huella_duplicado`) y ventana amplia.
+  - eso servía para detectar duplicados, pero también se tragaba ventas reales hechas segundos después al mismo cliente.
+- Archivo: `api/views.py`
+  - el backend tenía una detección de `DUPLICADO_SOSPECHOSO` dentro de `120s`.
+  - esa ventana también era demasiado amplia para operación real.
+
+### Ajuste aplicado
+- Archivo: `AP GUERRERO/services/ventasService.js`
+  - se eliminó la reutilización automática de `venta similar reciente`.
+  - la `huella_duplicado` se conserva solo para trazabilidad/diagnóstico.
+  - la app ya no debe esconder una segunda venta válida al mismo cliente.
+- Archivo: `AP GUERRERO/components/Ventas/ResumenVentaModal.js`
+  - se mantiene el bloqueo inmediato por `double tap` en `Confirmar`.
+  - este sí sigue siendo el blindaje correcto para evitar doble toque real antes del re-render.
+- Archivo: `api/views.py`
+  - la ventana de detección de `DUPLICADO_SOSPECHOSO` se redujo de `120s` a `15s`.
+  - objetivo:
+    - bloquear doble submit casi instantáneo,
+    - permitir ventas reales repetidas hechas poco después.
+
+### Resultado esperado después del ajuste
+- Si el vendedor toca `Confirmar` dos veces casi al mismo tiempo:
+  - debe quedar una sola venta.
+- Si el vendedor hace una segunda venta legítima al mismo cliente/producto:
+  - debe guardarse también,
+  - debe verse en `Ventas Ruta`,
+  - y el stock debe descontarse coherentemente con ambas ventas visibles.
+- Ajuste posterior solicitado por operación:
+  - cuando el cliente ya tiene una venta en el día, la app ya no debe invitar a `Continuar` con otra venta.
+  - en `AP GUERRERO/components/Ventas/VentasScreen.js` la alerta ahora ofrece:
+    - `Cancelar`
+    - `Editar venta`
+  - objetivo:
+    - empujar una sola venta por cliente por día,
+    - reducir duplicados operativos,
+    - y usar la edición como camino principal si necesitan corregir algo.
+
+### Validación técnica
+- `python3 manage.py check` OK después del cambio backend.
+
+### Ajuste adicional en CRM Web (`Ventas Ruta`)
+- Archivo: `frontend/src/components/rutas/ReporteVentasRuta.jsx`
+  - se eliminó el botón de impresora de la tabla principal de `Ventas Ruta`.
+  - se eliminó el botón `Imprimir Ticket` del modal de detalle.
+  - el modal ahora muestra explícitamente:
+    - `Ticket: #<id_venta>`
+- Lectura operativa:
+  - el módulo queda enfocado en consulta/auditoría,
+  - no en reimpresión desde web.
+
+### Validación técnica
+- frontend compiló bien con `npm run build`.
+
+---
+
+## 🔄 App Guerrero + Backend - Refresh automático de stock y tope contra Cargue (20 Mar 2026)
+
+### Problema operativo detectado
+- Había dos riesgos distintos:
+  - la app podía quedar con `stockCargue` viejo si desde la web agregaban mercancía o ajustaban cargue mientras el vendedor ya estaba trabajando;
+  - el backend todavía no frenaba explícitamente una venta que superara el stock real restante del `Cargue`.
+- En campo eso se veía así:
+  - la app mostraba que aún había unidades,
+  - pero físicamente ya no había producto,
+  - o el vendedor terminaba reportando ventas por encima de lo que llevaba.
+
+### Ajuste en App Guerrero
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+  - la anulación devuelve stock usando la misma resolución robusta de nombre que la edición.
+  - después de anular, la app hace una reconciliación silenciosa contra backend.
+  - se agregó refresh automático del stock:
+    - cuando la app vuelve al frente (`AppState = active`)
+    - y cada `45s` mientras el turno esté abierto
+- Objetivo:
+  - que el vendedor no dependa solo de arrastrar manualmente para ver cambios de cargue/adicional hechos desde web.
+
+### Ajustes adicionales en App Guerrero
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+  - cuando el cliente ya tiene una venta en el día, la alerta ya no ofrece `Continuar`.
+  - ahora ofrece:
+    - `Cancelar`
+    - `Editar venta`
+  - objetivo:
+    - empujar una sola venta por cliente por día,
+    - reducir duplicados operativos,
+    - y usar edición como camino principal si necesitan corregir una venta ya hecha.
+- Archivo: `AP GUERRERO/components/Ventas/DevolucionesVencidas.js`
+  - se agregó estado `guardando` para bloquear doble toque al registrar vencidas.
+  - mientras toma foto o procesa `Guardar`, el modal muestra:
+    - `Guardando...` o `Registrando...`
+    - `spinner`
+  - y desactiva temporalmente:
+    - `Guardar`
+    - `Cancelar`
+
+### Aclaración importante del flujo de vencidas
+- En flujo normal de venta:
+  - el modal `Vencidas` no envía nada todavía al backend.
+  - solo prepara:
+    - `productos_vencidos`
+    - `foto_vencidos`
+  - esos datos se envían después junto con la venta al hacer `Completar venta`.
+- Solo en `modoSoloRegistro`:
+  - las vencidas sí se registran directamente al backend sin esperar una venta.
+
+### Blindaje definitivo en backend
+- Archivo: `api/views.py`
+  - `VentaRutaViewSet` ahora valida por producto contra el `CargueIDx` antes de crear o editar.
+  - La regla aplicada es:
+    - `disponible = max(0, total - vendidas)`
+  - Si la venta intenta superar ese disponible:
+    - responde `400`
+    - código: `STOCK_CARGUE_INSUFICIENTE`
+    - e incluye detalle por producto
+- También cubre estos casos:
+  - producto que no existe en el cargue del día para ese `ID`
+  - edición de venta que intenta aumentar cantidades por encima del restante real
+
+### Comportamiento esperado
+- Si el vendedor lleva `300`, el backend no debe permitir reportar más de `300` en total.
+- Si la app quedó con stock viejo pero el backend ya no tiene disponible:
+  - la venta se rechaza,
+  - evitando que entre una reportería imposible.
+- Esto no debe romper ventas válidas repetidas al mismo cliente:
+  - el control es por stock restante del cargue,
+  - no por cliente ni por negocio.
+
+### Validación técnica
+- `python3 manage.py check` OK después del ajuste backend.
+
+---
+
+## 📦 Ventas Ruta - `Control de Stock` por ID (20 Mar 2026)
+
+### Objetivo operativo
+- Complementar `Ventas del Día` con una vista read-only de monitoreo por `ID`.
+- La idea no es reemplazar la auditoría, sino permitir seguimiento más en vivo de:
+  - con cuánto salió el vendedor,
+  - cuánto ha vendido,
+  - cuánto ha reportado como vencida,
+  - cuánto saldo teórico le queda,
+  - y si ya existen devoluciones físicas registradas al cierre.
+
+### Implementación backend
+- Archivo: `api/views.py`
+  - se agregó el endpoint `control_stock_tiempo_real(request, id_vendedor, fecha)`.
+  - fuente de verdad:
+    - `CargueIDx` del vendedor/fecha ya sincronizado con ventas y vencidas.
+  - respuesta por producto:
+    - `salio_con = cantidad - dctos + adicional`
+    - `vendidas`
+    - `vencidas`
+    - `saldo_teorico = salio_con - vendidas - vencidas`
+    - `devoluciones`
+    - `diferencia_cierre = saldo_teorico - devoluciones`
+  - también retorna:
+    - `totales`
+    - bandera `cerrado` si ya hay devoluciones registradas
+- Archivo: `api/urls.py`
+  - nuevo endpoint:
+    - `GET /api/cargue/control-stock/<id_vendedor>/<fecha>/`
+
+### Implementación frontend
+- Archivo: `frontend/src/services/rutasService.js`
+  - nuevo método:
+    - `obtenerControlStockRuta(vendedorId, fecha)`
+- Archivo: `frontend/src/components/rutas/ReporteVentasRuta.jsx`
+  - inicialmente se planteó como pestaña nueva, pero quedó mejor integrado en la misma fila de acciones de `Ventas de Ruta (App Móvil)`.
+  - ahora se abre desde el botón:
+    - `Stock`
+    - ubicado al lado de `Recargar` y `Anuladas`
+  - usa los mismos filtros de fecha + vendedor/ID que `Ventas del Día`
+  - comportamiento:
+    - exige seleccionar un `ID`
+    - abre un modal read-only con el resumen y el detalle por producto
+    - carga KPIs de resumen:
+      - `Salió Con`
+      - `Vendidas`
+      - `Vencidas`
+      - `Saldo Teórico`
+      - `Dev. Físicas`
+    - tabla por producto con columnas:
+      - `Producto`
+      - `Salió Con`
+      - `Vendidas`
+      - `Vencidas`
+      - `Saldo Teórico`
+      - `Dev. Fís.`
+      - `Estado`
+  - reglas visuales del estado:
+    - `Sobre reportado X` si el saldo teórico queda negativo
+    - `Cierre OK` si devoluciones coincide con saldo teórico
+    - `Descuadre X` si ya hay devoluciones pero no cuadran
+    - `Agotado` si el saldo teórico es `0`
+    - `En ruta` si hay movimiento pero aún no cierre
+    - `Sin movimiento` si el producto sigue intacto
+- Archivo: `frontend/src/components/rutas/ReporteVentasRuta.css`
+  - estilos nuevos para KPIs, tabla y layout del modal
+  - el layout visual se cerró así:
+    - en escritorio el cuadro quedó ligeramente cargado a la derecha, como pidió operación
+    - en tablet se aplica una regla específica para que el modal quede visualmente centrado / balanceado y no se vea corrido a la izquierda
+    - se redujo el ancho del modal para que no se sintiera tan invasivo
+
+### Decisión de diseño importante
+- Este control **no** bloquea ventas ni reemplaza la lógica de seguridad.
+- El control real para no vender de más sigue siendo:
+  - app con refresh automático de stock
+  - backend validando contra `Cargue`
+- `Control de Stock` es una vista de monitoreo operativo, no una fuente alterna de verdad.
+
+### Validación técnica
+- `python3 manage.py check` OK
+- `npm run build` OK
+
+### Hallazgo adicional en pruebas App Guerrero
+- Se detectó un rebote visual al cancelar desde el modal de edición de venta: el historial/reimpresión podía reabrirse mostrando resumen en `$0` y `0 transacciones`, aunque al salir y volver a entrar las ventas sí aparecían.
+- Conclusión: no parecía problema de internet sino de estado local del historial.
+- Se verificó que las 3 salidas del modal de edición ya quedaron forzando recarga del historial:
+  - `onRequestClose`
+  - botón `X`
+  - botón `Cancelar`
+- En las 3 rutas ahora se ejecuta nuevamente:
+  - `setMostrarHistorialVentas(true)`
+  - `cargarHistorialReimpresion()`
+- La prueba correcta para confirmar el fix es: recargar Expo, abrir historial, entrar a editar una venta y cancelar; el historial debe volver con datos reales y no con resumen en cero.
+
+---
+
 ---
 
 ## Operacion Produccion - Nota Transitoria (27 Feb 2026)
@@ -3575,3 +3818,427 @@ En `/#/clientes` aparecía overlay rojo con:
 - Migraciones `0090-0094` siguen pendientes para ventana nocturna cuando toda la fuerza comercial este en APK nueva.
 
 **Última actualización global**: 27 de Febrero de 2026
+
+
+## Linea Base Buena - Ventas y Sugeridos (20 Mar 2026)
+
+### Contexto
+- Durante las pruebas finales de `AP GUERRERO` se detectaron dos regresiones visuales/operativas:
+  - en `VentasScreen`, el teclado volvió a empujar la pantalla al tocar cantidades en modo `scroll`.
+  - en el modal de edición de venta, el bloque de `Sugeridos` se sintió alterado respecto al comportamiento histórico bueno.
+- Para cerrar rápido la brecha se comparó el código actual contra un repositorio de referencia que el usuario confirmó como `bueno`.
+
+### 1. VentasScreen - Base correcta del teclado / scroll
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- La línea base buena quedó así:
+  - `listaContentNormal.paddingBottom = 260`
+  - `listaContentConTeclado.paddingBottom = 220`
+- Esta combinación fue la referencia válida del repo bueno para el flujo de ventas.
+- Si vuelve a aparecer el empuje del contenido al tocar cantidades, esta es la primera comparación que se debe hacer.
+- También se confirmó que en modo `scroll` siguen vigentes estas reglas:
+  - no hacer scroll automático agresivo al enfocar cantidad
+  - no usar empuje manual del bloque superior en venta normal
+  - el `FlatList` mantiene el colchón inferior como defensa principal
+
+### 2. Sugeridos en edición - Base correcta del bloque visual
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- El bloque `productosSugeridosEdicion` quedó restaurado a un render simple del repo bueno:
+  - nombre del producto
+  - precio
+  - botón `Agregar`
+- Se retiró la capa extra que se había metido dentro de ese bloque para mostrar:
+  - `Stock X`
+  - `Sin stock`
+  - deshabilitado visual del botón dentro del propio listado de sugeridos
+- Conclusión: el daño percibido en `Sugeridos` no venía del módulo clásico de sugeridos, sino de ajustes colaterales en el modal de edición de ventas.
+
+### 3. Modulo clasico de Sugeridos - Confirmado sano
+- Se compararon estos archivos contra el repo bueno y quedaron equivalentes:
+  - `AP GUERRERO/components/ProductList.js`
+  - `AP GUERRERO/components/Product.js`
+- No se detectó divergencia útil en esos dos archivos.
+- Por tanto, si `Sugeridos` vuelve a sentirse raro, primero revisar:
+  - caché de Expo
+  - cambios colaterales alrededor del flujo de ventas/edición
+  - no asumir de entrada que `ProductList.js` o `Product.js` están dañados
+
+### 4. Regla operativa para futuras regresiones
+- Si vuelve a romperse `Ventas` o `Sugeridos`, comparar primero contra esta línea base:
+  - `VentasScreen.js`
+    - `listaContentNormal = 260`
+    - `listaContentConTeclado = 220`
+    - render simple de `productosSugeridosEdicion`
+  - `ProductList.js` y `Product.js`
+    - tomarlos como sanos salvo evidencia contraria
+- Esto evita sobrecorregir y tocar módulos que en realidad no estaban dañados.
+
+**Última actualización global**: 20 de Marzo de 2026
+
+## 🧾 App Guerrero - Flujo Final Editar Venta + Vencidas (20 Mar 2026)
+
+### Objetivo operativo
+- Se confirmó como flujo final que las vencidas olvidadas **no** se adjuntan desde una alerta separada de `Cliente con venta`.
+- La ruta correcta quedó así:
+  - entrar a `Editar venta`
+  - usar CTA roja `Adjuntar vencidas`
+  - volver al modal de edición
+  - guardar una sola vez la edición completa
+- Motivo:
+  - es más coherente para el vendedor,
+  - evita abrir un subflujo paralelo,
+  - y deja todo asociado a la misma venta ya existente.
+
+### App móvil - UX final en edición
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- En el modal `Editar venta` quedó un CTA rojo `Adjuntar vencidas` al lado del título.
+- Ese CTA muestra badge numérico con el total de vencidas adjuntas en la edición.
+- El flujo quedó así:
+  - abre el mismo modal `DevolucionesVencidas`
+  - permite adjuntar cantidades y fotos
+  - vuelve al modal de edición conservando los datos
+  - al pulsar `Guardar edición` envía juntos:
+    - `detalles`
+    - `metodo_pago`
+    - `productos_vencidos`
+    - `foto_vencidos`
+- El ticket reimpreso debe tomar vencidas desde:
+  - `venta.vencidas`
+  - o fallback `venta.productos_vencidos`
+
+### Modal de vencidas - mejoras finales
+- Archivo: `AP GUERRERO/components/Ventas/DevolucionesVencidas.js`
+- Se agregó validación de stock **antes** de abrir cámara o terminar guardado.
+- La alerta previa quedó con opciones:
+  - `Cancelar`
+  - `Continuar`
+- Esto aplica tanto en:
+  - venta normal
+  - edición de venta
+- También se añadió una línea informativa por producto:
+  - `Stock disponible: X`
+- Ese dato se calcula desde `VentasScreen.js` y se pasa al modal para que refleje el contexto real:
+  - venta normal: stock restante descontando lo que ya está en el carrito actual
+  - edición: stock restante considerando venta original + vencidas originales + nueva edición
+
+### Backend - edición con vencidas
+- Archivo: `api/views.py`
+- La edición de `VentaRuta` quedó aceptando y persistiendo:
+  - `productos_vencidos`
+  - `foto_vencidos`
+- Al editar una venta con vencidas:
+  - ajusta `vencidas` en `CargueIDx`
+  - recalcula `total/neto` del cargue con `recalcular_totales_cargue_queryset()`
+  - guarda evidencia principal y registros en `EvidenciaVenta`
+- Fix importante:
+  - si el vendedor entra a `Editar venta` y **no cambia los detalles**, pero sí agrega vencidas,
+  - el backend ya no vuelve a validar stock de venta como si la venta hubiera cambiado otra vez,
+  - evitando el error falso:
+    - `La venta supera el stock disponible del cargue.`
+
+### Stock visual después de editar
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó un rebote visual:
+  - al guardar edición con vencidas, el stock local se ajustaba bien,
+  - pero el `refresh` silencioso automático podía recargar el cargue y devolver temporalmente el stock anterior.
+- Fix aplicado:
+  - después de guardar una edición con impacto en stock, se bloquea por unos minutos el `refresh` silencioso automático.
+- Objetivo:
+  - evitar que el vendedor vea el stock correcto por un instante y luego lo vea “rebotar” al valor anterior.
+- Este bloqueo solo protege el auto-refresh silencioso; no cambia estilos ni layout.
+
+### Integración visual en web y reimpresión
+- Archivo: `frontend/src/components/rutas/ReporteVentasRuta.jsx`
+  - debe tomar evidencias también desde `selectedVenta.evidencias` para ventas editadas con vencidas.
+- Archivo: `AP GUERRERO/services/printerService.js`
+  - la reimpresión debe mostrar vencidas aunque vengan solo en `productos_vencidos`.
+- Resultado esperado:
+  - al revisar la venta en web se ve badge/registro de vencidas y foto
+  - al reimprimir ticket vuelven a salir las vencidas adjuntas
+
+### Validación operativa recomendada
+- Caso completo a repetir si vuelve a fallar:
+  - abrir una venta ya hecha
+  - entrar a `Editar venta`
+  - adjuntar vencidas
+  - guardar edición
+  - revisar stock en app
+  - reimprimir ticket
+  - revisar detalle de la venta en web
+- Si reaparece un rebote de stock, revisar primero:
+  - `refrescarStockSilencioso`
+  - `cargarStockCargue`
+  - ajuste local de `setStockCargue` después de `confirmarEdicionVenta`
+
+**Última actualización global**: 20 de Marzo de 2026
+
+### Ajuste fino - stock visible al filtrar productos
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó que al usar la barra de búsqueda/filtro de productos en `Ventas`, el producto sí aparecía pero el stock no se alcanzaba a percibir bien.
+- Solución final adoptada:
+  - mantener el stock visible también durante el filtrado,
+  - pero **sin** agrandar la card del producto.
+- Implementación final:
+  - el stock quedó en el mismo renglón del precio:
+    - `Precio: ...  Stock: X`
+  - se resaltó visualmente para que siga siendo legible incluso en resultados filtrados.
+- Decisión importante:
+  - no dejar el stock en una línea aparte, porque eso aumenta la altura de cada card y cambia demasiado la densidad visual del listado.
+
+
+### Fix - cliente con venta debe abrir la venta correcta y bloquear segunda edición
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó un caso donde el alert de `Cliente con Venta` tomaba una coincidencia vieja del cliente en lugar de la venta más reciente.
+- Efectos del bug:
+  - permitía entrar otra vez a `Editar venta` aunque la venta ya hubiera sido editada desde el historial/modal de impresión
+  - cargaba cantidades antiguas en el modal (por ejemplo, productos con cantidades previas a la edición real)
+- Solución aplicada:
+  - se creó un selector único de `ventaPrevia` que combina `ventasDelDia` + `ventasBackendDia`
+  - prioriza:
+    - venta ya modificada
+    - venta persistida en backend
+    - venta con timestamp más reciente (`fecha_ultima_edicion`, `fecha_actualizacion`, `fecha`)
+- Refuerzo adicional:
+  - al abrir `Editar venta`, si la venta es de backend, primero se refresca el detalle completo desde `/api/ventas-ruta/<id>/`
+  - solo después de eso se decide si la venta ya fue modificada y debe bloquearse
+- Resultado esperado:
+  - si la venta ya fue editada una vez, el usuario vuelve a ver el bloqueo correcto de `ya fue modificada`
+  - si la venta todavía es editable, el modal abre con los detalles reales más recientes y no con cantidades viejas
+
+### Fix - venta rápida debe volver al cliente anterior de ruta
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó un caso de UX donde, si el vendedor estaba parado en un cliente de ruta y abría `Venta rápida / Cliente ocasional`, al terminar la venta el flujo común lo mandaba al primer cliente de la lista.
+- Causa:
+  - al finalizar la venta rápida, el cliente seleccionado seguía siendo el ocasional
+  - luego `avanzarAlSiguienteCliente(...)` no encontraba ese cliente en `clientesOrdenDia`
+  - y caía al primer cliente como fallback
+- Solución aplicada:
+  - se guarda en `clienteAntesVentaRapidaRef` el cliente de ruta activo antes de abrir la venta rápida
+  - al cerrar/imprimir/enviar la venta rápida, el flujo restaura ese cliente anterior en lugar de avanzar al primero
+- Resultado esperado:
+  - la venta rápida se completa normal
+  - pero el vendedor vuelve a quedar parado en el cliente de ruta donde estaba trabajando
+  - no se rompe el orden del día ni se pierde el contexto operativo
+
+### Fix - Ventas debe recordar el último cliente al reingresar
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó un problema operativo: si el vendedor estaba trabajando un cliente, salía de `Ventas` o cerraba la app, y luego volvía a entrar, la pantalla regresaba a `Seleccionar cliente` en lugar de retomar el punto donde iba.
+- Causa real:
+  - el último cliente sí se guardaba en `AsyncStorage`
+  - pero al restaurar el turno, `cargarDatos()` consultaba esa referencia usando una fecha que aún no siempre coincidía con la fecha operativa restaurada del turno
+  - por eso no encontraba la llave correcta y caía al estado vacío
+- Solución aplicada:
+  - se guarda el último cliente por `vendedor + fecha operativa`
+  - `cargarDatos(fechaObjetivo)` ahora recibe explícitamente la fecha exacta del turno restaurado (`date` / `fechaTurno`)
+  - si el cliente existe en la lista local, se reconstruye desde esa lista
+  - si no existe en la lista local, se restaura directamente desde el objeto guardado
+- Resultado esperado:
+  - si el vendedor sale a almorzar o cierra la app y luego vuelve a `Ventas`, queda parado en el último cliente donde estaba trabajando
+  - no tiene que volver a abrir `Seleccionar cliente` y buscarlo manualmente entre toda la ruta
+  - al cerrar turno, esa referencia se limpia para no arrastrarse a otro día
+
+
+### Fix - Confirmar Entrega debe mantener layout estable
+- Archivo: `AP GUERRERO/components/Ventas/ConfirmarEntregaModal.js`
+- Se detectó un colapso visual intermitente del modal de `Confirmar Entrega`: a veces abría completo y otras veces reaparecía casi solo con header y botones.
+- Causa probable:
+  - el `ScrollView` y el footer competían por altura dentro de un contenedor con `maxHeight`, y en reaperturas Android reciclaba la medición.
+- Solución aplicada:
+  - se dejó una altura mínima del modal
+  - se separó mejor el cuerpo scrolleable del footer fijo
+  - se añadió `contentContainerStyle` estable al `ScrollView`
+- Ajuste adicional:
+  - el texto de precio unitario en el detalle del pedido quedó sin decimales (`$3.200` en vez de `$3200.00`).
+
+### Fix - cliente restaurado con pedido debe re-chequear pedidos al volver a Ventas
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó que, al reingresar a `Ventas`, la app sí restauraba el último cliente pero a veces lo mostraba como `Sin pedido` hasta que el usuario volvía a tocar manualmente ese mismo cliente.
+- Causa:
+  - `seleccionarClienteDirecto(cliente)` corría `verificarPedidoCliente(cliente)` inmediatamente,
+  - pero en algunos casos `pedidosPendientes` todavía no había terminado de cargar del backend.
+- Solución aplicada:
+  - se agregó una revalidación automática cuando cambian `pedidosPendientes`
+  - si ya hay `clienteSeleccionado`, se vuelve a ejecutar `verificarPedidoCliente(clienteSeleccionado)`.
+- Resultado esperado:
+  - al volver a entrar a `Ventas`, si el último cliente tenía pedido pendiente, ese pedido aparece sin necesidad de re-seleccionar el cliente.
+
+### Fix - entregar pedido online debe dejar estado entregado y avanzar al siguiente cliente
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó que en la rama online del flujo `confirmarEntregaPedido` el backend sí marcaba el pedido como entregado, pero la UI local no siempre:
+  - lo agregaba a `pedidosEntregadosHoy`
+  - lo marcaba como `ENTREGADO` en `pedidosPendientes`
+  - limpiaba `pedidoClienteSeleccionado`
+  - avanzaba al siguiente cliente.
+- Efectos visibles:
+  - el pedido podía seguir apareciendo para entregar otra vez al volver al mismo cliente
+  - no siempre saltaba automáticamente al siguiente cliente.
+- Solución aplicada:
+  - la rama online quedó alineada con la rama offline
+  - ahora actualiza estado local + limpia selección + llama `avanzarAlSiguienteCliente(...)`.
+
+### Mejora - restaurar turno offline sin esperar todos los reintentos remotos
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó una espera molesta en `Verificando turno...` al volver a entrar a `Ventas`, aun cuando ya existía un turno local reciente en `AsyncStorage`.
+- Causa:
+  - `verificarTurnoActivo()` hacía hasta `3` intentos remotos con timeout de `5s` antes de restaurar el turno offline.
+- Solución aplicada:
+  - si la verificación falla por timeout o red y ya existe un turno local reciente, la app lo restaura inmediatamente
+  - no espera a consumir los 3 intentos completos.
+- Resultado esperado:
+  - menos tiempo congelado en `Verificando turno...`
+  - fallback offline mucho más rápido cuando el problema es conectividad intermitente.
+
+### Estado actual - qué queda realmente disponible offline al abrir turno
+- Archivo principal observado: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Con el estado actual del código, sí queda persistido/localmente:
+  - `@turno_activo_<userId>`: turno abierto y fecha operativa
+  - caché de clientes de ruta por vendedor/día (`precargarClientesEnCache`)
+  - stock/catálogo local de productos (`productos_cache` + `cargarStockCargue`)
+  - ventas locales y cola offline de sincronización (`ventas`, `ventas_pendientes_sync`)
+  - acciones offline sobre pedidos (`pedidos_acciones_pendientes`), por ejemplo entregar o marcar novedades sin internet.
+- Pero **no** existe hoy una caché persistente equivalente de `pedidosPendientes` ya descargados.
+- Implicación práctica:
+  - si el turno ya estaba abierto y luego se va internet, el vendedor puede seguir vendiendo y las acciones sobre pedidos pueden quedar en cola offline
+  - pero si reabre `Ventas` sin internet, los pedidos pendientes pueden no verse de inmediato hasta que vuelva la conexión y `verificarPedidosPendientes()` logre consultar backend.
+- Recomendación operativa actual:
+  - se puede dejar así si en producción los IDs casi siempre tienen internet
+  - si más adelante se quiere blindar totalmente pedidos offline, el siguiente paso sería cachear también el snapshot de `pedidosPendientes` por `vendedor + fecha`.
+
+
+### Fix - clientes de ruta no deben heredar listas viejas de precios al restaurarse
+- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Se detectó un caso donde un cliente de ruta sin lista vigente podía terminar vendiéndose con precio especial por arrastre de datos guardados (`lista_precio_nombre` / `tipo_lista_precio`) desde una sesión previa.
+- Caso que permitió detectarlo:
+  - `EL REPOLLO` no tenía lista activa en backend/serializer
+  - pero apareció una venta con precio de lista (`DOMICILIOS`) en la app.
+- Causa:
+  - al restaurar o recombinar un cliente, el código podía priorizar datos persistidos de `ultimoCliente`/`clientePre` sobre el cliente fresco traído de la ruta.
+- Solución aplicada:
+  - si existe cliente fresco de ruta, prevalece siempre su lista actual del backend
+  - ya no se reinyectan listas viejas guardadas sobre un cliente que hoy viene sin lista
+  - solo si no existe cliente fresco se restaura lo mínimo del cliente guardado.
+- Resultado esperado:
+  - los clientes normales de ruta se quedan con `Precio Cargue/App`
+  - solo los clientes que realmente traigan una lista válida siguen aplicando precio especial.
+
+
+### Mejora visual - botón amarillo de precio especial en Cargue
+- Archivo: `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+- Se agregó una alerta **solo visual** para casos esporádicos donde una venta se hizo por encima de `Precio Cargue/App`.
+- Ubicación solicitada:
+  - en la barra superior de `Cargue`, inmediatamente después del botón `📱 Ventas`.
+- Condición de aparición:
+  - solo aparece si existe `datosResumen.novedad`
+  - y además se detectó al menos una venta con diferencia positiva frente a `Precio Cargue/App`.
+- Qué hace:
+  - muestra un botón amarillo `💰 Precio especial`
+  - al tocarlo abre un modal informativo con:
+    - cliente
+    - número de venta
+    - total real vendido
+    - total equivalente a `Precio Cargue/App`
+    - diferencia total
+    - desglose por producto cuando aplica.
+- Importante:
+  - no modifica backend
+  - no altera `total_despacho`, `venta`, auditoría ni stock
+  - solo sirve para que el usuario identifique rápido qué venta tuvo precio especial y cuánto extra debe tener presente al cobrar/revisar.
+
+### Ajuste web - Informe de Pedidos más rápido y más limpio
+- Archivos:
+  - `frontend/src/pages/InformePedidosScreen.jsx`
+  - `frontend/src/components/Pedidos/Topbar.jsx`
+- Se hizo un paquete quirúrgico solo para la vista web de `Informes de Pedidos`, sin tocar backend ni la app móvil.
+- Cambios aplicados en `InformePedidosScreen.jsx`:
+  - el rango inicial por defecto ya no carga desde el día 1 del mes
+  - ahora abre solo con los últimos `3` días para acelerar la consulta inicial en VPS
+  - los filtros `Desde/Hasta` siguen libres para buscar cualquier otra fecha manualmente
+  - el formato de `TOTAL` quedó sin decimales
+  - se corrigió el formateo para convertir primero el valor a número, porque varios totales llegaban como string y seguían mostrando `.00`
+  - se ajustó solo la tabla de esta pantalla para que se vea completa y no se estire raro en producción
+  - se dieron anchos específicos a columnas y se permitió wrap en columnas largas (`Destinatario`, `Vendedor`, `Dirección`)
+  - se afinó la separación visual entre `ESTADO` y `TOTAL`
+  - la columna `TOTAL` quedó con aire suficiente para montos grandes pero sin verse demasiado separada.
+- Cambio aplicado en `Topbar.jsx`:
+  - se retiró el botón `Historial`
+  - se mantuvieron intactos `Informes de Pedidos` y `Gestionar`
+  - no se alteró el layout general del topbar.
+- Objetivo logrado:
+  - mejorar velocidad inicial de carga
+  - dejar la tabla más legible en VPS
+  - limpiar la interfaz sin romper estilos de otras pantallas de `Pedidos`.
+
+### Fix backend - Informe de Pedidos lento en VPS por filtros ignorados
+- Archivo: `api/views.py`
+- Problema detectado:
+  - al abrir `Informes de Pedidos` en producción, la pantalla tardaba demasiado cargando
+  - aunque el frontend ya enviaba un rango corto por defecto (`últimos 3 días`), el backend seguía devolviendo muchísimos pedidos.
+- Causa real:
+  - el frontend consultaba `/api/pedidos/` con `fecha_inicio` y `fecha_fin`
+  - pero `PedidoViewSet.get_queryset()` estaba leyendo `fecha_desde` y `fecha_hasta`
+  - resultado: el filtro inicial se ignoraba y el endpoint devolvía prácticamente todo el histórico.
+- Solución aplicada:
+  - `PedidoViewSet` ahora acepta ambos nombres:
+    - `fecha_desde` / `fecha_hasta`
+    - `fecha_inicio` / `fecha_fin`
+  - además se agregó `prefetch_related('detalles__producto', 'evidencias')` para reducir consultas extra al serializar la lista.
+- Impacto esperado:
+  - el VPS ya no debe traer todo el histórico al entrar a `Informes de Pedidos`
+  - la carga inicial debe bajar notablemente al respetar el rango corto enviado por frontend.
+- Riesgo:
+  - bajo
+  - no cambia creación, anulación ni entrega de pedidos
+  - solo corrige el filtrado y optimiza la consulta del listado.
+
+## Mejora web - Informe de Pedidos con busqueda global sin romper carga rapida
+- Se mantuvo la carga inicial rapida de `Informe de Pedidos` en ultimos 3 dias para no volver lenta la pantalla.
+- Se agrego una busqueda global util para validacion puntual: si el usuario escribe `N° pedido`, cliente o vendedor y pulsa `Consultar`, el frontend consulta por `search` al backend y ya no esconde el resultado por rango de fecha.
+- Esto sirve como respaldo cuando quieren confirmar si un pedido ya fue montado aunque quede fuera del rango inicial visible.
+- Flujo operativo recomendado sigue siendo:
+  - si la encargada monta pedido para hoy/manana, normalmente revisar por fecha en `Cargue` o en `Informe de Pedidos`
+  - si hay duda puntual y no aparece por rango, usar el buscador global por cliente o numero de pedido
+- Archivos tocados para esta mejora:
+  - `frontend/src/pages/InformePedidosScreen.jsx`
+  - `api/views.py` (`PedidoViewSet` acepta `search` por `numero_pedido`, `destinatario`, `vendedor`)
+
+## Ajuste final - Fecha por defecto en Pedidos vs fecha heredada desde Gestion
+- Se detecto una confusion entre dos flujos distintos de `Pedidos`:
+  - si el usuario entra a `Remisiones` de forma suelta, la fecha por defecto debe ser la fecha real de hoy
+  - si el usuario entra desde `Gestion de Pedidos` y toca un cliente de una fecha ya seleccionada, la remision si debe heredar esa fecha de gestion
+- Solucion final aplicada en `frontend/src/pages/PedidosScreen.jsx`:
+  - se mantiene fecha real de hoy como default general
+  - pero si viene `clienteParam` desde Gestion de Pedidos con `clienteData.fecha`, esa fecha si se respeta
+  - ya no se usa la `fecha` de la URL para pisar automaticamente la fecha cuando se entra a `Remisiones` sin cliente
+- Resultado esperado:
+  - `Gestion de Pedidos -> cliente -> Remisiones`: conserva la fecha de trabajo de la gestion
+  - `Remisiones` abierto sin cliente/contexto: arranca en la fecha real de hoy
+
+
+## Tarea pendiente - Carga ocasional de imagenes en Pedidos
+- Se observo que en `Remisiones` / `Pedidos`, a veces las tarjetas del catalogo aparecen rapido pero algunas imagenes tardan un poco en cargar, sobre todo al volver desde pantallas mas pesadas como `Informe de Pedidos`.
+- Diagnostico actual:
+  - la UI/card renderiza bien
+  - el retraso parece estar solo en la resolucion/carga de imagenes
+  - `Pedidos` depende de `product.image`, cache en memoria e `IndexedDB`
+  - `POS` tiene un comportamiento mas estable porque si usa precarga de imagenes
+  - `Pedidos` hoy no reutiliza esa misma precarga
+- Conclusion:
+  - no parece un bug critico ni un problema de datos
+  - si el retardo es corto y ocasional, se puede dejar asi por ahora
+- Mejora futura sugerida:
+  - evaluar que `Pedidos` use la misma estrategia de precarga de imagenes que `POS`, para hacer mas estable la carga visual del catalogo.
+
+
+## Ajuste visual - Cargue escritorio con columnas mas compactas
+- Se ajusto solo la vista de escritorio de `Cargue` para aprovechar mejor el ancho de la tabla sin afectar tablet.
+- Archivo tocado:
+  - `frontend/src/components/Cargue/PlantillaOperativa.css`
+- Cambios aplicados:
+  - columna `PRODUCTOS` reducida en escritorio de `24rem/28rem` a `16rem/18rem`
+  - columna `LOTES VENCIDOS` reducida en escritorio de `10rem` a `7.5rem`
+- Consideraciones:
+  - no se toco logica
+  - no se cambio el comportamiento del boton `+ Lote`
+  - no se modifico el bloque responsive de tablet, que ya tenia sus propias reglas
+- Objetivo:
+  - hacer la tabla de `Cargue` mas compacta en escritorio
+  - liberar espacio horizontal para el resto de columnas sin desordenar la interfaz.
