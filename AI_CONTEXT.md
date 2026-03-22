@@ -4242,3 +4242,22 @@ En `/#/clientes` aparecía overlay rojo con:
 - Objetivo:
   - hacer la tabla de `Cargue` mas compacta en escritorio
   - liberar espacio horizontal para el resto de columnas sin desordenar la interfaz.
+
+
+## Ajuste UX - Resalte manual de fila en Cargue
+- Se agrego un modo visual `Resaltar fila` en `Cargue` para identificar con claridad la fila activa durante la revision.
+- Archivos tocados:
+  - `frontend/src/components/Cargue/TablaProductos.jsx`
+  - `frontend/src/components/Cargue/PlantillaOperativa.css`
+- Comportamiento final:
+  - el modo queda desactivado por defecto al entrar
+  - al activarlo aparece una fila activa con borde azul oscuro `#052c65` y fondo azul grisaceo suave
+  - la fila activa se mueve tanto con click del mouse como con navegacion por flechas dentro de los inputs
+  - cuando el modo esta activo, se deshabilita el hover visual normal para que no compita con el resalte azul
+  - cuando el modo esta desactivado, vuelve el hover normal de la tabla
+- Alcance:
+  - funciona en escritorio
+  - tambien se habilito en tablet con un boton mas compacto
+  - no se altero la logica de datos ni el layout general de la tabla
+- Objetivo:
+  - facilitar la lectura y seguimiento de la fila que se esta revisando en `Cargue` sin depender solo del hover momentaneo.

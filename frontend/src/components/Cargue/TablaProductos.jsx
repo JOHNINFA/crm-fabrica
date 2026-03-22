@@ -12,6 +12,8 @@ const TablaProductos = ({
 }) => {
     const [estadoBoton, setEstadoBoton] = useState('ALISTAMIENTO');
     const [esCompletado, setEsCompletado] = useState(false);
+    const [modoResaltadoFila, setModoResaltadoFila] = useState(false);
+    const [filaActivaIndex, setFilaActivaIndex] = useState(null);
     const camposBloqueados = false;
 
     const todosListosParaDespacho = () => {
@@ -54,8 +56,9 @@ const TablaProductos = ({
         onActualizarProducto(id, campo, checked);
     };
 
-    const handleFocus = (e) => {
+    const handleFocus = (e, index = null) => {
         if (onInteractionStart) onInteractionStart();
+        if (index !== null) activarFila(index);
         e.target.select();
     };
 
@@ -63,6 +66,24 @@ const TablaProductos = ({
         if (!element) return;
         element.focus();
         setTimeout(() => element.select(), 0);
+    };
+
+
+    const activarFila = (index) => {
+        if (!modoResaltadoFila) return;
+        setFilaActivaIndex(index);
+    };
+
+    const toggleModoResaltadoFila = () => {
+        setModoResaltadoFila((prev) => {
+            const next = !prev;
+            if (!next) {
+                setFilaActivaIndex(null);
+            } else if (filaActivaIndex === null && productos.length > 0) {
+                setFilaActivaIndex(0);
+            }
+            return next;
+        });
     };
 
     const handleKeyDown = (e, index, campo) => {
@@ -74,6 +95,7 @@ const TablaProductos = ({
             const nextId = `input-${campo}-${index + direction}`;
             const nextElement = document.getElementById(nextId);
             if (nextElement) {
+                activarFila(index + direction);
                 focusInput(nextElement);
             }
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -87,6 +109,7 @@ const TablaProductos = ({
                     const nextElement = document.getElementById(nextId);
                     if (nextElement && !nextElement.disabled) {
                         e.preventDefault();
+                        activarFila(index);
                         focusInput(nextElement);
                     }
                 }
@@ -128,13 +151,30 @@ const TablaProductos = ({
 
     return (
         <div>
+            <div className="tabla-productos-toolbar">
+                <button
+                    type="button"
+                    className={`tabla-productos-highlight-toggle ${modoResaltadoFila ? 'is-active' : ''}`}
+                    onClick={toggleModoResaltadoFila}
+                    title={modoResaltadoFila ? 'Desactivar resalte de fila' : 'Activar resalte de fila'}
+                    aria-pressed={modoResaltadoFila}
+                >
+                    <i className={`bi ${modoResaltadoFila ? 'bi-pencil-fill' : 'bi-pencil-square'}`}></i>
+                    <span>{modoResaltadoFila ? 'Resalte activo' : 'Resaltar fila'}</span>
+                </button>
+            </div>
             {esCompletado && (
                 <div className="alert alert-success mb-2" role="alert">
                     <strong>🎉 JORNADA COMPLETADA</strong> - Los datos se muestran en modo solo lectura
                 </div>
             )}
 
-            <Table bordered hover className="tabla-productos" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+            <Table
+                bordered
+                hover={!modoResaltadoFila}
+                className={`tabla-productos ${modoResaltadoFila ? 'tabla-productos-highlight-mode' : ''}`}
+                style={{ borderCollapse: 'separate', borderSpacing: 0 }}
+            >
                 <thead className="table-header">
                     <tr>
                         <th style={{ textAlign: 'center' }}>V</th>
@@ -153,7 +193,11 @@ const TablaProductos = ({
                 </thead>
                 <tbody>
                     {productos.map((p, index) => (
-                        <tr key={`${p.id}-${p.producto}`} className="table-row">
+                        <tr
+                            key={`${p.id}-${p.producto}`}
+                            className={`table-row ${modoResaltadoFila && filaActivaIndex === index ? 'row-highlight-active' : ''}`}
+                            onClick={() => activarFila(index)}
+                        >
                             <td>
                                 <input
                                     type="checkbox"
@@ -182,7 +226,7 @@ const TablaProductos = ({
                                 <input
                                     type="number" value={p.cantidad || 0}
                                     onChange={(e) => handleInputChange(p.id, 'cantidad', e.target.value)}
-                                    onFocus={handleFocus}
+                                    onFocus={(e) => handleFocus(e, index)}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={true} readOnly={true}
                                     {...sharedNumericInputProps}
@@ -194,7 +238,7 @@ const TablaProductos = ({
                                 <input
                                     id={`input-dctos-${index}`} type="number" value={p.dctos || 0}
                                     onChange={(e) => handleInputChange(p.id, 'dctos', e.target.value)}
-                                    onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'dctos')}
+                                    onFocus={(e) => handleFocus(e, index)} onKeyDown={(e) => handleKeyDown(e, index, 'dctos')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || camposBloqueados}
                                     {...sharedNumericInputProps}
@@ -205,7 +249,7 @@ const TablaProductos = ({
                                 <input
                                     id={`input-adicional-${index}`} type="number" value={p.adicional || 0}
                                     onChange={(e) => handleInputChange(p.id, 'adicional', e.target.value)}
-                                    onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'adicional')}
+                                    onFocus={(e) => handleFocus(e, index)} onKeyDown={(e) => handleKeyDown(e, index, 'adicional')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || camposBloqueados}
                                     {...sharedNumericInputProps}
@@ -216,7 +260,7 @@ const TablaProductos = ({
                                 <input
                                     id={`input-devoluciones-${index}`} type="number" value={p.devoluciones || 0}
                                     onChange={(e) => handleInputChange(p.id, 'devoluciones', e.target.value)}
-                                    onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'devoluciones')}
+                                    onFocus={(e) => handleFocus(e, index)} onKeyDown={(e) => handleKeyDown(e, index, 'devoluciones')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || botonAlistamientoHabilitado}
                                     {...sharedNumericInputProps}
@@ -233,7 +277,7 @@ const TablaProductos = ({
                                 <input
                                     id={`input-vencidas-${index}`} type="number" value={p.vencidas || 0}
                                     onChange={(e) => handleInputChange(p.id, 'vencidas', e.target.value)}
-                                    onFocus={handleFocus} onKeyDown={(e) => handleKeyDown(e, index, 'vencidas')}
+                                    onFocus={(e) => handleFocus(e, index)} onKeyDown={(e) => handleKeyDown(e, index, 'vencidas')}
                                     className="form-control form-control-sm text-center" min="0"
                                     disabled={esCompletado || botonAlistamientoHabilitado}
                                     {...sharedNumericInputProps}

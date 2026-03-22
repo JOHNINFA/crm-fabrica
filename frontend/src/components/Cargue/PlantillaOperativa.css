@@ -55,6 +55,41 @@ body:has(.plantilla-operativa) .main-content,
     width: 100%;
 }
 
+.tabla-productos-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+}
+
+.tabla-productos-highlight-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid #c9d8ea;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #06386d;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.tabla-productos-highlight-toggle i {
+    font-size: 0.95rem;
+}
+
+.tabla-productos-highlight-toggle:hover {
+    background: #f2f7ff;
+    border-color: #8fb6ea;
+}
+
+.tabla-productos-highlight-toggle.is-active {
+    background: #eaf3ff;
+    border-color: #06386d;
+    box-shadow: 0 0 0 1px rgba(6, 56, 109, 0.12);
+}
+
 /* Botones Primary con color personalizado */
 .plantilla-operativa .btn-primary {
     background-color: var(--cargue-primary) !important;
@@ -171,6 +206,24 @@ table.tabla-productos,
 
 .tabla-productos tbody tr:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tabla-productos.tabla-productos-highlight-mode tbody tr:hover {
+    box-shadow: none;
+}
+
+.tabla-productos tbody tr.row-highlight-active td {
+    background: #f3f6f9 !important;
+    border-top: 2px solid #052c65 !important;
+    border-bottom: 2px solid #052c65 !important;
+}
+
+.tabla-productos tbody tr.row-highlight-active td:first-child {
+    border-left: 2px solid #052c65 !important;
+}
+
+.tabla-productos tbody tr.row-highlight-active td:last-child {
+    border-right: 2px solid #052c65 !important;
 }
 
 /* Columnas V y D - checkboxes */
@@ -578,6 +631,22 @@ table.tabla-productos,
 
     .plantilla-operativa-table-column {
         min-width: 0;
+    }
+
+    .tabla-productos-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 0.4rem;
+        padding-right: 0.2rem;
+    }
+
+    .tabla-productos-highlight-toggle {
+        font-size: 0.76rem;
+        padding: 0.3rem 0.65rem;
+    }
+
+    .tabla-productos-highlight-toggle i {
+        font-size: 0.9rem;
     }
 
     .tabla-productos-scroll-shell {
