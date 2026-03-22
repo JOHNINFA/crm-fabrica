@@ -80,9 +80,11 @@ function PedidosMainContent() {
                 if (clienteData.lista_precio) {
                     setPriceList(clienteData.lista_precio);
                 }
-                // No sobreescribir la fecha por defecto con la fecha de la ruta.
-                // El usuario quiere que por defecto sea la fecha real de hoy
-                // y moverla manualmente solo si desea programar otra entrega.
+                // Si vienes desde Gestion de Pedidos con un cliente ya elegido,
+                // si se debe heredar la fecha de esa gestion.
+                if (clienteData.fecha) {
+                    setDate(clienteData.fecha);
+                }
                 // Usar el vendedor del cliente si viene de Pedidos
                 if (clienteData.vendedor) {
 
