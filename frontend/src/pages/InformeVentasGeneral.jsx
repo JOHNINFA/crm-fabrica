@@ -25,7 +25,7 @@ const InformeVentasGeneral = () => {
   // Estados para los calendarios
   const [fechaInicial, setFechaInicial] = useState(() => {
     const d = new Date();
-    d.setDate(1); // Primer día del mes
+    d.setDate(d.getDate() - 1); // Ultimos 2 dias por defecto: ayer y hoy
     d.setHours(0, 0, 0, 0);
     return d;
   });
@@ -54,11 +54,28 @@ const InformeVentasGeneral = () => {
     porcentajeGanancia: 0.00
   });
 
+
+  const formatearFechaConsulta = (fecha, finalDelDia = false) => {
+    const d = new Date(fecha);
+    if (finalDelDia) {
+      d.setHours(23, 59, 59, 999);
+    } else {
+      d.setHours(0, 0, 0, 0);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  };
+
   // Cargar ventas desde la BD
   const cargarVentas = async () => {
     try {
       setLoading(true);
-      const ventasData = await ventaService.getAll();
+      const ventasData = await ventaService.getAll({
+        fecha_inicio: formatearFechaConsulta(fechaInicial, false),
+        fecha_fin: formatearFechaConsulta(fechaFinal, true)
+      });
 
       if (ventasData && !ventasData.error) {
         setVentas(ventasData);
@@ -104,9 +121,10 @@ const InformeVentasGeneral = () => {
     });
   };
 
-  // Cargar ventas al montar el componente
+  // Cargar ventas al montar el componente con rango corto por defecto
   useEffect(() => {
     cargarVentas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cerrar calendarios al hacer clic fuera
@@ -872,11 +890,10 @@ const InformeVentasGeneral = () => {
           </Col>
         </Row>
 
-        {/* Cards de métricas - Fila 1 */}
+        {/* Cards de métricas */}
         <Row className="mb-3">
           {[
             { icon: '💳', label: 'TOTAL SIN IMPUESTOS', value: metricas.totalSinImpuestos },
-            { icon: '🧮', label: 'TOTAL IMPUESTOS', value: metricas.totalImpuestos },
             { icon: '💳', label: 'TOTAL FACTURADO', value: metricas.totalFacturado },
             { icon: '💰', label: 'TOTAL NETO', value: metricas.totalNeto },
           ].map((metric, idx) => (
@@ -900,35 +917,7 @@ const InformeVentasGeneral = () => {
               </Card>
             </Col>
           ))}
-        </Row>
-
-        {/* Cards de métricas - Fila 2 */}
-        <Row className="mb-3">
-          {[
-            { icon: '❤️', label: 'TOTAL CARTERA', value: metricas.totalCartera },
-            { icon: '💵', label: 'TOTAL PAGADO', value: metricas.totalPagado },
-          ].map((metric, idx) => (
-            <Col md={3} className="mb-3" key={idx}>
-              <Card className="border shadow-sm rounded-2">
-                <Card.Body className="p-3">
-                  <div className="d-flex align-items-center">
-                    <div className="me-3 d-flex align-items-center justify-content-center rounded-2" style={metricIconWrapperStyle}>
-                      <span style={metricIconStyle}>{metric.icon}</span>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '11px', color: '#0c2c53', fontWeight: '500' }}>
-                        {metric.label}
-                      </div>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
-                        {formatCurrency(metric.value)}
-                      </div>
-                    </div>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-          <Col md={6} className="mb-3">
+          <Col md={3} className="mb-3">
             <Card className="text-white shadow-sm rounded-2" style={{
               background: 'linear-gradient(135deg, #0c2c53 0%, #0a2340 100%)',
               border: 'none',
