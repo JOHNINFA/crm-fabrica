@@ -14,8 +14,10 @@ import csv
 import json
 import secrets
 import unicodedata
-from datetime import timedelta
+from datetime import timedelta, datetime, date
+from collections import defaultdict
 from api.services.ai_assistant_service import AIAssistant
+from django.utils.dateparse import parse_datetime, parse_date
 from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional, recalcular_totales_cargue_queryset
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
@@ -4308,6 +4310,152 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
 
         return None
 
+    @staticmethod
+    def _resolver_fecha_operativa(fecha_raw, fallback=None):
+        def _a_fecha_local(valor):
+            if isinstance(valor, datetime):
+                try:
+                    if timezone.is_aware(valor):
+                        return timezone.localtime(valor).date()
+                except Exception:
+                    pass
+                return valor.date()
+            if isinstance(valor, date):
+                return valor
+            return None
+
+        fecha_local = _a_fecha_local(fecha_raw)
+        if fecha_local:
+            return fecha_local
+
+        if fecha_raw:
+            fecha_texto = str(fecha_raw).strip()
+            fecha_dt = parse_datetime(fecha_texto)
+            if fecha_dt:
+                fecha_local = _a_fecha_local(fecha_dt)
+                if fecha_local:
+                    return fecha_local
+
+            fecha_simple = parse_date(fecha_texto[:10])
+            if fecha_simple:
+                return fecha_simple
+
+        fecha_fallback = _a_fecha_local(fallback)
+        if fecha_fallback:
+            return fecha_fallback
+        return None
+
+    @staticmethod
+    def _obtener_modelo_cargue_por_vendedor(id_vendedor):
+        modelo_map = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+        return modelo_map.get((id_vendedor or '').strip().upper())
+
+    def _construir_mapa_detalles_cargue(self, ModeloCargue, fecha_venta, detalles):
+        detalles_por_registro = {}
+        productos_sin_cargue = []
+
+        if not ModeloCargue or not fecha_venta:
+            return detalles_por_registro, productos_sin_cargue
+
+        for item in detalles or []:
+            if not isinstance(item, dict):
+                continue
+
+            nombre = (item.get('nombre') or item.get('producto') or '').strip()
+            cantidad = self._to_int(item.get('cantidad'), 0)
+            if not nombre or cantidad <= 0:
+                continue
+
+            registro = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre)
+            if not registro:
+                productos_sin_cargue.append({
+                    'producto': nombre,
+                    'solicitado': cantidad,
+                    'motivo': 'PRODUCTO_NO_EN_CARGUE',
+                })
+                continue
+
+            if registro.pk not in detalles_por_registro:
+                detalles_por_registro[registro.pk] = {
+                    'registro': registro,
+                    'producto': registro.producto,
+                    'solicitado': 0,
+                }
+
+            detalles_por_registro[registro.pk]['solicitado'] += cantidad
+
+        return detalles_por_registro, productos_sin_cargue
+
+    def _cantidades_base_detalles(self, ModeloCargue, fecha_venta, detalles):
+        cantidades_base = defaultdict(int)
+        detalles_por_registro, _ = self._construir_mapa_detalles_cargue(ModeloCargue, fecha_venta, detalles)
+        for pk_registro, info in detalles_por_registro.items():
+            cantidades_base[pk_registro] += info['solicitado']
+        return cantidades_base
+
+    def _validar_stock_disponible_cargue(self, ModeloCargue, fecha_venta, detalles, cantidades_base=None):
+        if not ModeloCargue or not fecha_venta:
+            return None
+
+        cantidades_base = cantidades_base or {}
+        detalles_por_registro, productos_sin_cargue = self._construir_mapa_detalles_cargue(
+            ModeloCargue,
+            fecha_venta,
+            detalles,
+        )
+
+        excedidos = []
+        for info in detalles_por_registro.values():
+            registro = info['registro']
+            solicitado_total = info['solicitado']
+            cantidad_base = self._to_int(cantidades_base.get(registro.pk), 0)
+            incremento = solicitado_total - cantidad_base
+            disponible = max(0, self._to_int(registro.total, 0) - self._to_int(registro.vendidas, 0))
+
+            if incremento > disponible:
+                excedidos.append({
+                    'producto': registro.producto,
+                    'solicitado': solicitado_total,
+                    'cantidad_base': cantidad_base,
+                    'incremento': incremento,
+                    'disponible': disponible,
+                })
+
+        if not productos_sin_cargue and not excedidos:
+            return None
+
+        errores = []
+        for item in productos_sin_cargue:
+            errores.append({
+                'producto': item['producto'],
+                'solicitado': item['solicitado'],
+                'codigo': item['motivo'],
+                'mensaje': 'El producto no existe en el cargue del dia para este ID.',
+            })
+
+        for item in excedidos:
+            errores.append({
+                'producto': item['producto'],
+                'solicitado': item['solicitado'],
+                'disponible': item['disponible'],
+                'incremento': item['incremento'],
+                'codigo': 'STOCK_INSUFICIENTE_CARGUE',
+                'mensaje': f"Solo quedan {item['disponible']} unidad(es) disponibles para vender.",
+            })
+
+        return {
+            'error': 'La venta supera el stock disponible del cargue.',
+            'codigo': 'STOCK_CARGUE_INSUFICIENTE',
+            'detalle': errores,
+        }
+
     def _buscar_producto_catalogo(self, nombre_producto):
         if not nombre_producto:
             return None
@@ -4434,8 +4582,9 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         """
         Anula una VentaRuta:
         1. Verifica que no esté ya anulada
-        2. Descuenta las 'vendidas' del CargueIDx por cada producto
-        3. Marca estado = 'ANULADA'
+        2. Verifica límite de anulaciones (máximo 1)
+        3. Descuenta las 'vendidas' del CargueIDx por cada producto
+        4. Marca estado = 'ANULADA' e incrementa contador
         """
         try:
             vendedor_auth = self._validar_sesion_movil(request)
@@ -4449,8 +4598,16 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             if venta.estado == 'ANULADA':
                 return Response({'error': 'Esta venta ya fue anulada'}, status=400)
 
+            # 🔒 LÍMITE DE ANULACIONES: Máximo 1 anulación por venta
+            intentos_anulacion = getattr(venta, 'intentos_anulacion', 0) or 0
+            if intentos_anulacion >= 1:
+                return Response({
+                    'error': 'Límite alcanzado',
+                    'mensaje': 'Esta venta ya fue anulada anteriormente. Usa la opción de editar en vez de anular.'
+                }, status=400)
+
             id_vendedor = venta.vendedor.id_vendedor  # ID1, ID2, etc.
-            fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+            fecha_venta = self._resolver_fecha_operativa(venta.fecha, fallback=timezone.now())
 
             modelo_map = {
                 'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
@@ -4509,13 +4666,16 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                     )
 
             venta.estado = 'ANULADA'
+            # 🔒 Incrementar contador de anulaciones
+            venta.intentos_anulacion = (getattr(venta, 'intentos_anulacion', 0) or 0) + 1
             venta.save()
 
             return Response({
                 'success': True,
                 'mensaje': f'Venta #{venta.id} anulada correctamente',
                 'venta_id': venta.id,
-                'estado': 'ANULADA'
+                'estado': 'ANULADA',
+                'intentos_anulacion': venta.intentos_anulacion
             })
 
         except Exception as e:
@@ -4556,6 +4716,17 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             detalles_raw = request.data.get('detalles', None)
             actualizar_detalles = detalles_raw is not None
 
+            foto_vencidos_base64 = request.data.get('foto_vencidos', None)
+            if isinstance(foto_vencidos_base64, str):
+                try:
+                    foto_vencidos_base64 = json.loads(foto_vencidos_base64)
+                except Exception:
+                    foto_vencidos_base64 = None
+
+            productos_vencidos_raw = request.data.get('productos_vencidos', None)
+            actualizar_vencidas = productos_vencidos_raw is not None or foto_vencidos_base64 is not None
+            nuevos_productos_vencidos = self._normalizar_productos_vencidos(productos_vencidos_raw or []) if actualizar_vencidas else (venta.productos_vencidos or [])
+
             metodo_pago_raw = request.data.get('metodo_pago', None)
             metodo_pago_normalizado = None
             if metodo_pago_raw is not None:
@@ -4567,28 +4738,66 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                         status=400
                     )
 
-            if not actualizar_detalles and metodo_pago_normalizado is None:
+            if not actualizar_detalles and metodo_pago_normalizado is None and not actualizar_vencidas:
                 return Response(
-                    {'error': 'Debes enviar detalles o metodo_pago para editar la venta'},
+                    {'error': 'Debes enviar detalles, metodo_pago o productos_vencidos para editar la venta'},
                     status=400
                 )
 
+            nuevos_detalles = (venta.detalles or [])
+            nuevo_total = float(venta.total or 0)
+            
             if actualizar_detalles:
                 nuevos_detalles, nuevo_total = self._normalizar_detalles(detalles_raw)
                 if not nuevos_detalles:
                     return Response({'error': 'Se requieren los nuevos detalles'}, status=400)
+
+            # Normalizar detalles previos para comparación
+            detalles_anteriores_json = json.dumps(
+                sorted(
+                    [{'producto': str(i.get('producto') or i.get('nombre') or '').strip().upper(),
+                      'cantidad': int(i.get('cantidad') or 0)} 
+                     for i in (venta.detalles or [])],
+                    key=lambda x: x['producto']
+                )
+            )
+            detalles_nuevos_json = json.dumps(
+                sorted(
+                    [{'producto': str(i.get('producto') or i.get('nombre') or '').strip().upper(),
+                      'cantidad': int(i.get('cantidad') or 0)} 
+                     for i in (nuevos_detalles or [])],
+                    key=lambda x: x['producto']
+                )
+            )
+
+            # Forzar actualización si hay cambios en detalles o total
+            if detalles_anteriores_json != detalles_nuevos_json or round(float(venta.total or 0), 2) != round(float(nuevo_total or 0), 2):
+                actualizar_detalles = True
             else:
-                nuevos_detalles = venta.detalles or []
-                nuevo_total = float(venta.total or 0)
+                actualizar_detalles = False
+                # Aun si no cambian los detalles, si el total es diferente (ej. cambio manual), actualizamos
+                if round(float(venta.total or 0), 2) != round(float(nuevo_total or 0), 2):
+                    actualizar_detalles = True
 
             id_vendedor = venta.vendedor.id_vendedor
-            fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+            fecha_venta = self._resolver_fecha_operativa(venta.fecha, fallback=timezone.now())
+            ModeloCargue = self._obtener_modelo_cargue_por_vendedor(id_vendedor)
+            registros_recalculados = set()
 
-            modelo_map = {
-                'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
-                'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
-            }
-            ModeloCargue = modelo_map.get(id_vendedor)
+            if actualizar_detalles and ModeloCargue:
+                cantidades_base = self._cantidades_base_detalles(
+                    ModeloCargue,
+                    fecha_venta,
+                    venta.detalles or [],
+                )
+                error_stock = self._validar_stock_disponible_cargue(
+                    ModeloCargue,
+                    fecha_venta,
+                    nuevos_detalles,
+                    cantidades_base=cantidades_base,
+                )
+                if error_stock:
+                    return Response(error_stock, status=400)
 
             if actualizar_detalles:
                 # Construir mapa de cantidades anteriores
@@ -4627,6 +4836,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                 ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
                                     vendidas=F('vendidas') + diferencia
                                 )
+                                registros_recalculados.add(registro_cargue.pk)
                                 print(
                                     f"✅ Edición: {nombre_real} -> {registro_cargue.producto} "
                                     f"vendidas {'+' if diferencia > 0 else ''}{diferencia}"
@@ -4646,6 +4856,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                     ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
                                         vendidas=F('vendidas') + cant_nueva
                                     )
+                                    registros_recalculados.add(registro_cargue.pk)
                                     print(
                                         f"✅ Edición (nuevo): {datos['nombre_real']} -> {registro_cargue.producto} "
                                         f"vendidas += {cant_nueva}"
@@ -4653,14 +4864,113 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                 else:
                                     print(f"⚠️ Edición (nuevo): no se encontró registro de cargue para {datos['nombre_real']}")
 
+            if actualizar_vencidas and ModeloCargue:
+                from django.db.models import F
+                from django.db.models.functions import Greatest
+
+                mapa_vencidas_anterior = {}
+                for item in self._normalizar_productos_vencidos(venta.productos_vencidos or []):
+                    nombre = (item.get('producto') or item.get('nombre') or '').strip()
+                    cantidad = self._to_int(item.get('cantidad'), 0)
+                    if nombre and cantidad > 0:
+                        mapa_vencidas_anterior[nombre.lower()] = {
+                            'nombre_real': nombre,
+                            'cantidad': cantidad,
+                        }
+
+                mapa_vencidas_nuevo = {}
+                for item in nuevos_productos_vencidos:
+                    nombre = (item.get('producto') or item.get('nombre') or '').strip()
+                    cantidad = self._to_int(item.get('cantidad'), 0)
+                    if nombre and cantidad > 0:
+                        mapa_vencidas_nuevo[nombre.lower()] = {
+                            'nombre_real': nombre,
+                            'cantidad': cantidad,
+                        }
+
+                # Unificar edición de stock para vencidas
+                for nombre_key in set(mapa_vencidas_anterior.keys()) | set(mapa_vencidas_nuevo.keys()):
+                    anterior = mapa_vencidas_anterior.get(nombre_key)
+                    nuevo = mapa_vencidas_nuevo.get(nombre_key)
+                    cant_anterior = anterior['cantidad'] if anterior else 0
+                    cant_nueva = nuevo['cantidad'] if nuevo else 0
+                    diferencia = cant_nueva - cant_anterior
+                    
+                    if diferencia == 0:
+                        continue
+
+                    nombre_real = (nuevo or anterior)['nombre_real']
+                    registro_cargue = self._resolver_registro_cargue(ModeloCargue, fecha_venta, nombre_real)
+                    
+                    if registro_cargue:
+                        # Usar F y Greatest para seguridad atómica y evitar negativos
+                        ModeloCargue.objects.filter(pk=registro_cargue.pk).update(
+                            vencidas=Greatest(F('vencidas') + diferencia, 0)
+                        )
+                        registros_recalculados.add(registro_cargue.pk)
+                        print(f"📦 Edición Vencidas: {nombre_real} -> dif: {diferencia}")
+                    else:
+                        print(f"⚠️ Edición Vencidas: No se encontró cargue para {nombre_real}")
+
             # Actualizar la venta
             if actualizar_detalles:
                 venta.detalles = nuevos_detalles
                 venta.total = nuevo_total
             if metodo_pago_normalizado is not None:
                 venta.metodo_pago = metodo_pago_normalizado
+            if actualizar_vencidas:
+                venta.productos_vencidos = nuevos_productos_vencidos
+                if len(nuevos_productos_vencidos) == 0:
+                    if venta.foto_vencidos:
+                        venta.foto_vencidos.delete(save=False)
+                    venta.foto_vencidos = None
+                    venta.evidencias.all().delete()
             venta.editada = True
             venta.save()
+
+            evidencias_creadas = 0
+            if foto_vencidos_base64 and isinstance(foto_vencidos_base64, dict):
+                from .models import EvidenciaVenta
+                import base64
+                import uuid
+                from django.core.files.base import ContentFile
+
+                primera_guardada = False
+                for prod_id_key, pics in foto_vencidos_base64.items():
+                    if not pics or not isinstance(pics, list):
+                        continue
+
+                    producto_id = int(prod_id_key) if str(prod_id_key).isdigit() else None
+                    for pic_base64 in pics:
+                        if not isinstance(pic_base64, str) or ',' not in pic_base64:
+                            continue
+
+                        try:
+                            formato, imgstr = pic_base64.split(';base64,')
+                            ext = formato.split('/')[-1]
+                            contenido = base64.b64decode(imgstr)
+                            nombre_archivo = f"venta_{venta.id}_{uuid.uuid4().hex[:6]}.{ext}"
+
+                            if not primera_guardada:
+                                venta.foto_vencidos.save(nombre_archivo, ContentFile(contenido), save=False)
+                                primera_guardada = True
+
+                            EvidenciaVenta.objects.create(
+                                venta=venta,
+                                producto_id=producto_id,
+                                imagen=ContentFile(contenido, name=nombre_archivo),
+                            )
+                            evidencias_creadas += 1
+                        except Exception:
+                            continue
+
+                if primera_guardada:
+                    venta.save(update_fields=['foto_vencidos'])
+
+            if registros_recalculados:
+                recalcular_totales_cargue_queryset(
+                    ModeloCargue.objects.filter(pk__in=registros_recalculados)
+                )
 
             return Response({
                 'success': True,
@@ -4669,6 +4979,17 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 'nuevo_total': nuevo_total,
                 'metodo_pago': venta.metodo_pago,
                 'detalles_actualizados': actualizar_detalles,
+                'productos_vencidos': venta.productos_vencidos,
+                'foto_vencidos': request.build_absolute_uri(venta.foto_vencidos.url) if venta.foto_vencidos else None,
+                'evidencias': [
+                    {
+                        'id': ev.id,
+                        'producto_id': ev.producto_id,
+                        'imagen': request.build_absolute_uri(ev.imagen.url) if ev.imagen else None,
+                    }
+                    for ev in venta.evidencias.all().order_by('id')
+                ],
+                'evidencias_creadas': evidencias_creadas,
                 'editada': True
             })
 
@@ -4775,6 +5096,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         from rest_framework import status
         from django.http import QueryDict
         from django.db import transaction, IntegrityError
+        import json as json_lib
 
         vendedor_auth = self._validar_sesion_movil(request)
         if not vendedor_auth:
@@ -4806,6 +5128,40 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 )
             except Exception as e:
                 print(f"⚠️ Error logging: {e}")
+
+        def _huella_detalles(detalles):
+            if not isinstance(detalles, list):
+                return '[]'
+
+            detalles_norm = []
+            for item in detalles:
+                if not isinstance(item, dict):
+                    continue
+                detalles_norm.append({
+                    'producto': str(item.get('producto') or item.get('nombre') or '').strip().upper(),
+                    'cantidad': int(item.get('cantidad') or 0),
+                    'precio': float(item.get('precio') or item.get('precio_unitario') or item.get('valor_unitario') or 0),
+                })
+
+            detalles_norm.sort(key=lambda x: (x['producto'], x['cantidad'], x['precio']))
+            return json_lib.dumps(detalles_norm, ensure_ascii=False, sort_keys=True)
+
+        def _huella_vencidas(vencidas):
+            if not isinstance(vencidas, list):
+                return '[]'
+
+            vencidas_norm = []
+            for item in vencidas:
+                if not isinstance(item, dict):
+                    continue
+                vencidas_norm.append({
+                    'producto': str(item.get('producto') or item.get('nombre') or '').strip().upper(),
+                    'cantidad': int(item.get('cantidad') or 0),
+                    'motivo': str(item.get('motivo') or '').strip().upper(),
+                })
+
+            vencidas_norm.sort(key=lambda x: (x['producto'], x['cantidad'], x['motivo']))
+            return json_lib.dumps(vencidas_norm, ensure_ascii=False, sort_keys=True)
         
         # 🆕 Verificar duplicados por id_local
         id_local = request.data.get('id_local')
@@ -4885,6 +5241,50 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         # 🔒 vendedor siempre se toma del token autenticado
         data['vendedor'] = vendedor_auth.id_vendedor
 
+        # 🆕 CREAR CLIENTE OCASIONAL AUTOMÁTICAMENTE si viene en los datos
+        # La app envía cliente_ocasional con un ID temporal, pero necesitamos crear el registro real
+        if 'cliente_ocasional' in data and data['cliente_ocasional']:
+            try:
+                # Extraer datos del cliente desde los campos de la venta
+                nombre_cliente = data.get('cliente_nombre', '').strip()
+                nombre_negocio = data.get('nombre_negocio', '').strip()
+                
+                # Usar nombre_negocio si existe, sino usar cliente_nombre
+                nombre_final = nombre_negocio if nombre_negocio else nombre_cliente
+                
+                if nombre_final:
+                    # Buscar si ya existe un ClienteOcasional con ese nombre para este vendedor
+                    cliente_ocasional_existente = ClienteOcasional.objects.filter(
+                        vendedor=vendedor_auth,
+                        nombre__iexact=nombre_final,
+                        activo=True
+                    ).first()
+                    
+                    if cliente_ocasional_existente:
+                        # Ya existe, usar ese ID
+                        data['cliente_ocasional'] = cliente_ocasional_existente.id
+                        print(f"✅ Cliente ocasional existente encontrado: {cliente_ocasional_existente.id} - {nombre_final}")
+                    else:
+                        # No existe, crear uno nuevo
+                        nuevo_cliente_ocasional = ClienteOcasional.objects.create(
+                            vendedor=vendedor_auth,
+                            nombre=nombre_final,
+                            telefono='',  # La app no envía teléfono en ventas ocasionales
+                            direccion='',  # La app no envía dirección en ventas ocasionales
+                            tope_venta=60000,  # Tope por defecto
+                            activo=True
+                        )
+                        data['cliente_ocasional'] = nuevo_cliente_ocasional.id
+                        print(f"✅ Cliente ocasional creado: {nuevo_cliente_ocasional.id} - {nombre_final} para {vendedor_auth.id_vendedor}")
+                else:
+                    # No hay nombre, quitar el campo para evitar error
+                    data.pop('cliente_ocasional', None)
+                    print(f"⚠️ No se pudo crear cliente ocasional: sin nombre")
+            except Exception as e:
+                print(f"❌ Error creando cliente ocasional: {e}")
+                # Si falla, quitar el campo para que la venta se guarde sin cliente ocasional
+                data.pop('cliente_ocasional', None)
+
         # 🔒 Validar vendedor activo
         vendedor_ref = data.get('vendedor')
         if not vendedor_ref or not Vendedor.objects.filter(pk=vendedor_ref, activo=True).exists():
@@ -4898,6 +5298,75 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         data['detalles'] = detalles_normalizados
         data['total'] = total_calculado if detalles_normalizados else 0
         data['productos_vencidos'] = productos_vencidos_normalizados
+
+        fecha_operativa = self._resolver_fecha_operativa(data.get('fecha'), fallback=timezone.now())
+        ModeloCargue = self._obtener_modelo_cargue_por_vendedor(vendedor_auth.id_vendedor)
+        error_stock = self._validar_stock_disponible_cargue(
+            ModeloCargue,
+            fecha_operativa,
+            detalles_normalizados,
+        )
+        if error_stock:
+            _log_sync(
+                accion='CREATE_STOCK_INVALIDO',
+                exito=False,
+                error_mensaje=str(error_stock.get('detalle', [])),
+                id_local=id_local or ''
+            )
+            return Response(error_stock, status=status.HTTP_400_BAD_REQUEST)
+
+        # 🆕 Verificar duplicados sospechosos por similitud en ventana muy corta.
+        # Debe cubrir doble submit/click casi instantáneo, no ventas reales repetidas.
+        try:
+            fecha_referencia = parse_datetime(str(data.get('fecha'))) if data.get('fecha') else None
+            if fecha_referencia is None:
+                fecha_referencia = timezone.now()
+            if timezone.is_naive(fecha_referencia):
+                fecha_referencia = timezone.make_aware(fecha_referencia, timezone.get_current_timezone())
+
+            ventana_inicio = fecha_referencia - timedelta(seconds=15)
+            ventana_fin = fecha_referencia + timedelta(seconds=15)
+
+            nombre_negocio_norm = str(data.get('nombre_negocio') or '').strip()
+            cliente_nombre_norm = str(data.get('cliente_nombre') or '').strip()
+            total_norm = float(data.get('total') or 0)
+            detalles_huella = _huella_detalles(detalles_normalizados)
+            vencidas_huella = _huella_vencidas(productos_vencidos_normalizados)
+
+            candidatos = VentaRuta.objects.filter(
+                vendedor_id=vendedor_auth.id_vendedor,
+                estado='ACTIVA',
+                dispositivo_id=dispositivo_id,
+                fecha__gte=ventana_inicio,
+                fecha__lte=ventana_fin,
+                total=total_norm,
+                cliente_nombre=cliente_nombre_norm,
+                nombre_negocio=nombre_negocio_norm,
+            ).order_by('fecha')
+
+            for candidato in candidatos:
+                if _huella_detalles(candidato.detalles) == detalles_huella and _huella_vencidas(candidato.productos_vencidos) == vencidas_huella:
+                    print(f"⚠️ DUPLICADO SOSPECHOSO DETECTADO: nuevo id_local={id_local} ~ venta existente {candidato.id}")
+                    _log_sync(
+                        accion='CREATE_DUPLICADO_SOSPECHOSO',
+                        exito=False,
+                        error_mensaje=f'Venta sospechosamente duplicada (ID: {candidato.id})',
+                        id_local=id_local or ''
+                    )
+                    return Response(
+                        {
+                            'id': candidato.id,
+                            'message': 'Venta sospechosamente duplicada detectada',
+                            'duplicada': True,
+                            'warning': 'DUPLICADO_SOSPECHOSO',
+                            'id_local': id_local,
+                            'duplicado_de': candidato.id,
+                            'timestamp': candidato.fecha
+                        },
+                        status=status.HTTP_200_OK
+                    )
+        except Exception as duplicate_error:
+            print(f"⚠️ Error validando duplicado sospechoso: {duplicate_error}")
 
         # Extraer fotos de evidencia antes de crear la venta
         evidencias_data = []
@@ -5063,7 +5532,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             try:
                 # Obtener ID del vendedor y fecha
                 id_vendedor = venta.vendedor.id_vendedor  # ID1, ID2, etc.
-                fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+                fecha_venta = self._resolver_fecha_operativa(venta.fecha, fallback=timezone.now())
                 registros_recalculados = []
                 
                 print(f"🔄 Sincronizando vencidas a CargueIDx: {id_vendedor} - {fecha_venta}")
@@ -5131,7 +5600,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         try:
             # Obtener ID del vendedor y fecha
             id_vendedor = venta.vendedor.id_vendedor if hasattr(venta.vendedor, 'id_vendedor') else None
-            fecha_venta = venta.fecha.date() if hasattr(venta.fecha, 'date') else venta.fecha
+            fecha_venta = self._resolver_fecha_operativa(venta.fecha, fallback=timezone.now())
             
             if id_vendedor:
                 print(f"🔄 Sincronizando vendidas a CargueIDx: {id_vendedor} - {fecha_venta}")
@@ -5258,7 +5727,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         fecha_venta_anterior = None
         try:
             id_vendedor_anterior = instancia_anterior.vendedor.id_vendedor
-            fecha_venta_anterior = instancia_anterior.fecha.date()
+            fecha_venta_anterior = self._resolver_fecha_operativa(instancia_anterior.fecha, fallback=timezone.now())
         except Exception:
             pass
 
@@ -5277,11 +5746,43 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        nuevos_detalles = request.data.get('detalles', None)
+        if nuevos_detalles is not None:
+            detalles_normalizados, _ = self._normalizar_detalles(nuevos_detalles)
+            if not detalles_normalizados:
+                return Response(
+                    {'error': 'La venta debe incluir al menos un producto valido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            ModeloCargue = self._obtener_modelo_cargue_por_vendedor(id_vendedor_anterior)
+            fecha_objetivo = self._resolver_fecha_operativa(
+                request.data.get('fecha'),
+                fallback=instancia_anterior.fecha,
+            )
+            cantidades_base = self._cantidades_base_detalles(
+                ModeloCargue,
+                fecha_venta_anterior,
+                detalles_anteriores,
+            )
+            error_stock = self._validar_stock_disponible_cargue(
+                ModeloCargue,
+                fecha_objetivo,
+                detalles_normalizados,
+                cantidades_base=cantidades_base,
+            )
+            if error_stock:
+                return Response(error_stock, status=status.HTTP_400_BAD_REQUEST)
+
         # ─── Hacer el update normal (heredado) ───
         partial = kwargs.pop('partial', False)
         serializer = self.get_serializer(instancia_anterior, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         venta_actualizada = serializer.save(editada=True)
+        
+        print(f"✅ Venta actualizada: ID={venta_actualizada.id}, Total={venta_actualizada.total}, Método={venta_actualizada.metodo_pago}")
+        print(f"   Detalles: {len(venta_actualizada.detalles or [])} productos")
+        print(f"   Vencidas: {len(venta_actualizada.productos_vencidos or [])} productos")
 
 
         # ─── Marcar como editada ───
@@ -5316,6 +5817,56 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                             ).update(vendidas=F('vendidas') - cantidad)
                             print(f"   ↩️ {nombre}: vendidas -= {cantidad}")
 
+                    # 🆕 REVERTIR método de pago anterior (nequi/daviplata)
+                    metodo_pago_anterior = str(instancia_anterior.metodo_pago or 'EFECTIVO').upper()
+                    total_anterior = float(instancia_anterior.total or 0)
+                    
+                    if 'NEQUI' in metodo_pago_anterior and total_anterior > 0:
+                        # Buscar cualquier registro del día para restar nequi
+                        registro_dia = ModeloCargue.objects.filter(
+                            fecha=fecha_venta_anterior,
+                            activo=True
+                        ).first()
+                        if registro_dia:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_venta_anterior,
+                                dia=registro_dia.dia,
+                                activo=True
+                            ).update(nequi=F('nequi') - total_anterior)
+                            print(f"   ↩️ Nequi revertido: ${total_anterior}")
+                    
+                    elif 'DAVIPLATA' in metodo_pago_anterior and total_anterior > 0:
+                        registro_dia = ModeloCargue.objects.filter(
+                            fecha=fecha_venta_anterior,
+                            activo=True
+                        ).first()
+                        if registro_dia:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_venta_anterior,
+                                dia=registro_dia.dia,
+                                activo=True
+                            ).update(daviplata=F('daviplata') - total_anterior)
+                            print(f"   ↩️ Daviplata revertido: ${total_anterior}")
+
+                    # 🆕 REVERTIR vencidas anteriores
+                    vencidas_anteriores = instancia_anterior.productos_vencidos or []
+                    if isinstance(vencidas_anteriores, str):
+                        try:
+                            vencidas_anteriores = json_lib.loads(vencidas_anteriores)
+                        except Exception:
+                            vencidas_anteriores = []
+                    
+                    for item_vencido in vencidas_anteriores:
+                        nombre_vencido = item_vencido.get('producto', '') or item_vencido.get('nombre', '')
+                        cantidad_vencida = int(item_vencido.get('cantidad', 0))
+                        if nombre_vencido and cantidad_vencida > 0:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_venta_anterior,
+                                producto__iexact=nombre_vencido,
+                                activo=True
+                            ).update(vencidas=F('vencidas') - cantidad_vencida)
+                            print(f"   ↩️ {nombre_vencido}: vencidas -= {cantidad_vencida}")
+
                     # 2) APLICAR cantidades nuevas
                     nuevos_detalles = venta_actualizada.detalles or []
                     if isinstance(nuevos_detalles, str):
@@ -5324,7 +5875,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                         except Exception:
                             nuevos_detalles = []
 
-                    fecha_nueva = venta_actualizada.fecha.date()
+                    fecha_nueva = self._resolver_fecha_operativa(venta_actualizada.fecha, fallback=timezone.now())
                     print(f"✅ Aplicando {len(nuevos_detalles)} productos nuevos en Cargue {id_vendedor_anterior}")
                     for item in nuevos_detalles:
                         nombre = item.get('nombre', '') or item.get('producto', '')
@@ -5336,6 +5887,55 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                                 activo=True
                             ).update(vendidas=F('vendidas') + cantidad)
                             print(f"   ✅ {nombre}: vendidas += {cantidad}")
+
+                    # 🆕 APLICAR método de pago nuevo (nequi/daviplata)
+                    metodo_pago_nuevo = str(venta_actualizada.metodo_pago or 'EFECTIVO').upper()
+                    total_nuevo = float(venta_actualizada.total or 0)
+                    
+                    if 'NEQUI' in metodo_pago_nuevo and total_nuevo > 0:
+                        registro_dia = ModeloCargue.objects.filter(
+                            fecha=fecha_nueva,
+                            activo=True
+                        ).first()
+                        if registro_dia:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_nueva,
+                                dia=registro_dia.dia,
+                                activo=True
+                            ).update(nequi=F('nequi') + total_nuevo)
+                            print(f"   ✅ Nequi aplicado: ${total_nuevo}")
+                    
+                    elif 'DAVIPLATA' in metodo_pago_nuevo and total_nuevo > 0:
+                        registro_dia = ModeloCargue.objects.filter(
+                            fecha=fecha_nueva,
+                            activo=True
+                        ).first()
+                        if registro_dia:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_nueva,
+                                dia=registro_dia.dia,
+                                activo=True
+                            ).update(daviplata=F('daviplata') + total_nuevo)
+                            print(f"   ✅ Daviplata aplicado: ${total_nuevo}")
+
+                    # 🆕 APLICAR vencidas nuevas
+                    vencidas_nuevas = venta_actualizada.productos_vencidos or []
+                    if isinstance(vencidas_nuevas, str):
+                        try:
+                            vencidas_nuevas = json_lib.loads(vencidas_nuevas)
+                        except Exception:
+                            vencidas_nuevas = []
+                    
+                    for item_vencido in vencidas_nuevas:
+                        nombre_vencido = item_vencido.get('producto', '') or item_vencido.get('nombre', '')
+                        cantidad_vencida = int(item_vencido.get('cantidad', 0))
+                        if nombre_vencido and cantidad_vencida > 0:
+                            ModeloCargue.objects.filter(
+                                fecha=fecha_nueva,
+                                producto__iexact=nombre_vencido,
+                                activo=True
+                            ).update(vencidas=F('vencidas') + cantidad_vencida)
+                            print(f"   ✅ {nombre_vencido}: vencidas += {cantidad_vencida}")
 
         except Exception as e:
             print(f"⚠️ Error ajustando Cargue en edición de venta (la venta sí se editó): {e}")
@@ -5564,6 +6164,105 @@ def calcular_devoluciones_automaticas(request, id_vendedor, fecha):
             'productos': resultado
         })
         
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def control_stock_tiempo_real(request, id_vendedor, fecha):
+    """
+    Retorna un tablero read-only de control de stock por producto para un ID y fecha.
+
+    La fuente base es el CargueIDx ya sincronizado con ventas y vencidas:
+    - salio_con = cantidad - dctos + adicional
+    - vendidas = unidades reportadas desde app ya impactadas en cargue
+    - vencidas = unidades vencidas reportadas
+    - saldo_teorico = salio_con - vendidas - vencidas
+    - devoluciones = devolución física registrada al cierre (si existe)
+    """
+    try:
+        modelo_map = {
+            'ID1': CargueID1,
+            'ID2': CargueID2,
+            'ID3': CargueID3,
+            'ID4': CargueID4,
+            'ID5': CargueID5,
+            'ID6': CargueID6,
+        }
+
+        ModeloCargue = modelo_map.get(id_vendedor)
+        if not ModeloCargue:
+            return Response({'error': 'ID de vendedor inválido'}, status=400)
+
+        cargues = ModeloCargue.objects.filter(
+            fecha=fecha,
+            activo=True
+        ).order_by('id')
+
+        if not cargues.exists():
+            return Response({
+                'id_vendedor': id_vendedor,
+                'fecha': fecha,
+                'mensaje': 'No hay datos de cargue para esta fecha',
+                'cerrado': False,
+                'totales': {
+                    'salio_con': 0,
+                    'vendidas': 0,
+                    'vencidas': 0,
+                    'saldo_teorico': 0,
+                    'devoluciones': 0,
+                },
+                'productos': [],
+            })
+
+        productos = []
+        totales = {
+            'salio_con': 0,
+            'vendidas': 0,
+            'vencidas': 0,
+            'saldo_teorico': 0,
+            'devoluciones': 0,
+        }
+        cerrado = False
+
+        for cargue in cargues:
+            salio_con = int(cargue.cantidad or 0) - int(cargue.dctos or 0) + int(cargue.adicional or 0)
+            vendidas = int(cargue.vendidas or 0)
+            vencidas = int(cargue.vencidas or 0)
+            devoluciones = int(cargue.devoluciones or 0)
+            saldo_teorico = salio_con - vendidas - vencidas
+            diferencia_cierre = saldo_teorico - devoluciones
+
+            if devoluciones > 0:
+                cerrado = True
+
+            productos.append({
+                'producto': cargue.producto,
+                'salio_con': salio_con,
+                'vendidas': vendidas,
+                'vencidas': vencidas,
+                'saldo_teorico': saldo_teorico,
+                'devoluciones': devoluciones,
+                'diferencia_cierre': diferencia_cierre,
+                'valor_unitario': float(cargue.valor or 0),
+            })
+
+            totales['salio_con'] += salio_con
+            totales['vendidas'] += vendidas
+            totales['vencidas'] += vencidas
+            totales['saldo_teorico'] += saldo_teorico
+            totales['devoluciones'] += devoluciones
+
+        return Response({
+            'id_vendedor': id_vendedor,
+            'fecha': fecha,
+            'cerrado': cerrado,
+            'totales': totales,
+            'productos': productos,
+        })
+
     except Exception as e:
         import traceback
         traceback.print_exc()

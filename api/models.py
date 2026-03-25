@@ -2059,6 +2059,10 @@ class VentaRuta(models.Model):
         choices=[('ACTIVA', 'Activa'), ('ANULADA', 'Anulada')],
         help_text='Estado de la venta: ACTIVA o ANULADA'
     )  # 🆕 Para trazabilidad de anulaciones
+    intentos_anulacion = models.IntegerField(
+        default=0,
+        help_text='Contador de veces que se ha anulado esta venta (máximo 1 permitido)'
+    )  # 🔒 Control de anulaciones
     
     # 🆕 Referencia opcional a cliente ocasional
     cliente_ocasional = models.ForeignKey(
