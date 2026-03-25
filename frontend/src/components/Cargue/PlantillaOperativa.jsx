@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Modal, Button, Table } from 'react-bootstrap';
 import { useProducts } from '../../hooks/useUnifiedProducts';
 import { useVendedores } from '../../context/VendedoresContext';
 import { simpleStorage } from '../../services/simpleStorage';
@@ -143,6 +144,7 @@ const PlantillaOperativa = ({
     const [mostrarModalVendidas, setMostrarModalVendidas] = useState(false);
     const [sincronizandoAuditoria, setSincronizandoAuditoria] = useState(false);
     const [productosAuditoria, setProductosAuditoria] = useState([]);
+    const [mostrarModalPreciosEspeciales, setMostrarModalPreciosEspeciales] = useState(false);
     const [auditoriaFisico, setAuditoriaFisico] = useState({});
     const [despachadorOverrides, setDespachadorOverrides] = useState({});
 
@@ -185,6 +187,25 @@ const PlantillaOperativa = ({
             .trim()
     );
 
+    const obtenerClaveFechaLocalAuditoria = (valorFecha) => {
+        if (!valorFecha) return '';
+
+        const texto = String(valorFecha).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+            return texto;
+        }
+
+        const fecha = new Date(texto);
+        if (!Number.isNaN(fecha.getTime())) {
+            const year = fecha.getFullYear();
+            const month = String(fecha.getMonth() + 1).padStart(2, '0');
+            const day = String(fecha.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        return texto.split('T')[0] || '';
+    };
+
     const obtenerVencidasAppPorProducto = (ventasRuta = [], pedidos = [], fechaFormateada = '') => {
         const acumulado = {};
         const sumarProducto = (nombreProducto, cantidad) => {
@@ -194,7 +215,7 @@ const PlantillaOperativa = ({
         };
 
         (ventasRuta || []).forEach((venta) => {
-            const fechaVenta = (venta?.fecha || '').split('T')[0];
+            const fechaVenta = obtenerClaveFechaLocalAuditoria(venta?.fecha);
             if (fechaFormateada && fechaVenta !== fechaFormateada) return;
             if (String(venta?.estado || '').toUpperCase() === 'ANULADA') return;
             (venta?.productos_vencidos || []).forEach((item) => {
@@ -203,7 +224,7 @@ const PlantillaOperativa = ({
         });
 
         (pedidos || []).forEach((pedido) => {
-            const fechaPedido = (pedido?.fecha_entrega || pedido?.fecha || '').split('T')[0];
+            const fechaPedido = obtenerClaveFechaLocalAuditoria(pedido?.fecha_entrega || pedido?.fecha);
             if (fechaFormateada && fechaPedido !== fechaFormateada) return;
             if (String(pedido?.estado || '').toUpperCase() === 'ANULADA') return;
 
@@ -559,7 +580,9 @@ const PlantillaOperativa = ({
             totalEfectivo: 0,
             nequi: 0,
             daviplata: 0,
-            novedad: null  // 🆕 Novedad de precios especiales
+            novedad: null,
+            ventasPrecioEspecial: [],
+            totalPrecioEspecial: 0
         };
     });
 
@@ -591,6 +614,28 @@ const PlantillaOperativa = ({
     }, [idSheet, fechaFormateadaLS]);
 
     // 🚀 NUEVA FUNCIÓN: Cargar pedidos del vendedor
+    const normalizarNombrePrecioEspecial = (texto = '') => (
+        texto
+            .toString()
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '')
+            .toUpperCase()
+            .replace(/\s+/g, ' ')
+            .trim()
+    );
+
+    const mapaPrecioCarguePorNombre = useMemo(() => {
+        const mapa = {};
+        (products || []).forEach((prod) => {
+            const clave = normalizarNombrePrecioEspecial(prod?.nombre || '');
+            if (!clave) return;
+            const precioDesdeLista = preciosLista?.[prod.id];
+            const precioBase = parseFloat(precioDesdeLista ?? prod?.precio ?? 0) || 0;
+            mapa[clave] = precioBase;
+        });
+        return mapa;
+    }, [products, preciosLista]);
+
     const cargarPedidosVendedor = async (fecha, idVendedor) => {
         try {
             console.log(`📦 Cargando pedidos y ventas para ${idVendedor} en fecha ${fecha}`);
@@ -736,15 +781,67 @@ const PlantillaOperativa = ({
             // Asignar el total calculado solo de pedidos
             totales.total = sumaSoloPedidos;
 
+            const ventasPrecioEspecial = ventasFiltradas.reduce((acumulado, venta) => {
+                const detallesVenta = Array.isArray(venta.detalles) ? venta.detalles : [];
+                if (detallesVenta.length === 0) return acumulado;
+
+                let totalPrecioEspecial = 0;
+                let totalPrecioCargue = 0;
+                const productosConDiferencia = [];
+
+                detallesVenta.forEach((detalle) => {
+                    const nombreProducto = detalle.producto || detalle.producto_nombre || detalle.nombre || '';
+                    const claveProducto = normalizarNombrePrecioEspecial(nombreProducto);
+                    const cantidad = parseFloat(detalle.cantidad || 0) || 0;
+                    const precioVenta = parseFloat(detalle.precio || detalle.precio_unitario || 0) || 0;
+                    const precioCargue = parseFloat(mapaPrecioCarguePorNombre[claveProducto] || 0) || 0;
+
+                    if (!cantidad || !precioVenta || !precioCargue) return;
+
+                    const subtotalVenta = precioVenta * cantidad;
+                    const subtotalCargue = precioCargue * cantidad;
+                    const diferencia = subtotalVenta - subtotalCargue;
+
+                    totalPrecioEspecial += subtotalVenta;
+                    totalPrecioCargue += subtotalCargue;
+
+                    if (diferencia > 0) {
+                        productosConDiferencia.push({
+                            nombre: nombreProducto,
+                            cantidad,
+                            precioVenta,
+                            precioCargue,
+                            diferencia
+                        });
+                    }
+                });
+
+                const diferenciaTotal = totalPrecioEspecial - totalPrecioCargue;
+                if (diferenciaTotal > 0) {
+                    acumulado.push({
+                        id: venta.id,
+                        cliente: venta.nombre_negocio || venta.cliente_nombre || 'Cliente',
+                        totalVenta: totalPrecioEspecial,
+                        totalCargue: totalPrecioCargue,
+                        diferencia: diferenciaTotal,
+                        productos: productosConDiferencia
+                    });
+                }
+
+                return acumulado;
+            }, []);
+
             // Retornar estructura completa
             return {
                 ...totales,
-                pagosDetallados // 🆕 Retornar lista detallada de pagos
+                pagosDetallados,
+                ventasPrecioEspecial,
+                totalPrecioEspecial: ventasPrecioEspecial.reduce((sum, item) => sum + item.diferencia, 0)
             };
 
         } catch (error) {
             console.error('❌ Error cargando datos vendedor:', error);
-            return { total: 0, nequi: 0, daviplata: 0, pagosDetallados: [] };
+            return { total: 0, nequi: 0, daviplata: 0, pagosDetallados: [], ventasPrecioEspecial: [], totalPrecioEspecial: 0 };
         }
     };
 
@@ -1039,24 +1136,27 @@ const PlantillaOperativa = ({
             const nequiNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.nequi : 0;
             const daviNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.daviplata : 0;
             const pagosDetalladosNuevo = typeof resultadosPedidos === 'object' ? resultadosPedidos.pagosDetallados : [];
+            const ventasPrecioEspecialNuevo = typeof resultadosPedidos === 'object' ? (resultadosPedidos.ventasPrecioEspecial || []) : [];
+            const totalPrecioEspecialNuevo = typeof resultadosPedidos === 'object' ? (resultadosPedidos.totalPrecioEspecial || 0) : 0;
 
             if (isMounted) {
                 setDatosResumen(prev => {
-                    // Solo actualizar si algún valor cambió
                     const cambioTotal = prev.totalPedidos !== totalNuevo;
                     const cambioNequi = (prev.nequi || 0) !== nequiNuevo;
                     const cambioDavi = (prev.daviplata || 0) !== daviNuevo;
-                    // Comparación simple de longitud para arrays (profunda sería costosa)
                     const cambioDetalle = (prev.pagosDetallados?.length || 0) !== pagosDetalladosNuevo.length;
+                    const cambioPrecioEspecial = (prev.ventasPrecioEspecial?.length || 0) !== ventasPrecioEspecialNuevo.length || (prev.totalPrecioEspecial || 0) !== totalPrecioEspecialNuevo;
 
-                    if (cambioTotal || cambioNequi || cambioDavi || cambioDetalle) {
+                    if (cambioTotal || cambioNequi || cambioDavi || cambioDetalle || cambioPrecioEspecial) {
                         console.log(`💰 Cambio detallado en pedidos: Total $${prev.totalPedidos}->${totalNuevo}, Nequi $${prev.nequi}->${nequiNuevo}`);
                         return {
                             ...prev,
                             totalPedidos: totalNuevo,
                             nequi: nequiNuevo,
                             daviplata: daviNuevo,
-                            pagosDetallados: pagosDetalladosNuevo // 🆕 Guardar detalle
+                            pagosDetallados: pagosDetalladosNuevo,
+                            ventasPrecioEspecial: ventasPrecioEspecialNuevo,
+                            totalPrecioEspecial: totalPrecioEspecialNuevo
                         };
                     }
                     return prev;
@@ -1261,12 +1361,16 @@ const PlantillaOperativa = ({
                 const totalPedidosReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.total : resultadoPedidos;
                 const nequiReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.nequi : 0;
                 const daviplataReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.daviplata : 0;
+                const ventasPrecioEspecial = typeof resultadoPedidos === 'object' ? (resultadoPedidos.ventasPrecioEspecial || []) : [];
+                const totalPrecioEspecial = typeof resultadoPedidos === 'object' ? (resultadoPedidos.totalPrecioEspecial || 0) : 0;
 
                 const valoresForzados = {
                     totalDespacho: totalNeto,
                     totalPedidos: totalPedidosReal || 0,
                     nequi: nequiReal || 0,
                     daviplata: daviplataReal || 0,
+                    ventasPrecioEspecial,
+                    totalPrecioEspecial,
                     // Estos valores fijos deberían venir de la BD idealmente, pero por ahora los mantenemos para no romper
                     totalDctos: 0,
                     venta: totalNeto + (totalPedidosReal || 0), // Aproximación
@@ -2522,6 +2626,21 @@ const PlantillaOperativa = ({
                                 <>📱 Ventas</>
                             </button>
 
+                            {!!datosResumen?.novedad && !!datosResumen?.ventasPrecioEspecial?.length && (
+                                <button
+                                    className="btn btn-sm d-flex align-items-center gap-1"
+                                    onClick={() => setMostrarModalPreciosEspeciales(true)}
+                                    title="Ver ventas con precio especial"
+                                    style={{
+                                        backgroundColor: '#fff3cd',
+                                        color: '#856404',
+                                        border: '1px solid #ffe08a',
+                                        fontWeight: '600'
+                                    }}
+                                >
+                                    <>💰 Precio especial</>
+                                </button>
+                            )}
 
                         </div>
                         <div className="text-muted small">
@@ -2530,6 +2649,73 @@ const PlantillaOperativa = ({
                     </div>
                 </div>
             </div>
+
+
+            <Modal show={mostrarModalPreciosEspeciales} onHide={() => setMostrarModalPreciosEspeciales(false)} centered size="lg">
+                <Modal.Header closeButton style={{ backgroundColor: '#fff8e1' }}>
+                    <Modal.Title style={{ color: '#856404', fontWeight: '700' }}>💰 Ventas con Precio Especial</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p className="mb-3 text-muted">
+                        Este aviso es solo informativo. Muestra ventas donde el valor real vendido fue mayor al valor base de <strong>Precio Cargue/App</strong>.
+                    </p>
+                    <div className="alert alert-warning py-2 mb-3" role="alert" style={{ fontSize: '0.95rem' }}>
+                        Diferencia total detectada: <strong>${Number(datosResumen?.totalPrecioEspecial || 0).toLocaleString()}</strong>
+                    </div>
+                    {(datosResumen?.ventasPrecioEspecial || []).length === 0 ? (
+                        <div className="text-muted fst-italic">No hay ventas con precio especial para este día.</div>
+                    ) : (
+                        <div className="d-flex flex-column gap-3">
+                            {(datosResumen?.ventasPrecioEspecial || []).map((venta, index) => (
+                                <div key={`${venta.id || venta.cliente || 'venta'}-${index}`} className="border rounded p-3" style={{ backgroundColor: '#fffdf5' }}>
+                                    <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                                        <div>
+                                            <div style={{ fontWeight: '700', color: '#7c5a00' }}>{venta.cliente}</div>
+                                            <small className="text-muted">Venta #{venta.id || 'N/A'}</small>
+                                        </div>
+                                        <div className="text-end">
+                                            <div><small className="text-muted">Venta real:</small> <strong>${Number(venta.totalVenta || 0).toLocaleString()}</strong></div>
+                                            <div><small className="text-muted">Precio Cargue/App:</small> <strong>${Number(venta.totalCargue || 0).toLocaleString()}</strong></div>
+                                            <div style={{ color: '#b26a00', fontWeight: '700' }}>+${Number(venta.diferencia || 0).toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                    {(venta.productos || []).length > 0 && (
+                                        <div className="table-responsive">
+                                            <Table size="sm" bordered className="mb-0 align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Producto</th>
+                                                        <th className="text-center">Cant.</th>
+                                                        <th className="text-end">Precio venta</th>
+                                                        <th className="text-end">Precio cargue/app</th>
+                                                        <th className="text-end">Dif.</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {venta.productos.map((prod, prodIndex) => (
+                                                        <tr key={`${prod.nombre}-${prodIndex}`}>
+                                                            <td>{prod.nombre}</td>
+                                                            <td className="text-center">{prod.cantidad}</td>
+                                                            <td className="text-end">${Number(prod.precioVenta || 0).toLocaleString()}</td>
+                                                            <td className="text-end">${Number(prod.precioCargue || 0).toLocaleString()}</td>
+                                                            <td className="text-end" style={{ color: '#b26a00', fontWeight: '700' }}>+${Number(prod.diferencia || 0).toLocaleString()}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </Table>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setMostrarModalPreciosEspeciales(false)}>
+                        Cerrar
+                    </Button>
+                </Modal.Footer>
+            </Modal>
 
             <div className="row">
                 <div className="col-12">
