@@ -6742,12 +6742,12 @@ def abrir_turno(request):
                 # El vendedor debe esperar al día siguiente con stock disponible.
                 print(f"🔒 Intento de reabrir turno CERRADO bloqueado: {vendedor_nombre} - {dia} {fecha}")
                 return Response({
-                    'error': 'TURNO_CERRADO_NO_REABRIBLE',
+                    'error': 'TURNO_YA_CERRADO',
                     'message': f'El turno del {fecha_str} ya fue cerrado y no se puede reabrir. Debes esperar al día siguiente con stock disponible.',
                     'turno_id': turno_existente.id,
                     'fecha': turno_existente.fecha.isoformat(),
                     'hora_cierre': turno_existente.hora_cierre.isoformat() if turno_existente.hora_cierre else None,
-                }, status=403)
+                }, status=409)
         
         # Crear nuevo turno
         turno = TurnoVendedor.objects.create(
