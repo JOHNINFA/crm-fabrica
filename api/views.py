@@ -6737,54 +6737,17 @@ def abrir_turno(request):
                     'estado': turno_existente.estado
                 })
             else:
-                # Turno existe pero está CERRADO
-                if not forzar:
-                    # Sin forzar → Avisar a la app para que pregunte al usuario
-                    print(f"⚠️ Turno CERRADO detectado para {vendedor_nombre} - {dia} {fecha}. Esperando confirmación.")
-                    return Response({
-                        'error': 'TURNO_YA_CERRADO',
-                        'message': f'El turno para {vendedor_id} en {fecha_str} ya fue cerrado.',
-                        'turno_id': turno_existente.id,
-                        'fecha': turno_existente.fecha.isoformat(),
-                    }, status=409)
-                
-                # Con forzar=true → Reabrir turno
-                turno_existente.estado = 'ABIERTO'
-                turno_existente.hora_apertura = timezone.now()
-                turno_existente.dispositivo = dispositivo
-                turno_existente.cerrado_manual = False
-                turno_existente.save()
-                
-                # 🆕 Limpiar devoluciones del cargue para restaurar stock
-                vendedor_id_str = vendedor.id_vendedor
-                modelo_map = {
-                    'ID1': CargueID1, 'ID2': CargueID2, 'ID3': CargueID3,
-                    'ID4': CargueID4, 'ID5': CargueID5, 'ID6': CargueID6,
-                }
-                ModeloCargue = modelo_map.get(vendedor_id_str)
-                if ModeloCargue:
-                    cargues_con_devoluciones = ModeloCargue.objects.filter(fecha=fecha, activo=True, devoluciones__gt=0)
-                    cantidad_limpiada = cargues_con_devoluciones.update(devoluciones=0)
-                    if cantidad_limpiada > 0:
-                        recalcular_totales_cargue_queryset(
-                            ModeloCargue.objects.filter(fecha=fecha, activo=True)
-                        )
-                    if cantidad_limpiada > 0:
-                        print(f"🧹 Devoluciones limpiadas: {cantidad_limpiada} productos de {vendedor_id_str} en {fecha}")
-                
-                print(f"🔄 Turno reabierto (forzado): {vendedor_nombre} - {dia} {fecha}")
-                
+                # 🔒 TURNO CERRADO - NO SE PUEDE REABRIR
+                # Una vez cerrado el turno del día, no se permite reabrirlo.
+                # El vendedor debe esperar al día siguiente con stock disponible.
+                print(f"🔒 Intento de reabrir turno CERRADO bloqueado: {vendedor_nombre} - {dia} {fecha}")
                 return Response({
-                    'success': True,
-                    'nuevo': False,
-                    'reabierto': True,
-                    'mensaje': 'Turno reabierto correctamente',
+                    'error': 'TURNO_CERRADO_NO_REABRIBLE',
+                    'message': f'El turno del {fecha_str} ya fue cerrado y no se puede reabrir. Debes esperar al día siguiente con stock disponible.',
                     'turno_id': turno_existente.id,
-                    'dia': turno_existente.dia,
                     'fecha': turno_existente.fecha.isoformat(),
-                    'hora_apertura': turno_existente.hora_apertura.isoformat() if turno_existente.hora_apertura else None,
-                    'estado': turno_existente.estado
-                })
+                    'hora_cierre': turno_existente.hora_cierre.isoformat() if turno_existente.hora_cierre else None,
+                }, status=403)
         
         # Crear nuevo turno
         turno = TurnoVendedor.objects.create(
