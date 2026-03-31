@@ -5300,6 +5300,17 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
         data['productos_vencidos'] = productos_vencidos_normalizados
 
         fecha_operativa = self._resolver_fecha_operativa(data.get('fecha'), fallback=timezone.now())
+
+        # 🔒 Bloquear vencidas reportadas después del cierre de turno
+        # Solo aplica a registros sin venta real (solo vencidas), no a sync de ventas offline
+        if not detalles_normalizados and productos_vencidos_normalizados:
+            from .models import TurnoVendedor as _TV
+            _vid = int(str(vendedor_auth.id_vendedor).replace('ID', '')) if 'ID' in str(vendedor_auth.id_vendedor) else int(vendedor_auth.id_vendedor)
+            _fecha_op = fecha_operativa.date() if hasattr(fecha_operativa, 'date') else fecha_operativa
+            _turno_cerrado = _TV.objects.filter(vendedor_id=_vid, fecha=_fecha_op, estado='CERRADO').exists()
+            if _turno_cerrado:
+                print(f"🚫 Vencidas bloqueadas post-cierre: {vendedor_auth.id_vendedor} - {_fecha_op}")
+                return Response({'error': 'El turno ya fue cerrado. No se pueden reportar vencidas después del cierre.'}, status=status.HTTP_409_CONFLICT)
         ModeloCargue = self._obtener_modelo_cargue_por_vendedor(vendedor_auth.id_vendedor)
         error_stock = self._validar_stock_disponible_cargue(
             ModeloCargue,
