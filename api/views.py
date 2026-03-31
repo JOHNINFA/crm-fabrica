@@ -5309,8 +5309,8 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             _fecha_op = fecha_operativa.date() if hasattr(fecha_operativa, 'date') else fecha_operativa
             _turno_cerrado = _TV.objects.filter(vendedor_id=_vid, fecha=_fecha_op, estado='CERRADO').exists()
             if _turno_cerrado:
-                print(f"🚫 Vencidas bloqueadas post-cierre: {vendedor_auth.id_vendedor} - {_fecha_op}")
-                return Response({'error': 'El turno ya fue cerrado. No se pueden reportar vencidas después del cierre.'}, status=status.HTTP_409_CONFLICT)
+                print(f"🚫 Vencidas ignoradas post-cierre (OK silencioso para desbloquear app): {vendedor_auth.id_vendedor} - {_fecha_op}")
+                return Response({'id': 0, 'mensaje': 'Registro procesado'}, status=status.HTTP_201_CREATED)
         ModeloCargue = self._obtener_modelo_cargue_por_vendedor(vendedor_auth.id_vendedor)
         error_stock = self._validar_stock_disponible_cargue(
             ModeloCargue,
