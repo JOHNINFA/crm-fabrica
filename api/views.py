@@ -6409,6 +6409,20 @@ def cerrar_turno_vendedor(request):
             
             # --- MANEJO DE CIERRE VACÍO (Si no hay cargues) ---
             if not cargues.exists():
+                # CORRECCIÓN BUG TIMEZONE: la app puede enviar fecha+1 por diferencia UTC/local
+                # Si no hay cargue en la fecha enviada, revisar el día anterior
+                from datetime import date as _date_cls, timedelta as _timedelta
+                try:
+                    _fecha_anterior = str(_date_cls.fromisoformat(fecha) - _timedelta(days=1))
+                    _cargues_anterior = ModeloCargue.objects.filter(fecha=_fecha_anterior, activo=True)
+                    if _cargues_anterior.exists():
+                        print(f"🔧 Redirigiendo cierre de {fecha} → {_fecha_anterior} (corrección bug timezone app)")
+                        fecha = _fecha_anterior
+                        cargues = _cargues_anterior
+                except Exception:
+                    pass
+
+            if not cargues.exists():
                 print(f"⚠️ No hay cargue para {id_vendedor} en {fecha}. Cerrando turno vacío.")
                 
                 # Intentar cerrar el turno Vendedor aunque no haya cargue
