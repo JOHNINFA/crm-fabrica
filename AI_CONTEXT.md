@@ -4725,17 +4725,63 @@ Se detectó que el botón de vencidas en la app podía enviar datos después del
 - Si el turno está `CERRADO` Y la venta es solo vencidas (sin productos vendidos) → retorna `409`
 - No afecta ventas normales del queue offline que incluyan vencidas adjuntas
 
-### Estado en VPS (2026-03-31)
-El VPS tiene aplicados via `cherry-pick`:
-- `0f46368` — fix timezone (día anterior)
-- `8043d8e` — fix timezone mejorado (TurnoVendedor fuente de verdad)
-- `1d478de` — bloqueo vencidas post-cierre
+### Estado en VPS (2026-03-31) — ESTADO FINAL ESTABLE
+El VPS tiene aplicado via `cherry-pick` **únicamente**:
+- `8043d8e` — fix timezone mejorado (TurnoVendedor fuente de verdad) → hash VPS: `626e62b`
 
-**Commits pendientes de subir al VPS** (no cherry-pickeados aún):
+Base: `904afe9` (bloquear reapertura de turnos cerrados)
+
+**El fix de vencidas post-cierre fue REVERTIDO** (ver sección de lecciones aprendidas abajo).
+
+**Commits pendientes de subir al VPS** (no cherry-pickeados):
 - `07fbf88` — fix error 403→409 compatibilidad app producción
-- Todos los commits anteriores a `904afe9` que no estén en el VPS
+- `920868d` — fix vencidas 201 silencioso (necesario si se vuelve a implementar el bloqueo)
+- `f80b6fd` — docs
+- Todos los commits de trabajo local en AP GUERRERO
+
+---
+
+### ⚠️ LECCIONES APRENDIDAS — SESIÓN 2026-03-31
+
+#### 1. Docker imagen bakeada — SIEMPRE hacer rebuild
+**CRÍTICO:** El VPS corre la imagen Docker con el código bakeado en el build, **no montado como volumen**. Esto significa:
+- `docker compose restart backend` → **NO recarga el código**
+- `docker compose stop/start backend` → **NO recarga el código**
+- Para que cambios en `api/views.py` tomen efecto hay que hacer:
+```bash
+docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d --no-deps backend
+```
+
+#### 2. Fix de vencidas post-cierre causó problemas en cascada
+Se intentaron aplicar los commits `1d478de` y `920868d` para bloquear vencidas post-cierre. Resultado:
+- Cherry-pick de `1d478de` tuvo conflicto y la resolución borró el método `_resolver_fecha_operativa` de la clase `VentaRutaViewSet`
+- Esto causó `500 Internal Server Error` en **todas** las ventas (`/api/ventas-ruta/`)
+- La app quedaba con "1 venta pendiente de sincronizar" sin poder sincronizar
+- Solución: `git reset --hard 904afe9` + cherry-pick limpio solo de `8043d8e` + **rebuild de imagen**
+
+#### 3. Estado de vencidas post-cierre (pendiente)
+Actualmente las vencidas enviadas después del cierre del turno **sí llegan** al Cargue.
+El fix correcto requiere coordinar backend + nueva versión de app. Queda pendiente para cuando se publique la nueva app.
+
+#### 4. Procedimiento correcto para cherry-pick al VPS
+```bash
+# 1. Fetch
+git fetch origin
+# 2. Cherry-pick
+git cherry-pick <hash>
+# Si hay conflicto, resolver con python y hacer cherry-pick --continue
+# 3. Rebuild imagen (OBLIGATORIO)
+docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d --no-deps backend
+# 4. Verificar logs
+docker compose -f docker-compose.prod.yml logs backend --tail=20 -f
+```
 
 ### ⚠️ Importante al subir commits pendientes al VPS
-Cuando se haga `git pull` completo al VPS, los commits `0f46368`, `8043d8e` y `1d478de` ya están aplicados vía cherry-pick con hashes diferentes. Hacer un `git pull` normal causaría conflictos. Se recomienda hacer `git log` en el VPS primero para revisar el estado antes de sincronizar.
+El VPS tiene el cherry-pick `626e62b` (equivale a `8043d8e` local) encima de `904afe9`. Hacer `git pull` normal causaría conflictos. Opciones al momento de sincronizar:
+1. Revisar `git log` en VPS primero
+2. Considerar hacer `git reset --hard origin/main` si todos los commits pendientes ya están en main
+3. Siempre hacer **rebuild de imagen** después de cualquier cambio de código
 
 ---
