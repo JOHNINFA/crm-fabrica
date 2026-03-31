@@ -6401,26 +6401,21 @@ def cerrar_turno_vendedor(request):
         ModeloCargue = modelo_map.get(id_vendedor)
         if not ModeloCargue:
             return Response({'error': f'ID de vendedor inválido: {id_vendedor}'}, status=400)
-        
+
+        # CORRECCIÓN BUG TIMEZONE: la app puede enviar fecha+1 por diferencia UTC/local
+        # Usar el TurnoVendedor ABIERTO como fuente de verdad para la fecha
+        # Esto cubre el caso donde ya existe cargue del día siguiente (enviado anticipadamente)
+        from .models import TurnoVendedor as _TurnoVendedor
+        _v_id_num = int(str(id_vendedor).replace('ID', '')) if 'ID' in str(id_vendedor) else 0
+        _turno_activo = _TurnoVendedor.objects.filter(vendedor_id=_v_id_num, estado='ABIERTO').first()
+        if _turno_activo and str(_turno_activo.fecha) != fecha:
+            print(f"🔧 Redirigiendo cierre: {fecha} → {_turno_activo.fecha} (turno abierto = fuente de verdad)")
+            fecha = str(_turno_activo.fecha)
+
         # INICIO BLOQUE ATÓMICO - Todo o Nada
         with transaction.atomic():
             # Obtener cargue del día
             cargues = ModeloCargue.objects.filter(fecha=fecha, activo=True)
-            
-            # --- MANEJO DE CIERRE VACÍO (Si no hay cargues) ---
-            if not cargues.exists():
-                # CORRECCIÓN BUG TIMEZONE: la app puede enviar fecha+1 por diferencia UTC/local
-                # Si no hay cargue en la fecha enviada, revisar el día anterior
-                from datetime import date as _date_cls, timedelta as _timedelta
-                try:
-                    _fecha_anterior = str(_date_cls.fromisoformat(fecha) - _timedelta(days=1))
-                    _cargues_anterior = ModeloCargue.objects.filter(fecha=_fecha_anterior, activo=True)
-                    if _cargues_anterior.exists():
-                        print(f"🔧 Redirigiendo cierre de {fecha} → {_fecha_anterior} (corrección bug timezone app)")
-                        fecha = _fecha_anterior
-                        cargues = _cargues_anterior
-                except Exception:
-                    pass
 
             if not cargues.exists():
                 print(f"⚠️ No hay cargue para {id_vendedor} en {fecha}. Cerrando turno vacío.")
