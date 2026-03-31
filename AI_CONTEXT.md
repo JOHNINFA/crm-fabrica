@@ -162,6 +162,73 @@ Tabla de referencia rápida para entender cómo se comunica la app móvil `AP GU
   - Sin cambios de layout/estilo.
   - Sin cambios de endpoints ni backend.
 
+#### Arquitectura No-Bloqueante y Sincronización Resiliente (Final Marzo 2026)
+- **Timeouts Optimizados (30s-45s)**: Se redujeron los timeouts de 60s a **30 segundos** para JSON y **45 segundos** para fotos. Esto permite un "Fallo Rápido" (Fast-Fail): si la red es muy mala, el sistema no bloquea al usuario y pasa la tarea inmediatamente a la cola de sincronización de fondo.
+- **Estrategia "Danza del Vendedor" (Race 6s)**: Implementada en **todas** las operaciones críticas que interactúan con el backend:
+    - **Entregas de Pedidos**: Al entregar un pedido, se espera máximo 6s. Si el servidor no responde, la UI se libera, el pedido se marca como "Entregado" localmente y la sincronización real ocurre en segundo plano.
+    - **Anulaciones de Venta**: Mismo comportamiento; la anulación es instantánea para el vendedor, mientras que el aviso al servidor se garantiza mediante la cola de pendientes.
+    - **Ediciones de Venta**: El modal se cierra al instante, permitiendo continuar la ruta sin esperar al backend.
+- **Motor de Sincronización Unificado (Sync Loop)**:
+    - Se expandió `sincronizarVentasPendientes` en `ventasService.js` para ser el cerebro central de la app. Ahora detecta automáticamente si el elemento en cola es un **Pedido**, una **Edición** o una **Venta Nueva**, llamando al endpoint correcto de forma asíncrona.
+    - Soporte para **Vencidas con Fotos**: Las imágenes base64 se persisten en la cola local, asegurando que no se pierdan si la app se cierra o reinicia antes de sincronizar.
+- **Manejo de Conflictos y Duplicados**:
+    - **Verificación de Duplicados**: Antes de reintentar un POST, el sistema consulta silenciosamente al backend (con timeout de 12s) para ver si la venta ya existe, evitando duplicar registros por timeouts de red previos.
+    - **Bridge de Errores**: Uso de `window.__ultimoErrorEdicion` para que el motor de sincronización entienda códigos de error específicos (ej: `VENTA_YA_MODIFICADA`) y sepa cuándo limpiar la cola automáticamente sin reportar error al usuario.
+- **Refresco de Stock y Badges**: Tras cualquier operación (incluso en background), se disparan refrescos de estado locales (`refrescarStockSilencioso`) para que los indicadores de "VENDIDO" o "ENTREGADO" en la lista de clientes sean siempre precisos.
+
+#### Optimización de Timeouts para Conexión Intermitente (Marzo 2026)
+- **Problema detectado**: Con conexión intermitente, los timeouts largos (25-30s) causaban que el usuario esperara mucho tiempo sin feedback claro, y el botón "CONFIRMAR PEDIDO" quedaba bloqueado.
+- **Solución implementada**: Se redujeron los timeouts de operaciones críticas para mejorar la UX:
+  - **Marcar pedido entregado**: 25s → **8s** (operación simple)
+  - **Reportar novedad (no entregado)**: 25s → **8s** (operación simple)
+  - **Abrir turno**: 25s → **10s** (operación con validaciones)
+  - **Cargar stock de cargue**: 30s → **15s** (carga de datos)
+  - **Precargar clientes**: 25s → **15s** (carga de datos)
+  - **Anular venta (background)**: 30s → **12s** (operación crítica)
+- **Mensaje de error mejorado**: Se reemplazó el toast pequeño por un Alert claro y visible:
+  ```
+  ⚠️ Sin Conexión
+  
+  No se pudo conectar con el servidor.
+  
+  El pedido se guardará localmente y se 
+  sincronizará cuando tengas internet.
+  ```
+- **Comportamiento offline preservado**: Todo el sistema offline sigue funcionando igual (guarda local, agrega a cola, sincroniza automáticamente).
+- **Archivo modificado**: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- **Fecha de implementación**: 24 de Marzo de 2026
+
+#### Límite de Anulaciones por Venta (Marzo 2026)
+- **Problema detectado**: Sin límite de anulaciones, los vendedores podían anular y recrear ventas repetidamente, dificultando la auditoría y ocultando errores.
+- **Solución implementada**: Límite de **1 anulación por venta**:
+  - Nuevo campo en modelo `VentaRuta`: `intentos_anulacion` (IntegerField, default=0)
+  - Validación en app móvil antes de anular (verifica contador local)
+  - Validación en backend (doble seguridad)
+  - Mensaje claro sugiriendo usar "Editar" después del límite
+  - Funciona offline (validación local + sincronización)
+- **Mensaje al usuario**:
+  ```
+  ⚠️ Límite Alcanzado
+  
+  Esta venta ya fue anulada anteriormente.
+  
+  💡 ¿Necesitas corregir algo?
+  Usa el botón "✏️ Editar" en vez de anular.
+  
+  Editar mantiene el registro y es más rápido.
+  ```
+- **Beneficios**:
+  - Previene abuso de anulaciones
+  - Facilita auditoría (máximo 1 anulación por venta)
+  - Promueve uso de "Editar" (mejor trazabilidad)
+  - Permite corregir errores honestos (1 vez)
+- **Archivos modificados**: 
+  - `AP GUERRERO/components/Ventas/VentasScreen.js` (validación y contador)
+  - `api/models.py` (nuevo campo `intentos_anulacion`)
+  - `api/views.py` (validación en endpoint de anulación)
+- **Migración requerida**: `python manage.py makemigrations && python manage.py migrate`
+- **Fecha de implementación**: 24 de Marzo de 2026
+
 ---
 
 ## 🔑 Conceptos Clave
@@ -1586,6 +1653,152 @@ if (cantidadEnCarrito >= stockDisponible) {
 }
 ```
 
+#### Productos Vencidos - Ajuste de Stock en Tiempo Real (24 Mar 2026)
+
+**Problema resuelto**: Cuando el usuario agregaba productos vencidos en el modal "Productos Vencidos", el stock disponible NO se actualizaba en tiempo real. El stock solo se ajustaba al confirmar la venta completa.
+
+**Solución implementada**:
+
+1. **Ajuste de stock local inmediato** (`VentasScreen.js` - `handleGuardarVencidas`):
+   - Cuando se guardan productos vencidos, se actualiza `stockCargue` inmediatamente
+   - Restaura el stock de vencidas anteriores (si se estaban editando)
+   - Descuenta las nuevas vencidas del stock disponible
+   - Esto permite que el usuario vea el stock real disponible al instante
+
+```javascript
+const handleGuardarVencidas = (productosVencidos, foto) => {
+    // Calcular diferencia con vencidas anteriores
+    const vencidasAnteriores = vencidas || [];
+    
+    setVencidas(productosVencidos);
+    setFotoVencidas(foto);
+
+    // Ajustar stock localmente
+    setStockCargue(prevStock => {
+        const nuevoStock = { ...prevStock };
+        
+        // 1. Restaurar stock de vencidas anteriores
+        vencidasAnteriores.forEach(item => {
+            const nombreProducto = (item.nombre || '').toUpperCase().trim();
+            const cantidadAnterior = parseInt(item.cantidad || 0, 10);
+            if (nombreProducto && cantidadAnterior > 0) {
+                nuevoStock[nombreProducto] = (nuevoStock[nombreProducto] || 0) + cantidadAnterior;
+            }
+        });
+        
+        // 2. Descontar nuevas vencidas
+        (productosVencidos || []).forEach(item => {
+            const nombreProducto = (item.nombre || '').toUpperCase().trim();
+            const cantidadVencida = parseInt(item.cantidad || 0, 10);
+            if (nombreProducto && cantidadVencida > 0) {
+                nuevoStock[nombreProducto] = Math.max(0, (nuevoStock[nombreProducto] || 0) - cantidadVencida);
+            }
+        });
+        
+        return nuevoStock;
+    });
+};
+```
+
+2. **Stock disponible en tiempo real dentro del modal** (`DevolucionesVencidas.js`):
+   - El "Stock disponible" mostrado en cada producto resta la cantidad que el usuario está escribiendo EN ESE MOMENTO
+   - Usa `useMemo` para pre-calcular todos los stocks de una vez (optimización de rendimiento)
+   - Actualización instantánea sin demoras
+
+```javascript
+// Pre-calcular stocks disponibles para todos los productos
+const stocksDisponibles = useMemo(() => {
+    const stocks = {};
+    productos.forEach(producto => {
+        const cantidad = cantidades[producto.id] || 0;
+        const stockDisponibleRaw = obtenerStockDisponibleProducto(producto?.nombre || '');
+        const stockDisponibleBase = Math.max(0, parseInt(stockDisponibleRaw, 10) || 0);
+        
+        // Restar la cantidad actual que el usuario está escribiendo
+        stocks[producto.id] = Math.max(0, stockDisponibleBase - cantidad);
+    });
+    return stocks;
+}, [productos, cantidades, obtenerStockDisponibleProducto]);
+```
+
+**Comportamiento actual**:
+- Stock inicial: 100
+- Usuario agrega 1 vencido → Stock disponible: 99 (actualización instantánea)
+- Usuario cambia a 5 vencidos → Stock disponible: 95 (actualización instantánea)
+- Usuario borra todo → Stock disponible: 100 (se restaura)
+- Al guardar, el stock se ajusta en `VentasScreen` para reflejarse en toda la app
+
+**Optimizaciones de rendimiento implementadas**:
+- `React.memo`: El componente `DevolucionesVencidas` solo se re-renderiza cuando cambian sus props
+- `useMemo` para productos: Solo se cargan cuando el modal es visible
+- `useMemo` para stocks: Pre-cálculo de todos los stocks en una sola pasada
+- `useCallback` para `renderProducto`: Función de render optimizada
+
+**Archivos modificados**:
+- `AP GUERRERO/components/Ventas/VentasScreen.js` - Función `handleGuardarVencidas`
+- `AP GUERRERO/components/Ventas/DevolucionesVencidas.js` - Cálculo de stock en tiempo real + optimizaciones
+
+#### Modal de Productos Vencidos - Estilo Flotante Unificado (24 Mar 2026)
+
+**Problema detectado**: El modal de "Productos Vencidos" se veía diferente dependiendo de dónde se abriera:
+- Desde "Adjuntar vencidas" (modal de editar): Se veía como modal flotante con fondo oscuro, no se encogía con el teclado
+- Desde botón "Vencidas" (venta normal): Ocupaba toda la pantalla y se encogía cuando salía el teclado
+
+**Solución implementada**:
+
+Unificado el estilo del modal para que siempre se vea como modal flotante, independientemente de dónde se abra:
+
+```javascript
+<Modal
+    visible={visible}
+    animationType="fade"           // Animación suave (antes: "slide")
+    transparent={true}              // Fondo transparente (antes: false)
+    onRequestClose={handleCancelar}
+>
+    <KeyboardAvoidingView
+        style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',  // Fondo oscuro semitransparente
+            justifyContent: 'flex-start',           // Posición fija arriba
+            paddingTop: Platform.OS === 'android' ? 2 : 34,
+            paddingHorizontal: 8,
+            paddingBottom: Platform.OS === 'android' ? 2 : 20,
+        }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
+    >
+        <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 20,                       // Bordes redondeados
+            width: '100%',
+            maxHeight: Platform.OS === 'android' ? '93%' : '88%',  // Altura máxima fija
+            minHeight: Platform.OS === 'android' ? '64%' : '70%',
+            flexShrink: 1,
+            overflow: 'hidden',
+            flex: 1,
+        }}>
+            {/* Contenido del modal */}
+        </View>
+    </KeyboardAvoidingView>
+</Modal>
+```
+
+**Mejoras visuales adicionales**:
+- Tamaño de texto del stock aumentado: `fontSize: 11` → `fontSize: 13`
+- Peso de fuente aumentado: `fontWeight: '600'` → `fontWeight: '700'`
+- Mejor legibilidad del stock disponible
+
+**Comportamiento actual**:
+- ✅ Modal flotante con fondo oscuro en ambos casos
+- ✅ Bordes redondeados (20px)
+- ✅ NO se encoge cuando sale el teclado (altura máxima fija)
+- ✅ Animación suave de entrada (fade)
+- ✅ Posición fija en la parte superior
+- ✅ Consistencia visual total entre venta normal y editar venta
+
+**Archivos modificados**:
+- `AP GUERRERO/components/Ventas/DevolucionesVencidas.js` - Estructura del Modal y KeyboardAvoidingView
+
 #### Cierre de Turno
 ```
 1. Usuario hace clic en "Cerrar Turno"
@@ -2783,6 +2996,49 @@ const yaVendido = !!ventaRealizada;
 
 Se habilitó la capacidad de editar ventas ya realizadas tanto desde la App Móvil como desde el CRM Web. El sistema garantiza la integridad del inventario mediante un mecanismo transaccional de reversión y re-aplicación de stock en el backend.
 
+### Fix Crítico: Sincronización Completa de Cargue (24 Marzo 2026)
+
+**Problema detectado**: Al editar una venta desde la app móvil (cambiar método de pago a NEQUI o agregar vencidas), los cambios NO se reflejaban en el resumen de Cargue. Solo se actualizaban las "vendidas" pero NO los métodos de pago ni las vencidas.
+
+**Solución implementada** (`api/views.py` - `VentaRutaViewSet.update`):
+
+El backend ahora hace una sincronización completa en 2 fases:
+
+**Fase 1 - Reversión**:
+1. Resta vendidas anteriores de cada producto
+2. Resta nequi/daviplata del método de pago anterior
+3. Resta vencidas anteriores de cada producto
+
+**Fase 2 - Aplicación**:
+1. Suma vendidas nuevas de cada producto
+2. Suma nequi/daviplata del método de pago nuevo
+3. Suma vencidas nuevas de cada producto
+
+**Ejemplo práctico**:
+```
+Venta original: DON CARNES GRECO
+- Total: $13,000
+- Método: DAVIPLATA
+- Vencidas: 0
+
+Edición:
+- Total: $36,600
+- Método: NEQUI
+- Vencidas: 2 unidades de AREPA
+
+Resultado en Cargue:
+✅ Daviplata: -$13,000 (revertido)
+✅ Nequi: +$36,600 (aplicado)
+✅ Vencidas AREPA: +2 (aplicado)
+```
+
+**Archivos modificados**:
+- `api/views.py` - Función `update()` de `VentaRutaViewSet`
+
+**Riesgo**: Medio - Requiere validación en producción con datos reales
+
+---
+
 ### Componentes Actualizados
 
 #### A. Backend (Django) - Transaccionalidad
@@ -3050,7 +3306,9 @@ Se implementó un sistema avanzado de gestión de espacio para evitar que el tec
 ### 4. Optimizaciones Visuales de la Tarjeta del Cliente
 - **Badge de "Vendido"**: Se implementó una etiqueta (badge) clara en la esquina superior derecha de la tarjeta con el texto "VENDIDO" (con fondo verde `#00ad53`) para indicar visualmente que el cliente actual ya cuenta con un registro de venta en el día, previniendo dobles ingresos accidentales y unificando el estilo visual con `ClienteSelector.js`.
 - **Botón "Saltar Cliente" (⏭️)**: Se añadió un control de flujo rápido tipo flecha (`play-skip-forward`) al costado derecho del nombre del cliente en el encabezado. Permite limpiar el carrito en uso y avanzar inmediatamente al siguiente cliente en la lista ordenada de la ruta, acelerando drásticamente el flujo de trabajo en clientes que no requieren ventas.
-- **Teclado Constante sobre Lista (Anti-Empuje)**: Se eliminaron los saltos visuales drásticos que empujaban y ocultaban la Card del Cliente y los botones principales al abrir el teclado en los últimos productos. Tras evaluar comportamientos dinámicos que causaban destellos, se optó por inyectar un "colchón de aire" permanente y estático (`paddingBottom: 250` en `listaContent`). Este espaciado extra "engaña" la lógica nativa de empuje de Android (`"softwareKeyboardLayoutMode": "pan"`, mantenido así para no afectar pantallas globales como el Login), garantizando que la tarjeta de cabecera jamás sea desplazada hacia arriba al tocar el último producto, asumiendo como un trade-off consciente el espacio en blanco extra al final del scroll.
+- **Teclado Constante sobre Lista (Anti-Empuje)**: La base vigente para `Ventas` quedó con `softwareKeyboardLayoutMode: "resize"` en `AP GUERRERO/app.json`, junto con el colchón de lista de `VentasScreen` (`listaContentNormal = 260` y `listaContentConTeclado = 220`). Esta combinación es la referencia actual confirmada por pruebas para que el teclado no empuje el contenido ni en `Ventas` ni en `Sugeridos`.
+
+**Fix aplicado (24 de marzo 2026)**: Se corrigió `ProductList.js` (Sugeridos) que tenía `paddingBottom: 220` fijo, causando que el teclado empujara el contenido. Se cambió a `paddingBottom: 260` para igualar el comportamiento de Ventas. Ahora ambas pantallas usan el mismo valor base de 260, garantizando que el teclado se superponga sin empujar.
 
 - **Filtro Global de Productos No Vendibles**: Se modificó la base de `ventasService.js` (`obtenerProductos` y `buscarProductos`) para excluir permanentemente y en toda la app cualquier producto que contenga las palabras "CANASTILLA" o "BOLSA", garantizando que elementos internos no salgan a la venta al público.
 
@@ -3829,16 +4087,62 @@ En `/#/clientes` aparecía overlay rojo con:
 - Para cerrar rápido la brecha se comparó el código actual contra un repositorio de referencia que el usuario confirmó como `bueno`.
 
 ### 1. VentasScreen - Base correcta del teclado / scroll
-- Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Archivos base:
+  - `AP GUERRERO/components/Ventas/VentasScreen.js`
+  - `AP GUERRERO/app.json`
 - La línea base buena quedó así:
   - `listaContentNormal.paddingBottom = 260`
   - `listaContentConTeclado.paddingBottom = 220`
-- Esta combinación fue la referencia válida del repo bueno para el flujo de ventas.
+  - `softwareKeyboardLayoutMode = "resize"`
+- Esta combinación quedó confirmada en pruebas como la referencia válida del flujo de ventas y sugeridos.
 - Si vuelve a aparecer el empuje del contenido al tocar cantidades, esta es la primera comparación que se debe hacer.
 - También se confirmó que en modo `scroll` siguen vigentes estas reglas:
   - no hacer scroll automático agresivo al enfocar cantidad
   - no usar empuje manual del bloque superior en venta normal
   - el `FlatList` mantiene el colchón inferior como defensa principal
+
+#### 🔧 Cómo arreglar si el teclado vuelve a empujar el contenido (30 Mar 2026)
+
+**Commit de referencia bueno**: `61a1490` (25-03-2026)
+
+**Configuración correcta que NO empuja el contenido**:
+
+1. **`app.json`**:
+   ```json
+   "softwareKeyboardLayoutMode": "resize"
+   ```
+
+2. **`VentasScreen.js` - Función `preAjusteListaAntesDeTecladoCantidad`**:
+   ```javascript
+   const preAjusteListaAntesDeTecladoCantidad = useCallback((index) => {
+       // NO hacer nada - dejar que el usuario haga scroll manual si es necesario
+       return;
+   }, []);
+   ```
+   ✅ Esta función debe estar DESACTIVADA (solo return)
+
+3. **`VentasScreen.js` - Listener `keyboardDidShow`**:
+   ```javascript
+   // 🔧 DESACTIVADO: NO empujar nada en lista principal
+   // if (focoCantidadPrincipal) {
+   //     empujarSoloListaCantidad(indiceCantidadEnFocoRef.current, altura);
+   //     actualizarCompensacionBloqueSuperior();
+   //     iniciarCompensacionAnimada(760);
+   // }
+   ```
+   ✅ Las funciones de empuje deben estar COMENTADAS
+
+4. **`VentasScreen.js` - Funciones auxiliares**:
+   - `asegurarVisibilidadInputCantidad`: Puede estar activa, hace scroll DENTRO del FlatList (no empuja header)
+   - `empujarSoloListaCantidad`: Puede estar activa, solo hace nudge suave si es necesario
+   - `preAjusteListaAntesDeTecladoCantidad`: DEBE estar desactivada (solo return)
+
+**Regla de oro**: 
+- `softwareKeyboardLayoutMode: "resize"` + funciones de empuje desactivadas = teclado NO empuja contenido
+- El FlatList con `paddingBottom: 260/220` es la defensa principal
+- El usuario hace scroll manual si necesita ver productos debajo del teclado
+
+**Si se rompe**: Comparar contra commit `61a1490` y restaurar estas configuraciones.
 
 ### 2. Sugeridos en edición - Base correcta del bloque visual
 - Archivo: `AP GUERRERO/components/Ventas/VentasScreen.js`
@@ -3868,6 +4172,8 @@ En `/#/clientes` aparecía overlay rojo con:
     - `listaContentNormal = 260`
     - `listaContentConTeclado = 220`
     - render simple de `productosSugeridosEdicion`
+  - `app.json`
+    - `softwareKeyboardLayoutMode = "resize"`
   - `ProductList.js` y `Product.js`
     - tomarlos como sanos salvo evidencia contraria
 - Esto evita sobrecorregir y tocar módulos que en realidad no estaban dañados.
@@ -4261,3 +4567,175 @@ En `/#/clientes` aparecía overlay rojo con:
   - no se altero la logica de datos ni el layout general de la tabla
 - Objetivo:
   - facilitar la lectura y seguimiento de la fila que se esta revisando en `Cargue` sin depender solo del hover momentaneo.
+
+## Fix web + app - Tope diario de clientes ocasionales
+- Fecha de trabajo: 2026-03-23
+- Archivos tocados:
+  - `frontend/src/components/rutas/GestionRutas.jsx`
+  - `AP GUERRERO/components/Ventas/VentasScreen.js`
+- Problema reportado:
+  - en web, el input `Tope de Venta (Diario)` de `Clientes Ocasionales` no dejaba editar/reemplazar el numero con fluidez
+  - en app, al cambiar el tope desde web, `Ventas` podia seguir validando con un tope anterior si el vendedor ya estaba dentro de la pantalla
+- Ajuste aplicado en web (`GestionRutas.jsx`):
+  - el input del tope quedo con estado local propio (`topeVentaRutaInput`)
+  - ahora permite seleccionar todo, borrar y escribir el nuevo valor sin que el control lo reescriba mientras el usuario edita
+  - al guardar (`onBlur`), el tope ya no se aplica solo a la ruta seleccionada: se replica a todas las rutas del mismo vendedor para mantener coherencia con la lectura que hace la app
+- Ajuste aplicado en app (`VentasScreen.js`):
+  - `verificarFlagsRuta()` sigue consultando `/api/rutas/?vendedor_id=...`
+  - la app ahora toma el tope mas alto disponible entre las rutas del vendedor consultadas en ese momento
+  - antes de bloquear una venta ocasional, `Ventas` vuelve a refrescar la configuracion de ruta para intentar usar el tope mas reciente del backend
+- Regla funcional final en linea:
+  - la venta ocasional se valida antes de guardar
+  - si `ventas ocasionales previas del dia + venta nueva > tope`, la app bloquea la venta
+  - si no supera el tope, la venta si se deja completar
+- Comportamiento de refresco del tope:
+  - si el tope se cambia en web y el vendedor vuelve a abrir `Ventas` o reingresa al flujo de `Venta rapida`, la app consulta de nuevo y toma el valor actualizado
+  - si el vendedor ya estaba dentro de `Ventas` y no hubo refresco de esa configuracion, puede seguir operando temporalmente con el tope que ya tenia cargado en esa sesion
+- Consideracion offline:
+  - si la app alcanzo a sincronizar la ruta en esa sesion antes de quedarse sin internet, puede seguir usando ese tope en memoria
+  - si la app arranca ya offline y no pudo consultar la ruta, no se garantiza que vea el ultimo tope cambiado en web
+  - hoy no existe persistencia formal del `ultimo tope sincronizado` en `AsyncStorage`; el comportamiento offline depende de lo que ya se haya cargado en la sesion activa
+- Recomendacion operativa:
+  - si se va a subir o bajar el tope, preferir hacerlo en momentos controlados (idealmente en la noche o cuando el vendedor no este operando dentro de `Ventas`)
+  - despues del cambio, pedir al vendedor salir y volver a entrar a `Ventas` para asegurar que el ID refresque el tope nuevo
+  - si se baja el tope mientras el vendedor sigue dentro de `Ventas` y no refresca, existe riesgo de que una venta ocasional se valide contra el tope anterior cargado en memoria
+
+## Ajustes quirurgicos - Ventas / Selector / Reimpresion (23 Mar 2026)
+- Archivos trabajados:
+  - `AP GUERRERO/components/Ventas/VentasScreen.js`
+  - `AP GUERRERO/components/Ventas/ClienteSelector.js`
+- Problemas detectados en pruebas finales:
+  - algunos clientes disparaban alerta de `ya tiene venta` aunque no correspondia a la seleccion actual
+  - al seleccionar un cliente con pedido, a veces no aparecia `Pedido #...` en el encabezado superior de `Ventas`
+  - el selector de clientes y el boton de reimpresion a veces exigian doble toque
+  - si no habia internet, el modal de reimpresion podia quedarse mostrando estado de carga/sincronizacion en vez de caer directo al historial local
+  - la ultima venta del historial podia quedar sin boton `Anular` aunque ya tuviera ID real de backend, sobre todo despues de editarla
+  - al corregir el doble toque del selector, reaparecio una regresion donde el teclado del buscador podia quedar vivo al volver a `Ventas` y eso reactivaba el empuje visual del contenido
+- Ajustes aplicados:
+  - `cargarVentasDelDia()` vuelve a refrescar `ventasBackendDia` con la respuesta real del backend para evitar falsos positivos de cliente vendido por datos viejos en memoria
+  - `verificarPedidoCliente()` ahora prioriza `cliente.__pedidoVista` cuando la seleccion viene desde una card de pedido, para conservar el numero visible correcto en el encabezado
+  - `ClienteSelector.handleSelectCliente()` se simplifico para evitar el flujo de doble toque y el `FlatList` quedo con `keyboardShouldPersistTaps="always"`
+  - el selector ahora hace `Keyboard.dismiss()` justo antes de devolver el cliente a `Ventas`; esto cierra el teclado del buscador y evita que la transicion reactive el empuje del contenido en la pantalla principal
+  - `abrirHistorialReimpresion()` ahora cierra teclado antes de abrir el modal
+  - `avanzarAlSiguienteCliente()` (flechita ▶️ en Ventas) ahora hace `Keyboard.dismiss()` al inicio para evitar que cambiar de cliente con el buscador activo regenere permanentemente el empuje del contenido hacia arriba
+  - `verificarPedidoCliente()` ahora unifica los arreglos `pedidosPendientes` y `pedidosEntregadosHoy` para que el pedido local se capture adecuadamente aunque ya esté entregado y el cliente sea seleccionado mediante navegación por flechas.
+  - se unificó la UI de `VentasScreen` para que al mostrar un pedido ya entregado, despliegue siempre `✅ Pedido #XXXX - ENTREGADO` y los badges flotantes ("Entregado" en verde o "Pendiente" en naranja) coincidiendo con el diseño del Selector.
+  - los botones `Editar` y `Entregar` ahora se inhabilitan visualmente usando `opacity: 0.3` sobre sus colores originales rojos/verdes, logrando un efecto de "deshabilitado suave" sobre el fondo blanco, y cuentan con guards lógicos internos para evitar ejecuciones duplicadas.
+  - `cargarHistorialReimpresion()` hace fallback inmediato al historial local si no hay internet, sin esperar backend
+  - en las cards del historial, las acciones bloqueadas por `preview/sincronizando` ahora solo se bloquean para ventas realmente locales/sin ID persistido; si la ultima venta ya tiene ID real, mantiene boton `Anular`
+- Regla operativa actual confirmada:
+  - la linea base buena del teclado sigue siendo la misma documentada antes:
+    - `softwareKeyboardLayoutMode = "resize"` en `AP GUERRERO/app.json`
+    - `listaContentNormal = 260`
+    - `listaContentConTeclado = 220`
+  - si vuelve a aparecer el empuje del contenido, revisar primero transiciones donde quede abierto el teclado del selector/buscador antes de asumir que se daño la base de `Ventas`
+- Comportamiento esperado despues de este paquete:
+  - seleccionar cliente debe responder al primer toque
+  - clientes con pedido deben mostrar `Pedido #...` arriba si la card seleccionada correspondia a ese pedido
+  - reimpresion offline debe abrir con historial local sin quedarse pegada en `Cargando historial...` o `SINCRONIZANDO...`
+  - la ultima venta del historial, si ya fue persistida y luego editada, debe seguir pudiendo anularse
+
+- Ajuste adicional de reimpresion (23 Mar 2026, noche):
+  - se detecto un caso nuevo donde una venta recien creada online seguia apareciendo en el historial con su `id local` y por eso no mostraba `Anular`, aunque ya existiera su equivalente en backend
+  - causa real: `guardarVenta()` retorna primero la venta local y la sincronizacion ocurre en segundo plano; durante esa ventana, la card del historial puede quedar representando el item local aunque el backend ya la haya recibido
+  - solucion quirurgica aplicada en `VentasScreen.js`:
+    - se agrego `resolverVentaBackendAsociada(venta)` para mapear una venta local reciente contra su venta backend equivalente usando cliente + total + cercania horaria
+    - el boton `Anular` del historial ahora usa esa venta backend asociada cuando existe, en vez de depender solo del `id` presente en la card renderizada
+    - el cambio rapido de metodo de pago desde la card tambien usa esa misma resolucion para mantener consistencia
+  - alcance: este ajuste toca solo el modal de reimpresion/historial; no modifica la base del teclado, no toca `app.json` y no altera `listaContentNormal/ConTeclado`
+
+---
+
+## 🔥 Solución Final: Sincronización de Ventas y Anulación Híbrida (24 Mar 2026)
+Consolidación de la arquitectura de sincronización para ventas de ruta, garantizando que el botón de anular esté disponible siempre y las ediciones se propaguen correctamente.
+
+### Problemas Resueltos:
+- **Discrepancia en Colas Sync**: `syncService.js` usaba una clave (`ventas_pendientes`) y `ventasService.js` otra (`ventas_pendientes_sync`), causando que ventas editadas no se sincronizaran.
+- **Ventas "Fantasmas" en POST**: El bucle de sincronización intentaba crear (`POST`) ventas que ya existían en el backend pero habían sido editadas.
+- **ID Real Ausente**: Al sincronizar una venta en segundo plano, la app mantenía el ID local temporal en su historial, impidiendo acciones que requieren ID numérico (como anular).
+- **Botón Anular Intermitente**: Desaparecía si el desfase horario entre teléfono y servidor era mayor a 15 min o si la venta aún no terminaba de sincronizar.
+
+### Mejoras Aplicadas:
+
+#### 1. Arquitectura de Sincronización Unificada
+- **Clave Única**: Se estandarizó el uso de `ventas_pendientes_sync` en todos los archivos del sistema (`syncService.js`, `ventasService.js`, `VentasScreen.js`).
+- **Soporte PATCH Automático**: `ventasService.sincronizarVentasPendientes` ahora detecta si la venta tiene un ID numérico (ya persiste en backend). Si lo tiene, usa `editarVentaRuta` (PATCH) en vez de `enviarVentaRuta` (POST).
+- **Persistencia de ID Real**: Tras un éxito de `enviarVentaRuta` en segundo plano, la app ahora actualiza el objeto en `AsyncStorage` con el `id` real retornado por el servidor y marca `sincronizada: true`.
+
+#### 2. Lógica de Anulación Híbrida (Local/Remota)
+- **Visibilidad Total**: El botón **Anular (Círculo Rojo)** en `VentasScreen` ahora es visible para **todas** las ventas de ruta (no anuladas), sin importar si ya sincronizaron o no.
+- **Anulación con ID Temporal (Local)**: Si el usuario anula una venta que aún no sube al servidor:
+  - Se elimina de la cola `ventas_pendientes_sync` de inmediato (para que no se envíe después).
+  - Se elimina del historial local (`ventas`).
+  - Se **restituye el stock** localmente de forma instantánea.
+- **Anulación con ID Real (Remota)**: Si ya está en el servidor, dispara el flujo estándar de la API.
+- **Margen de Robusted (2 horas)**: Se amplió el margen de búsqueda en `resolverVentaBackendAsociada` a 120 minutos para compensar cualquier desfase de zona horaria o reloj entre el dispositivo y el servidor.
+
+#### 3. Refresco Reactivo del Historial
+- `abrirHistorialReimpresion()` ahora sincroniza forzosamente `ventasBackendDia` al abrirse, asegurando que las ventas recién creadas que acaban de subir sean reconocidas por su ID de servidor.
+
+### Archivos Clave Actualizados:
+- `AP GUERRERO/services/syncService.js` (unificación de claves)
+- `AP GUERRERO/services/ventasService.js` (ID real + logic PATCH)
+- `AP GUERRERO/components/Ventas/VentasScreen.js` (anulación híbrida + UI visible)
+- `AP GUERRERO/services/rutasApiService.js` (método PATCH verificado)
+
+---
+
+## 🐛 BUG FIX: Cierre de Turno requería dos intentos (2026-03-31)
+
+### Problema
+Los vendedores tenían que cerrar el turno **dos veces** para que las devoluciones aparecieran en Cargue. Reportado en producción con cierres entre 7 PM y 9 PM hora Colombia.
+
+### Causa Raíz
+**Bug de timezone en JavaScript.** El `DatePicker` de la app guarda la fecha seleccionada con la hora actual del dispositivo. Al usar `.toISOString()` para formatear, JavaScript convierte a UTC. Colombia es UTC-5, entonces después de las 7 PM local = medianoche UTC = **fecha del día siguiente**.
+
+Ejemplo:
+- Vendedor cierra turno a las 8 PM del 27/10/2025
+- App envía `fecha = 2025-10-28` (incorrecto, +1 día)
+- Backend no encuentra cargue para ese día → cierra "turno vacío"
+- Vendedor reingresa → app re-verifica turno con `T12:00:00` (correcto) → segundo cierre funciona
+
+### Fixes Aplicados
+
+#### Backend (`api/views.py`) — commits `0f46368` + `8043d8e`
+En `cerrar_turno_vendedor`, antes de buscar el cargue, se valida la fecha usando el **TurnoVendedor ABIERTO** como fuente de verdad:
+
+```python
+# Si la fecha enviada por la app no coincide con el turno abierto → usar la del turno
+_turno_activo = TurnoVendedor.objects.filter(vendedor_id=_v_id_num, estado='ABIERTO').first()
+if _turno_activo and str(_turno_activo.fecha) != fecha:
+    fecha = str(_turno_activo.fecha)  # Corrección silenciosa
+```
+
+Esto cubre todos los casos incluyendo cuando el vendedor **ya envió el cargue del día siguiente** antes de cerrar.
+
+#### Frontend (`AP GUERRERO/VentasScreen.js`) — pendiente de publicar en app
+Reemplazadas 5 ocurrencias de `.toISOString().split('T')[0]` sobre `fechaSeleccionada` por métodos locales:
+```javascript
+// Antes (bug):
+const fechaFormateada = fechaSeleccionada.toISOString().split('T')[0];
+// Después (fix):
+const fechaFormateada = `${fechaSeleccionada.getFullYear()}-${String(fechaSeleccionada.getMonth()+1).padStart(2,'0')}-${String(fechaSeleccionada.getDate()).padStart(2,'0')}`;
+```
+Líneas corregidas: 733, 1729, 2829, 3994, 5595.
+
+### Fix adicional: Vencidas post-cierre (`api/views.py`) — commit `1d478de`
+Se detectó que el botón de vencidas en la app podía enviar datos después del cierre del turno. Se agregó validación en `VentaRutaViewSet.create`:
+- Si el turno está `CERRADO` Y la venta es solo vencidas (sin productos vendidos) → retorna `409`
+- No afecta ventas normales del queue offline que incluyan vencidas adjuntas
+
+### Estado en VPS (2026-03-31)
+El VPS tiene aplicados via `cherry-pick`:
+- `0f46368` — fix timezone (día anterior)
+- `8043d8e` — fix timezone mejorado (TurnoVendedor fuente de verdad)
+- `1d478de` — bloqueo vencidas post-cierre
+
+**Commits pendientes de subir al VPS** (no cherry-pickeados aún):
+- `07fbf88` — fix error 403→409 compatibilidad app producción
+- Todos los commits anteriores a `904afe9` que no estén en el VPS
+
+### ⚠️ Importante al subir commits pendientes al VPS
+Cuando se haga `git pull` completo al VPS, los commits `0f46368`, `8043d8e` y `1d478de` ya están aplicados vía cherry-pick con hashes diferentes. Hacer un `git pull` normal causaría conflictos. Se recomienda hacer `git log` en el VPS primero para revisar el estado antes de sincronizar.
+
+---
