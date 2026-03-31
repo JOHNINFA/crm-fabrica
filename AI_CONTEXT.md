@@ -4852,7 +4852,7 @@ Keyboard.addListener(showEvent, () => {
 });
 Keyboard.addListener(hideEvent, () => {
     setTecladoVisible(false);
-    Animated.timing(footerAnim, { toValue: 1, duration: 220, useNativeDriver: false }).start(); // suave al cerrar
+    Animated.timing(footerAnim, { toValue: 1, duration: 120, useNativeDriver: false }).start(); // suave al cerrar (120ms = balance entre rapidez y suavidad)
 });
 
 // JSX
