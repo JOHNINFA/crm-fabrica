@@ -4837,27 +4837,79 @@ El VPS tiene el cherry-pick `626e62b` (equivale a `8043d8e` local) encima de `90
 
 **NO usar el hot reload de Expo** para probar cambios de DevolucionesVencidas que involucren teclado.
 
-#### 7. Footer del modal — Ocultarlo cuando teclado está abierto
+#### 7. Footer del modal — Animación con Animated.View
 
-Para maximizar espacio visible de productos, el footer (Cancelar/Guardar) se oculta condicionalmente cuando el teclado está abierto:
+El footer (Cancelar/Guardar) usa `Animated.View` con `opacity` + `maxHeight` para colapsar instantáneamente cuando el teclado abre y aparecer suavemente cuando cierra:
 
 ```javascript
-// tecladoVisible ya era rastreado pero nunca usado
-{!tecladoVisible && <View style={styles.footer}>
-    ...
-</View>}
+// Valor animado (useNativeDriver: false para animar layout)
+const footerAnim = useRef(new Animated.Value(1)).current;
+
+// Listeners del teclado
+Keyboard.addListener(showEvent, () => {
+    setTecladoVisible(true);
+    footerAnim.setValue(0); // instantáneo al abrir — sin salto visual
+});
+Keyboard.addListener(hideEvent, () => {
+    setTecladoVisible(false);
+    Animated.timing(footerAnim, { toValue: 1, duration: 220, useNativeDriver: false }).start(); // suave al cerrar
+});
+
+// JSX
+<Animated.View style={[styles.footer, {
+    opacity: footerAnim,
+    maxHeight: footerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 120] }),
+    overflow: 'hidden',
+}]}>
 ```
 
-Cuando teclado abre → footer desaparece → lista de productos ocupa todo el espacio.
-Cuando teclado cierra → footer reaparece.
+**Comportamiento:** teclado abre → footer colapsa instantáneamente (sin animación, sin salto, sin espacio blanco) → lista de productos ocupa todo el espacio. Teclado cierra → footer aparece suavemente con fade in + expansión.
+
+**IMPORTANTE:** `useNativeDriver: false` es obligatorio cuando se animan propiedades de layout (`maxHeight`). Con `useNativeDriver: true` solo funciona `opacity`.
 
 #### 8. Estilos compactos del modal
 
 Header y footer reducidos para maximizar espacio de lista:
 ```javascript
-header: { paddingTop: 4, paddingBottom: 4 }  // antes: 22/10
-footer: { padding: 10, paddingBottom: 10 }    // antes: 15/30
-btnCancelar/btnGuardar: { padding: 10 }       // antes: 15
+header: { paddingTop: 12, paddingBottom: 4 }  // antes: 22/10
+footer: { padding: 10, paddingBottom: 10 }     // antes: 15/30
+btnCancelar/btnGuardar: { padding: 10 }        // antes: 15
+```
+
+#### 9. Configuración final del modal DevolucionesVencidas (estado definitivo)
+
+```javascript
+<Modal
+    visible={visible}
+    animationType="fade"
+    transparent={true}
+    statusBarTranslucent={true}  // ← modal sube hasta la status bar
+    onRequestClose={handleCancelar}
+>
+    <KeyboardAvoidingView style={{
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-start',
+        paddingTop: 0,           // Android: 0 (statusBarTranslucent lo maneja)
+        paddingHorizontal: 0,    // Android: 0 (modal ocupa ancho completo)
+        paddingBottom: 0,
+    }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={{
+            backgroundColor: '#fff',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            borderBottomLeftRadius: 8,
+            borderBottomRightRadius: 8,
+            width: '100%',
+            flex: 1,             // ← ocupa todo el espacio disponible
+            overflow: 'hidden',
+        }}>
+            {/* Header compacto */}
+            {/* Lista de productos con flex:1 */}
+            {/* Footer animado con Animated.View */}
+        </View>
+    </KeyboardAvoidingView>
+</Modal>
 ```
 
 #### 9. Fix sincronización — Edición rechazada por servidor queda en loop infinito
