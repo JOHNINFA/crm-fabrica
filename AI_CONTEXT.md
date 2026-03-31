@@ -4785,3 +4785,97 @@ El VPS tiene el cherry-pick `626e62b` (equivale a `8043d8e` local) encima de `90
 3. Siempre hacer **rebuild de imagen** después de cualquier cambio de código
 
 ---
+
+### ⚠️ LECCIONES APRENDIDAS — SESIÓN 2026-03-31 (continuación)
+
+#### 5. Modal DevolucionesVencidas — Solución definitiva para Android
+
+**Problema:** El modal de Productos Vencidos se encogía cuando el teclado abría en Android (por `softwareKeyboardLayoutMode: "resize"`).
+
+**Causa:** El contenedor usaba `position: 'absolute'` con `bottom: 0` — cuando Android hace resize del window, `bottom: 0` se mueve hacia arriba y el modal se encoge.
+
+**Solución que funcionó** (basada en el patrón del Modal de Edición de VentasScreen):
+
+```javascript
+// OUTER KeyboardAvoidingView — flex: 1 (NO position:absolute)
+<KeyboardAvoidingView
+    style={{
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-start',
+        paddingTop: Platform.OS === 'android' ? 0 : 34,
+        paddingHorizontal: Platform.OS === 'android' ? 0 : 8,
+        paddingBottom: Platform.OS === 'android' ? 0 : 20,
+    }}
+    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    enabled={Platform.OS === 'ios'}
+>
+// INNER View — flex: 1, SIN flexShrink
+<View style={{
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '100%',
+    flex: 1,
+    overflow: 'hidden',
+}}>
+```
+
+**Puntos clave:**
+- `flex: 1` en outer (flexible) → no rompe teclado de VentasScreen
+- `flex: 1` sin `flexShrink` en inner → ocupa todo el espacio disponible sin encogerse
+- `position: absolute` con altura fija → SIEMPRE rompe el teclado de VentasScreen
+- `statusBarTranslucent={true}` en `<Modal>` → modal sube hasta la status bar en Android
+
+#### 6. Hot reload de Expo — Causa falsos positivos en teclado
+
+**CRÍTICO:** Cada vez que se edita `DevolucionesVencidas.js` y Expo hace hot reload, el estado nativo de los listeners del teclado en VentasScreen queda corrupto. Síntoma: el teclado "empuja" el contenido de VentasScreen hacia arriba.
+
+**Esto NO es un conflicto de código** — es estado sucio del hot reload.
+
+**Solución:** Después de cualquier edición a DevolucionesVencidas, forzar cierre completo de la app:
+- Mantener presionado ícono AP GUERRERO → Información de app → **Forzar detención** → reabrir
+
+**NO usar el hot reload de Expo** para probar cambios de DevolucionesVencidas que involucren teclado.
+
+#### 7. Footer del modal — Ocultarlo cuando teclado está abierto
+
+Para maximizar espacio visible de productos, el footer (Cancelar/Guardar) se oculta condicionalmente cuando el teclado está abierto:
+
+```javascript
+// tecladoVisible ya era rastreado pero nunca usado
+{!tecladoVisible && <View style={styles.footer}>
+    ...
+</View>}
+```
+
+Cuando teclado abre → footer desaparece → lista de productos ocupa todo el espacio.
+Cuando teclado cierra → footer reaparece.
+
+#### 8. Estilos compactos del modal
+
+Header y footer reducidos para maximizar espacio de lista:
+```javascript
+header: { paddingTop: 4, paddingBottom: 4 }  // antes: 22/10
+footer: { padding: 10, paddingBottom: 10 }    // antes: 15/30
+btnCancelar/btnGuardar: { padding: 10 }       // antes: 15
+```
+
+#### 9. Fix sincronización — Edición rechazada por servidor queda en loop infinito
+
+**Problema:** Si el servidor rechaza una edición pendiente con el error "Esta venta ya fue modificada una vez. No se permiten más ediciones", la app reintentaba infinitamente (contador de 1 pendiente nunca bajaba).
+
+**Causa:** `esErrorPermanenteDeSincronizacion()` en `AP GUERRERO/services/ventasService.js` solo reconocía errores de stock como permanentes.
+
+**Fix aplicado:**
+```javascript
+// ventasService.js — esErrorPermanenteDeSincronizacion()
+return texto.includes('STOCK DISPONIBLE DEL CARGUE') ||
+    texto.includes('STOCK_INSUFICIENTE_CARGUE') ||
+    texto.includes('YA FUE MODIFICADA') ||     // ← NUEVO
+    texto.includes('NO SE PERMITEN') ||         // ← NUEVO
+    texto.includes('YA FUE EDITADA');           // ← NUEVO
+```
+
+Ahora ese tipo de errores se marcan como `requiere_revision: true` y dejan de reintentarse.
+
+---
