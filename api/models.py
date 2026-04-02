@@ -2052,7 +2052,8 @@ class VentaRuta(models.Model):
     productos_vencidos = models.JSONField(default=list, blank=True) # [{producto: "Arepa", cantidad: 5, motivo: "Hongo"}, ...]
     foto_vencidos = models.ImageField(upload_to='vencidos/%Y/%m/%d/', null=True, blank=True)
     sincronizado = models.BooleanField(default=False)
-    editada = models.BooleanField(default=False)  # 🆕 True si la venta fue modificada después de crearse
+    editada = models.BooleanField(default=False)  # True si los productos/cantidades fueron modificados
+    metodo_pago_cambiado = models.BooleanField(default=False)  # True si solo se cambió el método de pago (independiente de editada)
     estado = models.CharField(
         max_length=20,
         default='ACTIVA',

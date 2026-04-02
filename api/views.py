@@ -3714,26 +3714,14 @@ def obtener_cargue(request):
         except Exception as e:
             print(f"⚠️ Error cargando precios alternos: {e}")
 
-        # 🆕 Verificar si el turno ya está cerrado (algún producto tiene devoluciones > 0)
-        turno_cerrado = registros.filter(devoluciones__gt=0).exists()
-
         for reg in registros:
-            # 🆕 Stock disponible para vender
-            # CORRECCIÓN: Usar reg.total si existe (ya tiene descontadas vencidas, devoluciones, etc.)
-            # Solo restar las ventas del día.
-            # Los pedidos NO se restan aquí porque no suman a 'vendidas' en este modelo,
-            # cumpliendo así el requerimiento de que los pedidos no afecten el stock visual.
-            
-            if turno_cerrado:
-                stock_disponible = 0
+            # Stock disponible para vender
+            # Total = Cantidad + Adicional - Dctos - Devoluciones - Vencidas
+            # Disponible = Total - Vendidas
+            if reg.total is not None:
+                stock_disponible = reg.total - (reg.vendidas or 0)
             else:
-                if reg.total is not None:
-                    # Total = Cantidad + Adicional - Dctos - Devoluciones - Vencidas
-                    # Por tanto, Disponible = Total - Vendidas
-                    stock_disponible = reg.total - (reg.vendidas or 0)
-                else:
-                    # Fallback si total no está calculado
-                    stock_disponible = (reg.cantidad or 0) + (reg.adicional or 0) - (reg.dctos or 0) - (reg.vendidas or 0) - (reg.vencidas or 0)
+                stock_disponible = (reg.cantidad or 0) + (reg.adicional or 0) - (reg.dctos or 0) - (reg.vendidas or 0) - (reg.vencidas or 0)
 
             quantity_value = str(max(0, stock_disponible))  # No permitir negativos
             
@@ -3748,7 +3736,7 @@ def obtener_cargue(request):
                 'vendidas': reg.vendidas or 0,  # 🆕 Vendidas
                 'vencidas': reg.vencidas or 0,  # 🆕 Vencidas
                 'devoluciones': reg.devoluciones or 0,  # 🆕 Devoluciones
-                'turno_cerrado': turno_cerrado,  # 🆕 Flag para indicar que el turno está cerrado
+                'turno_cerrado': False,  # El stock no se bloquea por devoluciones
                 'estado': estado_cargue_valor, # 🆕 ESTADO DEL CARGUE (DESPACHO, ETC)
                 'precios_alternos': precios_producto, # 🆕 PRECIOS DE LISTAS ESPECIALES
                 'v': reg.v,  # Check vendedor
@@ -4704,15 +4692,6 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             if venta.estado == 'ANULADA':
                 return Response({'error': 'No se puede editar una venta anulada'}, status=400)
 
-            if venta.editada:
-                return Response(
-                    {
-                        'error': 'Esta venta ya fue modificada una vez. No se permiten más ediciones ni cambios de método de pago.',
-                        'codigo': 'VENTA_YA_MODIFICADA'
-                    },
-                    status=400
-                )
-
             detalles_raw = request.data.get('detalles', None)
             actualizar_detalles = detalles_raw is not None
 
@@ -4743,6 +4722,34 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                     {'error': 'Debes enviar detalles, metodo_pago o productos_vencidos para editar la venta'},
                     status=400
                 )
+
+            # Determinar tipo de operación para bloqueos independientes
+            solo_cambio_metodo_pago = (
+                not actualizar_detalles and
+                metodo_pago_normalizado is not None and
+                not actualizar_vencidas
+            )
+
+            if solo_cambio_metodo_pago:
+                # Cambio de método de pago: bloquear solo si ya fue cambiado antes
+                if venta.metodo_pago_cambiado:
+                    return Response(
+                        {
+                            'error': 'El método de pago de esta venta ya fue cambiado una vez.',
+                            'codigo': 'METODO_PAGO_YA_CAMBIADO'
+                        },
+                        status=400
+                    )
+            else:
+                # Edición de productos/vencidas: bloquear si ya fue editada
+                if venta.editada:
+                    return Response(
+                        {
+                            'error': 'Esta venta ya fue modificada una vez. No se permiten más ediciones.',
+                            'codigo': 'VENTA_YA_MODIFICADA'
+                        },
+                        status=400
+                    )
 
             nuevos_detalles = (venta.detalles or [])
             nuevo_total = float(venta.total or 0)
@@ -4918,6 +4925,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 venta.total = nuevo_total
             if metodo_pago_normalizado is not None:
                 venta.metodo_pago = metodo_pago_normalizado
+                venta.metodo_pago_cambiado = True  # siempre que se cambia el método de pago
             if actualizar_vencidas:
                 venta.productos_vencidos = nuevos_productos_vencidos
                 if len(nuevos_productos_vencidos) == 0:
@@ -4925,7 +4933,9 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                         venta.foto_vencidos.delete(save=False)
                     venta.foto_vencidos = None
                     venta.evidencias.all().delete()
-            venta.editada = True
+            # Solo marcar editada si se modificaron productos o vencidas (no solo método de pago)
+            if actualizar_detalles or actualizar_vencidas:
+                venta.editada = True
             venta.save()
 
             evidencias_creadas = 0
@@ -4979,6 +4989,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 'nuevo_total': nuevo_total,
                 'metodo_pago': venta.metodo_pago,
                 'detalles_actualizados': actualizar_detalles,
+                'metodo_pago_cambiado': venta.metodo_pago_cambiado,
                 'productos_vencidos': venta.productos_vencidos,
                 'foto_vencidos': request.build_absolute_uri(venta.foto_vencidos.url) if venta.foto_vencidos else None,
                 'evidencias': [

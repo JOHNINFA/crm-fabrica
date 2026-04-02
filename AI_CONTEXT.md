@@ -4931,3 +4931,239 @@ return texto.includes('STOCK DISPONIBLE DEL CARGUE') ||
 Ahora ese tipo de errores se marcan como `requiere_revision: true` y dejan de reintentarse.
 
 ---
+
+---
+
+## Sesión 2026-03-31 — Segunda venta, método de pago independiente, badges, fixes de anulación y cargue
+
+### 1. Cambio de método de pago — independiente de `editada`
+
+**Contexto:** Al cambiar el método de pago desde el historial, la venta se marcaba como "EDITADA" (card roja, badge). Se quiso separar completamente.
+
+**Cambios backend (`api/models.py`):**
+```python
+editada = models.BooleanField(default=False)              # True si productos/cantidades fueron modificados
+metodo_pago_cambiado = models.BooleanField(default=False) # True si solo se cambió el método de pago
+```
+
+**Migración:** `api/migrations/0100_add_metodo_pago_cambiado_ventaruta.py` — aplicada en local. **Pendiente aplicar en VPS con `python3 manage.py migrate`.**
+
+**Cambios backend (`api/views.py` — `VentaRutaViewSet.partial_update`):**
+- Si la actualización es solo cambio de método de pago → verifica `metodo_pago_cambiado`, bloquea si ya fue cambiado (código `METODO_PAGO_YA_CAMBIADO`)
+- Si la actualización incluye productos → verifica `editada`, bloquea si ya fue editada (código `VENTA_YA_MODIFICADA`)
+- Al guardar: `venta.metodo_pago_cambiado = True` solo si cambió método, `venta.editada = True` solo si cambió productos
+
+**Cambios frontend (`AP GUERRERO/components/Ventas/VentasScreen.js`):**
+- `ventaYaCambioMetodoPago(venta)` — nueva función, lee `metodo_pago_cambiado`
+- `puedeCambiarMetodoDesdeCard` usa `ventaYaCambioMetodoPago` en vez de `ventaYaFueModificada`
+- `actualizarMetodoPagoDesdeCard` marca `metodo_pago_cambiado: true`, NO `editada: true`
+- La card NO se pone roja al cambiar método de pago
+
+### 2. Segunda venta al mismo cliente
+
+**Regla implementada:**
+- 1 venta activa → al intentar segunda → alerta "¿Deseas hacer una segunda venta?" con botones **Cancelar / Continuar**
+- 2 ventas activas → bloqueo total "Ya realizaste 2 ventas"
+- Ventas ANULADAS no cuentan (se liberan slots)
+
+**Función `contarVentasActivasCliente(clienteObjetivo)`:**
+- Busca en `ventasDelDia` + `ventasBackendDia` (deduplicadas por ID)
+- Paso 1: recopila todos los IDs con estado ANULADA de ambas listas
+- Paso 2: filtra ventas activas excluyendo esos IDs (evita el bug de stale backend data)
+- Retorna count de ventas activas únicas del cliente
+
+**Dos puntos de validación actualizados** (~línea 4490 y ~línea 5040 en VentasScreen.js)
+
+### 3. Badge "2ª VENTA"
+
+**Mobile (VentasScreen.js — historial):**
+```javascript
+const idsSegundaVenta = (() => {
+    const porCliente = {};
+    ventasAMostrar.forEach(v => { /* agrupar por nombre cliente */ });
+    // Las ventas del índice 1 en adelante (ordenadas por fecha) → set de IDs
+})();
+// Badge morado en la card si esSegundaVenta
+```
+
+**Web (`frontend/src/components/rutas/ReporteVentasRuta.jsx`):**
+- IIFE dentro del render que detecta 2ª venta por cliente y muestra `<span>` morado "2ª VENTA"
+
+### 4. Fix: anulación de 2ª venta bloqueada incorrectamente
+
+**Problema:** Al anular la 2ª venta de un cliente, el sistema decía "Ya anulada" aunque la venta era nueva.
+
+**Causa:** `resolverVentaBackendAsociada()` buscaba en el backend una venta del mismo cliente dentro de 2h de margen — encontraba la 1ª venta (ya anulada en backend) y la retornaba. El botón de anular recibía esa venta ANULADA y bloqueaba.
+
+**Fix (`VentasScreen.js` ~línea 2060):**
+```javascript
+// Excluir ventas ANULADAS del backend como candidatas
+if (String(venta?.estado || '').toUpperCase() === 'ANULADA') return false;
+```
+
+### 5. Fix: método de pago no se refleja en la card tras cambio
+
+**Problema:** Al cambiar el método desde el modal del historial, la card no actualizaba el método visualmente.
+
+**Causas:**
+1. `esMismaVenta` estaba definida dentro de `aplicarMetodoEnMemoria` pero se usaba fuera → ReferenceError silencioso, localStorage no se actualizaba
+2. `setHistorialResumenPreview` no se llamaba → si el modal estaba en vista previa, la card no refrescaba
+
+**Fix (`VentasScreen.js` ~línea 2357):**
+- `esMismaVenta` movida al scope externo de `actualizarMetodoPagoDesdeCard`
+- `aplicarMetodoEnMemoria` ahora actualiza `ventasDelDia`, `historialReimpresion` Y `historialResumenPreview`
+
+### 6. Fix: modal de edición de venta tenía botones de método de pago
+
+**Problema:** El modal de edición de productos tenía botones EFECTIVO/NEQUI/DAVIPLATA que permitían cambiar el método de pago. Esto creaba confusión y conflicto con el cambio independiente desde la card. Al guardar la edición con método diferente, la venta quedaba marcada como EDITADA (roja) aunque el usuario solo quería cambiar el método.
+
+**Fix:** Eliminados los botones de método de pago del modal de edición. El método de pago **solo se cambia desde la card del historial** (botón dedicado, independiente).
+
+### 7. Fix: tabla NEQUI/DAVIPLATA en Cargue desaparece al cambiar de vendedor
+
+**Problema:** Al cambiar de vendedor en Cargue y volver, la tabla CONCEPTO/NEQUI/DAVIPLATA quedaba vacía.
+
+**Causas (`frontend/src/components/Cargue/PlantillaOperativa.jsx`):**
+1. `pagosDetallados` no estaba en el estado inicial de `datosResumen` → `undefined` en primer render
+2. El cache solo se guardaba si `totalPedidos > 0 || venta > 0 || totalDespacho > 0` → si el vendedor solo tenía ventas ruta digitales sin pedidos, el cache nunca se persistía
+
+**Fixes:**
+```javascript
+// Estado inicial — agregado pagosDetallados: []
+return { ..., nequi: 0, daviplata: 0, pagosDetallados: [] };
+
+// Condición de cache — ahora incluye nequi y daviplata
+if (datosResumen.totalPedidos > 0 || datosResumen.venta > 0 || 
+    datosResumen.totalDespacho > 0 || datosResumen.nequi > 0 || datosResumen.daviplata > 0) {
+```
+
+### 8. Pendiente VPS
+
+Ejecutar en el servidor:
+```bash
+python3 manage.py migrate
+```
+Aplica migración `0100_add_metodo_pago_cambiado_ventaruta` que agrega la columna `metodo_pago_cambiado` a `api_ventaruta`. Sin esto el endpoint `GET /api/ventas-ruta/` retorna 500.
+
+---
+
+## Sesión 2026-04-01 — Fixes Cargue tabla pagos + card método pago + diagnóstico offline
+
+### 1. Fix: Card historial no actualizaba método de pago visualmente
+
+**Problema:** Al cambiar EFECTIVO → NEQUI desde el modal del historial, la card seguía mostrando EFECTIVO.
+
+**Causa:** `esMismaVenta()` en `actualizarMetodoPagoDesdeCard` comparaba IDs campo a campo. El item del historial tiene `id = UUID` (local) y `ventaBackendAsociada` tiene `id = numérico` + `id_local = UUID`. El match cruzado no existía → ningún item se actualizaba.
+
+**Fix (`VentasScreen.js` ~línea 2357):**
+```javascript
+const esMismaVenta = (v) => {
+    if (v.id && venta.id && v.id === venta.id) return true;
+    if (v.id_local && venta.id_local && v.id_local === venta.id_local) return true;
+    // Match cruzado: item local (id=UUID) vs backend (id_local=UUID)
+    if (v.id && venta.id_local && String(v.id) === String(venta.id_local)) return true;
+    if (v.id_local && venta.id && String(v.id_local) === String(venta.id)) return true;
+    if (v._key && venta._key && v._key === venta._key) return true;
+    return false;
+};
+```
+
+### 2. Fix: Tabla NEQUI/DAVIPLATA en Cargue vacía al cambiar de vendedor
+
+**Problema:** Al cambiar de ID (ID1→ID2→ID1) la tabla CONCEPTO/NEQUI/DAVIPLATA quedaba vacía. Solo aparecía al presionar el botón de sincronizar.
+
+**Causas:**
+1. `cargarDatosDesdeDB()` (flujo principal al montar) no extraía `pagosDetallados` del resultado de `cargarPedidosVendedor` → se sobreescribía con `undefined`
+2. El cache no se persistía de forma inmediata — si el usuario cambiaba de tab antes de que el `useEffect` de persistencia corriera, el cache quedaba sin `pagosDetallados`
+3. Si el fetch al montar devolvía vacío (race condition), borraba los datos del cache previo
+
+**Fixes (`PlantillaOperativa.jsx`):**
+
+a) `cargarDatosDesdeDB()` ahora extrae y pasa `pagosDetallados`:
+```javascript
+const pagosDetalladosReal = typeof resultadoPedidos === 'object' ? (resultadoPedidos.pagosDetallados || []) : [];
+const valoresForzados = { ..., pagosDetallados: pagosDetalladosReal };
+```
+
+b) Cache persistido inmediatamente al recibir datos del fetch:
+```javascript
+setDatosResumen(prev => {
+    // Si backend devuelve vacío pero hay datos previos, preservarlos
+    const hayDatosNuevos = nequi > 0 || daviplata > 0 || total > 0 || pagosDetallados.length > 0;
+    const pagosFinales = hayDatosNuevos ? pagosDetallados : (prev.pagosDetallados || []);
+    // ...
+    localStorage.setItem(cacheKey, JSON.stringify(nuevoEstado)); // Persistir inmediato
+});
+```
+
+c) `useEffect` de carga añade `dia` y `fechaFormateadaLS` a dependencias para evitar closures stale.
+
+### 3. Diagnóstico offline AP GUERRERO — Todo OK
+
+Revisado el sistema de sync offline. Resultado: **robusto, no se pierden datos**.
+
+| Operación | Sin internet | Stock | Sincronización |
+|-----------|:-----------:|:-----:|:--------------:|
+| Venta normal | ✅ guarda local | ✅ ajusta | ✅ automático |
+| Vencidas + fotos | ✅ fotos en base64 | ✅ ajusta | ✅ automático |
+| Anular | ✅ marca local | ✅ devuelve | ✅ automático |
+| Editar | ✅ guarda local | ✅ recalcula | ✅ automático |
+| Cambio método pago | ✅ guarda local | N/A | ✅ automático |
+| Venta rápida | ✅ igual venta normal | ✅ ajusta | ✅ automático |
+
+**Mecanismo de seguridad:** `rehidratarColaDesdeVentasLocales()` corre en cada sync — recupera ventas locales que no quedaron en la cola.
+
+**Límites intencionados (no bugs):**
+- 1 edición por venta
+- 1 anulación por venta  
+- 1 cambio de método de pago por venta
+
+**Sin resolución de conflictos multi-dispositivo** — si dos usuarios editan la misma venta offline, gana el último en sincronizar.
+
+---
+
+## Pendiente futuro — ID Auxiliar por vendedor
+
+**Contexto:** Cada vendedor puede ir acompañado de un auxiliar que también vende. Actualmente no existe un ID para el auxiliar.
+
+**Solución ideal:** Crear un ID auxiliar (ej: ID1AUX) que comparta el stock del vendedor principal (ID1) pero registre sus ventas de forma independiente.
+
+**Beneficios:**
+- Sin conflictos de edición entre vendedor y auxiliar
+- Trazabilidad de quién vendió qué
+- Stock compartido del mismo cargue
+
+**No implementado aún** — requiere cambios en backend (stock compartido), app móvil y cargue web.
+
+**Pendiente definir:** Si el auxiliar también usa la app móvil para vender o solo acompaña al vendedor. Esto determina el diseño de la solución.
+
+---
+
+## Bug fix 2026-04-01 — Stock app desaparece cuando hay devoluciones en cargue
+
+**Síntoma:** El stock de un vendedor (ID5) desapareció en la app móvil en medio de la jornada. Los demás IDs estaban bien.
+
+**Causa raíz:** En `api/views.py` función `obtener_cargue()` había esta lógica:
+```python
+turno_cerrado = registros.filter(devoluciones__gt=0).exists()
+if turno_cerrado:
+    stock_disponible = 0
+```
+Si cualquier producto tenía `devoluciones > 0`, ponía el stock en 0 para TODOS los productos del vendedor. En este caso alguien puso 10 en devoluciones de CANASTAS y eso bloqueó todo el stock de ID5.
+
+**Por qué era incorrecta:** Las devoluciones ya están descontadas en el campo `total` del cargue:
+`total = cantidad + adicional - dctos - devoluciones - vencidas`
+El stock disponible se calcula como `total - vendidas`, por lo que las devoluciones ya están incluidas. No hay razón para poner el stock en 0.
+
+**Fix aplicado (`api/views.py`):**
+- Eliminada la lógica `turno_cerrado = devoluciones > 0`
+- El stock siempre se calcula como `total - vendidas`
+- `turno_cerrado` en la respuesta siempre es `False`
+
+**Solución de emergencia usada en producción:** Editar la celda de devoluciones en el cargue web y ponerla en 0 para que el vendedor pudiera seguir trabajando mientras se subía el fix.
+
+**Pendiente:** Subir fix al VPS con:
+```bash
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build backend
+```

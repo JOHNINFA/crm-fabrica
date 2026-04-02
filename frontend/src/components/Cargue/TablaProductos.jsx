@@ -122,7 +122,8 @@ const TablaProductos = ({
         autoCorrect: 'off',
         autoCapitalize: 'off',
         spellCheck: false,
-        inputMode: 'numeric'
+        inputMode: 'numeric',
+        onWheel: (e) => e.target.blur() // 🔒 Desactivar cambio de valor con rueda del mouse
     };
 
     const formatValor = (valor) => {

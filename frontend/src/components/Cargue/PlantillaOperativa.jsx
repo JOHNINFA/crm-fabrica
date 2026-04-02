@@ -582,14 +582,15 @@ const PlantillaOperativa = ({
             daviplata: 0,
             novedad: null,
             ventasPrecioEspecial: [],
-            totalPrecioEspecial: 0
+            totalPrecioEspecial: 0,
+            pagosDetallados: []
         };
     });
 
     // 🚀 PERSISTENCIA DE RESUMEN: Guardar cada cambio para el próximo montaje
     useEffect(() => {
         try {
-            if (datosResumen.totalPedidos > 0 || datosResumen.venta > 0 || datosResumen.totalDespacho > 0) {
+            if (datosResumen.totalPedidos > 0 || datosResumen.venta > 0 || datosResumen.totalDespacho > 0 || datosResumen.nequi > 0 || datosResumen.daviplata > 0) {
                 const cacheKey = `resumen_cache_${dia}_${idSheet}_${fechaFormateadaLS}`;
                 localStorage.setItem(cacheKey, JSON.stringify(datosResumen));
             }
@@ -1361,6 +1362,7 @@ const PlantillaOperativa = ({
                 const totalPedidosReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.total : resultadoPedidos;
                 const nequiReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.nequi : 0;
                 const daviplataReal = typeof resultadoPedidos === 'object' ? resultadoPedidos.daviplata : 0;
+                const pagosDetalladosReal = typeof resultadoPedidos === 'object' ? (resultadoPedidos.pagosDetallados || []) : [];
                 const ventasPrecioEspecial = typeof resultadoPedidos === 'object' ? (resultadoPedidos.ventasPrecioEspecial || []) : [];
                 const totalPrecioEspecial = typeof resultadoPedidos === 'object' ? (resultadoPedidos.totalPrecioEspecial || 0) : 0;
 
@@ -1369,6 +1371,7 @@ const PlantillaOperativa = ({
                     totalPedidos: totalPedidosReal || 0,
                     nequi: nequiReal || 0,
                     daviplata: daviplataReal || 0,
+                    pagosDetallados: pagosDetalladosReal,
                     ventasPrecioEspecial,
                     totalPrecioEspecial,
                     // Estos valores fijos deberían venir de la BD idealmente, pero por ahora los mantenemos para no romper
@@ -1763,16 +1766,34 @@ const PlantillaOperativa = ({
             const total = typeof resultados === 'object' ? resultados.total : resultados;
             const nequi = typeof resultados === 'object' ? resultados.nequi : 0;
             const daviplata = typeof resultados === 'object' ? resultados.daviplata : 0;
-            const pagosDetallados = typeof resultados === 'object' ? resultados.pagosDetallados : [];
+            const pagosDetallados = typeof resultados === 'object' ? (resultados.pagosDetallados || []) : [];
 
             // Actualizar totalPedidos y pagos digitales
-            setDatosResumen(prev => ({
-                ...prev,
-                totalPedidos: total,
-                nequi: nequi,
-                daviplata: daviplata,
-                pagosDetallados: pagosDetallados // 🆕 Guardar detalle
-            }));
+            setDatosResumen(prev => {
+                // Si el backend devuelve vacío pero el estado anterior (cache) tenía datos, preservarlos
+                const hayDatosNuevos = nequi > 0 || daviplata > 0 || total > 0 || pagosDetallados.length > 0;
+                const hayDatosPrevios = (prev.nequi || 0) > 0 || (prev.daviplata || 0) > 0 || (prev.pagosDetallados?.length || 0) > 0;
+                const pagosFinales = hayDatosNuevos ? pagosDetallados : (hayDatosPrevios ? (prev.pagosDetallados || []) : []);
+                const nequiFinal = hayDatosNuevos ? nequi : (prev.nequi || 0);
+                const daviFinal = hayDatosNuevos ? daviplata : (prev.daviplata || 0);
+                const totalFinal = hayDatosNuevos ? total : (prev.totalPedidos || 0);
+
+                const nuevoEstado = {
+                    ...prev,
+                    totalPedidos: totalFinal,
+                    nequi: nequiFinal,
+                    daviplata: daviFinal,
+                    pagosDetallados: pagosFinales
+                };
+                // Persistir inmediatamente en cache
+                try {
+                    if (nequiFinal > 0 || daviFinal > 0 || totalFinal > 0 || pagosFinales.length > 0) {
+                        const cacheKey = `resumen_cache_${dia}_${idSheet}_${fechaFormateadaLS}`;
+                        localStorage.setItem(cacheKey, JSON.stringify(nuevoEstado));
+                    }
+                } catch (e) { /* ignorar */ }
+                return nuevoEstado;
+            });
         };
 
         if (fechaSeleccionada && idSheet) {
@@ -1794,7 +1815,7 @@ const PlantillaOperativa = ({
             window.removeEventListener('pedidoActualizado', handleNuevoPedido);
             window.removeEventListener('recargarPedidos', handleNuevoPedido);
         };
-    }, [fechaSeleccionada, idSheet]);
+    }, [fechaSeleccionada, idSheet, dia, fechaFormateadaLS]);
 
     // ✅ RECALCULAR RESUMEN: Cuando cambian los productos operativos (solo si NO está completado)
     useEffect(() => {
