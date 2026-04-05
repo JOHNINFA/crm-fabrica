@@ -140,6 +140,9 @@ const DashboardIntegral = ({ onVolver }) => {
 
             const productosP = fetch(`${API_URL}/productos/`).then(r => r.ok ? r.json() : []).catch(() => []);
 
+            const vendedoresCargueP = fetch(`${API_URL}/vendedores-cargue/`)
+                .then(r => r.ok ? r.json() : []).catch(() => []);
+
             // Cargue: para día único igual que antes; para rango se acumula por producto
             let cargueAcumuladoPorId = {};
             VENDEDORES_IDS.forEach(id => { cargueAcumuladoPorId[id] = {}; });
@@ -194,6 +197,13 @@ const DashboardIntegral = ({ onVolver }) => {
             const pedidosData = await pedidosP;
             const turnosRaw = await turnosP;
             const productosRaw = await productosP;
+            const vendedoresCargue = await vendedoresCargueP;
+
+            // Mapa: "ID2" → "JAVIER TIBAVIJA" (normalizado a mayúsculas)
+            const nombrePorId = {};
+            vendedoresCargue.forEach(v => {
+                if (v.id && v.nombre) nombrePorId[v.id] = v.nombre.trim().toUpperCase();
+            });
 
             // Construir mapa de precios: nombre normalizado → precio_cargue (igual que PlantillaOperativa)
             const productosArr = Array.isArray(productosRaw) ? productosRaw : (productosRaw.results || []);
@@ -295,10 +305,15 @@ const DashboardIntegral = ({ onVolver }) => {
                 const cargueDatos = ordenarComoEnCargue(cargueDatosDesordenado, getDiaSemana(rango.inicio), idSheet);
                 
                 const ventasID = ventasRutaData.filter(v => v.estado !== 'ANULADA' && v.vendedor_id === idSheet);
-                const pedidosID = pedidosData.filter(p =>
-                    p.estado !== 'ANULADA' &&
-                    (p.asignado_a_id === idSheet || p.vendedor === idSheet || (p.vendedor_id && p.vendedor_id.includes(idSheet)))
-                );
+                const nombreVendedorId = nombrePorId[idSheet] || '';
+                const pedidosID = pedidosData.filter(p => {
+                    if (p.estado === 'ANULADA') return false;
+                    // Primero intentar por asignado_a_id (pedidos asignados explícitamente)
+                    if (p.asignado_a_id && p.asignado_a_id === idSheet) return true;
+                    // Luego por nombre de vendedor (pedidos entregados desde app sin asignación explícita)
+                    if (nombreVendedorId && p.vendedor && p.vendedor.trim().toUpperCase() === nombreVendedorId) return true;
+                    return false;
+                });
 
                 let nequi = 0, daviplata = 0, efectivo = 0, descuentos = 0, totalPedidos = 0, totalRuta = 0;
                 let clientesVencidas = {};
