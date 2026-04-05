@@ -6010,9 +6010,40 @@ El mismo mecanismo ya existía para ediciones (línea 3070), solo faltaba aplica
 - **Bug historial reimpresión tras anulación** → **RESUELTO** con Fix 2 (arriba)
 - **Bug edición silenciosa sin alerta** → **RESUELTO** con Fix 1 (arriba)
 - **Bug flash stock incorrecto** → **RESUELTO** con Fix 3 (arriba) — detectado en pruebas APK segunda ronda
+- **Bug flash stock = 0 al confirmar venta** → **RESUELTO** con Fix 4 (abajo) — detectado en pruebas APK tercera ronda
 
 **Archivos modificados (solo APK):** `AP GUERRERO/components/Ventas/VentasScreen.js`
 **Backend/Frontend web:** sin cambios
+
+---
+
+### Fix 4: Flash de stock = 0 al confirmar venta (cargarStockCargue en vuelo)
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `cargarStockCargue` (~línea 3963)
+
+**Síntoma:** Al hacer una venta de 2 unidades con 4 en stock, durante el modal de impresión el stock mostraba 0 por un instante y luego se ajustaba al correcto (2).
+
+**Causa:** El Fix 3 bloqueó que `refrescarStockSilencioso` *llamara* a `cargarStockCargue`, pero no evitaba que una llamada a `cargarStockCargue` que ya estaba *en vuelo* aplicara su resultado. Esa llamada llegaba, veía el stock del backend (aún sin descontar porque la sync era simultánea), hacía `reconciliarStockConVentasLocales` que tampoco restaba bien, y terminaba llamando `setStockCargue({})` al no encontrar cargue o `setStockCargue(valorIncorrecto)`.
+
+**Fix:** Dentro de `cargarStockCargue`, antes de cada `setStockCargue`, verificar si el bloqueo está activo. Si sí, descartar el resultado y retornar sin modificar el estado:
+
+```javascript
+// Path normal (fetch exitoso):
+if (Date.now() < (bloqueoRefreshStockHastaRef.current || 0)) {
+    console.log('⏸️ cargarStockCargue: bloqueo activo, descartando recarga.');
+    return { hayCargue: true, totalProductos, estado: estadoCargue };
+}
+setStockCargue(stockReconciliado);
+
+// Path offline (usando caché):
+if (Date.now() < (bloqueoRefreshStockHastaRef.current || 0)) {
+    console.log('⏸️ cargarStockCargue (caché): bloqueo activo, descartando recarga.');
+    return { ... };
+}
+setStockCargue(stockReconciliado);
+```
+
+**Resultado:** El stock se queda en el valor correcto calculado en `confirmarVenta` (ej. 4→2) sin ningún flash de 0 ni valor incorrecto.
 
 ---
 
