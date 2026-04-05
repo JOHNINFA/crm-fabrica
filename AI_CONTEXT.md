@@ -5736,6 +5736,33 @@ python3 manage.py migrate   # aplica 0101 y 0102
 
 ---
 
+### Fix AP GUERRERO — Botones cortados en APK (SafeArea) + teclado modal vencidas
+
+**Archivos:**
+- `AP GUERRERO/App.js`
+- `AP GUERRERO/components/Ventas/VentasScreen.js`
+- `AP GUERRERO/components/Cargue.js`
+- `AP GUERRERO/components/ProductList.js`
+- `AP GUERRERO/components/Ventas/DevolucionesVencidas.js`
+
+**Problema 1 — Botones cortados en APK:**
+En Expo Go los botones del footer se veían bien, pero en el APK real quedaban debajo de la barra de navegación de Android porque no se respetaban los insets del sistema.
+
+**Fix:**
+- `App.js`: envuelto con `SafeAreaProvider` de `react-native-safe-area-context`
+- `VentasScreen.js`: botón "Completar Venta" usa `useSafeAreaInsets` → `paddingBottom: Math.max(insets.bottom, 16)`
+- `Cargue.js`: botón "Recargar" usa `insets.bottom` en `marginBottom`
+- `ProductList.js`: botón "Enviar Sugerido" (position: absolute) usa `insets.bottom` en `bottom`
+
+**Regla:** Siempre usar `useSafeAreaInsets` para botones fijos en la parte inferior en APK. `marginBottom: 40` fijo no es suficiente en todos los dispositivos.
+
+**Problema 2 — Modal vencidas: botones Cancelar/Guardar inaccesibles con teclado:**
+Al abrir el teclado en el modal de vencidas, los botones del footer quedaban debajo del teclado y no se podía guardar.
+
+**Fix:** `DevolucionesVencidas.js` — `KeyboardAvoidingView` cambiado de `behavior={undefined}` a `behavior="height"` en Android (antes solo funcionaba en iOS con `"padding"`).
+
+---
+
 ### Fix: Tabla confirmación inventario — responsive tablet
 
 **Archivo:** `frontend/src/components/inventario/TablaConfirmacionProduccion.jsx`

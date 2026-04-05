@@ -689,6 +689,20 @@ class PedidoSerializer(serializers.ModelSerializer):
         
         with transaction.atomic():
             # ===== 1. CREAR EL PEDIDO =====
+            # Si tiene nombre de vendedor pero no asignado_a_id, resolverlo por nombre
+            if not validated_data.get('asignado_a_id') and validated_data.get('vendedor'):
+                try:
+                    from .models import Vendedor as VendedorModel
+                    nombre_vendedor = str(validated_data['vendedor']).strip().lower()
+                    vendedor_obj = VendedorModel.objects.filter(
+                        activo=True, nombre__iexact=nombre_vendedor
+                    ).first()
+                    if vendedor_obj:
+                        validated_data['asignado_a_id'] = vendedor_obj.id_vendedor
+                        validated_data['asignado_a_tipo'] = 'VENDEDOR'
+                except Exception:
+                    pass
+
             pedido = Pedido.objects.create(**validated_data)
             print(f"\n{'='*60}")
             print(f"📦 CREANDO PEDIDO #{pedido.numero_pedido}")
