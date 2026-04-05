@@ -2355,14 +2355,18 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido = self.get_object()
         if not _pedido_pertenece_a_vendedor(pedido, vendedor):
             return Response({'error': 'Pedido no autorizado para este vendedor'}, status=status.HTTP_403_FORBIDDEN)
-        
+
+        # Idempotente: si ya está entregado, retornar éxito sin modificar nada
+        if pedido.estado in ('ENTREGADO', 'ENTREGADA'):
+            return Response({'success': True, 'message': 'Pedido ya estaba marcado como entregado'})
+
         # 🆕 Obtener y guardar el método de pago
         metodo_pago = request.data.get('metodo_pago', 'EFECTIVO')
         if metodo_pago:
             pedido.metodo_pago = metodo_pago.upper()
-        
+
         from django.utils import timezone
-        pedido.estado = 'ENTREGADO'  # Cambiado de ENTREGADA a ENTREGADO
+        pedido.estado = 'ENTREGADO'
         
         # Agregar nota con la hora y método
         from django.utils import timezone
@@ -2400,6 +2404,17 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido.save()
         
         return Response({'status': 'novedad reportada'})
+
+    @action(detail=True, methods=['post'])
+    def verificar_despacho(self, request, pk=None):
+        """Marca/desmarca un pedido como verificado por el despachador (toggle)"""
+        pedido = self.get_object()
+        pedido.verificado_despachador = not pedido.verificado_despachador
+        pedido.save(update_fields=['verificado_despachador'])
+        return Response({
+            'id': pedido.id,
+            'verificado_despachador': pedido.verificado_despachador
+        })
 
     @action(detail=True, methods=['patch'])
     def actualizar_app(self, request, pk=None):
@@ -4925,7 +4940,12 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
                 venta.total = nuevo_total
             if metodo_pago_normalizado is not None:
                 venta.metodo_pago = metodo_pago_normalizado
-                venta.metodo_pago_cambiado = True  # siempre que se cambia el método de pago
+                # Solo consumir el slot "metodo_pago_cambiado" cuando es un cambio explícito
+                # desde el historial (solo_cambio_metodo_pago).
+                # Si el método viene incluido en una edición de productos, no bloqueamos
+                # el cambio posterior desde el historial.
+                if solo_cambio_metodo_pago:
+                    venta.metodo_pago_cambiado = True
             if actualizar_vencidas:
                 venta.productos_vencidos = nuevos_productos_vencidos
                 if len(nuevos_productos_vencidos) == 0:
@@ -4936,6 +4956,7 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             # Solo marcar editada si se modificaron productos o vencidas (no solo método de pago)
             if actualizar_detalles or actualizar_vencidas:
                 venta.editada = True
+                venta.fecha_ultima_edicion = timezone.now()
             venta.save()
 
             evidencias_creadas = 0

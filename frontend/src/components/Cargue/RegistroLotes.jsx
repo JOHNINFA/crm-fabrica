@@ -13,7 +13,8 @@ const RegistroLotes = ({ dia, idSheet, fechaSeleccionada, estadoCompletado = fal
 
     const fechaFormateadaLS = useMemo(() => {
         if (fechaSeleccionada instanceof Date) {
-            return fechaSeleccionada.toISOString().split('T')[0];
+            const d = fechaSeleccionada;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
         return fechaSeleccionada || '';
     }, [fechaSeleccionada]);

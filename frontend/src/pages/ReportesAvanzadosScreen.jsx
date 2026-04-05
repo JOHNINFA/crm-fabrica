@@ -8,6 +8,7 @@ import ReporteEfectividadVendedores from './ReportesAvanzados/ReporteEfectividad
 import ReporteAnalisisProductos from './ReportesAvanzados/ReporteAnalisisProductos';
 import ReportePedidosRuta from './ReportesAvanzados/ReportePedidosRuta';
 import ReporteVentasPOS from './ReportesAvanzados/ReporteVentasPOS';
+import DashboardIntegral from './ReportesAvanzados/DashboardIntegral';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -341,6 +342,17 @@ const ReportesAvanzadosScreen = () => {
                                 <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Tus ventas por período</p>
                             </div>
                         </Col>
+
+                        {/* Análisis Integral e IA */}
+                        <Col md={6} lg={4}>
+                            <div className="reporte-card shadow-sm" onClick={() => setVistaActual('dashboard-integral')} style={{ cursor: 'pointer', borderLeft: '5px solid #0c2c53' }}>
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-robot" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">Análisis de Optimización (IA)</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Cargue, Rutas y Desfases</p>
+                            </div>
+                        </Col>
                     </Row>
                 </Container>
             </div>
@@ -372,6 +384,11 @@ const ReportesAvanzadosScreen = () => {
     // 🆕 Vista: Ventas POS
     if (vistaActual === 'ventas-pos') {
         return <ReporteVentasPOS onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Análisis Integral de Optimización
+    if (vistaActual === 'dashboard-integral') {
+        return <DashboardIntegral onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Próximamente (Pedidos por Transportadora)

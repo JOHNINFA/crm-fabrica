@@ -22,6 +22,7 @@ import { registroInventarioService } from "../../services/registroInventarioServ
 import { productoService, API_URL } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { obtenerNombreUsuarioInventario } from "../../utils/inventarioUsuario";
+import { pendingInventarioService } from "../../services/pendingInventarioService";
 import productosMaquilasData from "../../data/productosMaquilas";
 import "../../styles/InventarioProduccion.css";
 import "../../styles/TablaKardex.css";
@@ -41,65 +42,33 @@ const unirLotesUnicos = (...lotesTexto) => {
 
 const combinarDatosConfirmacion = (actual, nuevo) => {
   if (!actual) return nuevo;
-
-  const acumulado = new Map();
-  (actual.productos || []).forEach((p) => {
-    const key = normalizarNombreProducto(p.nombre);
-    acumulado.set(key, { ...p, nombre: key, cantidad: Number(p.cantidad) || 0 });
-  });
-
-  (nuevo.productos || []).forEach((p) => {
-    const key = normalizarNombreProducto(p.nombre);
-    const previo = acumulado.get(key);
-    if (previo) {
-      acumulado.set(key, {
-        ...previo,
-        cantidad: (Number(previo.cantidad) || 0) + (Number(p.cantidad) || 0),
-      });
-      return;
-    }
-    acumulado.set(key, { ...p, nombre: key, cantidad: Number(p.cantidad) || 0 });
-  });
-
-  const vencimientos = [actual.fechaVencimiento, nuevo.fechaVencimiento].filter(Boolean);
-  const fechaVencimientoUnica = [...new Set(vencimientos)].length === 1 ? vencimientos[0] : null;
-
+  // Cada sesión de grabado genera sus propias filas — se concatenan sin agrupar
   return {
-    ...actual,
-    ...nuevo,
-    lote: unirLotesUnicos(actual.lote, nuevo.lote),
-    fechaVencimiento: fechaVencimientoUnica,
-    fechaCreacion: new Date().toISOString(),
-    productos: Array.from(acumulado.values()),
+    productos: [...(actual.productos || []), ...(nuevo.productos || [])],
   };
 };
 
 const construirConfirmacionDesdeBackend = (registrosMaquila = [], lotesDelDia = [], usuario = "Usuario Predeterminado") => {
-  const acumulado = new Map();
-  registrosMaquila.forEach((registro) => {
-    const nombre = normalizarNombreProducto(registro.producto_nombre || registro.productoNombre);
-    if (!nombre) return;
+  if (!registrosMaquila.length) return null;
 
-    const cantidadRegistro = Number(registro.entradas || registro.cantidad || 0);
-    const previo = acumulado.get(nombre);
-    acumulado.set(nombre, {
-      nombre,
-      cantidad: (previo?.cantidad || 0) + cantidadRegistro,
-    });
-  });
+  const lotesDetalle = (lotesDelDia || [])
+    .filter((l) => l?.lote)
+    .map((l) => ({ numero: l.lote, fechaVencimiento: l.fecha_vencimiento || null }));
+  const loteStr = lotesDetalle.map((l) => l.numero).join(", ");
+  const fechaVencStr = lotesDetalle.length === 1 ? (lotesDetalle[0]?.fechaVencimiento || null) : null;
 
-  const lotesUnicos = [...new Set((lotesDelDia || []).map((l) => l?.lote).filter(Boolean))];
-  const vencimientos = [...new Set((lotesDelDia || []).map((l) => l?.fecha_vencimiento).filter(Boolean))];
+  const productos = registrosMaquila.map((registro) => ({
+    nombre: normalizarNombreProducto(registro.producto_nombre || registro.productoNombre),
+    cantidad: Number(registro.entradas || registro.cantidad || 0),
+    lote: loteStr,
+    fechaVencimiento: fechaVencStr,
+    lotesDetalle,
+    fechaRegistro: registro.fecha_creacion || registro.fecha || new Date().toISOString(),
+  })).filter((p) => p.nombre);
 
-  if (acumulado.size === 0) return null;
+  if (!productos.length) return null;
 
-  return {
-    lote: lotesUnicos.join(", "),
-    fechaVencimiento: vencimientos.length === 1 ? vencimientos[0] : null,
-    fechaCreacion: new Date().toISOString(),
-    usuario,
-    productos: Array.from(acumulado.values()),
-  };
+  return { productos };
 };
 
 const InventarioMaquilas = () => {
@@ -244,6 +213,37 @@ const InventarioMaquilas = () => {
       }
     }
   }, [productos, restauracionCompleta, fechaKeyStr]);
+
+  // 🛡️ OFFLINE: Reintento automático al volver la conexión
+  useEffect(() => {
+    const flushPendientes = async () => {
+      if (!navigator.onLine) return;
+      const pendientes = pendingInventarioService.obtenerTodos().filter(p => p.tipo === 'maquila');
+      for (const item of pendientes) {
+        try {
+          const { payload } = item;
+          for (const loteLocal of payload.lotes) {
+            await loteService.create({ lote: loteLocal.numero, fechaVencimiento: loteLocal.fechaVencimiento || null, fechaProduccion: payload.fechaProduccion, usuario: payload.usuario });
+          }
+          for (const producto of payload.productos) {
+            await registroInventarioService.create({
+              productoId: producto.id, productoNombre: producto.nombre,
+              cantidad: producto.cantidad, entradas: producto.cantidad, salidas: 0,
+              saldo: (producto.existencias || 0) + producto.cantidad,
+              tipoMovimiento: 'ENTRADA_MAQUILA', fechaProduccion: payload.fechaProduccion, usuario: payload.usuario,
+            });
+          }
+          pendingInventarioService.borrarPorKey(item.key);
+          console.log(`✅ Maquila pendiente sincronizada: ${item.key}`);
+        } catch (err) {
+          console.warn(`⚠️ No se pudo sincronizar pendiente ${item.key}:`, err.message);
+        }
+      }
+    };
+    window.addEventListener('online', flushPendientes);
+    flushPendientes();
+    return () => window.removeEventListener('online', flushPendientes);
+  }, []);
 
   // Estado para modal de edición de producción del día
   const [showModalEditarProduccion, setShowModalEditarProduccion] = useState(false);
@@ -634,6 +634,14 @@ const InventarioMaquilas = () => {
       "0"
     )}`;
 
+    // 🛡️ OFFLINE: Guardar payload pendiente antes de intentar enviar al backend
+    pendingInventarioService.guardar('maquila', fechaProduccion, {
+      lotes: lotes.map((l) => ({ numero: l.numero, fechaVencimiento: l.fechaVencimiento || null })),
+      productos: productosConCantidad.map((p) => ({ id: p.id, nombre: p.nombre, cantidad: parseInt(p.cantidad) || 0, existencias: p.existencias || 0 })),
+      fechaProduccion,
+      usuario,
+    });
+
     for (const loteLocal of lotes) {
       try {
         const loteData = {
@@ -739,14 +747,17 @@ const InventarioMaquilas = () => {
     mostrarMensaje(`Maquila registrada para ${fechaStr}`, "success");
 
     // 🎯 Preparar datos para la tabla de confirmación
+    const loteStr = lotes.map((l) => l.numero).join(", ");
+    const fechaVencStr = lotes.length === 1 ? (lotes[0]?.fechaVencimiento || null) : null;
+    const fechaRegistro = new Date().toISOString();
     const datosParaConfirmacion = {
-      lote: lotes.map((l) => l.numero).join(", "),
-      fechaVencimiento: lotes[0]?.fechaVencimiento || null,
-      fechaCreacion: new Date().toISOString(),
-      usuario: usuario,
       productos: productosConCantidad.map((producto) => ({
         nombre: normalizarNombreProducto(producto.nombre),
         cantidad: parseInt(producto.cantidad) || 0,
+        lote: loteStr,
+        fechaVencimiento: fechaVencStr,
+        lotesDetalle: lotes.map((l) => ({ numero: l.numero, fechaVencimiento: l.fechaVencimiento || null })),
+        fechaRegistro,
       })),
     };
 
@@ -754,6 +765,9 @@ const InventarioMaquilas = () => {
     const fechaKey = `confirmacion_maquila_${fechaProduccion}`;
     const datosAcumulados = combinarDatosConfirmacion(datosGuardados, datosParaConfirmacion);
     localStorage.setItem(fechaKey, JSON.stringify(datosAcumulados));
+
+    // 🛡️ OFFLINE: Borrar pendiente — llegó al backend exitosamente
+    pendingInventarioService.borrar('maquila', fechaProduccion);
 
     // 🎯 Mostrar tabla de confirmación
     setDatosGuardados(datosAcumulados);

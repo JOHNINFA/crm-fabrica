@@ -19,6 +19,7 @@ const GestionRutas = () => {
 
     // Clientes
     const [selectedRuta, setSelectedRuta] = useState(null);
+    const [topeVentaRutaInput, setTopeVentaRutaInput] = useState('60000');
     const [clientes, setClientes] = useState([]);
     const [showClienteModal, setShowClienteModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -172,6 +173,7 @@ const GestionRutas = () => {
 
     const handleSelectRuta = async (ruta, dia = diaSeleccionado) => {
         setSelectedRuta(ruta);
+        setTopeVentaRutaInput(String(parseInt(ruta?.tope_cliente_ocasional ?? 60000, 10) || 60000));
         try {
             const clientesData = await rutasService.obtenerClientesRuta(ruta.id, dia);
             setClientes(clientesData);
@@ -181,6 +183,16 @@ const GestionRutas = () => {
             console.error(err);
         }
     };
+
+    useEffect(() => {
+        if (!selectedRuta) {
+            setTopeVentaRutaInput('60000');
+            return;
+        }
+
+        const topeActual = parseInt(selectedRuta?.tope_cliente_ocasional ?? 60000, 10) || 60000;
+        setTopeVentaRutaInput(String(topeActual));
+    }, [selectedRuta?.id, selectedRuta?.tope_cliente_ocasional]);
 
     // 🆕 Toggle crear cliente desde app
     const handleToggleCrearCliente = async (ruta, e) => {
@@ -1363,29 +1375,43 @@ const GestionRutas = () => {
                                         <div style={{ position: 'relative' }}>
                                             <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.8rem' }}>$</span>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 step="1000"
                                                 min="0"
-                                                value={parseInt(selectedRuta.tope_cliente_ocasional) || 60000}
-                                                onChange={async (e) => {
-                                                    const nuevoTope = parseInt(e.target.value) || 0;
-                                                    setRutas(prev => prev.map(r =>
-                                                        r.id === selectedRuta.id ? { ...r, tope_cliente_ocasional: nuevoTope } : r
-                                                    ));
-                                                    setSelectedRuta(prev => ({ ...prev, tope_cliente_ocasional: nuevoTope }));
+                                                value={topeVentaRutaInput}
+                                                onFocus={(e) => {
+                                                    e.target.select();
+                                                }}
+                                                onChange={(e) => {
+                                                    const valorLimpio = (e.target.value || '').replace(/[^\d]/g, '');
+                                                    setTopeVentaRutaInput(valorLimpio);
                                                 }}
                                                 onBlur={async (e) => {
                                                     e.target.style.borderColor = '#cbd5e1';
-                                                    const nuevoTope = parseInt(e.target.value) || 60000;
+                                                    const nuevoTope = parseInt(topeVentaRutaInput || '60000', 10) || 60000;
+                                                    setTopeVentaRutaInput(String(nuevoTope));
                                                     try {
                                                         const axios = (await import('axios')).default;
                                                         const { API_URL } = await import('../../services/api');
-                                                        await axios.patch(`${API_URL}/rutas/${selectedRuta.id}/`, {
-                                                            tope_cliente_ocasional: nuevoTope
-                                                        });
-                                                        console.log(`✅ Tope actualizado a $${nuevoTope.toLocaleString()}`);
+                                                        const rutasMismoVendedor = rutas.filter((r) => r.vendedor === selectedRuta.vendedor);
+                                                        const rutasObjetivo = rutasMismoVendedor.length > 0 ? rutasMismoVendedor : [selectedRuta];
+
+                                                        await Promise.all(
+                                                            rutasObjetivo.map((ruta) => axios.patch(`${API_URL}/rutas/${ruta.id}/`, {
+                                                                tope_cliente_ocasional: nuevoTope
+                                                            }))
+                                                        );
+
+                                                        const idsActualizados = new Set(rutasObjetivo.map((ruta) => ruta.id));
+                                                        setRutas(prev => prev.map(r =>
+                                                            idsActualizados.has(r.id) ? { ...r, tope_cliente_ocasional: nuevoTope } : r
+                                                        ));
+                                                        setSelectedRuta(prev => ({ ...prev, tope_cliente_ocasional: nuevoTope }));
+                                                        console.log(`✅ Tope actualizado a $${nuevoTope.toLocaleString()} para ${rutasObjetivo.length} ruta(s)`);
                                                     } catch (err) {
                                                         console.error('Error guardando tope:', err);
+                                                        setTopeVentaRutaInput(String(parseInt(selectedRuta?.tope_cliente_ocasional ?? 60000, 10) || 60000));
                                                         alert('Error al guardar el tope');
                                                     }
                                                 }}

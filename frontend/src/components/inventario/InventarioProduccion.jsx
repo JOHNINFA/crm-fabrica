@@ -23,6 +23,7 @@ import { registroInventarioService } from "../../services/registroInventarioServ
 import { productoService, API_URL } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { obtenerNombreUsuarioInventario } from "../../utils/inventarioUsuario";
+import { pendingInventarioService } from "../../services/pendingInventarioService";
 import "../../styles/InventarioProduccion.css";
 import "../../styles/TablaKardex.css";
 import "../../styles/ActionButtons.css";
@@ -164,6 +165,37 @@ const InventarioProduccion = () => {
       }
     }
   }, [productos, restauracionCompleta, yaSeGrabo, fechaKeyStr]);
+
+  // 🛡️ OFFLINE: Reintento automático al volver la conexión
+  useEffect(() => {
+    const flushPendientes = async () => {
+      if (!navigator.onLine) return;
+      const pendientes = pendingInventarioService.obtenerTodos().filter(p => p.tipo === 'produccion');
+      for (const item of pendientes) {
+        try {
+          const { payload } = item;
+          for (const loteLocal of payload.lotes) {
+            await loteService.create({ lote: loteLocal.numero, fechaVencimiento: loteLocal.fechaVencimiento || null, fechaProduccion: payload.fechaProduccion, usuario: payload.usuario });
+          }
+          for (const producto of payload.productos) {
+            await registroInventarioService.create({
+              productoId: producto.id, productoNombre: producto.nombre,
+              cantidad: producto.cantidad, entradas: producto.cantidad, salidas: 0,
+              saldo: (producto.existencias || 0) + producto.cantidad,
+              tipoMovimiento: 'ENTRADA', fechaProduccion: payload.fechaProduccion, usuario: payload.usuario,
+            });
+          }
+          pendingInventarioService.borrarPorKey(item.key);
+          console.log(`✅ Producción pendiente sincronizada: ${item.key}`);
+        } catch (err) {
+          console.warn(`⚠️ No se pudo sincronizar pendiente ${item.key}:`, err.message);
+        }
+      }
+    };
+    window.addEventListener('online', flushPendientes);
+    flushPendientes(); // Intentar al montar también
+    return () => window.removeEventListener('online', flushPendientes);
+  }, []);
 
   // Estado para modal de edición de producción del día
   const [showModalEditarProduccion, setShowModalEditarProduccion] = useState(false);
@@ -1007,6 +1039,15 @@ const InventarioProduccion = () => {
       "0"
     )}`;
 
+    // 🛡️ OFFLINE: Guardar payload pendiente antes de intentar enviar al backend
+    const payloadPendiente = {
+      lotes: lotes.map((l) => ({ numero: l.numero, fechaVencimiento: l.fechaVencimiento || null })),
+      productos: productosConCantidad.map((p) => ({ id: p.id, nombre: p.nombre, cantidad: parseInt(p.cantidad) || 0, existencias: p.existencias || 0 })),
+      fechaProduccion,
+      usuario,
+    };
+    pendingInventarioService.guardar('produccion', fechaProduccion, payloadPendiente);
+
     for (const loteLocal of lotes) {
       try {
         const loteData = {
@@ -1195,20 +1236,26 @@ const InventarioProduccion = () => {
     mostrarMensaje(`Producción registrada para ${fechaStr}`, "success");
 
     // 🎯 MODIFICADO: Preparar datos para la tabla de confirmación
+    const loteStr = lotes.map((l) => l.numero).join(", ");
+    const fechaVencStr = lotes[0]?.fechaVencimiento || null;
+    const fechaRegistro = new Date().toISOString();
     const datosParaConfirmacion = {
-      lote: lotes.map((l) => l.numero).join(", "),
-      fechaVencimiento: lotes[0]?.fechaVencimiento || null,
-      fechaCreacion: new Date().toISOString(),
-      usuario: usuario,
       productos: productosConCantidad.map((producto) => ({
         nombre: producto.nombre,
         cantidad: parseInt(producto.cantidad) || 0,
+        lote: loteStr,
+        fechaVencimiento: fechaVencStr,
+        lotesDetalle: lotes.map((l) => ({ numero: l.numero, fechaVencimiento: l.fechaVencimiento || null })),
+        fechaRegistro,
       })),
     };
 
     // 🎯 NUEVO: Persistir datos de confirmación en localStorage por fecha
     const fechaKey = `confirmacion_produccion_${fechaProduccion}`;
     localStorage.setItem(fechaKey, JSON.stringify(datosParaConfirmacion));
+
+    // 🛡️ OFFLINE: Borrar pendiente — llegó al backend exitosamente
+    pendingInventarioService.borrar('produccion', fechaProduccion);
 
     // 🎯 MODIFICADO: Mostrar tabla de confirmación
     setDatosGuardados(datosParaConfirmacion);
@@ -1309,12 +1356,18 @@ const InventarioProduccion = () => {
               }));
 
               if (productosConCantidad.length > 0) {
+                const loteStrBD = lotesFromBD?.map((l) => l.lote).join(", ") || "N/A";
+                const fechaVencStrBD = lotesFromBD?.[0]?.fecha_vencimiento || null;
+                const lotesDetalleBD = (lotesFromBD || []).map((l) => ({ numero: l.lote, fechaVencimiento: l.fecha_vencimiento || null }));
+                const fechaRegistroBD = registrosProduccion[0]?.fecha_creacion || new Date().toISOString();
                 const datosParaConfirmacion = {
-                  lote: lotesFromBD?.map((l) => l.lote).join(", ") || "N/A",
-                  fechaVencimiento: lotesFromBD?.[0]?.fecha_vencimiento || null,
-                  fechaCreacion: registrosProduccion[0]?.fecha_creacion || new Date().toISOString(),
-                  usuario: usuarioDelDia || "Usuario Predeterminado",
-                  productos: productosConCantidad,
+                  productos: productosConCantidad.map((p) => ({
+                    ...p,
+                    lote: loteStrBD,
+                    fechaVencimiento: fechaVencStrBD,
+                    lotesDetalle: lotesDetalleBD,
+                    fechaRegistro: fechaRegistroBD,
+                  })),
                 };
                 setDatosGuardados(datosParaConfirmacion);
                 setYaSeGrabo(true);
@@ -1328,13 +1381,19 @@ const InventarioProduccion = () => {
             }));
 
             if (productosConCantidad.length > 0) {
-              const datosParaConfirmacion = {
-                lote: lotesFromBD?.map((l) => l.lote).join(", ") || "N/A",
-                fechaVencimiento: lotesFromBD?.[0]?.fecha_vencimiento || null,
-                fechaCreacion: registrosProduccion[0]?.fecha_creacion || new Date().toISOString(),
-                usuario: usuarioDelDia || "Usuario Predeterminado",
-                productos: productosConCantidad,
-              };
+                const loteStrBD = lotesFromBD?.map((l) => l.lote).join(", ") || "N/A";
+                const fechaVencStrBD = lotesFromBD?.[0]?.fecha_vencimiento || null;
+                const lotesDetalleBD = (lotesFromBD || []).map((l) => ({ numero: l.lote, fechaVencimiento: l.fecha_vencimiento || null }));
+                const fechaRegistroBD = registrosProduccion[0]?.fecha_creacion || new Date().toISOString();
+                const datosParaConfirmacion = {
+                  productos: productosConCantidad.map((p) => ({
+                    ...p,
+                    lote: loteStrBD,
+                    fechaVencimiento: fechaVencStrBD,
+                    lotesDetalle: lotesDetalleBD,
+                    fechaRegistro: fechaRegistroBD,
+                  })),
+                };
               setDatosGuardados(datosParaConfirmacion);
               setYaSeGrabo(true);
             }

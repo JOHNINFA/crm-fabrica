@@ -1790,6 +1790,7 @@ class Pedido(models.Model):
     productos_vencidos = models.JSONField(default=list, blank=True) # 🆕 Para trazabilidad en entregas
     novedades = models.JSONField(default=list, blank=True)
     editada = models.BooleanField(default=False, verbose_name='Editado desde App') # 🆕 solo una edición permitida
+    verificado_despachador = models.BooleanField(default=False, verbose_name='Verificado por despachador')
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
@@ -2053,6 +2054,7 @@ class VentaRuta(models.Model):
     foto_vencidos = models.ImageField(upload_to='vencidos/%Y/%m/%d/', null=True, blank=True)
     sincronizado = models.BooleanField(default=False)
     editada = models.BooleanField(default=False)  # True si los productos/cantidades fueron modificados
+    fecha_ultima_edicion = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora de la última edición de productos/vencidas")
     metodo_pago_cambiado = models.BooleanField(default=False)  # True si solo se cambió el método de pago (independiente de editada)
     estado = models.CharField(
         max_length=20,

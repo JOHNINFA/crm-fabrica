@@ -63,6 +63,11 @@ const rutasService = {
         return response.data;
     },
 
+    obtenerControlStockRuta: async (vendedorId, fecha) => {
+        const response = await axios.get(`${API_URL}/cargue/control-stock/${vendedorId}/${fecha}/`);
+        return response.data;
+    },
+
     // Reportes de Ventas
     obtenerReportesVentas: async (periodo, vendedorId, fechaInicio, fechaFin) => {
         let url = `${API_URL}/ventas-ruta/reportes/?periodo=${periodo}`;

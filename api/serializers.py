@@ -668,10 +668,11 @@ class PedidoSerializer(serializers.ModelSerializer):
             'direccion_entrega', 'telefono_contacto', 'fecha_entrega',
             'tipo_pedido', 'transportadora', 'subtotal', 'impuestos',
             'descuentos', 'total', 'estado', 'nota', 'metodo_pago', 'productos_vencidos', 'novedades', 'editada',
+            'verificado_despachador',
             'fecha_creacion', 'fecha_actualizacion', 'detalles', 'detalles_info',
             'evidencias',  # 🆕 Fotos de evidencia
             # Nuevos campos
-            'afectar_inventario_inmediato', 'asignado_a_tipo', 
+            'afectar_inventario_inmediato', 'asignado_a_tipo',
             'asignado_a_id', 'inventario_afectado'
         ]
         read_only_fields = ('numero_pedido', 'fecha_creacion', 'fecha_actualizacion', 'inventario_afectado')

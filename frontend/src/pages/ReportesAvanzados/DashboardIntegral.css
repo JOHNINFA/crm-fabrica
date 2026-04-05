@@ -1,0 +1,73 @@
+.dashboard-integral-container {
+  background-color: #f4f7f6;
+  min-height: 100vh;
+  padding-bottom: 2rem;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+}
+
+.dashboard-integral-container .metric-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border-left: 5px solid #0c2c53;
+  transition: transform 0.2s ease;
+  height: 100%;
+}
+
+.dashboard-integral-container .metric-card:hover {
+  transform: translateY(-5px);
+}
+
+.dashboard-integral-container .metric-card.success { border-left-color: #198754; }
+.dashboard-integral-container .metric-card.warning { border-left-color: #ffc107; }
+.dashboard-integral-container .metric-card.danger { border-left-color: #dc3545; }
+.dashboard-integral-container .metric-card.info { border-left-color: #0dcaf0; }
+
+.dashboard-integral-container .metric-title {
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-integral-container .metric-value {
+  color: #2b2b2b;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.dashboard-integral-container .ranking-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-integral-container .ranking-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-integral-container .ranking-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-integral-container .nav-pills-custom .nav-link {
+  color: #0c2c53;
+  border-radius: 30px;
+  padding: 0.5rem 1.5rem;
+  margin-right: 0.5rem;
+  font-weight: 600;
+}
+
+.dashboard-integral-container .nav-pills-custom .nav-link.active {
+  background-color: #0c2c53;
+  color: white;
+}
+
+.dashboard-integral-container .table-custom td {
+  vertical-align: middle;
+}

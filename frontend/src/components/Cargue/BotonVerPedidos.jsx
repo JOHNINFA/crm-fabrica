@@ -116,6 +116,13 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 fechaCreacion: p.fecha_creacion
             })));
 
+            // Inicializar checks desde backend (verificado_despachador)
+            const checksIniciales = {};
+            pedidosParaMostrar.forEach(p => {
+                if (p.verificado_despachador) checksIniciales[p.id] = true;
+            });
+            setEntregadoChecks(checksIniciales);
+
             // Agrupar productos por nombre y sumar cantidades (para pestaña Resumen)
             const productosAgrupados = {};
 
@@ -170,6 +177,27 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         setPedidoExpandido(null);
         // Eliminado: setCheckedItems({}); // Permitir persistencia
         cargarPedidos();
+    };
+
+    // Estado para marcar pedidos verificados por el despachador (persiste en backend)
+    const [entregadoChecks, setEntregadoChecks] = useState({});
+
+    const toggleEntregado = async (e, pedidoId) => {
+        e.stopPropagation();
+        // Actualizar UI inmediatamente (optimistic update)
+        setEntregadoChecks(prev => ({
+            ...prev,
+            [pedidoId]: !prev[pedidoId]
+        }));
+        // Persistir en backend
+        try {
+            await fetch(`${API_URL}/pedidos/${pedidoId}/verificar_despacho/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (err) {
+            console.warn('No se pudo guardar verificación de despacho:', err);
+        }
     };
 
     // 🆕 Estado para controlar checks de verificación en novedades (Persistente)
@@ -441,6 +469,8 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                 ? (esEntregado ? '#fffbeb' : 'rgba(254, 202, 202, 0.5)')
                                                 : 'white';
 
+                                            const yaEntregado = !!entregadoChecks[pedido.id];
+
                                             return (
                                                 <div key={pedido.id} style={{
                                                     marginBottom: '12px',
@@ -462,6 +492,32 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                         onClick={() => setPedidoExpandido(pedidoExpandido === pedido.id ? null : pedido.id)}
                                                     >
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            {/* Checkbox de entrega - esquina superior izquierda */}
+                                                            <label
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    cursor: 'pointer',
+                                                                    margin: 0,
+                                                                    flexShrink: 0
+                                                                }}
+                                                                title={yaEntregado ? 'Marcar como NO entregado' : 'Marcar como entregado'}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={yaEntregado}
+                                                                    onChange={(e) => toggleEntregado(e, pedido.id)}
+                                                                    style={{
+                                                                        width: '22px',
+                                                                        height: '22px',
+                                                                        cursor: 'pointer',
+                                                                        accentColor: '#16a34a',
+                                                                        borderRadius: '4px'
+                                                                    }}
+                                                                />
+                                                            </label>
                                                             <span style={{ fontSize: '20px' }}>👤</span>
                                                             <div>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

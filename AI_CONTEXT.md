@@ -229,6 +229,43 @@ Tabla de referencia rápida para entender cómo se comunica la app móvil `AP GU
 - **Migración requerida**: `python manage.py makemigrations && python manage.py migrate`
 - **Fecha de implementación**: 24 de Marzo de 2026
 
+#### Mejoras de UX y Fluidez de Modales (Abril 2026)
+
+##### Animaciones de modales: `slide` → `fade`
+- **Problema**: Los modales con `animationType="slide"` se sentían lentos en Android porque animaban entrando desde abajo.
+- **Solución**: Cambiados a `"fade"` en todos los modales para respuesta instantánea.
+- **Archivos modificados**:
+  - `AP GUERRERO/components/Ventas/ResumenVentaModal.js`
+  - `AP GUERRERO/components/Ventas/ClienteModal.js`
+  - `AP GUERRERO/components/Ventas/ConfirmarEntregaModal.js`
+  - `AP GUERRERO/components/Ventas/VentasScreen.js` (modal pedidos asignados + historial ventas)
+
+##### Modal Editar Venta — posición y tamaño
+- Se agregó `statusBarTranslucent={true}` al Modal de edición para que cubra toda la pantalla incluyendo la barra de estado Android (sin recortar).
+- `paddingTop: 23` en Android para dejar espacio visual bajo la barra de estado.
+- `paddingBottom: 0` y `padding: 0` en el overlay para eliminar el espacio inferior innecesario.
+- Header del modal con `paddingTop: 8` y `paddingBottom: 6` para separar título de los bordes.
+- Botones Cancelar/Guardar más compactos: `padding: 6`, `fontSize: 13`.
+
+##### Apertura rápida del modal de edición
+- **Problema**: Al tocar "Editar" desde el historial, el modal tardaba porque React procesaba el cierre del historial y la apertura del editor en renders separados.
+- **Solución**: `setMostrarHistorialVentas(false)` se ejecuta **primero** antes de todos los `setState` del modal de edición, agrupando todo en un solo render.
+
+##### Fix: botón "Solo Entregar" en lista de pedidos no abría modal
+- **Problema**: Al tocar "Solo Entregar" desde el modal de pedidos asignados, no pasaba nada.
+- **Causa 1**: `ConfirmarEntregaModal` retornaba `null` cuando `pedido` aún no estaba seteado (race condition entre `setPedidoParaEntregar` y `setMostrarResumenEntrega`).
+- **Causa 2**: El modal de pedidos (`modalPedidosVisible`) seguía abierto encima, bloqueando el modal de confirmación.
+- **Fix**:
+  1. `ConfirmarEntregaModal.js`: `return null` → `return <Modal visible={false} />` para no destruir el árbol de componentes.
+  2. `VentasScreen.js`: cerrar `setModalPedidosVisible(false)` primero y abrir `marcarPedidoEntregado` con `setTimeout 150ms`.
+- **Archivos**: `AP GUERRERO/components/Ventas/ConfirmarEntregaModal.js`, `VentasScreen.js`
+
+##### Fix: `netInfo is not defined` en cambio de método de pago
+- **Error**: `ReferenceError: Property 'netInfo' doesn't exist` en `confirmarCambioMetodoPagoDesdeCard`.
+- **Causa**: Variable `netInfo` usada en el `catch` sin haber sido declarada en ese scope (solo existe en `refrescarStockSilencioso`).
+- **Fix**: Reemplazado `!netInfo.isConnected` por `error?.message?.includes('fetch')` — detecta error de red por mensaje sin necesitar `NetInfo.fetch()`.
+- **Archivo**: `AP GUERRERO/components/Ventas/VentasScreen.js` línea ~2497.
+
 ---
 
 ## 🔑 Conceptos Clave
@@ -5167,3 +5204,548 @@ El stock disponible se calcula como `total - vendidas`, por lo que las devolucio
 git pull origin main
 docker compose -f docker-compose.prod.yml up -d --build backend
 ```
+
+---
+
+## Tareas Pendientes — 2026-04-02
+
+### 1. Cargue - Modal pedidos: Check de entrega en card cliente
+**Descripción:** En el modal de pedidos del cargue web, donde se ve la card del cliente con su pedido, agregar un **check** en la esquina superior izquierda de la card. Sirve como guía visual para que el despachador sepa que ya entregó el pedido.
+
+**Estado:** Pendiente de implementar.
+
+---
+
+### 2. Inventario - Fecha vencimiento suma 1 día al grabar
+**Descripción:** Al agregar un lote en inventario y grabar la fecha de vencimiento, la fecha guardada aparece con un día más del seleccionado.
+
+**Causa probable:** Bug de timezone — mismo patrón visto antes: `DatePicker` guarda con hora local, al convertir a ISO string con `.toISOString()` JavaScript convierte a UTC y si es después de las 7 PM Colombia (UTC-5) la fecha avanza al día siguiente.
+
+**Estado:** Pendiente de investigar y corregir.
+
+---
+
+### 3. Pedidos - Fecha de entrega sale con día anterior antes de las 6 AM
+**Descripción:** Al montar un pedido para entregar el mismo día, la fecha de entrega sale con la fecha del día anterior. Solo sucede antes de las 6 AM.
+
+**Causa probable:** Mismo bug de timezone UTC-5 — antes de las 6 AM Colombia el UTC ya es el día siguiente, y al calcular "hoy" desde el servidor o con `.toISOString()` devuelve el día anterior.
+
+**Estado:** Pendiente de investigar y corregir.
+
+
+---
+
+## Sesión 2026-04-03 — Fixes app móvil + cargue web + inventario
+
+### Fix: Anulación no marcaba ANULADA en historial de reimpresión (app móvil)
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema:** Al anular una venta, las funciones `marcarAnuladaUI` y `marcarAnulada` no encontraban la venta en `historialReimpresion` porque no tenían cross-matching de IDs. La venta seguía apareciendo como activa en el historial.
+
+**Fix:** Agregado cross-matching completo en ambas funciones:
+```javascript
+const misma = (v.id && venta.id && String(v.id) === String(venta.id)) ||
+              (v.id_local && venta.id_local && String(v.id_local) === String(venta.id_local)) ||
+              (v.id && venta.id_local && String(v.id) === String(venta.id_local)) ||  // cross
+              (v.id_local && venta.id && String(v.id_local) === String(venta.id)) ||  // cross
+              (v._key && venta._key && v._key === venta._key);
+```
+
+---
+
+### Fix: Fecha vencimiento inventario suma 1 día (bug timezone)
+
+**Archivo:** `frontend/src/components/inventario/TablaConfirmacionProduccion.jsx`
+
+**Problema:** `new Date("YYYY-MM-DD")` parsea como UTC midnight → en Colombia (UTC-5) aparece el día anterior.
+
+**Fix:** Parsear extrayendo año/mes/día del string sin conversión UTC:
+```javascript
+const soloFecha = String(fecha).split("T")[0];
+const [anio, mes, dia] = soloFecha.split("-");
+return new Date(Number(anio), Number(mes) - 1, Number(dia)).toLocaleDateString("es-ES");
+```
+
+**También corregido:** `RegistroLotes.jsx` línea 16 — clave localStorage usaba `toISOString()`. Fix: usar `getFullYear()/getMonth()/getDate()`.
+
+---
+
+### Fix: Fecha de entrega pedidos sale día anterior antes de las 6 AM
+
+**Archivo:** `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+**Problema:** La fecha de entrega por defecto usaba `mañana.toISOString().split('T')[0]` — antes de las 6 AM Colombia, UTC ya es el día siguiente y la fecha queda desplazada.
+
+**Fix:** Reemplazado en 2 lugares (init y reset del modal):
+```javascript
+const y = mañana.getFullYear();
+const m = String(mañana.getMonth() + 1).padStart(2, '0');
+const d = String(mañana.getDate()).padStart(2, '0');
+setFechaEntrega(`${y}-${m}-${d}`);
+```
+
+---
+
+### Feature: Check de entrega en modal pedidos (cargue web)
+
+**Archivo:** `frontend/src/components/Cargue/BotonVerPedidos.jsx`
+
+**Descripción:** Checkbox 22x22px en la esquina superior izquierda de cada card de pedido en el modal. Permite al despachador marcar visualmente que entregó el pedido.
+
+**Persistencia:** Campo `verificado_despachador` (BooleanField) en modelo `Pedido`. Endpoint `POST /api/pedidos/{id}/verificar_despacho/` (toggle). Migración `0101_add_verificado_despachador_pedido`.
+
+**Comportamiento:**
+- Al cargar el modal, inicializa los checks desde `verificado_despachador` del backend
+- Al hacer click, llama al endpoint inmediatamente (optimistic update)
+- Visible para cualquier despachador en cualquier dispositivo
+
+---
+
+### Feature: Tabla confirmación inventario rediseñada (Producción y Maquila)
+
+**Archivos:** `frontend/src/components/inventario/TablaConfirmacionProduccion.jsx`, `InventarioProduccion.jsx`, `InventarioMaquilas.jsx`
+
+**Cambios:**
+- Nueva tabla con columnas: **PRODUCTO | CANTIDAD | LOTE | VENCIMIENTO | REGISTRADO | ESTADO**
+- Cada producto lleva su propio lote, fecha de vencimiento y hora registrada
+- En Maquila con múltiples lotes por sesión: cada fila muestra su lote y fecha independiente
+- Columna ESTADO muestra ✅ normal o ⚠️ si fue editado (clickeable con SweetAlert mostrando cantidad original → nueva, fecha y motivo)
+- Aplica para Producción y Maquila con la misma estética
+
+**Estructura de datos:** `datosParaConfirmacion.productos` ahora incluye por producto:
+```javascript
+{ nombre, cantidad, lote, fechaVencimiento, lotesDetalle: [{numero, fechaVencimiento}], fechaRegistro }
+```
+
+**`combinarDatosConfirmacion`** simplificada: ya no acumula por nombre, concatena filas de distintas sesiones.
+
+---
+
+### Feature: Offline resiliente en inventario (Producción y Maquila)
+
+**Archivos:** `frontend/src/services/pendingInventarioService.js` (nuevo), `InventarioProduccion.jsx`, `InventarioMaquilas.jsx`
+
+**Descripción:** Si se va el internet al grabar producción o maquila, el payload queda en localStorage como pendiente. Al volver la conexión se sincroniza automáticamente sin recargar.
+
+**Flujo:**
+1. Antes de llamadas al backend → `pendingInventarioService.guardar(tipo, fecha, payload)`
+2. Al terminar exitosamente → `pendingInventarioService.borrar(tipo, fecha)`
+3. `window.addEventListener('online', flushPendientes)` reintenta automáticamente
+4. También reintenta al montar el componente (recarga de página)
+
+**Keys localStorage:** `pending_inventario_produccion_FECHA` y `pending_inventario_maquila_FECHA`
+
+---
+
+### Pendiente: Subir al VPS
+
+```bash
+cd ~/crm-fabrica
+git fetch origin
+git reset --hard origin/main  # VPS tiene cherry-picks divergentes
+docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d --no-deps backend
+docker exec crm_backend_prod python manage.py migrate
+docker compose -f docker-compose.prod.yml build frontend
+docker compose -f docker-compose.prod.yml up -d --no-deps frontend
+```
+
+**Migraciones nuevas a aplicar:**
+- `0101_add_verificado_despachador_pedido`
+
+
+---
+
+## Sesión 2026-04-04
+
+### Dashboard Integral — Filtros de Tiempo por Período
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+
+**Qué se hizo:** Se agregaron 4 modos de filtro de tiempo al Dashboard de Inteligencia/Optimización.
+
+**Modos implementados:**
+- **Día** — fecha puntual (comportamiento original)
+- **Semana** — selecciona cualquier día, calcula lunes→domingo automáticamente
+- **Mes** — selector mes/año, calcula primer y último día del mes
+- **Rango** — dos fechas libres
+
+**Lógica de acumulación para rangos:**
+- `ventas-ruta`: llamada única con `?fecha_inicio=&fecha_fin=` (ya soportado en backend)
+- `pedidos`: llamada única con `?fecha_desde=&fecha_hasta=`, filtro adicional client-side por `fecha_entrega`
+- `turnos`: llamada única con `?fecha_desde=&fecha_hasta=`
+- `obtener-cargue`: loop por cada fecha del rango × 6 IDs, acumulando cantidades/neto/nequi/daviplata por producto
+
+**Estados nuevos:** `modoFiltro`, `fechaInicio`, `fechaFin`, `mesConsulta`, `labelPeriodo`
+
+**Helpers nuevos:** `getRango()`, `getDatesInRange()`, `formatFechaCorta()`
+
+**Badge** ahora muestra el período: `✅ Semana 30/03 — 05/04`, `✅ Abril 2026`, etc.
+
+---
+
+### Dashboard Integral — Tabla Comparativa entre IDs
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+
+**Qué se hizo:** Se agregó tabla comparativa de todos los IDs en la pestaña "Total Consolidado".
+
+**Columnas:** ID | Estado | Despacho Inicial | Venta Ruta | Pedidos | Venta Total | Efectivo | Nequi | Daviplata | Vencidas | Cumpl.%
+
+**Features:**
+- Fila de TOTALES al final (suma de todos los IDs)
+- Click en fila navega directamente al detalle del ID
+- Badge de estado: ✅ OK (jornada completa) / ⚠️ Parcial (en proceso)
+- Badge de cumplimiento: verde ≥80%, amarillo ≥50%, rojo <50%
+- Scroll horizontal en pantallas pequeñas (`minWidth: 700px`)
+
+---
+
+### Fix Dashboard Integral — Precio NETO incorrecto (usa precio histórico en lugar de catálogo actual)
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+
+**Problema:** El NETO en el Dashboard no coincidía con el NETO del módulo Cargue (PlantillaOperativa).
+- Ejemplo: AREPA TIPO OBLEA el 12/01/2026 → Dashboard mostraba $2,100, Cargue mostraba $1,900.
+- El Dashboard usaba `datos.valor` (precio histórico guardado en el registro de cargue en esa fecha) como fuente primaria de precio.
+- PlantillaOperativa usa `precio_cargue` del catálogo actual de productos como fuente primaria.
+
+**Causa raíz:** El Dashboard y el Cargue usaban fuentes de precio distintas:
+| Fuente | Dónde vive | Quién la usaba |
+|--------|-----------|----------------|
+| `datos.valor` (`reg.valor` en CargueID1) | BD registro de cargue — congelado al día del despacho | Dashboard (incorrecto) |
+| `precio_cargue` en modelo `Producto` | BD tabla `api_producto` — precio actual del catálogo | PlantillaOperativa (correcto) |
+
+**Fix aplicado:**
+
+1. **`preciosMap` ahora usa `precio_cargue`** (antes usaba `p.precio`):
+```javascript
+productosArr.forEach(p => {
+    const nombre = normalizeName(p.nombre || p.name || '');
+    let precio;
+    if (p.precio_cargue !== null && p.precio_cargue !== undefined) {
+        precio = parseFloat(p.precio_cargue) || 0;
+    } else {
+        const precioBase = parseFloat(p.precio || p.price || 0);
+        precio = precioBase > 0 ? Math.round(precioBase * 0.65) : 0;
+    }
+    if (nombre && precio > 0) preciosMap[nombre] = precio;
+});
+```
+
+2. **Orden de prioridad de precio invertido** — ahora catálogo primero:
+```javascript
+// 1. Catálogo actual (precio_cargue) — fuente de verdad
+let precio = preciosMap[nombreNorm] || 0;
+// 2. precios_alternos del cargue
+if (precio === 0 && datos.precios_alternos) { ... }
+// 3. datos.valor histórico como último recurso
+if (precio === 0) precio = parseFloat(datos.valor || 0);
+```
+
+**Regla:** El Dashboard es una vista organizada del mismo cargue → debe usar la misma fuente de precio que PlantillaOperativa (`precio_cargue` del catálogo actual).
+
+---
+
+### Fix AP GUERRERO — Sync cola bloqueada + botones con bloqueos de red
+
+**Archivos:**
+- `AP GUERRERO/services/ventasService.js`
+- `AP GUERRERO/services/rutasApiService.js`
+- `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema 1 — Cola sincronización bloqueada (`sincronizandoCola`):**
+Con internet intermitente, `sincronizarVentasPendientes` colgaba porque:
+- `verificarVentaExiste` esperaba hasta **12s** (timeout interno)
+- `enviarVentaRuta` esperaba hasta **30s** (JSON) o **45s** (fotos)
+- Total: hasta **42s** con `sincronizandoCola = true`, bloqueando todos los reintentos
+- El safety timeout de la UI (15s) limpiaba el banner pero `sincronizandoCola` seguía bloqueado
+
+**Fix timeouts:**
+| Operación | Antes | Ahora |
+|-----------|-------|-------|
+| `verificarVentaExiste` | 12s | 5s |
+| `enviarVentaRuta` JSON | 30s | 10s |
+| `enviarVentaRuta` FormData | 45s | 25s |
+
+**Fix `sincronizandoCola` auto-liberación:**
+Si lleva más de 20s bloqueado se fuerza a `false` (con timestamp de inicio):
+```javascript
+if (sincronizandoCola && Date.now() - sincronizandoColaDesde >= 20000) {
+    sincronizandoCola = false; // liberar lock colgado
+}
+```
+
+**Problema 2 — Duplicate keys en listas React Native:**
+Error "Encountered two children with the same key" causaba glitches de UI (taps no respondían). Fuente: productos con IDs duplicados en catálogo.
+
+**Fix:** keys con índice para garantizar unicidad:
+- `FlatList` productos: `prod-${item.id}-${index}`
+- Modal edición sugerencias: `edit-add-${prod.id}-${idx}`
+- Modal pedidos pendientes: `pedido-pendiente-${p.id}-${idx}`
+
+**Problema 3 — Botón "Cerrar turno" bloqueaba UI:**
+Hacía `await verificarPedidosPendientes()` + `await cargarVentasDelDia()` ANTES de abrir el modal. Con red lenta, el botón parecía no responder.
+
+**Fix:** abrir modal inmediatamente, recargar en background:
+```javascript
+onPress={() => {
+    setMostrarModalCerrarTurno(true); // inmediato
+    verificarPedidosPendientes();     // background
+    cargarVentasDelDia(fechaSeleccionada); // background
+}}
+```
+
+**Regla general:** Ningún botón debe hacer `await` de red antes de responder al usuario. La UI siempre abre primero, los datos se actualizan en segundo plano.
+
+---
+
+### Fix AP GUERRERO — Stock no se descontaba en tiempo real al agregar al carrito
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `renderProducto` (~línea 5849)
+
+**Problema:** Al agregar productos al carrito, el stock mostrado no cambiaba hasta completar la venta. El usuario no podía ver cuánto stock le quedaba disponible mientras armaba el pedido.
+
+**Causa:** El stock se leía directo de `stockCargue` sin restar lo que ya estaba en el carrito:
+```javascript
+// Antes (incorrecto)
+const stock = stockCargue[item.nombre.toUpperCase()] || 0;
+```
+
+**Fix:** Restar la cantidad en carrito al stock base:
+```javascript
+// Ahora (correcto)
+const stockBase = stockCargue[item.nombre.toUpperCase()] || 0;
+const stock = Math.max(0, stockBase - cantidad); // cantidad = lo que está en carrito
+```
+
+**Comportamiento:** Inmediato, local, sin red. Funciona con internet cortado o intermitente. Al agregar 2 unidades de AREPA TIPO OBLEA (stock 8), el stock baja a 6 al instante.
+
+---
+
+### Fix — Ventas de Ruta web: mostrar hora de edición en tabla
+
+**Archivos:**
+- `api/models.py` — modelo `VentaRuta`
+- `api/views.py` — endpoint PATCH edición de venta
+- `api/migrations/0102_add_fecha_ultima_edicion_venta_ruta.py` — migración generada
+- `frontend/src/components/rutas/ReporteVentasRuta.jsx` — tabla de ventas
+
+**Problema:** La tabla web mostraba solo la hora de creación de la venta. Para ventas editadas, no se veía a qué hora se hizo la edición (solo aparecía el badge EDITADA).
+
+**Fix:**
+1. Nuevo campo en modelo: `fecha_ultima_edicion = DateTimeField(null=True, blank=True)`
+2. Backend guarda `venta.fecha_ultima_edicion = timezone.now()` al editar productos o vencidas (no al cambiar solo método de pago)
+3. Frontend muestra debajo de la hora de creación: `Edit: 2:18 a.m.` en rojo, solo si `venta.editada && venta.fecha_ultima_edicion`
+
+**Pendiente en VPS:** Aplicar migración `0102` con `python3 manage.py migrate`
+
+**Nota:** Ventas editadas antes de este cambio tendrán `fecha_ultima_edicion = null` y no mostrarán la hora de edición — solo las nuevas ediciones la registran.
+
+---
+
+### Fix AP GUERRERO — Editar venta: producto nuevo arranca en 0 y muestra stock en búsqueda
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema 1:** Al agregar un producto nuevo en modo edición, arrancaba en cantidad 1 sin que el vendedor pudiera ver el stock disponible primero.
+
+**Fix:** `agregarProductoEdicion` ahora agrega nuevos productos con cantidad 0. El vendedor ve el stock, luego presiona + para definir la cantidad:
+```javascript
+// Si ya está en carrito sumar 1, si es nuevo arrancar en 0
+const cantidadNueva = itemActual ? (itemActual.cantidad || 0) + 1 : 0;
+```
+
+**Problema 2:** Presionar − en cantidad 0 no quitaba el producto (el regex `/[^\d]/g` borraba el signo `-` convirtiendo -1 en 1).
+
+**Fix:** `cambiarCantidadEdicion` detecta valores negativos antes del regex y elimina el producto del carrito:
+```javascript
+if (parseInt(nuevaCantidad) < 0) {
+    // quitar del carrito
+    delete updated[nombreProducto];
+    return;
+}
+```
+
+**Problema 3:** La lista de búsqueda en edición no mostraba el stock, el vendedor no sabía si valía la pena agregar el producto.
+
+**Fix:** Se agregó stock junto al precio en cada resultado de búsqueda (verde si hay, rojo si agotado), usando `obtenerMaximoEditableProducto` que ya calcula el stock correcto para edición.
+
+**Comportamiento final:**
+- Buscas producto → ves precio + Stock en color
+- Tocas Agregar → aparece en lista con cantidad 0
+- Presionas + → sube a 1, 2, 3...
+- Presionas − en 0 → se elimina de la lista
+- Al guardar → items con cantidad 0 se filtran y no se envían al backend
+
+---
+
+### Fix AP GUERRERO — Icono rayo (venta rápida) se bloqueaba con internet intermitente
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `abrirClienteOcasionalRapido`
+
+**Problema:** Al tocar el icono del rayo, el modal de venta rápida no abría de inmediato con internet intermitente. La función hacía `await verificarFlagsRuta()` (llamada de red) antes de abrir el modal — si la red tardaba o fallaba, el usuario quedaba esperando sin feedback.
+
+**Fix:** `Promise.race` con timeout de 2 segundos. Si la red no responde en 2s, usa los valores ya cargados en estado (`flagVentaRapida`, `topeVentaRutaOcasional`) y abre el modal de inmediato:
+```javascript
+const fallbackInmediato = {
+    rapida: flagVentaRapida,
+    crear: flagCrearCliente,
+    tope: topeVentaRutaOcasional,
+};
+const configRuta = await Promise.race([
+    verificarFlagsRuta(),
+    new Promise(resolve => setTimeout(() => resolve(fallbackInmediato), 2000)),
+]);
+```
+
+**Regla:** Mismo patrón que ventas normales — offline-first, sin bloqueos. La red es opcional para abrir el modal.
+
+---
+
+### Fix AP GUERRERO — Sincronización offline intermitente
+
+**Archivos:**
+- `AP GUERRERO/services/ventasService.js`
+- `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Bugs corregidos:**
+
+1. **TypeError `window` → `global`** (`ventasService.js:553`): `window.__ultimoErrorEdicion` no existe en React Native. Cambiado a `global.__ultimoErrorEdicion`. Causaba que el loop de sync de ediciones se interrumpiera mostrando toast de error.
+
+2. **Banner "X ventas pendientes" tapaba flecha de avanzar** (`VentasScreen.js` estilos): Se agregó `position: 'absolute'`, `top: 0`, `left: 0`, `right: 0`, `zIndex: 100`, `elevation: 10` al estilo `pendientesBar`.
+
+3. **Banner "Sincronizando..." quedaba pegado con internet intermitente** (`VentasScreen.js:622`): Se agregó timeout de seguridad de 15 segundos — si el banner no resuelve en 15s, se limpia automáticamente.
+
+**Comportamiento confirmado:** Las ventas (incluyendo vencidas, ediciones y anulaciones) nunca se pierden — van a cola AsyncStorage y se sincronizan automáticamente al recuperar conexión. No se generan duplicados (verificación previa en backend).
+
+---
+
+### Fix AP GUERRERO — Editar venta bloqueaba cambio de método de pago desde historial
+
+**Archivos:**
+- `api/views.py` — endpoint PATCH `/api/ventas-ruta/{id}/editar/`
+- `AP GUERRERO/components/Ventas/VentasScreen.js` — `metaEdicionConfirmada`
+
+**Problema:** Después de editar una venta (cambiar productos/cantidades), el botón de cambio de método de pago en la card del historial quedaba desactivado (texto plano sin el `▼` interactivo). El usuario no podía cambiar el método de pago aunque nunca lo hubiera cambiado explícitamente.
+
+**Causa raíz (backend):** El payload de edición siempre incluye `metodo_pago`. El backend tenía:
+```python
+if metodo_pago_normalizado is not None:
+    venta.metodo_pago = metodo_pago_normalizado
+    venta.metodo_pago_cambiado = True  # ← se ejecutaba SIEMPRE
+```
+Esto marcaba `metodo_pago_cambiado = True` incluso cuando la edición era de productos (no un cambio explícito del método de pago), consumiendo el slot del cambio posterior.
+
+**Fix backend (`views.py`):**
+```python
+if metodo_pago_normalizado is not None:
+    venta.metodo_pago = metodo_pago_normalizado
+    if solo_cambio_metodo_pago:   # ← solo cuando es cambio explícito desde historial
+        venta.metodo_pago_cambiado = True
+```
+
+**Fix frontend (`VentasScreen.js`):** `metaEdicionConfirmada` ahora sincroniza `metodo_pago_cambiado` desde la respuesta del backend para mantener consistencia si el flag ya estaba en `True` antes de editar.
+
+**Regla de negocio confirmada:**
+- `editada` y `metodo_pago_cambiado` son flags independientes.
+- Editar productos → `editada = True`, `metodo_pago_cambiado` intacto.
+- Cambiar método desde historial → `metodo_pago_cambiado = True` (una sola vez).
+- Una venta editada puede tener el método cambiado una vez desde el historial.
+
+---
+
+### Fix AP GUERRERO — Pedido entregado podía registrarse dos veces en offline
+
+**Archivos:**
+- `AP GUERRERO/components/Ventas/VentasScreen.js` — `confirmarEntregaPedido`
+- `api/views.py` — endpoint `marcar_entregado`
+
+**Problema:** Con internet intermitente, al marcar un pedido como entregado:
+1. El frontend guardaba la acción en cola `pedidos_acciones_pendientes` sin verificar si ya existía → podía quedar duplicada.
+2. El backend no verificaba si el pedido ya estaba en `ENTREGADO` → si el sync ejecutaba dos veces, procesaba ambas, acumulando notas duplicadas en el pedido.
+
+**Fix frontend (`VentasScreen.js`):**
+```javascript
+const yaExiste = pendientes.some(a => a.id === accionPendiente.id && a.tipo === 'ENTREGADO');
+if (!yaExiste) {
+    pendientes.push(accionPendiente);
+    await AsyncStorage.setItem('pedidos_acciones_pendientes', JSON.stringify(pendientes));
+}
+```
+
+**Fix backend (`views.py`) — idempotente:**
+```python
+if pedido.estado in ('ENTREGADO', 'ENTREGADA'):
+    return Response({'success': True, 'message': 'Pedido ya estaba marcado como entregado'})
+```
+
+**Resultado:** No importa cuántas veces reintente la cola de sync, el pedido se entrega exactamente una vez.
+
+---
+
+### Fix AP GUERRERO — Stock offline incorrecto: vencidas se descontaban dos veces
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema:** En modo offline, al agregar vencidas y luego confirmar la venta, el stock quedaba con una deducción doble. Ejemplo: stock 145, carrito 10, vencidas 5 → el stock quedaba en 125 en vez de 130.
+
+**Causa raíz — doble deducción:**
+1. `handleGuardarVencidas` (línea ~5583): descuenta las vencidas de `stockCargue` inmediatamente al guardarlas en el modal ✓
+2. `confirmarVenta` (línea ~4798): las volvía a descontar al confirmar la venta ✗
+
+Al volver internet el stock se corregía porque el backend tenía el valor real.
+
+**Fix:** Eliminada la segunda deducción en `confirmarVenta`. Las vencidas solo se descuentan una vez — en `handleGuardarVencidas`.
+
+**Flujo correcto offline:**
+- Stock inicial: 145
+- Agrega 10 al carrito → lista muestra `145 - 10 = 135`
+- Abre vencidas → ve 135 disponibles
+- Guarda 5 vencidas → `stockCargue = 140`, lista muestra `140 - 10 = 130`
+- Confirma venta → `stockCargue = 140 - 10 = 130` (correcto)
+
+---
+
+### Despliegue Abril 2026 — Commits y VPS
+
+**Archivos a commitear (2 commits):**
+
+**Commit 1 — fixes funcionales:**
+- `AP GUERRERO/` — todos los fixes de esta sesión (VentasScreen.js, config.js PROD, rutasApiService.js, ConfirmarEntregaModal.js, etc.)
+- `api/models.py`, `api/serializers.py`, `api/views.py`
+- `api/migrations/0101_add_verificado_despachador_pedido.py`
+- `api/migrations/0102_add_fecha_ultima_edicion_venta_ruta.py`
+- `frontend/src/components/` (Cargue, Pedidos, inventario, rutas)
+- `frontend/src/pages/ReportesAvanzadosScreen.jsx`
+- `frontend/src/pages/ReportesAvanzados/` (DashboardIntegral, cargueOrden)
+- `frontend/src/services/rutasService.js`, `pendingInventarioService.js`
+
+**Commit 2 — documentación:**
+- `AI_CONTEXT.md`
+
+**Ignorar:** `api/__pycache__/`, archivos markdown sueltos (ANALISIS_*, CHECKLIST_*, README_*, PENDIENTES_*, STICKY_*, SUBIR_*, RESUMEN_*, DESPLIEGUE_*), `ia_models/`, `optimizacion_completar_venta.js`, `.kiro/docs/`
+
+**En el VPS después del push:**
+```bash
+git pull origin main
+python3 manage.py migrate   # aplica 0101 y 0102
+# reiniciar docker/gunicorn
+```
+
+---
+
+### Fix: Tabla confirmación inventario — responsive tablet
+
+**Archivo:** `frontend/src/components/inventario/TablaConfirmacionProduccion.jsx`
+
+**Problema:** En tablet las columnas de Maquila se apretaban y los badges de CANTIDAD quedaban cortados.
+
+**Fix:**
+- Fuente reducida a `0.78rem`
+- Padding reducido a `6px 8px`
+- Encabezados abreviados: CANT. / VENCE / HORA / EST.
+- `minWidth: 520px` + `overflowX: auto` — scroll horizontal en pantallas pequeñas
+- `whiteSpace: nowrap` en columnas de datos
+

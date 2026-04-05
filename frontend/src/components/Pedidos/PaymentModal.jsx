@@ -142,7 +142,10 @@ const PaymentModal = ({
         } else {
             const mañana = new Date();
             mañana.setDate(mañana.getDate() + 1);
-            setFechaEntrega(mañana.toISOString().split('T')[0]);
+            const y = mañana.getFullYear();
+            const m = String(mañana.getMonth() + 1).padStart(2, '0');
+            const d = String(mañana.getDate()).padStart(2, '0');
+            setFechaEntrega(`${y}-${m}-${d}`);
         }
     }, [date]);
 
@@ -173,7 +176,10 @@ const PaymentModal = ({
         } else {
             const mañana = new Date();
             mañana.setDate(mañana.getDate() + 1);
-            setFechaEntrega(mañana.toISOString().split('T')[0]);
+            const y = mañana.getFullYear();
+            const m = String(mañana.getMonth() + 1).padStart(2, '0');
+            const d = String(mañana.getDate()).padStart(2, '0');
+            setFechaEntrega(`${y}-${m}-${d}`);
         }
         setNota("");
         setTipoRemision("ENTREGA");

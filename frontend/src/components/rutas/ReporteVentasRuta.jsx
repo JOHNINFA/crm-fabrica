@@ -24,6 +24,9 @@ const ReporteVentasRuta = () => {
     const [showAnuladasModal, setShowAnuladasModal] = useState(false);
     const [ventasAnuladas, setVentasAnuladas] = useState([]);
     const [loadingAnuladas, setLoadingAnuladas] = useState(false);
+    const [controlStock, setControlStock] = useState(null);
+    const [loadingControlStock, setLoadingControlStock] = useState(false);
+    const [showControlStockModal, setShowControlStockModal] = useState(false);
 
     // ========== ESTADOS PESTAÑA CLIENTES ==========
     const [rutas, setRutas] = useState([]);
@@ -101,6 +104,9 @@ const ReporteVentasRuta = () => {
             const ventasValidas = Array.isArray(data) ? data.filter(v => v.estado !== 'ANULADA') : [];
             setVentas(ventasValidas);
 
+            // 🆕 Mantener actualizado el conteo de anuladas del filtro actual
+            await cargarAnuladas(false);
+
 
             // 🆕 Cargar pedidos entregados del día
             const vendedorObj = filtros.vendedor_id
@@ -112,8 +118,10 @@ const ReporteVentasRuta = () => {
     };
 
     // 🆕 Cargar ventas anuladas
-    const cargarAnuladas = async () => {
-        setLoadingAnuladas(true);
+    const cargarAnuladas = async (mostrarSpinner = true) => {
+        if (mostrarSpinner) {
+            setLoadingAnuladas(true);
+        }
         try {
             const API_URL = process.env.REACT_APP_API_URL || '/api';
             let url = `${API_URL}/ventas-ruta/?estado=ANULADA`;
@@ -127,12 +135,100 @@ const ReporteVentasRuta = () => {
                 setVentasAnuladas(anuladas);
             }
         } catch (e) { console.error(e); }
-        finally { setLoadingAnuladas(false); }
+        finally {
+            if (mostrarSpinner) {
+                setLoadingAnuladas(false);
+            }
+        }
     };
 
     const abrirModalAnuladas = () => {
         setShowAnuladasModal(true);
-        cargarAnuladas();
+        cargarAnuladas(true);
+    };
+
+    const abrirModalControlStock = async () => {
+        if (!filtros.vendedor_id) {
+            return;
+        }
+        setShowControlStockModal(true);
+        await cargarControlStock();
+    };
+
+    const cargarControlStock = async () => {
+        if (!filtros.vendedor_id) {
+            setControlStock(null);
+            return;
+        }
+
+        setLoadingControlStock(true);
+        try {
+            const data = await rutasService.obtenerControlStockRuta(filtros.vendedor_id, filtros.fecha);
+            setControlStock(data);
+        } catch (err) {
+            console.error('Error cargando control de stock:', err);
+            setControlStock({
+                id_vendedor: filtros.vendedor_id,
+                fecha: filtros.fecha,
+                productos: [],
+                totales: {
+                    salio_con: 0,
+                    vendidas: 0,
+                    vencidas: 0,
+                    saldo_teorico: 0,
+                    devoluciones: 0,
+                },
+                mensaje: 'No fue posible cargar el control de stock.',
+            });
+        } finally {
+            setLoadingControlStock(false);
+        }
+    };
+
+    const obtenerEtiquetaEstadoStock = (item) => {
+        if (!item) {
+            return { label: 'Sin datos', className: 'badge bg-secondary-subtle text-secondary border' };
+        }
+
+        if (item.saldo_teorico < 0) {
+            return {
+                label: `Sobre reportado ${Math.abs(item.saldo_teorico)}`,
+                className: 'badge bg-danger-subtle text-danger border border-danger-subtle'
+            };
+        }
+
+        if (item.devoluciones > 0 && item.diferencia_cierre === 0) {
+            return {
+                label: 'Cierre OK',
+                className: 'badge bg-success-subtle text-success border border-success-subtle'
+            };
+        }
+
+        if (item.devoluciones > 0 && item.diferencia_cierre !== 0) {
+            return {
+                label: `Descuadre ${Math.abs(item.diferencia_cierre)}`,
+                className: 'badge bg-warning-subtle text-warning border border-warning-subtle'
+            };
+        }
+
+        if (item.saldo_teorico === 0) {
+            return {
+                label: 'Agotado',
+                className: 'badge bg-primary-subtle text-primary border border-primary-subtle'
+            };
+        }
+
+        if (item.vendidas > 0 || item.vencidas > 0) {
+            return {
+                label: 'En ruta',
+                className: 'badge bg-info-subtle text-info border border-info-subtle'
+            };
+        }
+
+        return {
+            label: 'Sin movimiento',
+            className: 'badge bg-secondary-subtle text-secondary border border-secondary-subtle'
+        };
     };
 
     // 🆕 Cargar pedidos entregados del día (Lógica Robusta v3)
@@ -666,6 +762,22 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                     Recargar
                                 </Button>
                                 <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    className="fw-bold"
+                                    style={{ fontSize: '0.75rem', borderRadius: '0.5rem' }}
+                                    onClick={abrirModalControlStock}
+                                    disabled={!filtros.vendedor_id || loadingControlStock}
+                                    title={filtros.vendedor_id ? 'Ver control de stock del ID seleccionado' : 'Selecciona un ID para ver el control de stock'}
+                                >
+                                    {loadingControlStock ? (
+                                        <Spinner animation="border" size="sm" className="me-1" />
+                                    ) : (
+                                        <i className="bi bi-box-seam me-1"></i>
+                                    )}
+                                    Stock
+                                </Button>
+                                <Button
                                     variant="outline-danger"
                                     size="sm"
                                     className="fw-bold"
@@ -673,6 +785,11 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                     onClick={abrirModalAnuladas}
                                 >
                                     <i className="bi bi-ban me-1"></i> Anuladas
+                                    {ventasAnuladas.length > 0 && (
+                                        <span className="ms-2 badge bg-danger-subtle text-danger border border-danger-subtle">
+                                            {ventasAnuladas.length}
+                                        </span>
+                                    )}
                                 </Button>
                             </div>
                         </div>
@@ -680,17 +797,48 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                             <Table className="modern-table" hover>
                                 <thead><tr><th>Hora</th><th>Vendedor</th><th>Negocio</th><th>Cliente</th><th>Total</th><th className="text-end">Acciones</th></tr></thead>
                                 <tbody>
-                                    {ventas.map(venta => (
+                                    {(() => {
+                                        // Detectar segunda venta por cliente (mismo vendedor, misma fecha)
+                                        const porCliente = {};
+                                        ventas.forEach(v => {
+                                            const clave = (v.nombre_negocio || v.cliente_nombre || '').trim().toUpperCase();
+                                            if (!clave) return;
+                                            if (!porCliente[clave]) porCliente[clave] = [];
+                                            porCliente[clave].push(v);
+                                        });
+                                        const idsSegundaVenta = new Set();
+                                        Object.values(porCliente).forEach(grupo => {
+                                            if (grupo.length < 2) return;
+                                            const sorted = [...grupo].sort((a, b) =>
+                                                new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
+                                            );
+                                            sorted.slice(1).forEach(v => idsSegundaVenta.add(v.id));
+                                        });
+                                        return ventas.map(venta => {
+                                            const esSegundaVenta = idsSegundaVenta.has(venta.id);
+                                            return (
                                         <tr key={venta.id}>
-                                            <td className="text-muted small">{new Date(venta.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</td>
+                                            <td className="text-muted small">
+                                                {new Date(venta.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                                {venta.editada && venta.fecha_ultima_edicion && (
+                                                    <div style={{ fontSize: '0.7rem', color: '#dc3545', marginTop: 2 }}>
+                                                        Edit: {new Date(venta.fecha_ultima_edicion).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="fw-medium">{venta.vendedor_nombre}</td>
                                             <td>{venta.nombre_negocio || '-'}</td>
                                             <td className="text-muted small">{venta.cliente_nombre}</td>
                                             <td className="fw-bold text-primary ventas-ruta-total-cell">
                                                 <div className="ventas-ruta-total-wrap">
                                                     <span className="ventas-ruta-total-amount">${parseFloat(venta.total).toLocaleString()}</span>
-                                                    {(venta.editada || obtenerTotalVencidasVenta(venta) > 0) && (
+                                                    {(venta.editada || obtenerTotalVencidasVenta(venta) > 0 || esSegundaVenta) && (
                                                         <div className="ventas-ruta-total-badges">
+                                                            {esSegundaVenta && (
+                                                                <span className="badge" style={{ backgroundColor: '#7c3aed', fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
+                                                                    2ª VENTA
+                                                                </span>
+                                                            )}
                                                             {venta.editada && (
                                                                 <span className="badge bg-danger" style={{ fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
                                                                     EDITADA
@@ -710,11 +858,12 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                                 </div>
                                             </td>
                                             <td className="text-end">
-                                                <button className="btn-icon-modern me-1" onClick={() => imprimirTicket(venta)} title="Imprimir Ticket"><i className="bi bi-printer"></i></button>
                                                 <button className="btn-icon-modern text-primary" onClick={() => { setSelectedVenta(venta); setShowModal(true); }} title="Ver Detalle"><i className="bi bi-eye"></i></button>
                                             </td>
                                         </tr>
-                                    ))}
+                                            );
+                                        });
+                                    })()}
                                     {ventas.length === 0 && <tr><td colSpan="6" className="text-center p-5 text-muted fst-italic">No hay ventas registradas para este filtro</td></tr>}
                                 </tbody>
                             </Table>
@@ -759,8 +908,6 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                         </div>
                     </div>
                 </Tab>
-
-
 
                 {/* PESTAÑA HISTORIAL CLIENTE / ANÁLISIS RUTA */}
                 <Tab eventKey="historial" title={<><i className="bi bi-bar-chart-lines me-1"></i> Análisis de Ruta</>}>
@@ -1128,6 +1275,150 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                 </Tab>
             </Tabs>
 
+            {/* MODAL CONTROL DE STOCK */}
+            <Modal show={showControlStockModal} onHide={() => setShowControlStockModal(false)} size="xl" centered dialogClassName="stock-control-modal-dialog" contentClassName="stock-control-modal-content" scrollable>
+                <Modal.Header closeButton>
+                    <Modal.Title>Control de Stock {controlStock?.id_vendedor ? `(${controlStock.id_vendedor})` : ''}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="stock-control-modal-body" style={{ maxHeight: '78vh', overflowY: 'auto' }}>
+                    {!filtros.vendedor_id ? (
+                        <Alert variant="info" className="mb-0">
+                            Selecciona un <strong>ID</strong> en los filtros de `Ventas Ruta` para consultar su control de stock.
+                        </Alert>
+                    ) : (
+                        <>
+                            <div className="stock-control-kpis mb-4">
+                                <div className="stock-control-kpi-card">
+                                    <div className="stock-control-kpi-label">Salió Con</div>
+                                    <div className="stock-control-kpi-value">{(controlStock?.totales?.salio_con || 0).toLocaleString()}</div>
+                                    <div className="stock-control-kpi-note">Unidades iniciales del cargue</div>
+                                </div>
+                                <div className="stock-control-kpi-card">
+                                    <div className="stock-control-kpi-label">Vendidas</div>
+                                    <div className="stock-control-kpi-value text-primary">{(controlStock?.totales?.vendidas || 0).toLocaleString()}</div>
+                                    <div className="stock-control-kpi-note">Reportadas desde la app</div>
+                                </div>
+                                <div className="stock-control-kpi-card">
+                                    <div className="stock-control-kpi-label">Vencidas</div>
+                                    <div className="stock-control-kpi-value text-danger">{(controlStock?.totales?.vencidas || 0).toLocaleString()}</div>
+                                    <div className="stock-control-kpi-note">Registradas al día</div>
+                                </div>
+                                <div className="stock-control-kpi-card">
+                                    <div className={`stock-control-kpi-label ${(controlStock?.totales?.saldo_teorico || 0) < 0 ? 'text-danger' : ''}`}>Saldo Teórico</div>
+                                    <div className={`stock-control-kpi-value ${(controlStock?.totales?.saldo_teorico || 0) < 0 ? 'text-danger' : 'text-success'}`}>
+                                        {(controlStock?.totales?.saldo_teorico || 0).toLocaleString()}
+                                    </div>
+                                    <div className="stock-control-kpi-note">Salió con - vendidas - vencidas</div>
+                                </div>
+                                <div className="stock-control-kpi-card">
+                                    <div className="stock-control-kpi-label">Dev. Físicas</div>
+                                    <div className="stock-control-kpi-value text-secondary">{(controlStock?.totales?.devoluciones || 0).toLocaleString()}</div>
+                                    <div className="stock-control-kpi-note">Solo si el despacho ya cerró</div>
+                                </div>
+                            </div>
+
+                            {controlStock?.mensaje && (
+                                <Alert variant="light" className="border shadow-sm">
+                                    {controlStock.mensaje}
+                                </Alert>
+                            )}
+
+                            <div className="modern-card mb-0">
+                                <div className="modern-card-header">
+                                    <div className="modern-card-title">
+                                        <span className="kpi-icon-wrapper bg-light text-primary me-2 border" style={{ width: '2.5rem', height: '2.5rem' }}><i className="bi bi-box-seam"></i></span>
+                                        Detalle por Producto
+                                    </div>
+                                    <div className="d-flex gap-2 align-items-center">
+                                        {controlStock?.cerrado ? (
+                                            <span className="badge bg-success-subtle text-success border border-success-subtle">Con devoluciones registradas</span>
+                                        ) : (
+                                            <span className="badge bg-info-subtle text-info border border-info-subtle">Monitoreo en ruta</span>
+                                        )}
+                                        <Button
+                                            variant="link"
+                                            className="text-decoration-none text-primary fw-bold small p-0"
+                                            onClick={cargarControlStock}
+                                            disabled={loadingControlStock}
+                                        >
+                                            <i className={`bi bi-arrow-clockwise me-1 ${loadingControlStock ? 'reload-icon-spin' : ''}`}></i>
+                                            Recargar
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="table-responsive stock-control-table-wrap">
+                                    <Table className="modern-table stock-control-table" hover>
+                                        <thead>
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th className="text-end">Salió Con</th>
+                                                <th className="text-end">Vendidas</th>
+                                                <th className="text-end">Vencidas</th>
+                                                <th className="text-end">Saldo Teórico</th>
+                                                <th className="text-end">Dev. Fís.</th>
+                                                <th className="text-center">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {loadingControlStock ? (
+                                                <tr>
+                                                    <td colSpan="7" className="text-center p-5 text-muted">
+                                                        <Spinner animation="border" size="sm" className="me-2" />
+                                                        Cargando control de stock...
+                                                    </td>
+                                                </tr>
+                                            ) : controlStock?.productos?.length > 0 ? (
+                                                <>
+                                                    {controlStock.productos.map((item) => {
+                                                        const estado = obtenerEtiquetaEstadoStock(item);
+                                                        return (
+                                                            <tr key={item.producto}>
+                                                                <td className="fw-medium text-dark">{item.producto}</td>
+                                                                <td className="text-end fw-bold">{item.salio_con.toLocaleString()}</td>
+                                                                <td className="text-end text-primary fw-bold">{item.vendidas.toLocaleString()}</td>
+                                                                <td className="text-end text-danger fw-bold">{item.vencidas.toLocaleString()}</td>
+                                                                <td className={`text-end fw-bold ${item.saldo_teorico < 0 ? 'text-danger' : 'text-dark'}`}>
+                                                                    {item.saldo_teorico.toLocaleString()}
+                                                                </td>
+                                                                <td className="text-end fw-bold text-secondary">{item.devoluciones.toLocaleString()}</td>
+                                                                <td className="text-center">
+                                                                    <span className={estado.className} style={{ fontSize: '0.7rem' }}>
+                                                                        {estado.label}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                    <tr className="stock-control-total-row">
+                                                        <td className="fw-bold text-uppercase">Totales</td>
+                                                        <td className="text-end fw-bold">{(controlStock?.totales?.salio_con || 0).toLocaleString()}</td>
+                                                        <td className="text-end fw-bold text-primary">{(controlStock?.totales?.vendidas || 0).toLocaleString()}</td>
+                                                        <td className="text-end fw-bold text-danger">{(controlStock?.totales?.vencidas || 0).toLocaleString()}</td>
+                                                        <td className={`text-end fw-bold ${(controlStock?.totales?.saldo_teorico || 0) < 0 ? 'text-danger' : 'text-success'}`}>
+                                                            {(controlStock?.totales?.saldo_teorico || 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="text-end fw-bold text-secondary">{(controlStock?.totales?.devoluciones || 0).toLocaleString()}</td>
+                                                        <td className="text-center text-muted small">Resumen</td>
+                                                    </tr>
+                                                </>
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="7" className="text-center p-5 text-muted fst-italic">
+                                                        No hay productos de cargue para este ID y fecha.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowControlStockModal(false)}>Cerrar</Button>
+                </Modal.Footer>
+            </Modal>
 
             {/* MODAL DETALLE VENTA */}
             <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" scrollable>
@@ -1146,6 +1437,11 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                 <Col><strong>Cliente:</strong> {selectedVenta.cliente_nombre}</Col>
                                 <Col><strong>Vendedor:</strong> {selectedVenta.vendedor_nombre}</Col>
                                 <Col><strong>Fecha:</strong> {new Date(selectedVenta.fecha).toLocaleString()}</Col>
+                            </Row>
+                            <Row className="mb-3">
+                                <Col>
+                                    <strong>Ticket:</strong> #{selectedVenta.id}
+                                </Col>
                             </Row>
                             <Table striped bordered size="sm">
                                 <thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead>
@@ -1180,7 +1476,6 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                             ))}
                                         </tbody>
                                     </Table>
-
                                     {/* Evidencia General de Vencidos */}
                                     {selectedVenta.foto_vencidos && (
                                         <div className="mt-3 p-3 bg-light border rounded">
@@ -1209,11 +1504,6 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                     )}
                 </Modal.Body>
                 <Modal.Footer>
-                    {selectedVenta?.estado !== 'ANULADA' && (
-                        <Button variant="success" onClick={() => imprimirTicket(selectedVenta)}>
-                            <i className="bi bi-printer me-1"></i> Imprimir Ticket
-                        </Button>
-                    )}
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Cerrar</Button>
                 </Modal.Footer>
             </Modal>
