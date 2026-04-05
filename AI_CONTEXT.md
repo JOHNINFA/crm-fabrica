@@ -5931,6 +5931,91 @@ El Dashboard ahora funciona con ambos campos: si `asignado_a_id` existe lo usa d
 
 ---
 
+## Sesión 2026-04-05 (continuación) — Fixes APK: alertas edición + race conditions
+
+### Fix 1: Alerta cuando edición falla permanentemente
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `sincronizarPendientesAutomatico` (~línea 646)
+
+**Problema:** Si el backend rechazaba una edición (cualquier error permanente), la venta quedaba marcada como `requiere_revision=true` y era removida de la cola **silenciosamente**. El usuario no recibía ningún aviso.
+
+**Fix:** Después de sincronizar, se detectan items con `requiere_revision=true` y se muestra un Alert con el cliente afectado y el motivo del error. Al presionar "Entendido", se llama `descartarVentaEnRevision(id)` para limpiar la cola.
+
+```javascript
+const enRevision = pendientesDespues.filter(v => v?.requiere_revision === true);
+if (enRevision.length > 0) {
+    // ... clasifica motivo (conflicto edición, stock insuficiente, otro)
+    Alert.alert('⚠️ Edición no guardada', `... ${filas} ...`, [{
+        text: 'Entendido',
+        onPress: async () => {
+            for (const v of enRevision) {
+                await descartarVentaEnRevision(id);
+            }
+        }
+    }]);
+}
+```
+
+---
+
+### Fix 2: Race condition en anulación — historial muestra venta activa tras anular
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — bloque `finally` de anulación (~línea 3455)
+
+**Problema:** El bloque `finally` llamaba `cargarHistorialReimpresion()` inmediatamente después de anular. Esto recargaba el historial desde el backend antes de que el backend procesara la anulación, sobreescribiendo el estado `ANULADA` que `marcarAnulada` ya había aplicado localmente.
+
+**Fix:** Eliminar `cargarHistorialReimpresion()` del `finally`. La función `marcarAnulada` ya actualiza el estado local correctamente — no es necesario recargar desde backend.
+
+```javascript
+// Antes (causaba race condition):
+} finally {
+    setCargandoAnulacion(false);
+    try { cargarHistorialReimpresion(); } catch (_) { }
+}
+
+// Después (fix):
+} finally {
+    setCargandoAnulacion(false);
+    // marcarAnulada ya actualizó el estado local — no recargar aquí.
+}
+```
+
+---
+
+### Fix 3: Flash de stock incorrecto al hacer venta (doble deducción temporal)
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `confirmarVenta` (~línea 4805)
+
+**Síntoma:** Al hacer una venta, el stock bajaba al número correcto (ej. 7→6), pero por un momento breve mostraba un valor incorrecto (5) antes de volver al correcto (6).
+
+**Causa — race condition:**
+```
+1. confirmarVenta: setStockCargue(6)  ← correcto
+2. Auto-sync: envía venta al backend → backend descuenta → stock backend = 6
+3. refrescarStockSilencioso se dispara:
+   - Carga stock del backend = 6
+   - reconciliarStockConVentasLocales ve la venta con sincronizada=false (aún no actualizado)
+   - Descuenta de nuevo: 6 - 1 = 5  ← incorrecto (doble deducción)
+4. Cuando sincronizada se actualiza a true → próximo refresh vuelve a 6
+```
+
+**Fix:** Agregar `bloqueoRefreshStockHastaRef.current = Date.now() + 30 * 1000` antes de `setStockCargue` en `confirmarVenta`. Esto bloquea `refrescarStockSilencioso` por 30 segundos — tiempo suficiente para que la venta quede marcada como `sincronizada=true`.
+
+El mismo mecanismo ya existía para ediciones (línea 3070), solo faltaba aplicarlo a ventas nuevas.
+
+---
+
+### Estado de bugs anteriores (actualizados)
+
+- **Bug historial reimpresión tras anulación** → **RESUELTO** con Fix 2 (arriba)
+- **Bug edición silenciosa sin alerta** → **RESUELTO** con Fix 1 (arriba)
+- **Bug flash stock incorrecto** → **RESUELTO** con Fix 3 (arriba) — detectado en pruebas APK segunda ronda
+
+**Archivos modificados (solo APK):** `AP GUERRERO/components/Ventas/VentasScreen.js`
+**Backend/Frontend web:** sin cambios
+
+---
+
 ## Bug Pendiente — Historial reimpresión no se actualiza al anular venta editada (APK)
 
 **Detectado:** 5 de Abril de 2026 en pruebas APK
