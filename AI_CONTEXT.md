@@ -5776,3 +5776,211 @@ Al abrir el teclado en el modal de vencidas, los botones del footer quedaban deb
 - `minWidth: 520px` + `overflowX: auto` — scroll horizontal en pantallas pequeñas
 - `whiteSpace: nowrap` en columnas de datos
 
+---
+
+## Sesión 2026-04-05 — Backfill asignado_a_id + Dashboard filtro vendedor
+
+### Contexto
+El Dashboard de Reportes Avanzados mostraba `TOTAL PEDIDOS: $0` para todos los vendedores. Causa: todos los pedidos históricos tienen `asignado_a_id = null` porque el sistema siempre usó el campo `vendedor` (texto/nombre) en lugar de un ID explícito.
+
+---
+
+### Fix: Dashboard — TOTAL PEDIDOS $0 por asignado_a_id null
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+
+**Problema:** El filtro de pedidos por vendedor usaba solo `p.asignado_a_id === idSheet`. Como todos los pedidos históricos tienen `asignado_a_id = null`, el resultado siempre era 0.
+
+**Fix — filtro con fallback por nombre:**
+
+1. Se agregó fetch a `/api/vendedores-cargue/` para obtener el mapa `ID → nombre`:
+```javascript
+const resV = await fetch(`${API_URL}/api/vendedores-cargue/`);
+const vendedoresArr = await resV.json();
+const nombrePorId = {};
+vendedoresArr.forEach(v => {
+    nombrePorId[v.id] = v.nombre.trim().toUpperCase();
+});
+```
+
+2. Filtro de pedidos ahora usa nombre como fallback:
+```javascript
+const nombreVendedorId = nombrePorId[idSheet] || '';
+const pedidosID = pedidosData.filter(p => {
+    if (p.estado === 'ANULADA') return false;
+    if (p.asignado_a_id && p.asignado_a_id === idSheet) return true;
+    if (nombreVendedorId && p.vendedor &&
+        p.vendedor.trim().toUpperCase() === nombreVendedorId) return true;
+    return false;
+});
+```
+
+**Endpoint usado:** `GET /api/vendedores-cargue/` — ya existía, retorna `[{id: "ID1", nombre: "JHONATHAN ONOFRE"}, ...]`
+
+---
+
+### Fix backend: serializers.py — auto-fill asignado_a_id al crear pedido
+
+**Archivo:** `api/serializers.py` — `PedidoSerializer.create()`
+
+**Problema:** Nuevos pedidos creados desde la web también quedaban con `asignado_a_id = null`.
+
+**Fix:** Auto-fill automático al crear pedido si viene `vendedor` (nombre) pero no `asignado_a_id`:
+```python
+if not validated_data.get('asignado_a_id') and validated_data.get('vendedor'):
+    try:
+        from .models import Vendedor as VendedorModel
+        nombre_vendedor = str(validated_data['vendedor']).strip().lower()
+        vendedor_obj = VendedorModel.objects.filter(
+            activo=True, nombre__iexact=nombre_vendedor
+        ).first()
+        if vendedor_obj:
+            validated_data['asignado_a_id'] = vendedor_obj.id_vendedor
+            validated_data['asignado_a_tipo'] = 'VENDEDOR'
+    except Exception:
+        pass
+```
+
+**Resultado:** Pedidos nuevos ya quedan con `asignado_a_id` correcto desde el momento de creación.
+
+---
+
+### Script: Backfill asignado_a_id en pedidos históricos
+
+**Archivo:** `api/management/commands/backfill_asignado_a_id.py` (nuevo)
+
+**Propósito:** Rellena `asignado_a_id` en los 2394 pedidos históricos que tienen `vendedor` (nombre) pero `asignado_a_id = null`.
+
+**Uso:**
+```bash
+# Simulación (no guarda)
+python manage.py backfill_asignado_a_id
+
+# Aplicar cambios reales
+python manage.py backfill_asignado_a_id --apply
+```
+
+**Lógica:** Construye mapa `nombre_lower → id_vendedor` con vendedores activos. Para cada pedido sin `asignado_a_id`, busca por nombre normalizado (strip + lower).
+
+**Resultado en VPS (2026-04-05):**
+```
+✅ Actualizados: 2391 | Sin match: 3 | Total: 2394
+```
+Los 3 sin match corresponden a vendedores inactivos/viejos (WILSON, CARLOS) — esos pedidos permanecen con `asignado_a_id = null` sin impacto operativo.
+
+**Comando ejecutado en VPS:**
+```bash
+docker exec crm_backend_prod python manage.py backfill_asignado_a_id --apply
+```
+
+---
+
+### Despliegue VPS — Sincronización después de divergencia
+
+**Problema:** El VPS tenía 1 commit extra (`626e62b` = cherry-pick de `8043d8e` que ya estaba en main). Esto causaba que `git pull` fallara por historias divergentes.
+
+**Solución aplicada:**
+```bash
+# En VPS
+git reset --hard origin/main  # seguro: solo código, sin datos de BD
+git pull origin main           # ya no hay divergencia
+```
+
+**Comandos completos de despliegue usados:**
+```bash
+cd ~/crm-fabrica
+git reset --hard origin/main
+git pull origin main
+docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d --no-deps backend
+docker exec crm_backend_prod python manage.py migrate
+docker compose -f docker-compose.prod.yml build frontend
+docker compose -f docker-compose.prod.yml up -d --no-deps frontend
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+**Migraciones aplicadas:**
+- `0101_add_verificado_despachador_pedido`
+- `0102_add_fecha_ultima_edicion_venta_ruta`
+
+---
+
+### AP GUERRERO — Modo PROD para APK
+
+**Archivo:** `AP GUERRERO/config.js`
+
+**Cambio:** `ENV = 'DEV'` → `ENV = 'PROD'`
+
+**Propósito:** La app ahora apunta a `https://aglogistics.tech` en vez de la IP local. Necesario para generar el APK de distribución.
+
+**Para volver a DEV:** cambiar `ENV = 'PROD'` → `ENV = 'DEV'` antes de probar en local con el servidor local corriendo.
+
+---
+
+### Reglas de negocio confirmadas (asignado_a_id)
+
+| Campo | Descripción |
+|-------|-------------|
+| `vendedor` | Texto/nombre del vendedor (ej: "JAVIER TIBAVIJA") — campo legacy siempre presente |
+| `asignado_a_id` | ID del vendedor (ej: "ID2") — antes siempre null, ahora se llena automáticamente |
+| `asignado_a_tipo` | Siempre "VENDEDOR" cuando se llena |
+
+El Dashboard ahora funciona con ambos campos: si `asignado_a_id` existe lo usa directamente; si es null usa el nombre del campo `vendedor` como fallback.
+
+**Fecha de implementación:** 5 de Abril de 2026
+
+---
+
+## Bug Pendiente — Historial reimpresión no se actualiza al anular venta editada (APK)
+
+**Detectado:** 5 de Abril de 2026 en pruebas APK
+
+**Síntoma:** Al anular una venta que previamente fue editada (`EDITADA x1`), la anulación funciona correctamente (stock devuelto, total en $0, backend actualizado), pero el modal de reimpresión (🧾 historial) sigue mostrando la venta como activa. Solo al salir de Ventas y volver a entrar el historial muestra la venta como anulada.
+
+**Causa probable:** La venta editada tiene IDs mezclados (ID local + ID backend). El cross-matching de `marcarAnuladaUI` (fix 2026-04-03) cubre casos normales pero puede no cubrir el caso específico de venta editada antes de ser anulada.
+
+**Workaround actual:** Salir y re-entrar a Ventas — muestra el estado correcto sin pérdida de datos.
+
+**Requiere modificación:** APK + backend (coordinar nuevo build y despliegue).
+
+**Archivos a revisar:**
+- `AP GUERRERO/components/Ventas/VentasScreen.js` — funciones `marcarAnuladaUI`, `marcarAnulada`, `abrirHistorialReimpresion`
+
+**Estado:** Pendiente para próxima sesión de desarrollo.
+
+---
+
+## Bug Crítico Pendiente — Edición de venta falla silenciosamente sin notificar al usuario (APK)
+
+**Detectado:** 5 de Abril de 2026 en pruebas APK
+
+**Síntoma:** El usuario edita una venta con buena señal 4G. La app muestra localmente "EDITADA x1" y el nuevo total. Sin embargo:
+- No aparece banner naranja de pendientes
+- Al salir y volver a entrar a Ventas, la venta regresa a su estado original sin editar
+- El backend nunca recibió la edición actualizada
+- El usuario no recibió ningún aviso de error
+
+**Causa raíz:** El PATCH al backend fue rechazado (posiblemente `STOCK_CARGUE_INSUFICIENTE`, `VENTA_YA_MODIFICADA` u otro error 400/500). La función `esErrorPermanenteDeSincronizacion` en `ventasService.js` detectó el error como permanente, lo removió de la cola **silenciosamente** y no notificó al usuario. El estado local se actualizó pero no se persistió en AsyncStorage → al recargar, la app vuelve al estado del backend (original).
+
+**Flujo del bug:**
+```
+Usuario edita venta → PATCH enviado → Backend rechaza (error permanente)
+→ ventasService marca como requiere_revision → remueve de cola
+→ SIN alerta al usuario
+→ Usuario sale/entra → app recarga desde backend → edición perdida
+```
+
+**Fix requerido (APK + backend):**
+- `AP GUERRERO/services/ventasService.js`: cuando `esErrorPermanenteDeSincronizacion` se activa para una **edición**, emitir evento o guardar flag en AsyncStorage con el error
+- `AP GUERRERO/components/Ventas/VentasScreen.js`: leer ese flag al recargar y mostrar alerta: *"La edición de [venta] no pudo guardarse: [motivo]. La venta quedó con sus valores originales."*
+- Investigar qué error específico retorna el backend para esta edición (revisar logs del VPS)
+
+**Prioridad:** Alta — el usuario pierde ediciones sin saberlo.
+
+**Requiere modificación:** APK + posible ajuste backend.
+
+**Archivos a revisar:**
+- `AP GUERRERO/services/ventasService.js` — función `esErrorPermanenteDeSincronizacion` y manejo de ediciones
+- `AP GUERRERO/components/Ventas/VentasScreen.js` — flujo post-sincronización de ediciones
+- `api/views.py` — logs del endpoint PATCH para identificar el error exacto
+
