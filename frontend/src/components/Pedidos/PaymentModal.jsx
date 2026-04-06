@@ -247,6 +247,7 @@ const PaymentModal = ({
                 nota: nota,
                 detalles: cart.map(item => ({
                     producto: item.id,
+                    producto_nombre: item.name || item.nombre || '',
                     cantidad: item.qty,
                     precio_unitario: parseFloat(item.price)
                 }))

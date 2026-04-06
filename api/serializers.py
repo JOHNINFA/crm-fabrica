@@ -713,11 +713,32 @@ class PedidoSerializer(serializers.ModelSerializer):
             print(f"⚡ Afectar inventario inmediato: {'SÍ' if pedido.afectar_inventario_inmediato else 'NO'}")
             
             # ===== 2. CREAR LOS DETALLES =====
-            # ===== 2. CREAR LOS DETALLES =====
+            from .models import Producto as ProductoModel
             for detalle_data in detalles_data:
+                producto_id = detalle_data.get('producto')
+                producto_nombre = detalle_data.get('producto_nombre', '')
+
+                # Verificar que el producto existe por ID
+                if not ProductoModel.objects.filter(id=producto_id).exists():
+                    print(f"⚠️ producto_id={producto_id} no existe en BD. Intentando resolver por nombre: '{producto_nombre}'")
+                    # Fallback: buscar por nombre exacto o parcial
+                    if producto_nombre:
+                        producto_obj = ProductoModel.objects.filter(
+                            nombre__iexact=producto_nombre.strip()
+                        ).first()
+                        if producto_obj:
+                            producto_id = producto_obj.id
+                            print(f"✅ Resuelto por nombre: {producto_obj.nombre} → ID {producto_id}")
+                        else:
+                            print(f"❌ No encontrado por nombre '{producto_nombre}', omitiendo detalle.")
+                            continue
+                    else:
+                        print(f"❌ Sin nombre para fallback, omitiendo detalle con producto_id={producto_id}.")
+                        continue
+
                 DetallePedido.objects.create(
                     pedido=pedido,
-                    producto_id=detalle_data['producto'],
+                    producto_id=producto_id,
                     cantidad=detalle_data['cantidad'],
                     precio_unitario=detalle_data['precio_unitario']
                 )
