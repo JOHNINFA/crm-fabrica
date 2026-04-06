@@ -793,9 +793,26 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                 </Button>
                             </div>
                         </div>
-                        <div className="table-responsive">
+                        <div className="table-responsive" style={{ overflowX: 'auto', cursor: 'grab' }} onMouseDown={(e) => {
+                            const ele = e.currentTarget;
+                            ele.style.cursor = 'grabbing';
+                            const startX = e.pageX - ele.offsetLeft;
+                            const scrollLeft = ele.scrollLeft;
+                            const onMouseMove = (e) => {
+                                const x = e.pageX - ele.offsetLeft;
+                                const walk = (x - startX) * 2;
+                                ele.scrollLeft = scrollLeft - walk;
+                            };
+                            const onMouseUp = () => {
+                                ele.style.cursor = 'grab';
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                            };
+                            document.addEventListener('mousemove', onMouseMove);
+                            document.addEventListener('mouseup', onMouseUp);
+                        }}>
                             <Table className="modern-table" hover>
-                                <thead><tr><th>Hora</th><th>Vendedor</th><th>Negocio</th><th>Cliente</th><th>Total</th><th className="text-end">Acciones</th></tr></thead>
+                                <thead><tr><th>Hora</th><th>Vendedor</th><th>Negocio</th><th>Cliente</th><th style={{ minWidth: '140px', maxWidth: '180px' }}>Total</th><th className="text-end" style={{ width: '80px' }}>Acciones</th></tr></thead>
                                 <tbody>
                                     {(() => {
                                         // Detectar segunda venta por cliente (mismo vendedor, misma fecha)
@@ -817,50 +834,50 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                         return ventas.map(venta => {
                                             const esSegundaVenta = idsSegundaVenta.has(venta.id);
                                             return (
-                                        <tr key={venta.id}>
-                                            <td className="text-muted small">
-                                                {new Date(venta.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                                                {venta.editada && venta.fecha_ultima_edicion && (
-                                                    <div style={{ fontSize: '0.7rem', color: '#dc3545', marginTop: 2 }}>
-                                                        Edit: {new Date(venta.fecha_ultima_edicion).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="fw-medium">{venta.vendedor_nombre}</td>
-                                            <td>{venta.nombre_negocio || '-'}</td>
-                                            <td className="text-muted small">{venta.cliente_nombre}</td>
-                                            <td className="fw-bold text-primary ventas-ruta-total-cell">
-                                                <div className="ventas-ruta-total-wrap">
-                                                    <span className="ventas-ruta-total-amount">${parseFloat(venta.total).toLocaleString()}</span>
-                                                    {(venta.editada || obtenerTotalVencidasVenta(venta) > 0 || esSegundaVenta) && (
-                                                        <div className="ventas-ruta-total-badges">
-                                                            {esSegundaVenta && (
-                                                                <span className="badge" style={{ backgroundColor: '#7c3aed', fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
-                                                                    2ª VENTA
-                                                                </span>
-                                                            )}
-                                                            {venta.editada && (
-                                                                <span className="badge bg-danger" style={{ fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
-                                                                    EDITADA
-                                                                </span>
-                                                            )}
-                                                            {obtenerTotalVencidasVenta(venta) > 0 && (
-                                                                <span
-                                                                    className="badge-modern badge-warning-modern border"
-                                                                    title={`Esta venta reporto ${obtenerTotalVencidasVenta(venta)} unidad(es) vencidas`}
-                                                                    style={{ fontSize: '0.55rem', padding: '0.18rem 0.42rem' }}
-                                                                >
-                                                                    VENCIDAS {obtenerTotalVencidasVenta(venta)}
-                                                                </span>
+                                                <tr key={venta.id}>
+                                                    <td className="text-muted small">
+                                                        {new Date(venta.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                                        {venta.editada && venta.fecha_ultima_edicion && (
+                                                            <div style={{ fontSize: '0.7rem', color: '#dc3545', marginTop: 2 }}>
+                                                                Edit: {new Date(venta.fecha_ultima_edicion).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="fw-medium">{venta.vendedor_nombre}</td>
+                                                    <td>{venta.nombre_negocio || '-'}</td>
+                                                    <td className="text-muted small">{venta.cliente_nombre}</td>
+                                                    <td className="fw-bold text-primary ventas-ruta-total-cell">
+                                                        <div className="ventas-ruta-total-wrap">
+                                                            <span className="ventas-ruta-total-amount">${parseFloat(venta.total).toLocaleString()}</span>
+                                                            {(venta.editada || obtenerTotalVencidasVenta(venta) > 0 || esSegundaVenta) && (
+                                                                <div className="ventas-ruta-total-badges">
+                                                                    {esSegundaVenta && (
+                                                                        <span className="badge" style={{ backgroundColor: '#7c3aed', fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
+                                                                            2ª VENTA
+                                                                        </span>
+                                                                    )}
+                                                                    {venta.editada && (
+                                                                        <span className="badge bg-danger" style={{ fontSize: '0.55rem', padding: '0.18rem 0.38rem' }}>
+                                                                            EDITADA
+                                                                        </span>
+                                                                    )}
+                                                                    {obtenerTotalVencidasVenta(venta) > 0 && (
+                                                                        <span
+                                                                            className="badge-modern badge-warning-modern border"
+                                                                            title={`Esta venta reporto ${obtenerTotalVencidasVenta(venta)} unidad(es) vencidas`}
+                                                                            style={{ fontSize: '0.55rem', padding: '0.18rem 0.42rem' }}
+                                                                        >
+                                                                            VENCIDAS {obtenerTotalVencidasVenta(venta)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="text-end">
-                                                <button className="btn-icon-modern text-primary" onClick={() => { setSelectedVenta(venta); setShowModal(true); }} title="Ver Detalle"><i className="bi bi-eye"></i></button>
-                                            </td>
-                                        </tr>
+                                                    </td>
+                                                    <td className="text-end" style={{ width: '80px', padding: '0.5rem' }}>
+                                                        <button className="btn-icon-modern text-primary" onClick={() => { setSelectedVenta(venta); setShowModal(true); }} title="Ver Detalle"><i className="bi bi-eye"></i></button>
+                                                    </td>
+                                                </tr>
                                             );
                                         });
                                     })()}
