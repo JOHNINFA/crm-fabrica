@@ -250,7 +250,7 @@ const ListaClientesScreen = () => {
                                   )}
                                 </div>
                               </td>
-                              <td>
+                              <td style={{ maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 <div>
                                   {cliente.telefono_1 && (
                                     <div>{cliente.telefono_1}</div>
@@ -262,7 +262,7 @@ const ListaClientesScreen = () => {
                                   )}
                                 </div>
                               </td>
-                              <td style={{ maxWidth: '160px' }}>
+                              <td style={{ minWidth: '180px', maxWidth: '200px' }}>
                                 {cliente.dia_entrega ? (
                                   <span style={{ color: '#06386d', fontSize: '0.85rem' }}>
                                     {cliente.dia_entrega.split(',').map(dia => {
@@ -275,7 +275,7 @@ const ListaClientesScreen = () => {
                                   <span className="text-muted">-</span>
                                 )}
                               </td>
-                              <td>{cliente.ciudad || '-'}</td>
+                              <td style={{ minWidth: '100px' }}>{cliente.ciudad || '-'}</td>
                               <td>
                                 <span className={`badge ${cliente.activo ? 'bg-success' : 'bg-secondary'}`}>
                                   {cliente.activo ? 'Activo' : 'Inactivo'}
