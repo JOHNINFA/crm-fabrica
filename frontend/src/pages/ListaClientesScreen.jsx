@@ -262,12 +262,14 @@ const ListaClientesScreen = () => {
                                   )}
                                 </div>
                               </td>
-                              <td>
+                              <td style={{ maxWidth: '160px' }}>
                                 {cliente.dia_entrega ? (
                                   <span style={{ color: '#06386d', fontSize: '0.85rem' }}>
-                                    {cliente.dia_entrega.split(',').map(dia =>
-                                      dia.trim().charAt(0).toUpperCase() + dia.trim().slice(1).toLowerCase()
-                                    ).join(', ')}
+                                    {cliente.dia_entrega.split(',').map(dia => {
+                                      const d = dia.trim().toLowerCase();
+                                      const abrev = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', miércoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb', sábado: 'Sáb', domingo: 'Dom' };
+                                      return abrev[d] || dia.trim().charAt(0).toUpperCase() + dia.trim().slice(1).toLowerCase();
+                                    }).join(', ')}
                                   </span>
                                 ) : (
                                   <span className="text-muted">-</span>
