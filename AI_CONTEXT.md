@@ -6100,3 +6100,347 @@ Usuario edita venta → PATCH enviado → Backend rechaza (error permanente)
 - `AP GUERRERO/components/Ventas/VentasScreen.js` — flujo post-sincronización de ediciones
 - `api/views.py` — logs del endpoint PATCH para identificar el error exacto
 
+---
+
+## Sesión 2026-04-05/06 — Fixes edición ventas app móvil + UX stock + scroll clientes
+
+### Fix 1: Error de edición sin internet — no marca permanente si es falla de red
+
+**Archivos:** `AP GUERRERO/services/ventasService.js`
+
+**Problema:** `_esEdicion ? true` marcaba TODO error de edición como permanente (`requiere_revision`), incluyendo errores de red. Sin internet, la edición se marcaba como revisión → el usuario descartaba → edición perdida.
+
+**Fix:**
+```javascript
+const hayRespuestaServidor = error?.status != null || resultadoEnvio?.status != null;
+const errorPermanente = _esEdicion
+    ? hayRespuestaServidor  // solo permanente si el servidor rechazó explícitamente
+    : esErrorPermanenteDeSincronizacion(resultadoEnvio, error);
+```
+- Error de red (sin status HTTP) → reintentable → queda en cola para cuando vuelva señal
+- Error del servidor (400/409) → permanente → alerta al usuario
+
+---
+
+### Fix 2: foto_vencidos nunca se incluía en el reintento de edición desde cola
+
+**Archivo:** `AP GUERRERO/services/ventasService.js`
+
+**Problema:** El check `String(ventaNormalizada.foto_vencidos).startsWith('data:')` siempre daba `false` porque `foto_vencidos` es un objeto `{productoId: [uri]}`, no string. `String({...})` = `"[object Object]"`.
+
+**Fix:**
+```javascript
+if (ventaNormalizada.foto_vencidos &&
+    typeof ventaNormalizada.foto_vencidos === 'object' &&
+    Object.keys(ventaNormalizada.foto_vencidos).length > 0) {
+    payloadEdicionClean.foto_vencidos = ventaNormalizada.foto_vencidos;
+}
+```
+
+---
+
+### Fix 3: editarVentaRuta — timeout reducido + soporte FormData para fotos
+
+**Archivo:** `AP GUERRERO/services/rutasApiService.js`
+
+**Problema:** `editarVentaRuta` siempre usaba JSON con timeout de 30s. Con foto nueva en edición: JSON con base64 de 2-4MB → timeout o rechazo. Las ventas nuevas con foto funcionaban porque `enviarVentaRuta` usaba FormData con archivos reales.
+
+**Fix — misma lógica que `enviarVentaRuta`:**
+- Detecta si `foto_vencidos` tiene URIs de archivo (`file:///`, no `data:`)
+- Si sí → **FormData** con archivos reales adjuntos + timeout 25s
+- Si no → **JSON** + timeout 10s (fallo rápido, alert en ~10s)
+
+```javascript
+const hayFotosArchivo = hayFotos && Object.values(datosActualizados.foto_vencidos).some((fotosProducto) =>
+    Array.isArray(fotosProducto) &&
+    fotosProducto.some((foto) => typeof foto === 'string' && !foto.startsWith('data:'))
+);
+const timeoutMs = hayFotosArchivo ? 25000 : 10000;
+```
+
+---
+
+### Fix 4: Promise.race en edición — 6s insuficiente para subir foto
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema:** El `Promise.race` de 6s en `confirmarEdicionVenta` cancelaba la subida de foto antes de completar. Las ventas nuevas con foto no tenían este límite (se subían en background con 25s). En edición, la foto siempre fallaba el intento directo → iba a cola → cola con JSON base64 grande → también fallaba.
+
+**Fix:**
+```javascript
+const hayFotoEnEdicion = Object.keys(fotosLocalesEdicion).length > 0;
+const timeoutRace = hayFotoEnEdicion ? 20000 : 6000;
+await Promise.race([promiseSync, new Promise(resolve => setTimeout(resolve, timeoutRace))]);
+```
+- Con foto: espera 20s (señal lenta tiene margen)
+- Sin foto: 6s (respuesta rápida)
+
+**Nota:** `payloadEdicion.foto_vencidos` ahora pasa URIs directas (no base64) al llamado directo, para que `editarVentaRuta` use FormData. La cola de reintento sigue usando base64 para durabilidad.
+
+---
+
+### Fix 5: Spinner de stock en vez de flash de 0
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema:** Al confirmar venta, el stock mostraba 0 brevemente mientras se procesaba (fórmula `stockCargue - carrito` daba 0 en el instante de transición).
+
+**Fix:** Estado `stockOculto` que dura 1.5 segundos al confirmar venta. Mientras activo, muestra `<ActivityIndicator>` azul en vez del número de stock.
+
+```javascript
+setStockOculto(true);
+setTimeout(() => setStockOculto(false), 1500);
+```
+
+En `renderProducto`:
+```javascript
+{stockOculto
+    ? <ActivityIndicator size="small" color="#1d4ed8" style={{ marginLeft: 8 }} />
+    : <Text style={[styles.stockTextoInline, ...]}>{`  Stock: ${stock}`}</Text>
+}
+```
+
+---
+
+### Fix 6: elevation manija revelar turno — sombra visible en lados
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Problema:** `elevation: 10` en `manijaRevelarTurno` generaba sombra visible en los lados, haciendo que la barrita gris pareciera enmarcada.
+
+**Fix:** `elevation: 10 → elevation: 2` — suficiente para quedar encima del badge flotante sin sombra visible.
+
+---
+
+### Fix 7: Scroll con saltos en lista de clientes
+
+**Archivo:** `AP GUERRERO/components/Ventas/ClienteSelector.js`
+
+**Problema:** `getItemLayout` con `ITEM_HEIGHT_ESTIMADO = 96` asumía altura fija para todos los ítems. Los ítems tienen alturas variables (cliente normal, con pedido pendiente, con pedido entregado, etc.). Cuando la altura real ≠ 96 → FlatList posiciona mal → saltos al scrollear.
+
+**Fix:** Eliminar `getItemLayout`. FlatList mide los ítems solo. Sin saltos, leve impacto en render inicial pero imperceptible con los demás parámetros de optimización (`removeClippedSubviews`, `windowSize`, `maxToRenderPerBatch`).
+
+---
+
+## Sesión 2026-04-06 — Simplificación edición ventas + fix conteo vencidas
+
+### Fix 1: Quitar vencidas del modal de edición
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+
+**Decisión:** Después de múltiples intentos fallidos de hacer que editar + vencidas + foto llegara confiablemente al servidor, se decidió simplificar: el modal de edición solo permite cambiar productos y método de pago. Las vencidas se reportan únicamente desde la venta normal.
+
+**Eliminado:**
+- Estados: `mostrarVencidasEdicion`, `vencidasEdicion`, `fotoVencidasEdicion`
+- Funciones: `normalizarVencidasVentaEdicion`, `normalizarFotosVentaEdicion`, `abrirModalVencidasDesdeEdicion`, `handleGuardarVencidasEdicion`, `obtenerCantidadOriginalVencidaEdicion`, `construirAdvertenciasVencidasEdicion`, `obtenerAdvertenciasStockVencidasEdicion`, `obtenerStockDisponibleVencidaEdicion`, `totalItemsVencidasEdicion`
+- JSX: botón "📷 Adjuntar vencidas" del header del modal de edición, `<DevolucionesVencidas>` de edición
+- Payload: `productos_vencidos` y `foto_vencidos` eliminados de `confirmarEdicionVenta`
+- Timeout race simplificado a 6s fijo
+
+**No tocado:** Flujo de venta normal — vencidas siguen funcionando igual al crear venta nueva.
+
+### Fix 2: Reporte de vencidas (total=0) no cuenta como venta del cliente
+
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `contarVentasActivasCliente`
+
+**Problema:** Al reportar solo vencidas (total=$0), el sistema lo contaba como venta real del cliente. Si luego se hacía la venta real, avisaba "segunda venta" o bloqueaba al llegar al límite de 2.
+
+**Fix:**
+```javascript
+if (parseFloat(venta?.total || 0) === 0) return false; // reporte puro de vencidas, no cuenta como venta
+```
+
+**Resultado:** Reportar vencidas no consume el slot de venta. El cliente sigue disponible para 1ª y 2ª venta normal.
+
+**Commit:** `29ecf22`
+
+---
+
+## Sesión 2026-04-06 — Fix Pedidos VPS (Integridad Referencial)
+
+### Fix 1: Error FK (producto_id) al generar pedido en VPS
+
+**Archivos:** `api/serializers.py`, `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+**Problema:** Al generar pedidos en el VPS, se reportaba el error `Key (producto_id)=(X) is not present in table api_producto`.
+- **Causa:** Clientes migrados desde entornos locales o bases de datos anteriores conservaban listas de "Productos Frecuentes" con IDs obsoletos (ej: ID=1). En el VPS, los productos comienzan desde el ID 17.
+- **Síntoma:** El carrito del frontend cargaba el ID viejo del caché y lo enviaba al servidor, causando una violación de llave foránea (FK IntegrityError).
+
+**Solución aplicada (Plan de Respaldo):**
+1.  **Backend (`PedidoSerializer.create`):** Lógica que verifica si el `producto_id` existe. Si no, intenta resolverlo por **nombre exacto** (`producto_nombre`) y actualiza el ID al correcto del VPS (ej: 1 → 17). 
+2.  **Frontend (`PaymentModal.jsx`):** El payload de `detalles` ahora incluye `producto_nombre` para el fallback del servidor.
+
+**Conclusión:** Crear un **cliente nuevo** directamente en el VPS soluciona el problema de raíz para ese cliente.
+
+**Commit:** `f884dd3`
+
+---
+
+
+---
+
+
+
+---
+
+## 🎨 Fix Tabla Gestión de Clientes - Balance de Columnas (6 Abril 2026)
+
+### Problema Detectado
+
+En el VPS (aglogistics.tech), la tabla de Gestión de Clientes mostraba problemas de distribución de espacio:
+
+1. **Columna "Teléfono"**: Tenía demasiado espacio vacío a los lados
+2. **Columna "Días Visita"**: Estaba muy comprimida (max-width: 160px) y se sobreponía visualmente con la columna "Ciudad"
+3. **Columnas "Estado" y "Acciones"**: Se salían de la pantalla hacia la derecha debido al empuje de las columnas anteriores
+
+**Causa raíz**: Los datos en el VPS tienen textos más largos en "Días Visita" (ej: "Lunes, Miércoles, Jueves, Viernes, Martes, Sábado") comparado con local (ej: "Lunes"), lo que causaba que esa columna empujara las demás fuera de la vista.
+
+### Solución Implementada
+
+Se ajustaron los anchos de las columnas para un mejor balance visual:
+
+**Archivo modificado**: `frontend/src/pages/ListaClientesScreen.jsx`
+
+**Cambios aplicados**:
+
+1. **Columna Teléfono**:
+   - Antes: Sin límite de ancho
+   - Ahora: `maxWidth: '140px'` con `whiteSpace: 'nowrap'`, `overflow: 'hidden'`, `textOverflow: 'ellipsis'`
+   - Resultado: Números largos se cortan con `...` para no ocupar espacio innecesario
+
+2. **Columna Días Visita**:
+   - Antes: `maxWidth: '160px'`
+   - Ahora: `minWidth: '180px'`, `maxWidth: '200px'`
+   - Resultado: Más espacio para mostrar múltiples días sin sobreponerse con Ciudad
+
+3. **Columna Ciudad**:
+   - Antes: Sin límite
+   - Ahora: `minWidth: '100px'`
+   - Resultado: Mantiene un ancho mínimo para no comprimirse demasiado
+
+### Resultado Final
+
+- ✅ Todas las columnas (Identificación, Negocio/Contacto, Teléfono, Días Visita, Ciudad, Estado, Acciones) son visibles sin scroll horizontal
+- ✅ No hay sobreposición entre columnas
+- ✅ El espacio está balanceado según la importancia y longitud típica de cada dato
+- ✅ Los textos largos se manejan con ellipsis (`...`) en lugar de empujar otras columnas
+
+### Commits Relacionados
+
+1. `05b8c81` - "fix: Abreviar días visita en tabla clientes para evitar scroll horizontal" (primer intento)
+2. `9b79cf9` - "fix: Ajustar anchos de columnas en tabla clientes (Teléfono más compacto, Días Visita más espacio)" (solución final)
+
+### Despliegue
+
+```bash
+# En VPS
+cd ~/crm-fabrica
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build frontend
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+**Fecha de implementación**: 6 de Abril de 2026
+
+---
+
+
+---
+
+## 🎯 Fix Tabla Ventas Ruta - Optimización de Columnas y Scroll Horizontal (6 Abril 2026)
+
+### Problema Detectado
+
+En el VPS (aglogistics.tech), la tabla de "Ventas de Ruta (App Móvil)" presentaba problemas de distribución de espacio:
+
+1. **Columna "TOTAL"**: Ocupaba demasiado espacio debido a los badges (EDITADA, VENCIDAS, 2ª VENTA) que se mostraban junto al monto
+2. **Columna "ACCIONES"**: Tenía mucho espacio vacío a pesar de solo contener un ícono de ojo
+3. **Columna "ACCIONES" cortada**: En algunos casos, la columna se salía de la pantalla hacia la derecha
+4. **Sin scroll horizontal**: No había forma de desplazarse horizontalmente con el mouse para ver todas las columnas
+
+### Solución Implementada
+
+Se optimizaron los anchos de las columnas y se agregó funcionalidad de scroll horizontal con el mouse.
+
+**Archivo modificado**: `frontend/src/components/rutas/ReporteVentasRuta.jsx`
+
+**Cambios aplicados**:
+
+1. **Columna TOTAL**:
+   - Antes: Sin límite de ancho
+   - Ahora: `minWidth: '140px'`, `maxWidth: '180px'`
+   - Resultado: Espacio controlado para el monto y los badges sin empujar otras columnas
+
+2. **Columna ACCIONES**:
+   - Antes: Sin límite de ancho
+   - Ahora: `width: '80px'` fijo con `padding: '0.5rem'`
+   - Resultado: Columna compacta que solo ocupa el espacio necesario para el ícono del ojo
+
+3. **Scroll Horizontal con Mouse (Drag to Scroll)**:
+   - Se agregó funcionalidad de "arrastrar para hacer scroll" en el contenedor `.table-responsive`
+   - El cursor cambia a `grab` (mano abierta) al pasar sobre la tabla
+   - Al hacer clic y arrastrar, el cursor cambia a `grabbing` (mano cerrada)
+   - El usuario puede desplazarse horizontalmente arrastrando con el mouse
+   - Velocidad de scroll: `2x` (multiplicador de desplazamiento)
+
+**Código del scroll horizontal**:
+```javascript
+<div className="table-responsive" 
+     style={{ overflowX: 'auto', cursor: 'grab' }} 
+     onMouseDown={(e) => {
+         const ele = e.currentTarget;
+         ele.style.cursor = 'grabbing';
+         const startX = e.pageX - ele.offsetLeft;
+         const scrollLeft = ele.scrollLeft;
+         const onMouseMove = (e) => {
+             const x = e.pageX - ele.offsetLeft;
+             const walk = (x - startX) * 2; // Velocidad 2x
+             ele.scrollLeft = scrollLeft - walk;
+         };
+         const onMouseUp = () => {
+             ele.style.cursor = 'grab';
+             document.removeEventListener('mousemove', onMouseMove);
+             document.removeEventListener('mouseup', onMouseUp);
+         };
+         document.addEventListener('mousemove', onMouseMove);
+         document.addEventListener('mouseup', onMouseUp);
+     }}>
+```
+
+### Resultado Final
+
+- ✅ Columna TOTAL más compacta (140-180px) con espacio controlado para badges
+- ✅ Columna ACCIONES reducida a 80px (solo el espacio necesario)
+- ✅ Todas las columnas visibles sin que ACCIONES se corte
+- ✅ Scroll horizontal funcional con el mouse (drag to scroll)
+- ✅ Mejor aprovechamiento del espacio en pantalla
+- ✅ UX mejorada: el usuario puede navegar la tabla arrastrando con el mouse
+
+### Columnas de la Tabla
+
+| Columna | Ancho | Contenido |
+|---------|-------|-----------|
+| Hora | Auto | Hora de la venta + hora de edición (si aplica) |
+| Vendedor | Auto | Nombre del vendedor |
+| Negocio | Auto | Nombre del negocio |
+| Cliente | Auto | Nombre del cliente |
+| Total | 140-180px | Monto + badges (EDITADA, VENCIDAS, 2ª VENTA) |
+| Acciones | 80px | Ícono de ojo para ver detalle |
+
+### Commits Relacionados
+
+- `2715606` - "fix: Optimizar columnas TOTAL y ACCIONES en Ventas Ruta + scroll horizontal con mouse"
+
+### Despliegue
+
+```bash
+# En VPS
+cd ~/crm-fabrica
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build frontend
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+**Fecha de implementación**: 6 de Abril de 2026
+
+---
