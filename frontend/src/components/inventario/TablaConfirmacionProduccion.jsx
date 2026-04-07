@@ -17,7 +17,7 @@ const TablaConfirmacionProduccion = ({ datosGuardados, tipo = "Producción" }) =
     const partes = soloFecha.split("-");
     if (partes.length === 3) {
       const [anio, mes, dia] = partes;
-      return new Date(Number(anio), Number(mes) - 1, Number(dia)).toLocaleDateString("es-ES");
+      return `${dia}/${mes}/${anio}`;
     }
     return soloFecha;
   };
