@@ -203,12 +203,17 @@ class Stock(models.Model):
 
 class Lote(models.Model):
     """Modelo para registro de lotes por fecha"""
+    TIPO_ORIGEN_CHOICES = [
+        ('PRODUCCION', 'Producción'),
+        ('MAQUILA', 'Maquila'),
+    ]
     lote = models.CharField(max_length=100)
     fecha_vencimiento = models.DateField(null=True, blank=True)
     usuario = models.CharField(max_length=100, default='Sistema')
     fecha_produccion = models.DateField(default='2025-06-17')
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
+    tipo_origen = models.CharField(max_length=20, choices=TIPO_ORIGEN_CHOICES, default='PRODUCCION')
     
     def __str__(self):
         return f"Lote {self.lote} - {self.fecha_produccion} - {self.usuario}"

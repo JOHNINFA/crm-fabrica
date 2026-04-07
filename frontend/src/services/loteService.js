@@ -18,7 +18,8 @@ export const loteService = {
         fecha_vencimiento: loteData.fechaVencimiento || null,
         fecha_produccion: loteData.fechaProduccion,
         usuario: loteData.usuario,
-        activo: true
+        activo: true,
+        tipo_origen: loteData.tipoOrigen || 'PRODUCCION'
       };
       
 
@@ -49,10 +50,12 @@ export const loteService = {
     }
   },
 
-  // Obtener lotes por fecha de producción
-  getByFecha: async (fecha) => {
+  // Obtener lotes por fecha de producción, opcionalmente filtrados por tipo_origen
+  getByFecha: async (fecha, tipoOrigen = null) => {
     try {
-      const response = await fetch(`${API_URL}/lotes/?fecha_produccion=${fecha}`);
+      let url = `${API_URL}/lotes/?fecha_produccion=${fecha}`;
+      if (tipoOrigen) url += `&tipo_origen=${tipoOrigen}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`Error al obtener lotes: ${response.status}`);
       return await response.json();
     } catch (error) {

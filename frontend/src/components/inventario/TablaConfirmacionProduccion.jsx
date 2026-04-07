@@ -16,7 +16,9 @@ const TablaConfirmacionProduccion = ({ datosGuardados, tipo = "Producción" }) =
     const soloFecha = String(fecha).split("T")[0];
     const partes = soloFecha.split("-");
     if (partes.length === 3) {
-      const [anio, mes, dia] = partes;
+      let [anio, mes, dia] = partes;
+      const anioNum = Number(anio);
+      if (anioNum < 100) anio = String(2000 + anioNum);
       return `${dia}/${mes}/${anio}`;
     }
     return soloFecha;

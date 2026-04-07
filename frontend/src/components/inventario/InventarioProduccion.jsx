@@ -175,7 +175,7 @@ const InventarioProduccion = () => {
         try {
           const { payload } = item;
           for (const loteLocal of payload.lotes) {
-            await loteService.create({ lote: loteLocal.numero, fechaVencimiento: loteLocal.fechaVencimiento || null, fechaProduccion: payload.fechaProduccion, usuario: payload.usuario });
+            await loteService.create({ lote: loteLocal.numero, fechaVencimiento: loteLocal.fechaVencimiento || null, fechaProduccion: payload.fechaProduccion, usuario: payload.usuario, tipoOrigen: 'PRODUCCION' });
           }
           for (const producto of payload.productos) {
             await registroInventarioService.create({
@@ -1055,6 +1055,7 @@ const InventarioProduccion = () => {
           fechaVencimiento: loteLocal.fechaVencimiento || null,
           fechaProduccion,
           usuario,
+          tipoOrigen: 'PRODUCCION',
         };
 
         await loteService.create(loteData);
@@ -1307,7 +1308,7 @@ const InventarioProduccion = () => {
 
     try {
       // Cargar lotes desde BD
-      const lotesFromBD = await loteService.getByFecha(fechaStr);
+      const lotesFromBD = await loteService.getByFecha(fechaStr, 'PRODUCCION');
       if (lotesFromBD?.length > 0) {
         const lotesFormateados = lotesFromBD.map((lote) => ({
           id: lote.id,

@@ -223,7 +223,7 @@ const InventarioMaquilas = () => {
         try {
           const { payload } = item;
           for (const loteLocal of payload.lotes) {
-            await loteService.create({ lote: loteLocal.numero, fechaVencimiento: loteLocal.fechaVencimiento || null, fechaProduccion: payload.fechaProduccion, usuario: payload.usuario });
+            await loteService.create({ lote: loteLocal.numero, fechaVencimiento: loteLocal.fechaVencimiento || null, fechaProduccion: payload.fechaProduccion, usuario: payload.usuario, tipoOrigen: 'MAQUILA' });
           }
           for (const producto of payload.productos) {
             await registroInventarioService.create({
@@ -377,7 +377,7 @@ const InventarioMaquilas = () => {
 
     try {
       const [lotesDelDia, registrosDelDia] = await Promise.all([
-        loteService.getByFecha(fechaStr),
+        loteService.getByFecha(fechaStr, 'MAQUILA'),
         registroInventarioService.getByFecha(fechaStr),
       ]);
 
@@ -649,6 +649,7 @@ const InventarioMaquilas = () => {
           fechaVencimiento: loteLocal.fechaVencimiento || null,
           fechaProduccion,
           usuario,
+          tipoOrigen: 'MAQUILA',
         };
 
         await loteService.create(loteData);
@@ -1104,7 +1105,7 @@ const InventarioMaquilas = () => {
 
     try {
       // Cargar lotes desde BD
-      const lotesFromBD = await loteService.getByFecha(fechaStr);
+      const lotesFromBD = await loteService.getByFecha(fechaStr, 'MAQUILA');
 
       // Cargar cantidades desde BD
       const registrosFromBD = await registroInventarioService.getByFecha(

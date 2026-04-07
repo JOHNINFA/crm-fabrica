@@ -53,8 +53,8 @@ class LoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lote
         fields = [
-            'id', 'lote', 'fecha_vencimiento', 
-            'usuario', 'fecha_produccion', 'activo', 'fecha_creacion'
+            'id', 'lote', 'fecha_vencimiento',
+            'usuario', 'fecha_produccion', 'activo', 'fecha_creacion', 'tipo_origen'
         ]
         read_only_fields = ('fecha_creacion',)
 
