@@ -159,7 +159,9 @@ const PaymentModal = ({
             const telefono = clientData.telefono || clientData.movil || clientData.telefono_1 || clientData.telefono_contacto || '';
             if (telefono) setTelefonoContacto(telefono);
             if (clientData.zona_barrio) setZonaBarrio(clientData.zona_barrio); // 🆕
-            if (clientData.fecha) setFechaEntrega(clientData.fecha);
+            // No sobreescribir fechaEntrega con la fecha del cliente:
+            // la fecha de entrega debe ser la fecha seleccionada en PedidosScreen (hoy por defecto),
+            // no la fecha histórica de la última gestión del cliente.
             // No asignamos vendedor automáticamente, el usuario debe hacerlo manualmente
         }
     }, [clientData]);
