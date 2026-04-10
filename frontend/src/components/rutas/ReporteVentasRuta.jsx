@@ -816,6 +816,7 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                 <tbody>
                                     {(() => {
                                         // Detectar segunda venta por cliente (mismo vendedor, misma fecha)
+                                        // Excluir ventas con total $0 (solo vencidas) del conteo de "segunda venta"
                                         const porCliente = {};
                                         ventas.forEach(v => {
                                             const clave = (v.nombre_negocio || v.cliente_nombre || '').trim().toUpperCase();
@@ -825,8 +826,10 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                                         });
                                         const idsSegundaVenta = new Set();
                                         Object.values(porCliente).forEach(grupo => {
-                                            if (grupo.length < 2) return;
-                                            const sorted = [...grupo].sort((a, b) =>
+                                            // Solo contar ventas con total > 0 para determinar segunda venta
+                                            const ventasReales = grupo.filter(v => parseFloat(v.total || 0) > 0);
+                                            if (ventasReales.length < 2) return;
+                                            const sorted = [...ventasReales].sort((a, b) =>
                                                 new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
                                             );
                                             sorted.slice(1).forEach(v => idsSegundaVenta.add(v.id));
