@@ -304,6 +304,25 @@ Refresh servidor (45s+):       backend devuelve oblea=9, mediana=9  → sin rebo
 **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
 **Fecha**: Abril 2026
 
+#### Fix: validación y stock visual al editar venta (Abril 2026)
+
+**Problema 1 — No dejaba subir cantidad al editar:**
+Al editar una venta (ej. vendiste 1, quieres cambiar a 5), el alert "Stock insuficiente" bloqueaba aunque hubiera stock disponible.
+- **Causa**: `obtenerMaximoEditableProducto` restaba `cantidadEnCarrito` del máximo. A medida que subías la cantidad, el máximo se reducía solo, bloqueando antes de llegar al límite real.
+- **Fix**: El máximo es siempre `stockActual + cantidadOriginal` sin restar el carrito. Al editar se *reemplaza* la venta, no se suma encima.
+- **Ejemplo correcto**: Vendiste 1, `stockCargue=4` → máximo editable = 5. Puedes editar hasta 5 (usa todo el stock disponible).
+- **Commit**: `1cf42f3`
+
+**Problema 2 — Stock visual no cambiaba al ajustar cantidad en edición:**
+El stock mostrado en el modal de edición siempre mostraba el máximo fijo (ej. 9) sin importar cuánto pusieras en el carrito.
+- **Causa**: Las dos líneas que mostraban `Stock: X` usaban `obtenerMaximoEditableProducto` directamente, que devuelve el máximo total sin restar lo que ya está en el carrito de edición.
+- **Fix**: Nueva función `obtenerStockVisualEdicion` = `máximo - cantidadEnCarrito`. El stock visual ahora baja en tiempo real a medida que el usuario sube la cantidad.
+- **Ejemplo correcto**: Máximo=9, pones 6 → Stock muestra 3. Pones 9 → Stock muestra 0.
+- **Commit**: `e959345`
+
+**Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
+**Fecha**: Abril 2026
+
 ---
 
 ## 🔑 Conceptos Clave
