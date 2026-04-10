@@ -266,6 +266,24 @@ Tabla de referencia rápida para entender cómo se comunica la app móvil `AP GU
 - **Fix**: Reemplazado `!netInfo.isConnected` por `error?.message?.includes('fetch')` — detecta error de red por mensaje sin necesitar `NetInfo.fetch()`.
 - **Archivo**: `AP GUERRERO/components/Ventas/VentasScreen.js` línea ~2497.
 
+#### Fix crítico: stock rebota después de venta con vencidas (Abril 2026)
+
+- **Problema**: Al hacer una venta con vencidas de productos diferentes (ej. arepa oblea vendida, arepa mediana reportada como vencida), el stock del producto vencido volvía al valor original por unos segundos y luego se corregía.
+- **Causa raíz (race condition)**: `handleGuardarVencidas` descontaba del stock inmediatamente sin que el bloqueo de refresh estuviera activo todavía. Si `cargarStockCargue` corría entre `handleGuardarVencidas` y `confirmarVenta`, el servidor devolvía el stock sin vencidas descontadas aún, y ese valor se encolaba en React. Al confirmar la venta y activar el bloqueo, ya era tarde — el update del servidor ya estaba en la cola de React y se aplicaba encima del descuento correcto.
+- **Solución**: 
+  1. `handleGuardarVencidas` ya **no toca `stockCargue`** — solo guarda `vencidas` y `fotoVencidas` en estado.
+  2. `confirmarVenta` descuenta **productos vendidos + vencidas juntos** en un solo `setStockCargue` funcional, con el bloqueo de 45s ya activo. Un solo update atómico, imposible de sobreescribir por refresh de fondo.
+  3. `renderProducto` descuenta visualmente `carrito + vencidas` de `stockBase` para mostrar el stock correcto mientras se arma la venta, sin modificar `stockCargue`.
+  4. `construirAdvertenciasVencidasVenta` simplificada: ya no necesita reconstruir el stock original sumando vencidas porque `stockCargue` siempre es el stock real (no modificado hasta confirmar).
+- **Flujo resultante**:
+  - Stock visual: `stockCargue - carrito - vencidas` (actualización inmediata en pantalla)
+  - `stockCargue` real: se actualiza solo al confirmar la venta
+  - Sincronización backend: venta + vencidas se envían juntos al servidor, que actualiza `vendidas` y `vencidas` en `CargueIDx` y recalcula `total` con `recalcular_totales_cargue_queryset`
+  - Después del bloqueo de 45s, el refresh del servidor devuelve el mismo stock → sin rebote
+- **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
+- **Commits**: `4a2fe11`, `575c7c3`
+- **Fecha**: Abril 2026
+
 ---
 
 ## 🔑 Conceptos Clave
@@ -6707,6 +6725,84 @@ if (ventasReales.length < 2) return; // no hay segunda venta real
 ### Commits
 - `c1506d6` fix(ventas): no marcar como 2ª VENTA cuando solo se reportan vencidas ($0)
 - `7aeda48` fix(ventas-ruta): no marcar como 2ª VENTA cuando solo se reportan vencidas ($0)
+
+---
+
+## 📦 Stock no se actualiza visualmente tras reportar vencidas (10 Abr 2026)
+
+### Problema
+Al reportar vencidas durante una venta, el stock se descontaba internamente (`stockCargue`) pero la lista de productos seguía mostrando el stock viejo. Solo al arrastrar para recargar se veía el valor correcto.
+
+### Causa raíz (2 problemas encadenados)
+
+**1. Closure stale en `confirmarVenta`**
+En `confirmarVenta()` (línea ~4667), se usaba `const nuevoStock = { ...stockCargue }` que capturaba el valor del closure (snapshot), no el valor más reciente del estado. Si `handleGuardarVencidas` ya había descontado las vencidas via `setStockCargue(prevStock => ...)`, el closure todavía tenía el valor viejo. Al hacer `setStockCargue(nuevoStock)` se sobrescribía el descuento.
+
+**2. FlatList sin `extraData`**
+El `FlatList` de productos (línea ~6262) no tenía `extraData`, así que cuando `stockCargue` cambiaba, React Native no re-renderizaba los items existentes porque `data` (productosFiltrados) no había cambiado.
+
+### Solución
+
+**Fix 1:** Cambiar a forma funcional:
+```javascript
+// ANTES (closure stale):
+const nuevoStock = { ...stockCargue };
+// ... restar productos vendidos ...
+setStockCargue(nuevoStock);
+
+// DESPUÉS (valor más reciente):
+setStockCargue(prevStock => {
+    const nuevoStock = { ...prevStock };
+    // ... restar productos vendidos ...
+    return nuevoStock;
+});
+```
+
+**Fix 2:** Agregar `extraData` al FlatList:
+```javascript
+<FlatList
+    data={productosFiltrados}
+    renderItem={renderProducto}
+    extraData={stockCargue}  // <-- fuerza re-render al cambiar stock
+/>
+```
+
+### Archivos modificados
+- **`AP GUERRERO/components/Ventas/VentasScreen.js`** — `confirmarVenta()` línea ~4667 + FlatList línea ~6265
+
+### Commit
+- `e36f9ea` fix(ventas): corregir stock tras vencidas + re-render FlatList + badge 2ª VENTA
+
+---
+
+## ✏️ Venta editada offline no llega con badge "EDITADA" al backend (10 Abr 2026)
+
+### Problema
+Si un vendedor crea una venta sin internet, la edita (aún sin internet), y luego se sincroniza cuando llega la conexión: la venta llega al servidor con los datos editados correctos, pero sin el badge "EDITADA". En Ventas Ruta web y en el historial de reimpresión no se mostraba como editada.
+
+### Causa raíz
+En el `create()` de `VentaRutaViewSet` (views.py línea ~5259), el campo `editada` estaba en la lista de campos bloqueados por seguridad:
+```python
+for campo_bloqueado in ('sincronizado', 'ip_origen', 'editada'):
+    data.pop(campo_bloqueado, None)
+```
+Cuando la venta se sincronizaba como POST (venta nueva con ID local), el backend eliminaba `editada=True` y la guardaba como `editada=False`.
+
+### Solución
+Detectar edición offline usando `fecha_ultima_edicion` (campo que solo se setea cuando hay edición real). Si viene en el POST, marcar `editada=True` automáticamente:
+```python
+fue_editada_offline = data.get('fecha_ultima_edicion') is not None
+for campo_bloqueado in ('sincronizado', 'ip_origen', 'editada'):
+    data.pop(campo_bloqueado, None)
+if fue_editada_offline:
+    data['editada'] = True
+```
+
+### Archivos modificados
+- **`api/views.py`** — `VentaRutaViewSet.create()` línea ~5259
+
+### Commit
+- `bf546b6` fix(ventas-ruta): badge 2ª VENTA en solo-vencidas + editada offline en POST
 
 ---
 
