@@ -268,21 +268,41 @@ Tabla de referencia rápida para entender cómo se comunica la app móvil `AP GU
 
 #### Fix crítico: stock rebota después de venta con vencidas (Abril 2026)
 
-- **Problema**: Al hacer una venta con vencidas de productos diferentes (ej. arepa oblea vendida, arepa mediana reportada como vencida), el stock del producto vencido volvía al valor original por unos segundos y luego se corregía.
-- **Causa raíz (race condition)**: `handleGuardarVencidas` descontaba del stock inmediatamente sin que el bloqueo de refresh estuviera activo todavía. Si `cargarStockCargue` corría entre `handleGuardarVencidas` y `confirmarVenta`, el servidor devolvía el stock sin vencidas descontadas aún, y ese valor se encolaba en React. Al confirmar la venta y activar el bloqueo, ya era tarde — el update del servidor ya estaba en la cola de React y se aplicaba encima del descuento correcto.
-- **Solución**: 
-  1. `handleGuardarVencidas` ya **no toca `stockCargue`** — solo guarda `vencidas` y `fotoVencidas` en estado.
-  2. `confirmarVenta` descuenta **productos vendidos + vencidas juntos** en un solo `setStockCargue` funcional, con el bloqueo de 45s ya activo. Un solo update atómico, imposible de sobreescribir por refresh de fondo.
-  3. `renderProducto` descuenta visualmente `carrito + vencidas` de `stockBase` para mostrar el stock correcto mientras se arma la venta, sin modificar `stockCargue`.
-  4. `construirAdvertenciasVencidasVenta` simplificada: ya no necesita reconstruir el stock original sumando vencidas porque `stockCargue` siempre es el stock real (no modificado hasta confirmar).
-- **Flujo resultante**:
-  - Stock visual: `stockCargue - carrito - vencidas` (actualización inmediata en pantalla)
-  - `stockCargue` real: se actualiza solo al confirmar la venta
-  - Sincronización backend: venta + vencidas se envían juntos al servidor, que actualiza `vendidas` y `vencidas` en `CargueIDx` y recalcula `total` con `recalcular_totales_cargue_queryset`
-  - Después del bloqueo de 45s, el refresh del servidor devuelve el mismo stock → sin rebote
-- **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
-- **Commits**: `4a2fe11`, `575c7c3`
-- **Fecha**: Abril 2026
+**Problema reportado por el usuario:**
+Al hacer una venta con vencidas de productos *diferentes* (ej. arepa oblea vendida, arepa mediana reportada como vencida), el stock del producto vencido mostraba el valor incorrecto (10 en vez de 9) al regresar al carrito, y solo se corregía después de un rato.
+
+**Causa raíz — 3 bugs encadenados:**
+
+1. **Race condition en React state queue**: `handleGuardarVencidas` llamaba `setStockCargue(prev => descuenta vencidas)` sin que el bloqueo de refresh estuviera activo. Si `cargarStockCargue` corría entre ese momento y `confirmarVenta`, el servidor devolvía el stock viejo (sin vencidas), ese valor se **encolaba** en React, y al aplicarse sobreescribía el descuento correcto.
+
+2. **FlatList no re-renderizaba**: `extraData={stockCargue}` solo re-renderizaba cuando `stockCargue` cambiaba. Con el fix del punto 1 (`handleGuardarVencidas` ya no toca `stockCargue`), el FlatList no se enteraba de que cambiaron las vencidas → seguía mostrando el stock viejo visualmente.
+
+3. **`construirAdvertenciasVencidasVenta` leía stock ya descontado**: reconstruía el "stock original" sumando vencidas al `stockCargue` porque asumía que ya estaban descontadas. Con el nuevo flujo ya no era necesario.
+
+**Solución aplicada (3 commits):**
+
+| Commit | Cambio |
+|---|---|
+| `4a2fe11` | `handleGuardarVencidas` solo guarda estado, NO toca `stockCargue`. `confirmarVenta` descuenta productos vendidos + vencidas en un solo `setStockCargue` funcional con bloqueo ya activo. `construirAdvertenciasVencidasVenta` simplificada. |
+| `575c7c3` | `renderProducto` calcula `stock = stockBase - carrito - vencidas` para mostrar visual correcto mientras se arma la venta. `vencidas` agregado a dependencias del `useCallback`. |
+| `db8914e` | `extraData={[stockCargue, vencidas]}` en FlatList para que re-renderice inmediatamente al reportar vencidas. |
+
+**Flujo resultante (correcto):**
+```
+Inicio:           oblea=10, mediana=10
+Agrego 1 al carrito (oblea):   visual oblea=9,  mediana=10  (stockCargue sin cambio)
+Reporto 1 vencida (mediana):   visual oblea=9,  mediana=9   (FlatList re-renderiza por vencidas)
+Confirmo venta:   stockCargue={oblea:9, mediana:9}  (bloqueo 45s activo)
+Refresh servidor (45s+):       backend devuelve oblea=9, mediana=9  → sin rebote ✅
+```
+
+**Comportamiento offline/multiventa:**
+- Sin internet: `stockCargue` queda correcto localmente, `reconciliarStockConVentasLocales` descuenta ventas no sincronizadas cuando vuelve la conexión.
+- Ventas rápidas seguidas: cada `confirmarVenta` usa `setStockCargue(prev => ...)` (forma funcional), lee el estado real acumulado. El bloqueo se renueva con cada venta.
+- Dos vendedores con mismo ID: bloqueo de 45s (no 2 min) para no dejar el stock desactualizado mucho tiempo.
+
+**Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
+**Fecha**: Abril 2026
 
 ---
 
