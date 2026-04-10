@@ -6444,3 +6444,296 @@ docker compose -f docker-compose.prod.yml restart nginx
 **Fecha de implementación**: 6 de Abril de 2026
 
 ---
+
+## 🖨️ PROBLEMA: Impresora térmica imprime caracteres basura (garbled output)
+
+**Fecha:** 7 de Abril de 2026
+
+### Descripción
+La impresora móvil **Digital POS DIG-M324** imprime caracteres aleatorios/basura de forma intermitente después de imprimir un ticket normal.
+
+### Stack de impresión
+- **App CRM (AP Guerrero)** genera el ticket como HTML y llama `window.print()` vía iframe
+- **Android** intercepta el trabajo de impresión
+- **App ESC POS (Looped Labs)** actúa como servicio de impresión, convierte el HTML a comandos ESC/POS
+- **Bluetooth** transmite los comandos a la impresora DIG-M324
+
+### Causa principal identificada
+El campo **"Establecer retraso de desconexión de la impresora"** estaba en **4 segundos**. Cuando el ticket tarda más de 4 segundos en transmitirse por Bluetooth, la conexión se cierra antes de terminar, dejando el buffer de la impresora corrompido y causando la impresión de basura.
+
+### Solución aplicada (primer paso)
+- En la app **ESC POS (Looped Labs)**: cambiar el retraso de desconexión de **4 segundos → 15 segundos**
+- Ruta: Configuración → "Establecer retraso de desconexión de la impresora"
+
+### Si el problema persiste — causas adicionales a investigar
+1. **Caracteres especiales en nombres de productos**: tildes (á é í ó ú), ñ, símbolos (® © °) pueden ser interpretados como comandos ESC/POS por la impresora
+2. **Tickets muy largos**: muchos productos en una venta pueden saturar el buffer Bluetooth
+3. **Distancia/interferencia Bluetooth**: el celular estaba lejos de la impresora al imprimir
+4. **Batería baja de la impresora**: señal Bluetooth inestable con batería descargada
+
+### Nota sobre el código
+El HTML generado por el CRM ya incluye `<meta charset="UTF-8">` correctamente en `frontend/src/components/Pos/PaymentModal.jsx`. El problema **no está en el código de la app** sino en la configuración del servicio de impresión ESC POS.
+
+---
+
+## 📅 BUG: fecha_entrega de pedidos salía con el día anterior al crear a las 5am
+
+**Fecha:** 7 de Abril de 2026
+**Commit:** `16eea5e`
+**Archivo:** `frontend/src/components/Pedidos/PaymentModal.jsx`
+
+### Descripción
+Al crear pedidos temprano en la mañana (ej. 5:55am), la `fecha_entrega` quedaba guardada con el día anterior en lugar del día actual. Ejemplo: pedido creado el 6/4 a las 5:55am → `fecha_entrega = 2026-04-05` (incorrecto).
+
+### Causa
+En `PaymentModal.jsx` (Pedidos), dentro del `useEffect` que carga datos del cliente:
+```js
+if (clientData.fecha) setFechaEntrega(clientData.fecha);
+```
+Esta línea sobreescribía la `fechaEntrega` con la fecha histórica de la última gestión del cliente (que podía ser del día anterior), ignorando la fecha seleccionada en PedidosScreen.
+
+### Solución
+Se eliminó la línea que sobreescribía la fecha. Ahora la `fecha_entrega` siempre respeta la fecha seleccionada en PedidosScreen (`date` prop), que por defecto es hoy (`getFechaLocal()`).
+
+### Flujo correcto después del fix
+| Escenario | Resultado |
+|-----------|-----------|
+| Crear pedido hoy sin cambiar fecha | `fecha_entrega = hoy` ✓ |
+| Crear pedido esta noche para mañana (cambiar fecha manualmente) | `fecha_entrega = mañana` ✓ |
+
+### Contexto adicional
+Un fix anterior (`63ec10d`) ya había removido `setDate(clienteData.fecha)` en `PedidosScreen.jsx`, pero el mismo bug persistía en `PaymentModal.jsx` donde la fecha del cliente seguía sobreescribiendo `fechaEntrega`.
+
+---
+
+## 🏭 FIX: Lotes de Producción y Maquila mezclados en tabla de confirmación
+
+**Fecha:** 7 de Abril de 2026
+**Commit:** `4595c3c`
+
+### Descripción
+La tabla "Producción Registrada" y "Maquila Registrada" mostraban los mismos lotes para todos los productos porque se guardaban en la misma tabla `Lote` sin distinción de origen. Al consultar por fecha (`getByFecha`), aparecían lotes de ambos módulos mezclados.
+
+Problema adicional: el año de las fechas de vencimiento aparecía como `1926` o `0026` en vez de `2026`, causado por el constructor `new Date(año, mes, dia)` de JavaScript que interpreta años menores a 100 como `1900 + año`.
+
+### Solución aplicada
+
+**Backend:**
+- Agregado campo `tipo_origen` (choices: `PRODUCCION` / `MAQUILA`, default: `PRODUCCION`) al modelo `Lote`
+- Migración: `0103_add_tipo_origen_to_lote.py`
+- `LoteViewSet` filtra por `tipo_origen` cuando se pasa como query param
+
+**Frontend:**
+- `loteService.create()` acepta `tipoOrigen` en el payload
+- `loteService.getByFecha()` acepta segundo parámetro `tipoOrigen` para filtrar
+- `InventarioProduccion`: guarda y consulta lotes con `tipoOrigen: 'PRODUCCION'`
+- `InventarioMaquilas`: guarda y consulta lotes con `tipoOrigen: 'MAQUILA'`
+- `TablaConfirmacionProduccion`: `formatearFecha` corregida — ya no usa `new Date(año, mes, dia)`, convierte años < 100 sumando 2000
+
+### Comportamiento correcto
+| Módulo | Lotes que muestra |
+|--------|-------------------|
+| Producción | Solo lotes de producción del día. Si hay 1 lote → todos los productos muestran ese lote. Si hay varios → se listan con su fecha. |
+| Maquila | Solo lotes de maquila del día. Cada producto muestra el lote activo al momento de su registro. |
+
+### Nota sobre datos históricos
+Los lotes registrados **antes** del deploy del 7 de abril tienen `tipo_origen='PRODUCCION'` por defecto (no se puede saber si eran de Maquila o Producción). Los registros **nuevos** funcionan correctamente desde el 7 de abril en adelante.
+
+---
+
+## 🐛 BUG: Pedido incorrecto al entregar desde AP Guerrero (9 Abr 2026)
+
+### Síntoma
+En la app AP Guerrero, al abrir Ventas y ver la lista de clientes con pedidos, el número de pedido mostrado en la tarjeta del cliente era incorrecto (pertenecía a otro cliente). Al dar "Entregar", el modal de confirmación mostraba el cliente y productos del pedido equivocado.
+
+**Ejemplo:**
+- CRM Web: CARNES Y SOPAS PLAZA IMPERIAL → PED-002554 ✅
+- App AP Guerrero: CARNES Y SOPAS PLAZA IMPERIAL → PED-002564 ❌ (de MASTER PIZZA)
+- Al confirmar entrega: mostraba MASTER PIZZA con PED-002564 ❌
+
+Reportado como falla en todos los pedidos del vendedor.
+
+### Causa raíz
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `verificarPedidoCliente()` (línea ~5264)
+
+Cuando el cliente tenía un `__pedidoVista` (pedido preferido asignado por `ClienteSelector`), el código construía la lista así:
+```javascript
+// ❌ BUG
+pedidosCliente = [pedidoPreferido, ...pedidosPendientes.filter(
+    (pedido) => String(pedido?.id || '') !== String(pedidoPreferido?.id || '')
+)];
+```
+Esto agregaba **todos los demás pedidos del vendedor** (de otros clientes) a la lista. Luego el sort ordenaba por número de pedido mayor primero, eligiendo el pedido de otro cliente con número más alto.
+
+### Fix aplicado
+```javascript
+// ✅ FIX
+pedidosCliente = [pedidoPreferido];
+```
+El `ClienteSelector` ya asigna el pedido correcto en `__pedidoVista`. No es necesario agregar pedidos de otros clientes.
+
+- **Archivo modificado:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+- **Commit:** fix(ventas): corregir pedido incorrecto en entrega y crash al guardar edicion
+
+---
+
+## 🐛 BUG: App AP Guerrero cierra al guardar edición de venta (9 Abr 2026)
+
+### Síntoma
+Al editar una venta en AP Guerrero (agregar producto, poner cantidad, dar "Guardar Edición"), la app se cerraba abruptamente y la edición no se guardaba.
+
+### Causa raíz
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `confirmarEdicionVenta()` (línea ~2942)
+
+Al recalcular el stock después de la edición, el código intentaba iterar sobre `vencidasOriginales`:
+```javascript
+vencidasOriginales.forEach((item) => { ... });
+```
+`vencidasOriginales` nunca fue definida en ese scope porque las vencidas fueron **removidas del flujo de edición** en un cambio anterior, pero este bloque de código quedó huérfano. Iterar sobre `undefined` causa un crash en React Native.
+
+### Fix aplicado
+Se eliminó el bloque completo de `vencidasOriginales.forEach(...)` ya que las vencidas no forman parte del flujo de edición.
+
+- **Archivo modificado:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+- **Commit:** fix(ventas): corregir pedido incorrecto en entrega y crash al guardar edicion
+
+---
+
+## 🐛 BUG: Stock no bajaba en tiempo real al editar venta (9 Abr 2026)
+
+### Síntoma
+Al editar una venta en AP Guerrero y agregar un producto o cambiar su cantidad, el número de **Stock** visible al lado de cada producto no cambiaba. Si el stock era 33 y se ponía 1, seguía mostrando 33. Esto impedía saber cuánto quedaba disponible mientras se editaba.
+
+### Causa raíz
+**Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — función `obtenerMaximoEditableProducto()`
+
+El cálculo del stock disponible era:
+```javascript
+return Math.max(0, stockActual + cantidadOriginal);
+```
+No restaba `cantidadEnCarrito` (lo que el vendedor ya puso en el carritoEdicion). Quedó así al remover las vencidas del flujo de edición en commit `29ecf22`.
+
+### Fix aplicado
+```javascript
+const cantidadEnCarrito = parseInt(
+    Object.entries(carritoEdicion).find(([k]) => normalizarNombreStockEdicion(k) === nombreNorm)?.[1]?.cantidad || 0
+, 10) || 0;
+return Math.max(0, stockActual + cantidadOriginal - cantidadEnCarrito);
+```
+- **Archivo modificado:** `AP GUERRERO/components/Ventas/VentasScreen.js`
+- **Commit:** `da969bf` fix(ventas): stock en tiempo real en edicion y timeout edicion 20s
+
+---
+
+## 🐛 BUG: Edición de venta no llegaba al servidor (9-10 Abr 2026)
+
+### Síntoma
+Al guardar una edición en AP Guerrero, la edición no aparecía en Ventas Ruta del CRM. El backend nunca recibía el PATCH. Ventas sin vencidas/foto a veces funcionaban, ventas con vencidas nunca.
+
+### Causa raíz (3 problemas encadenados)
+
+**Problema 1 — Promise.race tragaba errores (commit `da969bf`, `75939d5`)**
+`confirmarEdicionVenta()` usaba `Promise.race` con timeout de 6s. El `.catch()` tragaba errores silenciosamente y `respuestaEdicion` quedaba null.
+- Fix intermedio: timeout subido a 20s (`da969bf`)
+- Fix definitivo: Promise.race eliminado, reemplazado con `await editarVentaRuta()` directo (`75939d5`)
+
+**Problema 2 — ID backend no se propagaba al estado React (commit `b8a2d37`)**
+Cuando una venta se sincronizaba al backend, `AsyncStorage` recibía el ID numérico pero `ventasDelDia` (estado React) quedaba con el ID local (ej: `ID4-20261023-001`). `esVentaBackendPersistida()` verificaba si el ID era numérico → retornaba `false` → nunca entraba al `if` que envía el PATCH.
+- **Archivo:** `VentasScreen.js` — `sincronizarPendientesAutomatico()` y `abrirEdicionVenta()`
+- Fix: Tras sync exitoso, actualizar IDs en `ventasDelDia` desde AsyncStorage. Al abrir edición, resolver ID backend desde AsyncStorage como respaldo.
+
+**Problema 3 — `id_local` no se preservaba en AsyncStorage (commit `e16c6a6`)**
+El fix anterior buscaba por `id_local` en AsyncStorage, pero al sincronizar la venta en `guardarVenta()`, se sobreescribía `nuevaVenta.id` con el ID numérico sin guardar el ID local original. La búsqueda fallaba.
+- **Archivo:** `services/ventasService.js` — `guardarVenta()` línea 1159
+- Fix: `nuevaVenta.id_local = nuevaVenta.id` antes de sobreescribir con el ID del backend.
+
+### Flujo corregido
+1. Venta creada → ID local en React state + AsyncStorage
+2. Venta sincronizada → AsyncStorage tiene `id` (numérico) + `id_local` (original)
+3. `sincronizarPendientesAutomatico` exitoso → actualiza `ventasDelDia` con IDs numéricos
+4. Abrir edición → si ID no es numérico, busca por `id_local` en AsyncStorage → resuelve ID backend
+5. `esVentaBackendPersistida()` → `true` → `await editarVentaRuta()` envía PATCH directamente
+
+### Archivos modificados
+- `AP GUERRERO/components/Ventas/VentasScreen.js` — confirmarEdicionVenta, sincronizarPendientesAutomatico, abrirEdicionVenta
+- `AP GUERRERO/services/ventasService.js` — guardarVenta
+
+### Commits
+- `da969bf` fix(ventas): stock en tiempo real en edicion y timeout edicion 20s
+- `75939d5` fix(ventas): edicion llega al servidor de inmediato sin Promise.race
+- `b8a2d37` fix(ventas): resolver ID backend en ventasDelDia para que edición se envíe al servidor
+- `e16c6a6` fix(ventas): preservar id_local en AsyncStorage tras sincronización
+
+---
+
+## 🐛 BUG: Anulación no se reflejaba de inmediato en historial app (10 Abr 2026)
+
+### Síntoma
+Al anular una venta desde AP Guerrero, la anulación llegaba al servidor correctamente y el stock se devolvía, pero en el historial de reimpresión la venta seguía apareciendo como activa en vez de pasar a "Anuladas" de inmediato.
+
+### Causa raíz
+Mismo problema de IDs locales: `historialReimpresion` y `historialResumenPreview` mantenían IDs locales (ej: `ID4-20261023-001`) mientras `marcarAnulada()` comparaba con el ID numérico del backend. El match fallaba.
+
+### Fix aplicado
+Al resolver IDs del backend tras sincronización exitosa, también actualizar `historialReimpresion` y `historialResumenPreview` (antes solo se actualizaba `ventasDelDia`).
+
+- **Archivo:** `AP GUERRERO/components/Ventas/VentasScreen.js` — `sincronizarPendientesAutomatico()`
+- **Commit:** `00d85d4` fix(ventas): actualizar IDs backend en historial y resumen tras sincronización
+
+---
+
+## 🏷️ Badge "2ª VENTA" incorrecto en ventas de solo vencidas (10 Abr 2026)
+
+### Problema
+Cuando un vendedor reporta **solo vencidas** (sin vender productos, total $0) a un cliente que ya tiene una venta del día, el sistema marcaba esa entrada como "2ª VENTA" tanto en la app como en Ventas Ruta web. Esto generaba confusión porque no es una venta real, sino un reporte adicional de vencidas.
+
+### Causa raíz
+La detección de "segunda venta" agrupaba por cliente y marcaba toda entrada posterior como "2ª VENTA", sin importar si tenía total $0 (solo vencidas).
+
+### Solución
+Filtrar ventas con `total > 0` antes de determinar si hay segunda venta:
+```javascript
+const ventasReales = grupo.filter(v => parseFloat(v.total || 0) > 0);
+if (ventasReales.length < 2) return; // no hay segunda venta real
+```
+
+### Archivos modificados
+1. **`AP GUERRERO/components/Ventas/VentasScreen.js`** — Badge en historial de app (línea ~6867)
+2. **`frontend/src/components/rutas/ReporteVentasRuta.jsx`** — Badge en Ventas Ruta web (línea ~826)
+
+### Nota
+`contarVentasActivasCliente()` (línea 2227) ya excluía ventas con total $0 del conteo — por eso el aviso "Cliente Ya Atendido" no bloqueaba. Solo faltaba el badge.
+
+### Commits
+- `c1506d6` fix(ventas): no marcar como 2ª VENTA cuando solo se reportan vencidas ($0)
+- `7aeda48` fix(ventas-ruta): no marcar como 2ª VENTA cuando solo se reportan vencidas ($0)
+
+---
+
+## 🔨 Build APK Local — Configuración Android (10 Abr 2026)
+
+### Contexto
+EAS Build (tier gratuito) se agotó. Se configuró build local con Gradle.
+
+### Requisitos instalados
+- Java 17: `/usr/lib/jvm/java-17-openjdk-amd64`
+- Android SDK: `$HOME/Android/Sdk`
+- NDK: `27.1.12297006`
+- ninja-build + cmake (para compilar nativas)
+
+### Configuración `gradle.properties`
+- `org.gradle.jvmargs=-Xmx4096m` (subido de 2048m para evitar OOM)
+- `reactNativeArchitectures=armeabi-v7a,arm64-v8a` (quitamos x86/x86_64 para reducir memoria y peso del APK)
+
+### Comando de build
+```bash
+cd ~/Escritorio/AP\ GUERRERO/android
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_HOME=$HOME/Android/Sdk
+./gradlew assembleRelease --no-daemon
+```
+
+### Output
+`android/app/build/outputs/apk/release/app-release.apk` (~71 MB vs ~177 MB de EAS con 4 arquitecturas)
+
+---

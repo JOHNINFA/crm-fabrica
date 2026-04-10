@@ -5256,8 +5256,13 @@ class VentaRutaViewSet(viewsets.ModelViewSet):
             data = dict(request.data)
 
         # 🔒 Endurecimiento: campos sensibles no se aceptan desde cliente en creación de venta
+        # Detectar si la venta fue editada offline antes de sincronizarse
+        fue_editada_offline = data.get('fecha_ultima_edicion') is not None
         for campo_bloqueado in ('sincronizado', 'ip_origen', 'editada'):
             data.pop(campo_bloqueado, None)
+        # Si la venta fue editada offline (tiene fecha_ultima_edicion), marcar como editada
+        if fue_editada_offline:
+            data['editada'] = True
         # Estado inicial siempre controlado por backend
         data['estado'] = 'ACTIVA'
         
