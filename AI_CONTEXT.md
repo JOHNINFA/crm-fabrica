@@ -320,6 +320,11 @@ El stock mostrado en el modal de edición siempre mostraba el máximo fijo (ej. 
 - **Ejemplo correcto**: Máximo=9, pones 6 → Stock muestra 3. Pones 9 → Stock muestra 0.
 - **Commit**: `e959345`
 
+**Fix adicional — alerta "segunda venta" al reportar solo vencidas (Abril 2026):**
+- **Problema**: Al seleccionar un cliente que ya tenía una venta y reportar solo vencidas (carrito vacío), aparecía el alert "¿Deseas hacer una segunda venta?" aunque no se estuviera vendiendo nada.
+- **Fix**: Si `productosEnCarrito.length === 0 && vencidas.length > 0` (solo vencidas), se omiten las validaciones de límite de segunda venta. Las vencidas son un reporte, no una venta real.
+- **Commit**: `c9da8cc`
+
 **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
 **Fecha**: Abril 2026
 
