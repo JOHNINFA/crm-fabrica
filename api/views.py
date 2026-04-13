@@ -6532,32 +6532,18 @@ def cerrar_turno_vendedor(request):
                 }, status=409)
             
             # --- CÁLCULOS Y ACTUALIZACIÓN ---
-            
-            # Obtener detalles de pedidos entregados hoy (Optimizado con select_related)
-            from .models import DetallePedido, TurnoVendedor
-            detalles_pedidos_hoy = DetallePedido.objects.filter(
-                pedido__asignado_a_id=id_vendedor,
-                pedido__fecha_entrega=fecha,
-                pedido__estado='ENTREGADO'
-            ).select_related('producto')
-            
-            pedidos_por_producto = {}
-            for detalle in detalles_pedidos_hoy:
-                nombre = detalle.producto.nombre.upper()
-                pedidos_por_producto[nombre] = pedidos_por_producto.get(nombre, 0) + detalle.cantidad
-            
+
+            from .models import TurnoVendedor
             resumen = []
             cargues_a_actualizar = []
             totales = {'cargado': 0, 'vendido': 0, 'vencidas': 0, 'devuelto': 0}
-            
+
             for cargue in cargues:
                 # 1. Calcular cargado
                 cantidad_inicial = cargue.cantidad - cargue.dctos + cargue.adicional
-                
-                # 2. Calcular vendido total (POS + Pedidos)
-                cantidad_vendida_pos = cargue.vendidas or 0
-                cantidad_vendida_pedidos = pedidos_por_producto.get(cargue.producto.upper(), 0)
-                cantidad_vendida_total = cantidad_vendida_pos + cantidad_vendida_pedidos
+
+                # 2. Vendido = solo ventas de ruta (app). Pedidos son inventario separado, no salen del cargue.
+                cantidad_vendida_total = cargue.vendidas or 0
                 
                 # 3. Calcular vencidas
                 vencidas_final = cargue.vencidas or 0 # Base existente
