@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Button, Form, Table, Alert, Spinner } from 'react-bootstrap';
 import usePageTitle from '../hooks/usePageTitle';
 import './ReportesAvanzadosScreen.css';
@@ -56,7 +56,8 @@ const ordenProductos = [
 const ReportesAvanzadosScreen = () => {
     usePageTitle('Reportes');
     const navigate = useNavigate();
-    const [vistaActual, setVistaActual] = useState('menu'); // 'menu' o 'planeacion'
+    const [searchParams] = useSearchParams();
+    const [vistaActual, setVistaActual] = useState(() => searchParams.get('vista') || 'menu');
     const [selectedDate, setSelectedDate] = useState('');
     const [planeacionData, setPlaneacionData] = useState([]);
     const [prediccionesIA, setPrediccionesIA] = useState({});

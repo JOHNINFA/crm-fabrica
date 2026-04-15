@@ -17,6 +17,7 @@ import BotonVerPedidos from './BotonVerPedidos';
 import { cargueHybridService } from '../../services/cargueApiService'; // Corrected import
 import { productoService } from '../../services/api'; // Para cargar precios directamente
 import { cargueRealtimeService } from '../../services/cargueRealtimeService'; // 🆕 Sincronización tiempo real
+import { useAuth } from '../../context/AuthContext';
 import './PlantillaOperativa.css';
 
 // URL de la API (usa variable de entorno en desarrollo, /api en producción)
@@ -34,6 +35,7 @@ const PlantillaOperativa = ({
     tabletTableScrollRef
 }) => {
     const { products: allProducts, getProductsByModule } = useProducts();
+    const { esAdmin } = useAuth();
 
     // 🔧 Formatear fecha para localStorage (YYYY-MM-DD)
     const fechaFormateadaLS = useMemo(() => {
@@ -2646,6 +2648,17 @@ const PlantillaOperativa = ({
                             >
                                 <>📱 Ventas</>
                             </button>
+
+                            {esAdmin() && (
+                                <button
+                                    className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+                                    onClick={() => { window.open('/#/reportes-avanzados?vista=dashboard-integral', '_blank', 'noopener,noreferrer'); }}
+                                    title="Ir a Informes"
+                                    style={{ color: '#0c2c53', fontWeight: '500' }}
+                                >
+                                    📊 Informes
+                                </button>
+                            )}
 
                             {!!datosResumen?.novedad && !!datosResumen?.ventasPrecioEspecial?.length && (
                                 <button

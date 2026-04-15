@@ -959,7 +959,7 @@ const DashboardIntegral = ({ onVolver }) => {
             <Container fluid className="pt-4 px-lg-4">
                 <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
                     <div>
-                        <h3 className="fw-bold mb-1" style={{ color: '#0c2c53' }}>Dashboard de Inteligencia / Optimización</h3>
+                        <h3 className="fw-bold mb-1" style={{ color: '#0c2c53' }}>Informes</h3>
                         <p className="text-muted mb-0">Consolidación de Cargue, APP Guerrero y CRM. POS por ventana de turno (8am→8am).</p>
                     </div>
                     <Button variant="outline-dark" onClick={onVolver}>
