@@ -960,7 +960,7 @@ const DashboardIntegral = ({ onVolver }) => {
                 <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
                     <div>
                         <h3 className="fw-bold mb-1" style={{ color: '#0c2c53' }}>Informes</h3>
-                        <p className="text-muted mb-0">Consolidados IDs</p>
+                        <p className="text-muted mb-0">Panel de control de ventas</p>
                     </div>
                     <Button variant="outline-dark" onClick={onVolver}>
                         <i className="bi bi-arrow-left me-2"></i>Volver
