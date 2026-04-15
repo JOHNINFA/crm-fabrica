@@ -400,15 +400,14 @@ const DashboardIntegral = ({ onVolver }) => {
                         valorVencidasFvto += venc * precio;
                     }
 
-                    const retornado = devol + venc;
-                    if (retornado > 0) {
-                        cantDevol  += retornado;
-                        valorDevol += retornado * precio;
+                    if (venc > 0) {
+                        cantDevol  += venc;
+                        valorDevol += venc * precio;
                         const prod = normalizeName(c.producto);
-                        topDevol.push({ nombre: prod, cantidad: retornado, valor_perdido: retornado * precio });
+                        topDevol.push({ nombre: prod, cantidad: venc, valor_perdido: venc * precio });
                         if (!rankingsGlobales[prod]) rankingsGlobales[prod] = { cantidad: 0, valor: 0 };
-                        rankingsGlobales[prod].cantidad += retornado;
-                        rankingsGlobales[prod].valor    += retornado * precio;
+                        rankingsGlobales[prod].cantidad += venc;
+                        rankingsGlobales[prod].valor    += venc * precio;
                     }
 
                     const vendidas = parseInt(c.total || 0);
