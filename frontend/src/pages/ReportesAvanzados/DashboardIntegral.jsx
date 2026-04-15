@@ -246,7 +246,7 @@ const DashboardIntegral = ({ onVolver }) => {
                 // obtener-cargue devuelve un dict {nombre_producto: {datos...}}
                 const cargueObj = cargueAcumuladoPorId[idSheet] || {};
                 // Convertir a array y aplicar el orden oficial
-                const cargueDatosDesordenado = Object.entries(cargueObj).map(([nombre, datos]) => {
+                const cargueDatosDesordenado = Object.entries(cargueObj).filter(([nombre]) => nombre !== '__pagos__').map(([nombre, datos]) => {
                     // Prioridad de precio (igual que PlantillaOperativa):
                     // 1. Catálogo actual (precio_cargue) — fuente de verdad
                     // 2. precios_alternos del cargue (VENDEDORES o CAJA)
@@ -373,12 +373,13 @@ const DashboardIntegral = ({ onVolver }) => {
                         cargue_total_despacho += (cant + adic) * parseFloat(c.valor || 0);
                     }
                 });
-                // Nequi, daviplata, descuentos, pedidos son campos compartidos del panel resumen del cargue
-                const cargue_nequi       = parseFloat(primerRegistro.nequi      || 0);
-                const cargue_daviplata   = parseFloat(primerRegistro.daviplata  || 0);
-                const cargue_descuentos  = parseFloat(primerRegistro.descuentos || 0);
-                const cargue_pedidos     = parseFloat(primerRegistro.pedidos    || 0);
-                const base_caja          = parseFloat(primerRegistro.base_caja  || 0);
+                // Nequi, daviplata, descuentos vienen de __pagos__ (CarguePagos) — no de filas de producto
+                const pagosResumen     = cargueAcumuladoPorId[idSheet]['__pagos__'] || {};
+                const cargue_nequi     = parseFloat(pagosResumen.nequi      || 0);
+                const cargue_daviplata = parseFloat(pagosResumen.daviplata  || 0);
+                const cargue_descuentos= parseFloat(pagosResumen.descuentos || 0);
+                const cargue_pedidos   = parseFloat(primerRegistro.pedidos  || 0);
+                const base_caja        = parseFloat(primerRegistro.base_caja|| 0);
 
                 // Calcular neto total (suma de neto de cada producto) -> esto equivale al TOTAL DESPACHO de Cargue original
                 let cargue_neto_total = 0;
@@ -444,12 +445,12 @@ const DashboardIntegral = ({ onVolver }) => {
                     total_recaudo     : (cargue_nequi + cargue_daviplata + (despacho_venta_real - cargue_nequi - cargue_daviplata)),
                     diferencia        : cargue_neto_total - cargue_total_despacho,
                     base_caja         : base_caja,
-                    nequi: cargue_nequi || nequi,
-                    daviplata: cargue_daviplata || daviplata,
+                    nequi: cargue_nequi,
+                    daviplata: cargue_daviplata,
                     lista_nequi: listaNequi,
                     lista_davi: listaDavi,
-                    efectivo: efectivo || (cargue_neto_total - cargue_nequi - cargue_daviplata),
-                    descuentos: cargue_descuentos || descuentos,
+                    efectivo: (despacho_venta_real + total_pedidos_real) - cargue_nequi - cargue_daviplata - cargue_descuentos,
+                    descuentos: cargue_descuentos,
                     pedidos_vs_ruta   : { pedidos: totalPedidos, ruta: totalRuta },
                     devoluciones_fisicas: { cantidad: cantDevol, valor: valorDevol },
                     vencidas_fvto     : { cantidad: cantVencidasFvto, valor: valorVencidasFvto },

@@ -328,6 +328,173 @@ El stock mostrado en el modal de edición siempre mostraba el máximo fijo (ej. 
 **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
 **Fecha**: Abril 2026
 
+#### Fix impresora: caracteres basura intermitentes (Abril 2026)
+
+**Problema reportado:**
+Impresora Bluetooth DIG-M324 imprimía caracteres basura de forma intermitente (~cada 20-23 impresiones). El recibo anterior se cortaba al final (ej. en "Software: App Guerrero") y el siguiente recibo imprimía el residuo como basura.
+
+**Causa raíz:**
+Buffer de la impresora no se limpiaba entre trabajos de impresión. La transmisión Bluetooth se cortaba antes de terminar (señal inestable o velocidad de impresión demasiado alta), dejando datos incompletos atrapados en el buffer. La siguiente impresión los enviaba primero como caracteres corruptos.
+
+**Investigación:**
+- La app `AP GUERRERO` no tiene código Bluetooth directo — usa `expo-print` → PDF → diálogo Android → ESC/POS app (Looped Labs) → Bluetooth → impresora.
+- El ESC/POS app no expone API para enviar `ESC @` (reset buffer) desde afuera.
+- Implementar Bluetooth directo sería solución definitiva pero requiere reemplazar todo `printerService.js`.
+
+**Solución aplicada (sin cambios en la app):**
+
+| Configuración | Antes | Después |
+|---|---|---|
+| ESC/POS — Corte papel | Desactivado | Corte completo (GS V 0) |
+| ESC/POS — Retraso desconexión | 15s | 6s |
+| ESC/POS — DPI | 203 DPI | 180 DPI |
+| Impresora DIG-M324 — Speed | Máxima (200mm/s) | Reducida |
+
+**Por qué funcionó:**
+- `GS V 0` envía señal de fin de trabajo a la impresora → limpia el buffer al terminar cada impresión
+- Velocidad reducida da más tiempo al Bluetooth para completar la transmisión antes de que la impresora procese el final del buffer
+- 180 DPI reduce levemente el peso del PDF → transmisión más corta
+
+**Resultado:** 40+ impresiones seguidas sin caracteres basura (vs ~20 antes del fix).
+
+**Dónde configurar:**
+- ESC/POS: configuración interna de la app Looped Labs en el dispositivo del vendedor
+- Impresora: menú de configuración interno (mantener botón al encender → autotest → ajustar Speed)
+
+**Nota:** Si el error reaparece, la solución definitiva es implementar impresión Bluetooth directa desde la app usando `react-native-thermal-receipt-printer-image-qr`, lo que permite enviar `ESC @` antes de cada impresión.
+
+**Fecha**: Abril 2026
+
+#### Fix: pedidos entregados generaban descuadres en auditoría de cargue (Abril 2026)
+
+**Problema reportado:**
+Al cerrar turno desde la app, la auditoría de liquidación mostraba descuadres en productos que también habían sido entregados como pedidos. Ejemplo: vendidas app=1, pero devoluciones calculadas=77 en vez de 78.
+
+**Causa raíz:**
+En `cerrar_turno_vendedor` (`api/views.py`), al calcular las devoluciones se sumaban las unidades de pedidos entregados a las vendidas del cargue:
+```python
+cantidad_vendida_pedidos = pedidos_por_producto.get(cargue.producto.upper(), 0)
+cantidad_vendida_total = cantidad_vendida_pos + cantidad_vendida_pedidos
+devoluciones = cantidad_inicial - cantidad_vendida_total - vencidas
+```
+Esto reducía incorrectamente las devoluciones, generando descuadres iguales a las unidades de pedidos entregados.
+
+**Por qué existía ese código:**
+Fue implementado asumiendo que los pedidos salían del cargue del vendedor. El proceso operativo cambió: los pedidos ahora son inventario separado que se le entrega al vendedor aparte, no forman parte de su cargue diario.
+
+**Solución:**
+Eliminar el bloque de pedidos del cálculo de devoluciones. `cantidad_vendida_total` ahora es solo `cargue.vendidas` (ventas de ruta desde la app):
+```python
+# Pedidos son inventario separado, no salen del cargue
+cantidad_vendida_total = cargue.vendidas or 0
+devoluciones = cantidad_inicial - cantidad_vendida_total - vencidas
+```
+
+**Resultado:** TOTAL DESPACHO = solo ventas ruta, TOTAL PEDIDOS = separado, sin descuadres.
+
+**Archivos modificados**: `api/views.py` — función `cerrar_turno_vendedor`
+**Fecha**: Abril 2026
+
+#### Fix: Alert "Imprimir" no aparecía después de confirmar venta (Abril 2026)
+
+**Problema reportado:**
+Después de confirmar una venta, el Alert "Venta Completada" con el botón "Imprimir" no aparecía intermitentemente. El vendedor tenía que ir al historial de reimpresión manualmente. El problema solo se manifestaba avanzada la jornada, no en las primeras ventas del día.
+
+**Causa raíz:**
+`historialReimpresion` crece con cada venta confirmada durante la sesión (sin límite). A más ventas acumuladas, más pesados los re-renders. El Alert se lanzaba con `setTimeout(500ms)` — tiempo fijo que en las primeras ventas era suficiente, pero con muchos re-renders acumulados Android descartaba silenciosamente el Alert porque el componente estaba ocupado procesando.
+
+**Por qué falló ese día específico y no antes:**
+El array `historialReimpresion` se resetea al abrir la app. Si el vendedor lleva toda la jornada sin cerrar la app y hace muchas ventas consecutivas rápidas, el problema aparece progresivamente. Días anteriores con menos ventas o reinicios de app no lo activaban.
+
+**Fix aplicado (quirúrgico — 2 líneas):**
+
+1. Agregar import `InteractionManager` de `react-native` — línea 2
+2. Reemplazar `setTimeout(500ms)` por `InteractionManager.runAfterInteractions()` — línea ~4847
+
+```javascript
+// ANTES
+setTimeout(() => {
+    Alert.alert('Venta Completada', ...);
+}, 500);
+
+// DESPUÉS
+InteractionManager.runAfterInteractions(() => {
+    Alert.alert('Venta Completada', ...);
+});
+```
+
+`InteractionManager.runAfterInteractions` espera que todas las animaciones e interacciones terminen antes de ejecutar — sin tiempo fijo, sin posibilidad de descarte por re-renders acumulados.
+
+**Resultado:** Alert aparece siempre sin importar cuántas ventas lleve el vendedor en el día. Sin cambio visual ni de UX para el vendedor.
+
+**Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js` (2 líneas)
+**Fecha**: Abril 2026
+
+#### PENDIENTE: Agente de venta sugerida por cliente (Abril 2026)
+
+**Concepto:**
+Al seleccionar un cliente en ruta, aparece automáticamente un modal con la venta sugerida basada en el historial de ese cliente con ese vendedor. El vendedor edita cantidades, toca "Enviar al carrito" y confirma la venta. Funciona como un asistente que prepara el pedido antes de que el vendedor llegue.
+
+**Flujo completo:**
+1. Vendedor selecciona cliente → modal automático se abre
+2. Modal muestra solo los productos frecuentes del cliente (5-8 productos) con cantidades sugeridas
+3. Vendedor edita cantidades directamente en el modal (lista corta, rápido)
+4. Toca **"Enviar al carrito"** → carrito se llena con esas cantidades
+5. Si necesita agregar algo extra → lo busca normal en el carrito
+6. Confirma venta → flujo normal
+
+**Diferenciación visual en el carrito:**
+- Productos con cantidad sugerida → número en azul o verde
+- Productos sin historial → en 0 como siempre
+
+**Algoritmo de sugerencia:**
+- Consultar últimas 8 ventas del cliente con ese vendedor
+- Mostrar productos que aparecen en al menos 1 venta (no promedio de cantidad — las ventas son variables)
+- Ordenar por frecuencia (los más vendidos primero)
+- Cantidad sugerida: la más frecuente (moda) de las últimas ventas, no el promedio
+
+**Backend requerido:**
+- Endpoint nuevo: `GET /api/sugerido-venta/?cliente_id=X&vendedor_id=Y`
+- Consulta `VentaRuta` filtrando por cliente y vendedor, últimas 8
+- Devuelve lista de productos con cantidad sugerida ordenada por frecuencia
+
+**App requerida:**
+- Modal nuevo liviano en `VentasScreen.js` que se abre al seleccionar cliente
+- Llama al endpoint al abrir
+- Botón "Enviar al carrito" y botón "Ignorar" para saltarlo
+- Funciona offline: si no hay conexión, no muestra el modal (no bloquea)
+
+**Archivos a modificar:**
+- `api/views.py` — nuevo endpoint `sugerido-venta`
+- `api/urls.py` — registrar endpoint
+- `AP GUERRERO/components/Ventas/VentasScreen.js` — modal sugerencia
+- `AP GUERRERO/services/rutasApiService.js` — llamada al endpoint
+
+**Por qué vale la pena:**
+Es el mayor ahorro de tiempo real para el vendedor en ruta. En vez de armar el pedido desde cero con 40+ productos, edita una lista corta de 5-8 ya precargada.
+
+---
+
+#### PENDIENTE: Búsqueda de cliente por voz en ClienteSelector (Abril 2026)
+
+**Contexto:**
+El modal de selección de cliente (`ClienteSelector.js`) ya tiene buscador de texto con filtrado por nombre, negocio y dirección, y muestra una X para limpiar el texto cuando hay contenido.
+
+**Funcionalidad a implementar:**
+Agregar un botón de micrófono en el extremo derecho del input de búsqueda para buscar clientes por voz.
+
+**Comportamiento acordado:**
+- El micrófono aparece cuando el input está vacío
+- Cuando hay texto escrito aparece la X (ya existe) — el micrófono se oculta
+- Al tocar el micrófono → el usuario habla → el texto se llena automáticamente → los clientes se filtran
+- Si se quiere limpiar: tocar X → vuelve el micrófono
+- Layout: `[ 🔍  Buscar por nombre...          🎤 ]`
+
+**Paquete a usar:**
+`@react-native-voice/voice` — captura voz y devuelve texto, se inyecta en el mismo estado del buscador existente. No cambia la lógica de filtrado.
+
+**Archivo a modificar:** `AP GUERRERO/components/Ventas/ClienteSelector.js`
+
 ---
 
 ## 🔑 Conceptos Clave

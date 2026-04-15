@@ -3787,6 +3787,34 @@ def obtener_cargue(request):
             if 'CANASTILLA' in reg.producto.upper():
                 print(f"🔍 BACKEND - CANASTILLA: cantidad={reg.cantidad}, adicional={reg.adicional}, total={reg.total}, quantity_value='{quantity_value}'")
 
+        # Agregar totales de CarguePagos como clave especial __pagos__
+        try:
+            from .models import CarguePagos
+            from django.db.models import Sum
+            pagos_qs = CarguePagos.objects.filter(
+                vendedor_id=vendedor_id,
+                activo=True
+            )
+            if fecha:
+                pagos_qs = pagos_qs.filter(fecha=fecha)
+            elif dia:
+                pagos_qs = pagos_qs.filter(dia__in=dias_variantes)
+
+            pagos_totales = pagos_qs.aggregate(
+                total_nequi=Sum('nequi'),
+                total_daviplata=Sum('daviplata'),
+                total_descuentos=Sum('descuentos'),
+            )
+            data['__pagos__'] = {
+                'nequi': float(pagos_totales['total_nequi'] or 0),
+                'daviplata': float(pagos_totales['total_daviplata'] or 0),
+                'descuentos': float(pagos_totales['total_descuentos'] or 0),
+            }
+            print(f"💳 Pagos CarguePagos: nequi={data['__pagos__']['nequi']}, daviplata={data['__pagos__']['daviplata']}")
+        except Exception as ep:
+            print(f"⚠️ Error obteniendo CarguePagos: {ep}")
+            data['__pagos__'] = {'nequi': 0, 'daviplata': 0, 'descuentos': 0}
+
         return Response(data)
 
     except Exception as e:
