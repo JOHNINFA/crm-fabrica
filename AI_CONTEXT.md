@@ -430,6 +430,73 @@ InteractionManager.runAfterInteractions(() => {
 **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js` (2 líneas)
 **Fecha**: Abril 2026
 
+#### Fix: Nequi, Daviplata y Efectivo Total incorrectos en Dashboard (Abril 2026)
+
+**Problema reportado:**
+En el Dashboard de Inteligencia (`/reportes-avanzados`), al seleccionar un vendedor y fecha, los valores de **PAGOS NEQUI**, **PAGOS DAVIPLATA** y **EFECTIVO TOTAL A ENTREGAR** mostraban $0 o valores incorrectos aunque el cargue del día tuviera pagos digitales registrados.
+
+**Causa raíz:**
+El dashboard leía `nequi` y `daviplata` desde `primerRegistro` — el primer producto del array del cargue. Los campos `nequi`/`daviplata` en cada fila de producto (`CargueID1-6`) siempre son 0. Los pagos reales están en la tabla **`CarguePagos`** (panel derecho del cargue), que es una tabla separada. El endpoint `obtener_cargue` no consultaba `CarguePagos`.
+
+**Solución aplicada:**
+
+**Backend (`api/views.py` — `obtener_cargue`):**
+- Al final del endpoint, consulta `CarguePagos` filtrando por `vendedor_id` y `fecha`
+- Agrega los totales de `nequi`, `daviplata` y `descuentos`
+- Los inyecta en la respuesta como clave especial `__pagos__`
+
+**Frontend (`DashboardIntegral.jsx`):**
+- Lee nequi/daviplata desde `cargueAcumuladoPorId[idSheet]['__pagos__']` en vez de `primerRegistro`
+- Corrige cálculo de efectivo: `efectivo = despacho_venta + pedidos - nequi - daviplata - descuentos`
+- Filtra `__pagos__` del array de productos para que no aparezca como producto en la tabla
+
+**Resultado:** PAGOS NEQUI, DAVIPLATA y EFECTIVO TOTAL A ENTREGAR muestran valores correctos del día.
+
+**Archivos modificados:**
+- `api/views.py` — función `obtener_cargue`
+- `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+
+**Commit:** `df6b9bd`
+**Fecha:** Abril 2026
+
+---
+
+#### Fix: Total Calle (Vendedores) no incluía pedidos entregados (Abril 2026)
+
+**Problema reportado:**
+En el Dashboard de Inteligencia, el card **TOTAL CALLE (Vendedores)** mostraba solo las ventas de ruta ($11.650.400) sin incluir los pedidos entregados. El valor real del día era $13.226.000.
+
+**Causa raíz:**
+`sumatoriaTotalIDs` acumulaba solo `cargue_neto_total` (ventas ruta) sin sumar `total_pedidos_real`.
+
+**Fix aplicado:**
+```javascript
+// Antes
+sumatoriaTotalIDs += (recaudo + base_caja);
+
+// Después
+sumatoriaTotalIDs += (cargue_neto_total + total_pedidos_real + base_caja);
+```
+
+**Nota:** La variable `total_pedidos_real` debe declararse antes de usarla (error `Cannot access before initialization` si el orden es incorrecto).
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+**Commits:** `260a921`, `972a98d`
+**Fecha:** Abril 2026
+
+---
+
+#### Fix: Top Alertas mostraba devoluciones físicas + vencidas (Abril 2026)
+
+**Problema:** El ranking "Top Alertas de Producción" sumaba `devoluciones + vencidas` generando números irreales (ej. 1285 porciones X4).
+
+**Fix:** Solo suma `vencidas` — las devoluciones físicas se excluyeron del ranking.
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+**Commit:** `413f088` — Abril 2026
+
+---
+
 #### PENDIENTE: Agente de venta sugerida por cliente (Abril 2026)
 
 **Concepto:**

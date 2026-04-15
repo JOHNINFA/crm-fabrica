@@ -890,9 +890,9 @@ const DashboardIntegral = ({ onVolver }) => {
                     </Col>
                 </Row>
 
-                {/* Rankings + Control de Cumplimiento */}
+                {/* Rankings */}
                 <Row className="g-3 mb-4">
-                    <Col lg={4}>
+                    <Col lg={6}>
                         <Card className="h-100 shadow-sm border-0">
                             <Card.Header className="bg-white"><h6 className="mb-0 fw-bold">⭐ Top Productos Vendidos HOY</h6></Card.Header>
                             <Card.Body className="p-0">
@@ -910,7 +910,7 @@ const DashboardIntegral = ({ onVolver }) => {
                             </Card.Body>
                         </Card>
                     </Col>
-                    <Col lg={4}>
+                    <Col lg={6}>
                         <Card className="h-100 shadow-sm border-0 border-top border-3 border-danger">
                             <Card.Header className="bg-white">
                                 <h6 className="mb-0 fw-bold">🗑️ Detalle Productos Vencidos</h6>
@@ -945,59 +945,6 @@ const DashboardIntegral = ({ onVolver }) => {
                                         <span>Sin productos vencidos hoy.</span>
                                     </div>
                                 )}
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                    <Col lg={4}>
-                        <Card className="h-100 shadow-sm border-0">
-                            <Card.Header className="bg-white"><h6 className="mb-0 fw-bold">📋 Control de Cumplimiento</h6></Card.Header>
-                            <Card.Body className="p-0">
-                                {(() => {
-                                    const cc = d.cumplimiento_control || {};
-                                    const items = [
-                                        { label: 'Licencia Transporte', val: cc.licencia_transporte, section: 'MANIPULADOR' },
-                                        { label: 'SOAT', val: cc.soat },
-                                        { label: 'Uniforme', val: cc.uniforme },
-                                        { label: 'No Loción', val: cc.no_locion },
-                                        { label: 'No Accesorios', val: cc.no_accesorios },
-                                        { label: 'Capacitación/Carnet', val: cc.capacitacion_carnet },
-                                        { label: 'Higiene', val: cc.higiene, section: 'FURGÓN' },
-                                        { label: 'Estibas', val: cc.estibas },
-                                        { label: 'Desinfección', val: cc.desinfeccion },
-                                    ];
-                                    let currentSection = '';
-                                    return (
-                                        <Table size="sm" className="mb-0" style={{ fontSize: '0.85rem' }}>
-                                            <tbody>
-                                                {items.map((item, i) => {
-                                                    const rows = [];
-                                                    if (item.section && item.section !== currentSection) {
-                                                        currentSection = item.section;
-                                                        rows.push(
-                                                            <tr key={`section-${i}`} style={{ backgroundColor: '#e9ecef' }}>
-                                                                <td colSpan="2" className="fw-bold text-center small text-uppercase py-1">{item.section}</td>
-                                                            </tr>
-                                                        );
-                                                    }
-                                                    rows.push(
-                                                        <tr key={i}>
-                                                            <td className="text-muted">{item.label}</td>
-                                                            <td className="text-end">
-                                                                {item.val === 'C'
-                                                                    ? <Badge bg="success" className="px-2">Cumple ✓</Badge>
-                                                                    : item.val === 'NC'
-                                                                        ? <Badge bg="danger" className="px-2">No Cumple ✗</Badge>
-                                                                        : <span className="text-muted">—</span>
-                                                                }
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                    return rows;
-                                                })}
-                                            </tbody>
-                                        </Table>
-                                    );
-                                })()}
                             </Card.Body>
                         </Card>
                     </Col>
