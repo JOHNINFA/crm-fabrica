@@ -429,11 +429,11 @@ const DashboardIntegral = ({ onVolver }) => {
                     cumplimiento = Math.min(((cargue_neto_total / cargue_total_despacho) * 100).toFixed(1), 100);
                 }
 
-                sumatoriaTotalIDs += (cargue_neto_total + total_pedidos_real + base_caja);
                 totalDevolucionesGlobal += valorDevol;
 
                 const despacho_venta_real = cargue_neto_total;
-                const total_pedidos_real  = Math.max(totalPedidos, cargue_pedidos); // Priorizar el mayor o cargue
+                const total_pedidos_real  = Math.max(totalPedidos, cargue_pedidos);
+                sumatoriaTotalIDs += (cargue_neto_total + total_pedidos_real + base_caja); // Priorizar el mayor o cargue
                 const venta_total_real    = despacho_venta_real + total_pedidos_real; // VENTA = VENTA RUTA + PEDIDOS
 
                 analisis_ids[idSheet] = {
