@@ -429,7 +429,7 @@ const DashboardIntegral = ({ onVolver }) => {
                     cumplimiento = Math.min(((cargue_neto_total / cargue_total_despacho) * 100).toFixed(1), 100);
                 }
 
-                sumatoriaTotalIDs += (recaudo + base_caja);
+                sumatoriaTotalIDs += (cargue_neto_total + total_pedidos_real + base_caja);
                 totalDevolucionesGlobal += valorDevol;
 
                 const despacho_venta_real = cargue_neto_total;
