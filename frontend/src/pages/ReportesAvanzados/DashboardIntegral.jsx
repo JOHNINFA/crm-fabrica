@@ -231,9 +231,9 @@ const DashboardIntegral = ({ onVolver }) => {
 
             const turnoActivo = turnosDia.find(t => t.estado === 'ACTIVO');
             const estadoTurno = turnoActivo ? 'ACTIVO' : (turnosDia.length > 0 ? 'CERRADO' : 'SIN_TURNO');
-            const totalPosVentas = turnosDia.reduce((s, t) => s + parseFloat(t.total_ventas_live ?? t.total_ventas ?? 0), 0);
-            const totalPosEfectivo = turnosDia.reduce((s, t) => s + parseFloat(t.total_efectivo_live ?? t.total_efectivo ?? 0), 0);
-            const totalPosDigital = turnosDia.reduce((s, t) => s + parseFloat(t.total_digital_live ?? t.total_tarjeta ?? 0), 0);
+            const totalPosVentas = turnosDia.reduce((s, t) => s + parseFloat(t.total_ventas || 0), 0);
+            const totalPosEfectivo = turnosDia.reduce((s, t) => s + parseFloat(t.total_efectivo || 0), 0);
+            const totalPosDigital = turnosDia.reduce((s, t) => s + parseFloat(t.total_tarjeta || 0) + parseFloat(t.total_otros || 0), 0);
             const totalPos = totalPosVentas > 0 ? totalPosVentas : (totalPosEfectivo + totalPosDigital);
 
             // Procesamiento por ID

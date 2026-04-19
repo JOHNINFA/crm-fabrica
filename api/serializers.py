@@ -472,10 +472,7 @@ class TurnoSerializer(serializers.ModelSerializer):
     cajero_nombre = serializers.ReadOnlyField(source='cajero.nombre')
     sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre')
     duracion_horas = serializers.SerializerMethodField()
-    total_ventas_live = serializers.SerializerMethodField()
-    total_efectivo_live = serializers.SerializerMethodField()
-    total_digital_live = serializers.SerializerMethodField()
-
+    
     class Meta:
         model = Turno
         fields = [
@@ -483,43 +480,16 @@ class TurnoSerializer(serializers.ModelSerializer):
             'fecha_inicio', 'fecha_fin', 'estado', 'base_inicial', 'arqueo_final',
             'diferencia', 'total_ventas', 'total_efectivo', 'total_tarjeta',
             'total_otros', 'numero_transacciones', 'notas_apertura', 'notas_cierre',
-            'duracion_horas', 'fecha_creacion', 'fecha_actualizacion',
-            'total_ventas_live', 'total_efectivo_live', 'total_digital_live'
+            'duracion_horas', 'fecha_creacion', 'fecha_actualizacion'
         ]
-        read_only_fields = ('diferencia', 'total_ventas', 'total_efectivo',
+        read_only_fields = ('diferencia', 'total_ventas', 'total_efectivo', 
                           'total_tarjeta', 'total_otros', 'numero_transacciones',
                           'fecha_creacion', 'fecha_actualizacion')
-
+    
     def get_duracion_horas(self, obj):
+        """Calcular duración en horas"""
         duracion = obj.duracion()
         return round(duracion.total_seconds() / 3600, 2)
-
-    def _ventas_activas(self, obj):
-        from .models import Venta
-        from django.utils import timezone as tz
-        return Venta.objects.filter(
-            fecha__gte=obj.fecha_inicio,
-            fecha__lte=obj.fecha_fin if obj.fecha_fin else tz.now(),
-            estado='PAGADO'
-        )
-
-    def get_total_ventas_live(self, obj):
-        if obj.estado != 'ACTIVO':
-            return float(obj.total_ventas)
-        ventas = self._ventas_activas(obj)
-        return float(sum(v.total for v in ventas))
-
-    def get_total_efectivo_live(self, obj):
-        if obj.estado != 'ACTIVO':
-            return float(obj.total_efectivo)
-        ventas = self._ventas_activas(obj)
-        return float(sum(v.total for v in ventas if v.metodo_pago == 'EFECTIVO'))
-
-    def get_total_digital_live(self, obj):
-        if obj.estado != 'ACTIVO':
-            return float(obj.total_tarjeta) + float(obj.total_otros)
-        ventas = self._ventas_activas(obj)
-        return float(sum(v.total for v in ventas if v.metodo_pago != 'EFECTIVO'))
 
 class VentaCajeroSerializer(serializers.ModelSerializer):
     """Serializer para ventas con información de cajero"""
