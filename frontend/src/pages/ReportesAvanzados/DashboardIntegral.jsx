@@ -238,13 +238,14 @@ const DashboardIntegral = ({ onVolver }) => {
             const turnoActivo = turnosDia.find(t => t.estado === 'ACTIVO');
             const estadoTurno = turnoActivo ? 'ACTIVO' : (turnosDia.length > 0 ? 'CERRADO' : 'SIN_TURNO');
 
-            // Si hay arqueo COMPLETADO para el día → usar total_ventas del turno asociado (sin base)
+            // Si hay arqueo COMPLETADO para el día → usar total_sistema del arqueo (igual al corte de caja)
             // Si no → usar turnos del día normalmente
             let totalPosVentas, totalPosEfectivo, totalPosDigital;
-            if (arqueoDia && parseFloat(arqueoDia.turno_total_ventas || 0) > 0) {
-                totalPosVentas  = parseFloat(arqueoDia.turno_total_ventas  || 0);
-                totalPosEfectivo = parseFloat(arqueoDia.turno_total_efectivo || 0);
-                totalPosDigital  = parseFloat(arqueoDia.turno_total_digital  || 0);
+            if (arqueoDia && parseFloat(arqueoDia.total_sistema || 0) > 0) {
+                const vs = arqueoDia.valores_sistema || {};
+                totalPosEfectivo = parseFloat(vs.efectivo || vs.EFECTIVO || 0);
+                totalPosVentas   = parseFloat(arqueoDia.total_sistema || 0);
+                totalPosDigital  = totalPosVentas - totalPosEfectivo;
             } else {
                 totalPosVentas  = turnosDia.reduce((s, t) => s + parseFloat(t.total_ventas  || 0), 0);
                 totalPosEfectivo = turnosDia.reduce((s, t) => s + parseFloat(t.total_efectivo || 0), 0);
