@@ -615,11 +615,15 @@ class ArqueoCajaSerializer(serializers.ModelSerializer):
     cajero_nombre = serializers.ReadOnlyField(source='cajero_logueado.nombre', allow_null=True)
     sucursal_nombre = serializers.ReadOnlyField(source='sucursal.nombre', allow_null=True)
     turno_id = serializers.ReadOnlyField(source='turno.id', allow_null=True)
-    
+    turno_total_ventas = serializers.ReadOnlyField(source='turno.total_ventas', allow_null=True)
+    turno_total_efectivo = serializers.ReadOnlyField(source='turno.total_efectivo', allow_null=True)
+    turno_total_digital = serializers.SerializerMethodField()
+    turno_base_inicial = serializers.ReadOnlyField(source='turno.base_inicial', allow_null=True)
+
     class Meta:
         model = ArqueoCaja
         fields = [
-            'id', 'fecha', 'cajero', 'banco', 
+            'id', 'fecha', 'cajero', 'banco',
             'valores_sistema', 'total_sistema',
             'valores_caja', 'total_caja',
             'diferencias', 'total_diferencia',
@@ -627,9 +631,15 @@ class ArqueoCajaSerializer(serializers.ModelSerializer):
             'cajero_logueado', 'cajero_nombre',
             'sucursal', 'sucursal_nombre',
             'turno', 'turno_id',
+            'turno_total_ventas', 'turno_total_efectivo', 'turno_total_digital', 'turno_base_inicial',
             'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ('total_sistema', 'total_caja', 'total_diferencia', 'diferencias', 'fecha_creacion', 'fecha_actualizacion')
+
+    def get_turno_total_digital(self, obj):
+        if obj.turno:
+            return float((obj.turno.total_tarjeta or 0) + (obj.turno.total_otros or 0))
+        return 0
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
     """Serializer para detalles de pedido"""

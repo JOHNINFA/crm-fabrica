@@ -138,6 +138,9 @@ const DashboardIntegral = ({ onVolver }) => {
             const turnosP = fetch(`${API_URL}/turnos/?fecha_desde=${rango.inicio}&fecha_hasta=${fechaSiguienteStr}`)
                 .then(r => r.ok ? r.json() : []).catch(() => []);
 
+            const arqueoP = fetch(`${API_URL}/arqueo-caja/?fecha_inicio=${rango.inicio}&fecha_fin=${rango.fin}&estado=COMPLETADO`)
+                .then(r => r.ok ? r.json() : []).catch(() => []);
+
             const productosP = fetch(`${API_URL}/productos/`).then(r => r.ok ? r.json() : []).catch(() => []);
 
             const vendedoresCargueP = fetch(`${API_URL}/vendedores-cargue/`)
@@ -198,6 +201,9 @@ const DashboardIntegral = ({ onVolver }) => {
             const turnosRaw = await turnosP;
             const productosRaw = await productosP;
             const vendedoresCargue = await vendedoresCargueP;
+            const arqueoRaw = await arqueoP;
+            const arqueos = Array.isArray(arqueoRaw) ? arqueoRaw : (arqueoRaw.results || []);
+            const arqueoDia = arqueos.find(a => a.fecha === rango.inicio && a.estado === 'COMPLETADO');
 
             // Mapa: "ID2" → "JAVIER TIBAVIJA" (normalizado a mayúsculas)
             const nombrePorId = {};
@@ -231,9 +237,19 @@ const DashboardIntegral = ({ onVolver }) => {
 
             const turnoActivo = turnosDia.find(t => t.estado === 'ACTIVO');
             const estadoTurno = turnoActivo ? 'ACTIVO' : (turnosDia.length > 0 ? 'CERRADO' : 'SIN_TURNO');
-            const totalPosVentas = turnosDia.reduce((s, t) => s + parseFloat(t.total_ventas || 0), 0);
-            const totalPosEfectivo = turnosDia.reduce((s, t) => s + parseFloat(t.total_efectivo || 0), 0);
-            const totalPosDigital = turnosDia.reduce((s, t) => s + parseFloat(t.total_tarjeta || 0) + parseFloat(t.total_otros || 0), 0);
+
+            // Si hay arqueo COMPLETADO para el día → usar total_ventas del turno asociado (sin base)
+            // Si no → usar turnos del día normalmente
+            let totalPosVentas, totalPosEfectivo, totalPosDigital;
+            if (arqueoDia && parseFloat(arqueoDia.turno_total_ventas || 0) > 0) {
+                totalPosVentas  = parseFloat(arqueoDia.turno_total_ventas  || 0);
+                totalPosEfectivo = parseFloat(arqueoDia.turno_total_efectivo || 0);
+                totalPosDigital  = parseFloat(arqueoDia.turno_total_digital  || 0);
+            } else {
+                totalPosVentas  = turnosDia.reduce((s, t) => s + parseFloat(t.total_ventas  || 0), 0);
+                totalPosEfectivo = turnosDia.reduce((s, t) => s + parseFloat(t.total_efectivo || 0), 0);
+                totalPosDigital  = turnosDia.reduce((s, t) => s + parseFloat(t.total_tarjeta  || 0) + parseFloat(t.total_otros || 0), 0);
+            }
             const totalPos = totalPosVentas > 0 ? totalPosVentas : (totalPosEfectivo + totalPosDigital);
 
             // Procesamiento por ID
