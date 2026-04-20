@@ -10065,11 +10065,31 @@ def exportar_cargue_excel(request):
 
                 ws.append([])
 
-            # Resumen financiero desde CargueResumen
+            # Resumen financiero
+            # total_despacho se calcula desde los productos (igual que el frontend)
+            total_despacho_calc = sum(float(r.neto or 0) for r in registros)
+
             try:
                 resumen_obj = CargueResumen.objects.get(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True)
             except CargueResumen.DoesNotExist:
                 resumen_obj = None
+
+            # Pagos: nequi + daviplata desde CarguePagos
+            pagos_para_efectivo = list(CarguePagos.objects.filter(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True))
+            total_nequi_efectivo = sum(float(p.nequi or 0) for p in pagos_para_efectivo)
+            total_daviplata_efectivo = sum(float(p.daviplata or 0) for p in pagos_para_efectivo)
+            total_digital = total_nequi_efectivo + total_daviplata_efectivo
+
+            base_caja_val = float(resumen_obj.base_caja or 0) if resumen_obj else 0
+            total_pedidos_val = float(resumen_obj.total_pedidos or 0) if resumen_obj else 0
+            total_dctos_val = float(resumen_obj.total_dctos or 0) if resumen_obj else 0
+            # Si CargueResumen tiene venta real úsala, si no calcularla
+            venta_val = float(resumen_obj.venta or 0) if resumen_obj else 0
+            if venta_val == 0:
+                venta_val = total_despacho_calc + total_pedidos_val - total_dctos_val
+            efectivo_val = float(resumen_obj.total_efectivo or 0) if resumen_obj else 0
+            if efectivo_val == 0:
+                efectivo_val = venta_val - total_digital
 
             ws.append(['RESUMEN FINANCIERO', '', ''])
             res_hdr = ws.max_row
@@ -10078,15 +10098,14 @@ def exportar_cargue_excel(request):
             ws[f'A{res_hdr}'].fill = header_fill_azul
             ws[f'A{res_hdr}'].alignment = center
 
-            campos_resumen = [
-                ('Base Caja', resumen_obj.base_caja if resumen_obj else 0),
-                ('Total Despacho', resumen_obj.total_despacho if resumen_obj else 0),
-                ('Total Pedidos', resumen_obj.total_pedidos if resumen_obj else 0),
-                ('Total Dctos', resumen_obj.total_dctos if resumen_obj else 0),
-                ('Venta', resumen_obj.venta if resumen_obj else 0),
-                ('Total Efectivo', resumen_obj.total_efectivo if resumen_obj else 0),
-            ]
-            for campo, val in campos_resumen:
+            for campo, val in [
+                ('Base Caja', base_caja_val),
+                ('Total Despacho', total_despacho_calc),
+                ('Total Pedidos', total_pedidos_val),
+                ('Total Dctos', total_dctos_val),
+                ('Venta', venta_val),
+                ('Total Efectivo', efectivo_val),
+            ]:
                 ws.append([campo, '', formato_cop(val)])
                 ws[f'A{ws.max_row}'].font = Font(bold=True)
                 for cell in ws[ws.max_row]:
@@ -10136,8 +10155,8 @@ def exportar_cargue_excel(request):
                 'responsable': responsable,
                 'ruta': ruta,
                 'productos': len(registros),
-                'venta': resumen_obj.venta if resumen_obj else 0,
-                'total_efectivo': resumen_obj.total_efectivo if resumen_obj else 0,
+                'venta': venta_val,
+                'total_efectivo': efectivo_val,
             })
 
         # Hoja Resumen (primera)
