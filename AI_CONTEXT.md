@@ -880,6 +880,24 @@ Esto es comportamiento esperado y documentado. Si se requiere consistencia con e
 
 ---
 
+#### feat: Quitar cards obsoletas del menú de Reportes Avanzados (Abril 2026)
+
+**Cambio:**
+Se eliminaron 3 cards del menú de Informes que quedaron reemplazadas por los nuevos módulos:
+
+| Card eliminada | Reemplazada por |
+|---|---|
+| Desempeño de Vendedores | Historial de Clientes |
+| Efectividad de Vendedores | Historial de Clientes |
+| Mis Ventas POS | Ventas Productos POS |
+
+Los componentes y route handlers siguen existiendo en el código pero ya no son accesibles desde el menú.
+
+**Archivo:** `frontend/src/pages/ReportesAvanzadosScreen.jsx`
+**Commit:** `7c9ab26` — Abril 2026
+
+---
+
 #### feat: Botón "Informes" en Cargue solo para administradores (Abril 2026)
 
 **Funcionalidad:**
