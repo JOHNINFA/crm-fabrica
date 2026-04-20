@@ -929,8 +929,8 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                     </div>
                 </Tab>
 
-                {/* PESTAÑA HISTORIAL CLIENTE / ANÁLISIS RUTA */}
-                <Tab eventKey="historial" title={<><i className="bi bi-bar-chart-lines me-1"></i> Análisis de Ruta</>}>
+                {/* PESTAÑA HISTORIAL CLIENTE / ANÁLISIS RUTA — oculta del menú */}
+                {false && <Tab eventKey="historial" title={<><i className="bi bi-bar-chart-lines me-1"></i> Análisis de Ruta</>}>
                     <div className="mb-4 mt-3 d-flex justify-content-between align-items-center">
                         <div>
                             <h4 className="fw-bold text-dark mb-1">Análisis de Desempeño por Ruta</h4>
@@ -1213,7 +1213,7 @@ ${venta.productos_vencidos.map(v => `<div class="info-row"><span>- ${v.producto}
                         </div>
                     )}
 
-                </Tab>
+                </Tab>}
 
                 {/* PESTAÑA REPORTES (ORIGINAL) */}
                 <Tab eventKey="reportes" title={<><i className="bi bi-graph-up me-1"></i> Reportes</>}>
