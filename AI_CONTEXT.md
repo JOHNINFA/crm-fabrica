@@ -880,6 +880,38 @@ Esto es comportamiento esperado y documentado. Si se requiere consistencia con e
 
 ---
 
+#### feat: Exportar clientes de rutas a Excel desde Gestión de Rutas (Abril 2026)
+
+**Descripción:**
+Botón **📥 Descargar Excel** en la barra de búsqueda global de Gestión de Rutas. Genera un libro Excel con todos los clientes activos agrupados por ID de vendedor.
+
+**Ubicación del botón:**
+Dentro de la barra de búsqueda global ("Buscar cliente en TODAS las rutas..."), al extremo derecho — visible siempre que el módulo esté abierto.
+
+**Estructura del Excel:**
+- Hoja **Resumen**: ID Vendedor | Nombre | Total Clientes | RUTA | PEDIDO
+- Hoja por cada **ID** (ej. "ID1"): Ruta | Negocio | Contacto | Teléfono | Tipo Negocio | Origen | Días Visita | Dirección | Nota
+  - Clientes **PEDIDO** → fondo amarillo
+  - Clientes **RUTA** → filas alternas blanco/gris
+- Nombre del archivo: `clientes_rutas_FECHA.xlsx`
+
+**Distinción RUTA vs PEDIDO:**
+`tipo_negocio.toUpperCase().includes('PEDIDOS')` → PEDIDO, de lo contrario → RUTA (misma lógica que el badge visual del módulo)
+
+**Endpoint:** `GET /api/reportes/clientes-rutas-excel/`
+- Solo incluye rutas activas (`activa=True`) y clientes activos (`activo=True`)
+- Ordenado por: vendedor_id → nombre_ruta → orden del cliente
+
+**Archivos modificados:**
+- `api/views.py` — función `exportar_clientes_rutas_excel`
+- `api/urls.py` — 1 ruta nueva
+- `frontend/src/components/rutas/GestionRutas.jsx` — estado `descargandoExcel` + función `descargarExcelRutas` + botón
+
+**Commit:** `541f3d2`
+**Fecha:** Abril 2026
+
+---
+
 #### feat: Quitar cards obsoletas del menú de Reportes Avanzados (Abril 2026)
 
 **Cambio:**
