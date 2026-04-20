@@ -9223,9 +9223,8 @@ def exportar_clientes_rutas_excel(request):
     import io
 
     try:
-        rutas = Ruta.objects.filter(activa=True).select_related('vendedor').prefetch_related('clientes')
         clientes_ruta = ClienteRuta.objects.filter(
-            activo=True, ruta__activa=True
+            activo=True, ruta__activo=True
         ).select_related('ruta', 'ruta__vendedor').order_by(
             'ruta__vendedor__id_vendedor', 'ruta__nombre', 'orden'
         )
