@@ -786,6 +786,53 @@ DELETE FROM api_venta WHERE vendedor = 'Sistema' AND total = 0;
 
 ---
 
+#### feat: Módulo Historial de Clientes (Abril 2026)
+
+**Descripción:**
+Nuevo módulo dentro de **Informes** que muestra el historial de compras y vencidas por cliente, filtrando por Día / Semana / Mes / Rango / Año. Incluye exportación a Excel con una hoja por vendedor — listo para análisis en Power BI.
+
+**Flujo de uso:**
+1. Entrar a Informes → card "Historial de Clientes"
+2. Seleccionar período (Día/Semana/Mes/Rango/Año) → Buscar
+3. Ver lista de clientes agrupados por ID de vendedor, con buscador por nombre
+4. Tocar cliente → ver detalle con tablas **Compras** y **Vencidas** del período
+5. Botón **📥 Descargar Excel** genera libro con una hoja por ID + hoja Resumen
+
+**Fuentes de datos:**
+- `VentaRuta` (estado=ACTIVA) → compras de ruta + vencidas (`detalles` y `productos_vencidos` JSON)
+- `Pedido` (estado=ENTREGADA) → compras de pedidos (`DetallePedido`)
+- `ClienteRuta` → nombre negocio, contacto, ruta
+
+**Badge por cliente:**
+- `[RUTA]` → viene de VentaRuta
+- `[PEDIDO]` → viene de Pedido entregado
+- Badge amarillo ⚠️ si el cliente tiene vencidas en el período
+
+**Estructura del Excel exportado:**
+- Hoja **Resumen**: ID Vendedor | Nombre | Clientes | Total Ventas | Vencidas
+- Hoja por cada **ID** (ej. "ID1"): Cliente | Contacto | Origen | Tipo | Producto | Cantidad | Total COP
+  - Tipo = `COMPRA` (fondo blanco) o `VENCIDA` (fondo amarillo)
+  - Subtotales por cliente en negrita
+- Nombre del archivo: `historial_clientes_FECHA_INICIO_FECHA_FIN.xlsx`
+
+**Endpoint backend:**
+- `GET /api/reportes/historial-clientes/?fecha_inicio=X&fecha_fin=Y` — retorna JSON agrupado por cliente
+- `GET /api/reportes/historial-clientes/excel/?fecha_inicio=X&fecha_fin=Y` — retorna archivo .xlsx
+
+**Archivos creados/modificados:**
+- `api/views.py` — funciones `historial_clientes` y `exportar_historial_clientes_excel` (al final del archivo)
+- `api/urls.py` — 2 rutas nuevas registradas
+- `frontend/src/pages/ReportesAvanzados/HistorialClientes.jsx` — componente nuevo completo
+- `frontend/src/pages/ReportesAvanzadosScreen.jsx` — import + card en menú + route handler
+- `requirements.txt` — agrega `openpyxl==3.1.2`
+
+**Sin cambios en:** `models.py` (no requiere migraciones), `serializers.py`, ningún componente existente.
+
+**Commits:** `8fbbea9`, `1c70c84`
+**Fecha:** Abril 2026
+
+---
+
 #### feat: Botón "Informes" en Cargue solo para administradores (Abril 2026)
 
 **Funcionalidad:**
