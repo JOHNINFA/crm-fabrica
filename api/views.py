@@ -9976,8 +9976,16 @@ def exportar_cargue_excel(request):
 
         resumen_rows = []
 
+        # Precargar precios de todos los productos (precio_cargue)
+        precios_lookup = {}
+        for prod in Producto.objects.values('nombre', 'precio_cargue', 'precio'):
+            precio = float(prod.get('precio_cargue') or prod.get('precio') or 0)
+            if precio > 0:
+                precios_lookup[prod['nombre']] = precio
+
         for id_label, Modelo in MODELOS_ID:
-            registros = list(Modelo.objects.filter(fecha=fecha_obj, dia=dia, activo=True).order_by('producto'))
+            # Orden por id (igual que la web - orden de inserción)
+            registros = list(Modelo.objects.filter(fecha=fecha_obj, dia=dia, activo=True).order_by('id'))
             if not registros:
                 continue
 
@@ -9987,199 +9995,284 @@ def exportar_cargue_excel(request):
 
             ws = wb.create_sheet(id_label)
 
-            # ── TÍTULO ──
-            n_cols_title = 12
-            ws.append([f'CARGUE {id_label} — {responsable}'] + [''] * (n_cols_title - 2) + [f'{dia}  {fecha_str}'])
-            ws.merge_cells(f'A1:K1')
+            # ── FILA 1: TÍTULO ──────────────────────────────────────
+            ws.append([f'CARGUE {id_label} — {responsable}', '', '', '', '', '', '', '', '', '', '', f'{dia}  {fecha_str}'])
+            ws.merge_cells('A1:K1')
             ws['A1'].font = Font(bold=True, size=13, color=azul)
             ws['A1'].alignment = left
             ws['L1'].font = Font(bold=True, size=11, color='555555')
             ws['L1'].alignment = center
             ws.row_dimensions[1].height = 22
-            ws.append([])
 
-            # ── TABLA PRODUCTOS (mismas columnas que la web) ──
-            cols_prod = ['V', 'D', 'PRODUCTOS', 'CANTIDAD', 'DCTOS.', 'ADICIONAL', 'DEVOLUCIONES', 'VENCIDAS', 'LOTES VENCIDOS', 'TOTAL', 'VALOR', 'NETO']
-            ws.append(cols_prod)
-            hdr_row = ws.max_row
+            ws.append([])  # fila 2 vacía
+
+            # ── FILA 3: ENCABEZADOS TABLA PRODUCTOS ─────────────────
+            PROD_COLS = ['V', 'D', 'PRODUCTOS', 'CANTIDAD', 'DCTOS.', 'ADICIONAL', 'DEVOLUCIONES', 'VENCIDAS', 'LOTES VENCIDOS', 'TOTAL', 'VALOR', 'NETO']
+            ws.append(PROD_COLS)
+            hdr_row = ws.max_row  # = 3
             for cell in ws[hdr_row]:
                 cell.font = header_font
                 cell.fill = header_fill_azul
                 cell.alignment = center
                 cell.border = borde
 
-            total_cantidad = 0
-            total_neto = 0.0
+            # ── FILAS 4..n+3: DATOS ──────────────────────────────────
+            data_start = ws.max_row + 1
             for i, r in enumerate(registros):
-                v_val = '✓' if getattr(r, 'v', False) else '-'
-                d_val = '✓' if getattr(r, 'd', False) else '-'
+                rn = ws.max_row + 1
+                v_val = 'V' if getattr(r, 'v', False) else ''
+                d_val = 'D' if getattr(r, 'd', False) else ''
                 try:
-                    lotes = json.loads(r.lotes_vencidos) if r.lotes_vencidos else []
-                    lotes_str = ', '.join([f"{l.get('lote','')}" for l in lotes]) if lotes else ''
+                    lotes_v = json.loads(r.lotes_vencidos) if r.lotes_vencidos else []
+                    if isinstance(lotes_v, list) and lotes_v:
+                        lotes_str = ', '.join(str(l.get('lote', '')) for l in lotes_v if l.get('lote'))
+                    else:
+                        lotes_str = ''
                 except Exception:
-                    lotes_str = r.lotes_vencidos or ''
-                ws.append([
-                    v_val, d_val, r.producto,
-                    r.cantidad, r.dctos, r.adicional,
-                    r.devoluciones, r.vencidas, lotes_str,
-                    r.total, float(r.valor or 0), float(r.neto or 0),
-                ])
-                data_row = ws.max_row
+                    lotes_str = str(r.lotes_vencidos or '')
+
+                # Precio: usar el guardado en BD si > 0, si no buscar en productos
+                precio = float(r.valor or 0)
+                if precio == 0:
+                    precio = precios_lookup.get(r.producto, 0)
+
+                ws.append([v_val, d_val, r.producto,
+                           r.cantidad, r.dctos, r.adicional, r.devoluciones, r.vencidas,
+                           lotes_str, None, precio, None])
+                # Formulas TOTAL y NETO
+                ws[f'J{rn}'] = f'=D{rn}-E{rn}+F{rn}-G{rn}-H{rn}'
+                ws[f'L{rn}'] = f'=J{rn}*K{rn}'
+
                 fill = fila_par if i % 2 == 1 else PatternFill()
-                for cell in ws[data_row]:
+                for cell in ws[rn]:
                     cell.border = borde
                     cell.alignment = center
                     if fill.fill_type:
                         cell.fill = fill
-                ws[f'C{data_row}'].alignment = left
-                total_cantidad += r.cantidad
-                total_neto += float(r.neto or 0)
+                ws[f'C{rn}'].alignment = left
 
-            # Fila TOTALES
-            ws.append(['', '', 'TOTALES', total_cantidad, '', '', '', '', '', '', '', float(total_neto)])
+            data_end = ws.max_row
+
+            # ── FILA TOTALES ─────────────────────────────────────────
+            ws.append(['', '', 'TOTALES',
+                       f'=SUM(D{data_start}:D{data_end})', '', '',
+                       f'=SUM(G{data_start}:G{data_end})',
+                       f'=SUM(H{data_start}:H{data_end})', '',
+                       f'=SUM(J{data_start}:J{data_end})', '',
+                       f'=SUM(L{data_start}:L{data_end})'])
             tot_row = ws.max_row
             for cell in ws[tot_row]:
                 cell.font = Font(bold=True)
                 cell.fill = fila_total
                 cell.border = borde
+            ws[f'C{tot_row}'].alignment = left
 
-            ws.append([])
+            ws.append([])  # blank
 
-            # ── RESUMEN FINANCIERO (panel derecho de la web) ──
-            # Calcular igual que el frontend: total_despacho = sum(neto)
-            total_despacho_calc = total_neto
+            # ── PAGOS ────────────────────────────────────────────────
+            pagos = list(CarguePagos.objects.filter(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True))
 
+            ws.append(['CONCEPTO', 'DESCUENTOS', 'NEQUI', 'DAVIPLATA'])
+            pago_hdr_r = ws.max_row
+            for cell in ws[pago_hdr_r]:
+                cell.font = header_font
+                cell.fill = header_fill_verde
+                cell.alignment = center
+                cell.border = borde
+
+            pago_data_start = ws.max_row + 1
+            for p in pagos:
+                ws.append([p.concepto, float(p.descuentos or 0), float(p.nequi or 0), float(p.daviplata or 0)])
+                rp = ws.max_row
+                for cell in ws[rp]:
+                    cell.border = borde
+                    cell.alignment = Alignment(horizontal='right')
+                ws[f'A{rp}'].alignment = left
+            pago_data_end = ws.max_row
+
+            # Fila TOTAL pagos con fórmulas
+            if pagos:
+                ws.append(['TOTAL', '', f'=SUM(C{pago_data_start}:C{pago_data_end})', f'=SUM(D{pago_data_start}:D{pago_data_end})'])
+            else:
+                ws.append(['TOTAL', '', 0, 0])
+            pago_tot_row = ws.max_row
+            for cell in ws[pago_tot_row]:
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill('solid', fgColor='D4EDDA')
+                cell.border = borde
+
+            ws.append([])  # blank
+
+            # ── RESUMEN FINANCIERO ───────────────────────────────────
             try:
                 resumen_obj = CargueResumen.objects.get(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True)
             except CargueResumen.DoesNotExist:
                 resumen_obj = None
 
-            pagos = list(CarguePagos.objects.filter(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True))
-            total_nequi = sum(float(p.nequi or 0) for p in pagos)
-            total_daviplata = sum(float(p.daviplata or 0) for p in pagos)
-            total_digital = total_nequi + total_daviplata
-
             base_caja_val = float(resumen_obj.base_caja or 0) if resumen_obj else 0
             total_pedidos_val = float(resumen_obj.total_pedidos or 0) if resumen_obj else 0
             total_dctos_val = float(resumen_obj.total_dctos or 0) if resumen_obj else 0
-            venta_val = float(resumen_obj.venta or 0) if resumen_obj else 0
-            if venta_val == 0:
-                venta_val = total_despacho_calc + total_pedidos_val - total_dctos_val
-            efectivo_val = float(resumen_obj.total_efectivo or 0) if resumen_obj else 0
-            if efectivo_val == 0:
-                efectivo_val = venta_val - total_digital
 
-            resumen_items = [
-                ('BASE CAJA', base_caja_val),
-                ('TOTAL DESPACHO', total_despacho_calc),
-                ('TOTAL PEDIDOS', total_pedidos_val),
-                ('TOTAL DCTOS', total_dctos_val),
-                ('VENTA', venta_val),
-                ('TOTAL EFECTIVO', efectivo_val),
-            ]
-            # Encabezado sección resumen
-            ws.append(['RESUMEN FINANCIERO', '', float(0)])
-            res_sec = ws.max_row
-            ws.merge_cells(f'A{res_sec}:B{res_sec}')
-            ws[f'A{res_sec}'].font = Font(bold=True, color='FFFFFF', size=11)
-            ws[f'A{res_sec}'].fill = header_fill_azul
-            ws[f'A{res_sec}'].alignment = center
-            ws[f'C{res_sec}'].font = Font(bold=True, color='FFFFFF', size=11)
-            ws[f'C{res_sec}'].fill = header_fill_azul
+            # Header resumen
+            ws.append(['RESUMEN FINANCIERO', ''])
+            res_hdr_r = ws.max_row
+            ws.merge_cells(f'A{res_hdr_r}:B{res_hdr_r}')
+            ws[f'A{res_hdr_r}'].font = Font(bold=True, color='FFFFFF', size=11)
+            ws[f'A{res_hdr_r}'].fill = header_fill_azul
+            ws[f'A{res_hdr_r}'].alignment = center
 
-            for campo, val in resumen_items:
-                ws.append([campo, '', float(val)])
-                r_idx = ws.max_row
-                ws[f'A{r_idx}'].font = Font(bold=True)
-                ws[f'A{r_idx}'].border = borde
-                ws[f'B{r_idx}'].border = borde
-                ws[f'C{r_idx}'].border = borde
-                ws[f'C{r_idx}'].alignment = Alignment(horizontal='right')
-                ws.merge_cells(f'A{r_idx}:B{r_idx}')
+            def _res_row(ws, label, value, hl=None):
+                ws.append([label, value])
+                r = ws.max_row
+                ws[f'A{r}'].font = Font(bold=True)
+                ws[f'B{r}'].alignment = Alignment(horizontal='right')
+                for col in ('A', 'B'):
+                    ws[f'{col}{r}'].border = borde
+                if hl:
+                    for col in ('A', 'B'):
+                        ws[f'{col}{r}'].fill = PatternFill('solid', fgColor=hl)
+                return r
 
-            ws.append([])
+            _res_row(ws, 'BASE CAJA', base_caja_val)
+            td_r = _res_row(ws, 'TOTAL DESPACHO:', f'=SUM(L{data_start}:L{data_end})', hl='EBF5FB')
+            tp_r = _res_row(ws, 'TOTAL PEDIDOS:', total_pedidos_val, hl='FFF0E8')
+            tdctos_r = _res_row(ws, 'TOTAL DCTOS:', total_dctos_val)
+            venta_r = _res_row(ws, 'VENTA:', f'=B{td_r}+B{tp_r}-B{tdctos_r}', hl='E8F5E9')
+            _res_row(ws, 'TOTAL EFECTIVO:', f'=B{venta_r}-C{pago_tot_row}-D{pago_tot_row}')
+            _res_row(ws, 'VENCIDAS FVTO:', f'=SUMPRODUCT(H{data_start}:H{data_end},K{data_start}:K{data_end})')
 
-            # ── PAGOS (misma tabla de la web) ──
-            if pagos:
-                ws.append(['PAGOS', '', '', '', ''])
-                pago_hdr = ws.max_row
-                ws.merge_cells(f'A{pago_hdr}:E{pago_hdr}')
-                ws[f'A{pago_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
-                ws[f'A{pago_hdr}'].fill = header_fill_verde
-                ws[f'A{pago_hdr}'].alignment = center
+            # Calcular para hoja Resumen general
+            total_nequi_calc = sum(float(p.nequi or 0) for p in pagos)
+            total_daviplata_calc = sum(float(p.daviplata or 0) for p in pagos)
+            total_despacho_calc = sum(
+                (float(r.valor or 0) if float(r.valor or 0) > 0 else precios_lookup.get(r.producto, 0))
+                * (r.cantidad - r.dctos + r.adicional - r.devoluciones - r.vencidas)
+                for r in registros
+            )
+            venta_calc = total_despacho_calc + total_pedidos_val - total_dctos_val
+            efectivo_calc = venta_calc - total_nequi_calc - total_daviplata_calc
 
-                ws.append(['CONCEPTO', 'DESCUENTOS', 'NEQUI', 'DAVIPLATA', 'TOTAL PAGO'])
+            ws.append([])  # blank
+
+            # ── CONTROL DE CUMPLIMIENTO ──────────────────────────────
+            try:
+                cumpl = CargueCumplimiento.objects.get(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True)
+
+                ws.append(['CONTROL DE CUMPLIMIENTO', ''])
+                cc_hdr = ws.max_row
+                ws.merge_cells(f'A{cc_hdr}:B{cc_hdr}')
+                ws[f'A{cc_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
+                ws[f'A{cc_hdr}'].fill = header_fill_azul
+                ws[f'A{cc_hdr}'].alignment = center
+
+                # MANIPULADOR
+                ws.append(['MANIPULADOR', ''])
+                m_hdr = ws.max_row
+                ws.merge_cells(f'A{m_hdr}:B{m_hdr}')
+                ws[f'A{m_hdr}'].font = Font(bold=True, size=10)
+                ws[f'A{m_hdr}'].fill = PatternFill('solid', fgColor='D6E4F0')
+                ws[f'A{m_hdr}'].alignment = center
+
+                for campo, val in [
+                    ('Licencia de transporte', cumpl.licencia_transporte),
+                    ('SOAT', cumpl.soat),
+                    ('Uniforme', cumpl.uniforme),
+                    ('No loción', cumpl.no_locion),
+                    ('No accesorios', cumpl.no_accesorios),
+                    ('Capacitación/Carnet', cumpl.capacitacion_carnet),
+                ]:
+                    ws.append([campo, val or '-'])
+                    rc = ws.max_row
+                    ws[f'A{rc}'].border = borde
+                    ws[f'B{rc}'].border = borde
+                    if val == 'C':
+                        ws[f'B{rc}'].fill = PatternFill('solid', fgColor='D4EDDA')
+                        ws[f'B{rc}'].font = Font(bold=True, color='1D6A3A')
+                    elif val == 'NC':
+                        ws[f'B{rc}'].fill = PatternFill('solid', fgColor='F8D7DA')
+                        ws[f'B{rc}'].font = Font(bold=True, color='721C24')
+
+                # FURGÓN
+                ws.append(['FURGÓN', ''])
+                f_hdr = ws.max_row
+                ws.merge_cells(f'A{f_hdr}:B{f_hdr}')
+                ws[f'A{f_hdr}'].font = Font(bold=True, size=10)
+                ws[f'A{f_hdr}'].fill = PatternFill('solid', fgColor='D6E4F0')
+                ws[f'A{f_hdr}'].alignment = center
+
+                for campo, val in [
+                    ('Higiene', cumpl.higiene),
+                    ('Estibas', cumpl.estibas),
+                    ('Desinfección', cumpl.desinfeccion),
+                ]:
+                    ws.append([campo, val or '-'])
+                    rc = ws.max_row
+                    ws[f'A{rc}'].border = borde
+                    ws[f'B{rc}'].border = borde
+                    if val == 'C':
+                        ws[f'B{rc}'].fill = PatternFill('solid', fgColor='D4EDDA')
+                        ws[f'B{rc}'].font = Font(bold=True, color='1D6A3A')
+                    elif val == 'NC':
+                        ws[f'B{rc}'].fill = PatternFill('solid', fgColor='F8D7DA')
+                        ws[f'B{rc}'].font = Font(bold=True, color='721C24')
+
+                # Leyenda
+                ws.append(['CUMPLE: C', 'NO CUMPLE: NC'])
+                ley_r = ws.max_row
+                ws[f'A{ley_r}'].font = Font(bold=True, color='1D6A3A', italic=True)
+                ws[f'B{ley_r}'].font = Font(bold=True, color='721C24', italic=True)
+
+            except CargueCumplimiento.DoesNotExist:
+                pass
+
+            ws.append([])  # blank
+
+            # ── REGISTRO DE LOTES ────────────────────────────────────
+            lotes_dia = []
+            for r in registros:
+                try:
+                    lp = json.loads(r.lotes_produccion) if r.lotes_produccion else []
+                    if isinstance(lp, list):
+                        lotes_dia.extend(lp)
+                except Exception:
+                    pass
+
+            if lotes_dia:
+                ws.append(['REGISTRO DE LOTES', ''])
+                rl_hdr = ws.max_row
+                ws.merge_cells(f'A{rl_hdr}:B{rl_hdr}')
+                ws[f'A{rl_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
+                ws[f'A{rl_hdr}'].fill = header_fill_azul
+                ws[f'A{rl_hdr}'].alignment = center
+
+                ws.append(['LOTE', 'INFO'])
                 for cell in ws[ws.max_row]:
                     cell.font = header_font
-                    cell.fill = header_fill_verde
+                    cell.fill = header_fill_azul
                     cell.alignment = center
                     cell.border = borde
 
-                for p in pagos:
-                    total_p = float(p.nequi or 0) + float(p.daviplata or 0)
-                    ws.append([p.concepto, float(p.descuentos or 0), float(p.nequi or 0), float(p.daviplata or 0), total_p])
+                for lote in lotes_dia:
+                    if isinstance(lote, dict):
+                        ws.append([lote.get('lote', ''), lote.get('info', '') or lote.get('fecha', '')])
+                    else:
+                        ws.append([str(lote), ''])
                     for cell in ws[ws.max_row]:
                         cell.border = borde
-                        cell.alignment = Alignment(horizontal='right')
-                    ws[f'A{ws.max_row}'].alignment = left
-
-                ws.append(['TOTAL', '', float(total_nequi), float(total_daviplata), float(total_digital)])
-                for cell in ws[ws.max_row]:
-                    cell.font = Font(bold=True)
-                    cell.fill = PatternFill('solid', fgColor='D4EDDA')
-                    cell.border = borde
-
-                ws.append([])
-
-
-            # Cumplimiento
-            try:
-                cumpl = CargueCumplimiento.objects.get(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True)
-                ws.append(['CUMPLIMIENTO', '', ''])
-                cumpl_hdr = ws.max_row
-                ws.merge_cells(f'A{cumpl_hdr}:C{cumpl_hdr}')
-                ws[f'A{cumpl_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
-                ws[f'A{cumpl_hdr}'].fill = header_fill_azul
-                ws[f'A{cumpl_hdr}'].alignment = center
-
-                for campo, val in [
-                    ('Licencia Transporte', cumpl.licencia_transporte),
-                    ('SOAT', cumpl.soat),
-                    ('Uniforme', cumpl.uniforme),
-                    ('No Locion', cumpl.no_locion),
-                    ('No Accesorios', cumpl.no_accesorios),
-                    ('Capacitacion/Carnet', cumpl.capacitacion_carnet),
-                    ('Higiene', cumpl.higiene),
-                    ('Estibas', cumpl.estibas),
-                    ('Desinfeccion', cumpl.desinfeccion),
-                ]:
-                    ws.append([campo, '', val or '-'])
-                    row_c = ws.max_row
-                    ws[f'A{row_c}'].font = Font(bold=True)
-                    for cell in ws[row_c]:
-                        cell.border = borde
-                    if val == 'C':
-                        ws[f'C{row_c}'].fill = PatternFill('solid', fgColor='D4EDDA')
-                        ws[f'C{row_c}'].font = Font(bold=True, color='1D6A3A')
-                    elif val == 'NC':
-                        ws[f'C{row_c}'].fill = PatternFill('solid', fgColor='F8D7DA')
-                        ws[f'C{row_c}'].font = Font(bold=True, color='721C24')
-            except CargueCumplimiento.DoesNotExist:
-                pass
 
             autofit(ws)
             ws.column_dimensions['A'].width = 4   # V
             ws.column_dimensions['B'].width = 4   # D
-            ws.column_dimensions['C'].width = 28  # PRODUCTOS
-            ws.column_dimensions['I'].width = 16  # LOTES VENCIDOS
+            ws.column_dimensions['C'].width = 30  # PRODUCTOS
+            ws.column_dimensions['I'].width = 18  # LOTES VENCIDOS
 
             resumen_rows.append({
                 'id': id_label,
                 'responsable': responsable,
                 'ruta': ruta,
                 'productos': len(registros),
-                'venta': venta_val,
-                'total_efectivo': efectivo_val,
+                'venta': venta_calc,
+                'total_efectivo': efectivo_calc,
             })
 
         # Hoja Resumen (primera)
