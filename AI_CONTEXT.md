@@ -328,6 +328,42 @@ El stock mostrado en el modal de edición siempre mostraba el máximo fijo (ej. 
 **Archivos modificados**: `AP GUERRERO/components/Ventas/VentasScreen.js`
 **Fecha**: Abril 2026
 
+#### Fix: modal de impresión reemplaza Alert nativo (Abril 2026)
+
+**Problema reportado:**
+El Alert nativo de Android para imprimir el ticket no aparecía de forma intermitente (podía fallar en la venta 3, 5 o 15 — sin patrón fijo). La venta sí se guardaba correctamente pero el vendedor tenía que ir al historial a reimprimir manualmente.
+
+**Causa raíz:**
+`Alert.alert()` de React Native usa el diálogo nativo de Android, que puede ser bloqueado o descartado por notificaciones del sistema, llamadas u otros alertas que aparezcan al mismo tiempo.
+
+**Solución aplicada:**
+Reemplazar el `Alert.alert` + `InteractionManager.runAfterInteractions` por un **Modal propio de la app** que:
+- Siempre aparece al completar una venta (no depende del sistema Android)
+- No desaparece solo — el vendedor debe tocar un botón para cerrarlo
+- Usa los mismos estilos de los modales existentes (`modalOverlay`, `modalContentCentered`, `btnModal`)
+
+**Contenido del modal:**
+- Título "✅ Venta Completada" en verde
+- Total y Método de pago
+- Botón **🖨️ Imprimir** (azul) — llama `imprimirTicket` y continúa
+- Botón **Continuar sin imprimir** (gris) — continúa sin imprimir
+
+**Cambios en código:**
+- 2 estados nuevos: `modalImprimirVisible`, `datosModalImprimir`
+- `InteractionManager.runAfterInteractions + Alert.alert` → `setModalImprimirVisible(true)`
+- Modal agregado al JSX antes del cierre del componente
+
+**Fix adicional — color botón imprimir (Abril 2026):**
+- El botón 🖨️ Imprimir tenía `#2980b9` (azul claro) distinto al azul corporativo de la app.
+- Cambiado a `#003d88` (mismo azul del botón "Cerrar" del carrito de ventas).
+- **Commit**: `9f7d0a9`
+
+**Pendiente confirmar:** los vendedores verificarán si el modal propio resuelve definitivamente el problema de que el alert de impresión a veces no aparecía. Si el modal siempre aparece, el fix es exitoso.
+
+**Commits**: `a6c6408`, `c45f297`, `9f7d0a9`
+**Archivo**: `AP GUERRERO/components/Ventas/VentasScreen.js`
+**Fecha**: Abril 2026
+
 #### Fix impresora: caracteres basura intermitentes (Abril 2026)
 
 **Problema reportado:**
@@ -497,6 +533,33 @@ sumatoriaTotalIDs += (cargue_neto_total + total_pedidos_real + base_caja);
 
 ---
 
+#### PENDIENTE: Persistir color rojo de overrides del despachador en DB (Abril 2026)
+
+**Contexto:**
+Cuando el vendedor cierra turno desde la app, los valores de `devoluciones` y `vencidas` llegan al Cargue web. Si el despachador modifica esos valores, el campo se pone en **rojo** para indicar que fue modificado respecto a lo que reportó la app.
+
+**Problema actual:**
+Los overrides (qué campos fueron modificados) se guardan en `localStorage` con la clave `cargue_despachador_overrides_DIA_ID_FECHA`. Funciona en el mismo navegador, pero se pierde en incógnito o en otro navegador/PC.
+
+**Solución propuesta (mínima):**
+1. Agregar 2 campos BooleanField a los 6 modelos CargueID: `devoluciones_modificado` y `vencidas_modificado` (default=False)
+2. En el `update()` del ViewSet: si el PATCH incluye `devoluciones` o `vencidas` → poner flag en True
+3. Cuando `cerrar_turno_vendedor` escribe valores desde la app → resetear flags a False
+4. Frontend lee los flags desde la API al cargar → pinta rojo si True (reemplaza localStorage)
+
+**Archivos a modificar:**
+- `api/models.py` — 6 modelos CargueID
+- `api/views.py` — CargueIDxViewSet.update() + cerrar_turno_vendedor
+- `api/serializers.py` — incluir nuevos campos
+- `frontend/src/components/Cargue/TablaProductos.jsx` — leer flags desde API
+- `frontend/src/components/Cargue/PlantillaOperativa.jsx` — pasar flags al componente
+
+**Requiere migración:** `python manage.py makemigrations && python manage.py migrate`
+
+**Estado:** PENDIENTE — evaluar en próxima sesión si se implementa o descarta.
+
+---
+
 #### PENDIENTE: Agente de venta sugerida por cliente (Abril 2026)
 
 **Concepto:**
@@ -561,6 +624,189 @@ Agregar un botón de micrófono en el extremo derecho del input de búsqueda par
 `@react-native-voice/voice` — captura voz y devuelve texto, se inyecta en el mismo estado del buscador existente. No cambia la lógica de filtrado.
 
 **Archivo a modificar:** `AP GUERRERO/components/Ventas/ClienteSelector.js`
+
+---
+
+#### Fix: Panel Control de Cumplimiento eliminado del Dashboard (Abril 2026)
+
+**Problema:**
+El panel "📋 Control de Cumplimiento" en el Dashboard de Inteligencia siempre mostraba "—" en todos los campos. Los datos de cumplimiento (licencia_transporte, soat, uniforme, etc.) están en la tabla separada `api_cargue_cumplimiento` (modelo `CargueCumplimiento`), no en los productos del cargue (`api_cargueid1-6`). El endpoint `obtener_cargue` no los consultaba.
+
+**Decisión:**
+En lugar de agregar más complejidad al endpoint, se eliminó el panel del Dashboard. El Control de Cumplimiento queda solo en el módulo de Cargue donde funciona correctamente.
+
+**Cambios:**
+- Eliminado bloque JSX completo del panel (Col lg={4} con tabla de 9 ítems)
+- Dos columnas restantes (Top Productos y Detalle Vencidos) redistribuidas de `lg={4}` a `lg={6}`
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+**Commit:** `7fc7dc9` — Abril 2026
+
+---
+
+#### Renombrar "Dashboard de Inteligencia / Optimización" → "Informes" (Abril 2026)
+
+**Cambios:**
+- Título principal: "Dashboard de Inteligencia / Optimización" → **"Informes"**
+- Subtítulo: "Consolidación de Cargue, APP Guerrero y CRM. POS por ventana de turno (8am→8am)." → **"Panel de control de ventas"**
+
+**Archivo:** `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+**Commits:** `8170479`, `5b94be8` — Abril 2026
+
+---
+
+#### Fix: Total POS (Mostrador) mostraba $0 cuando el turno estaba activo (Abril 2026)
+
+**Problema reportado:**
+En el Dashboard de Informes, el card **TOTAL POS (Mostrador)** mostraba `$0` para el día actual cuando el turno de caja estaba en estado `ACTIVO`. Solo mostraba el valor correcto después de que el turno se cerrara.
+
+**Causa raíz:**
+`Turno.total_ventas` solo se rellena cuando se ejecuta `cerrar_turno()`. Mientras el turno está `ACTIVO`, el campo es `0`. El dashboard leía directamente `total_ventas` del turno → siempre $0 en días con turno abierto.
+
+**Ciclo operativo del turno (importante):**
+- Turno se abre ~8pm de un día, se cierra ~8-9pm del día siguiente (sin horario fijo)
+- Cada turno "pertenece" al día en que abrió (ej. turno abierto el 16 → representa el día 16)
+- Cuando se cierra, inmediatamente se abre otro turno nuevo
+
+**Solución aplicada:**
+Usar `ArqueoCaja` (`COMPLETADO`) como fuente de verdad para el Total POS, porque `ArqueoCaja.total_sistema` refleja el cierre real de caja del día — el mismo valor que ve el cajero en el módulo "Corte de Caja".
+
+**Código en `DashboardIntegral.jsx`:**
+```javascript
+// Fetch paralelo al cargar datos
+const arqueoP = fetch(`${API_URL}/arqueo-caja/?fecha_inicio=${rango.inicio}&fecha_fin=${rango.fin}&estado=COMPLETADO`)
+    .then(r => r.ok ? r.json() : []).catch(() => []);
+
+// Encontrar arqueo del día
+const arqueoRaw = await arqueoP;
+const arqueos = Array.isArray(arqueoRaw) ? arqueoRaw : (arqueoRaw.results || []);
+const arqueoDia = arqueos.find(a => a.fecha === rango.inicio && a.estado === 'COMPLETADO');
+
+// Usar total_sistema del arqueo si existe (cierre de caja real)
+if (arqueoDia && parseFloat(arqueoDia.total_sistema || 0) > 0) {
+    const vs = arqueoDia.valores_sistema || {};
+    totalPosEfectivo = parseFloat(vs.efectivo || vs.EFECTIVO || 0);
+    totalPosVentas   = parseFloat(arqueoDia.total_sistema || 0);
+    totalPosDigital  = totalPosVentas - totalPosEfectivo;
+} else {
+    // Fallback a turnos (días sin arqueo cerrado)
+    totalPosVentas   = turnosDia.reduce((s, t) => s + parseFloat(t.total_ventas  || 0), 0);
+    totalPosEfectivo = turnosDia.reduce((s, t) => s + parseFloat(t.total_efectivo || 0), 0);
+    totalPosDigital  = turnosDia.reduce((s, t) => s + parseFloat(t.total_tarjeta  || 0) + parseFloat(t.total_otros || 0), 0);
+}
+```
+
+**`ArqueoCajaSerializer` (`api/serializers.py`):**
+Campos adicionales expuestos: `turno_total_ventas`, `turno_total_efectivo`, `turno_total_digital`, `turno_base_inicial`.
+
+**Nota importante — `total_sistema` vs `total_ventas`:**
+- `total_sistema` = ventas reales + base_inicial (~$300,000) → es lo que el cajero entrega físicamente
+- `total_ventas` = solo ventas (sin base) → es la venta pura del día
+- El dashboard usa `total_sistema` porque coincide con lo que muestra el módulo "Corte de Caja"
+
+**Badge informativo:**
+- Si existe arqueo COMPLETADO → muestra badge verde "Turno POS ACTIVO" (turno nuevo ya abierto)
+- Si solo hay turno activo sin arqueo → muestra badge amarillo "Turno POS en curso — datos parciales"
+
+**Fix adicional — registros fantasma `Sistema/$0` (mismo commit):**
+El sync offline de POS enviaba registros con `total=0` y sin productos cuando había timeout de red. Backend ahora los rechaza:
+```python
+# api/views.py — VentaViewSet.create()
+total = float(venta_data.get('total', 0) or 0)
+if total == 0 and not detalles_data:
+    return Response({'error': 'Venta inválida: total 0 sin productos'}, status=400)
+```
+- 83 registros históricos `$0/Sistema` permanecen en BD (son $0, no afectan cálculos)
+- Ventas cortesía (`total=0` pero CON `detalles_data`) siguen funcionando correctamente
+
+**Ver sección completa:** → [Registros fantasma POS $0/Sistema](#fix-registros-fantasma-pos-0sistema-abril-2026)
+
+**Archivos modificados:**
+- `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx`
+- `api/serializers.py` — `ArqueoCajaSerializer`
+- `api/views.py` — `VentaViewSet.create()`
+
+**Commits:** `6aa8363`, `182f648`, `1c7eb5e`
+**Fecha:** Abril 2026
+
+---
+
+#### Fix: Registros fantasma POS $0/Sistema (Abril 2026)
+
+**Problema reportado:**
+En el módulo de ventas POS y en reportes aparecían registros con `vendedor = "Sistema"` y `total = $0`. No correspondían a ninguna venta real.
+
+**Cantidad detectada:** 83 registros en producción (verificado con query directo en PostgreSQL).
+
+**Causa raíz — 2 factores:**
+
+**1. Valor por defecto en `PaymentModal.jsx`:**
+El campo `vendedor` se enviaba como `"Sistema"` cuando el prop `vendedor` no llegaba correctamente al modal de pago. Era el string por defecto del componente.
+
+**2. Sincronización offline incompleta:**
+El POS web guarda ventas temporalmente en **IndexedDB** cuando hay timeout de red (implementado en `api.js`). El servicio `offlineSyncService.js` intenta sincronizar esas ventas cada 30 segundos al detectar conexión. El problema: algunos registros en IndexedDB quedaban incompletos (sin productos, `total=0`) por interrupciones durante el guardado local — y el backend los aceptaba sin validar.
+
+**Flujo que generaba el fantasma:**
+```
+Usuario inicia venta → timeout de red → api.js guarda en IndexedDB (datos incompletos)
+offlineSyncService.js detecta conexión → reintenta sync → envía registro {total:0, detalles:[]}
+Backend (antes del fix) acepta → Venta guardada con vendedor="Sistema", total=$0
+```
+
+**Por qué no afectaban los totales:**
+Los registros son `$0` → no suman en ningún cálculo de ventas, recaudos ni reportes. Son basura visual pero no financiera.
+
+**Solución aplicada:**
+Validación en backend antes de guardar:
+```python
+# api/views.py — VentaViewSet.create()
+total = float(venta_data.get('total', 0) or 0)
+if total == 0 and not detalles_data:
+    return Response(
+        {'error': 'Venta inválida: total 0 sin productos'},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+```
+
+**Casos que NO bloquea (intencionales):**
+- **Ventas cortesía/descuento 100%**: `total=0` pero tienen `detalles_data` con productos → pasan la validación
+- **Ventas normales**: siempre tienen `total > 0` → pasan la validación
+
+**Estado de los 83 registros históricos:**
+Permanecen en la BD — son `$0` y no afectan ningún reporte. Se pueden limpiar con:
+```sql
+DELETE FROM api_venta WHERE vendedor = 'Sistema' AND total = 0;
+-- Verificar primero: SELECT COUNT(*) FROM api_venta WHERE vendedor = 'Sistema' AND total = 0;
+```
+⚠️ Hacer backup antes. No urgente.
+
+**Archivos modificados:** `api/views.py` — `VentaViewSet.create()`
+**Commit:** `1c7eb5e`
+**Fecha:** Abril 2026
+
+---
+
+#### feat: Botón "Informes" en Cargue solo para administradores (Abril 2026)
+
+**Funcionalidad:**
+Se agregó un botón **📊 Informes** en la barra superior de `PlantillaOperativa` (Cargue), junto a los botones Auditoría, Pedidos y Ventas. Solo visible para usuarios con rol administrador.
+
+**Comportamiento:**
+- Visible solo si `esAdmin()` retorna `true` (roles: ADMIN, ADMINISTRADOR, ADMINISTRADOR DE SISTEMA, SUPERUSUARIO, GERENTE)
+- Abre `/#/reportes-avanzados?vista=dashboard-integral` en una nueva pestaña
+- Va directo al Dashboard de Informes sin pasar por el menú de reportes
+
+**Implementación:**
+- `PlantillaOperativa.jsx`: importa `useAuth`, extrae `esAdmin`, renderiza botón condicionalmente
+- `ReportesAvanzadosScreen.jsx`: importa `useSearchParams`, inicializa `vistaActual` desde query param `?vista=`
+  - Antes: `useState('menu')`
+  - Después: `useState(() => searchParams.get('vista') || 'menu')`
+
+**Archivos modificados:**
+- `frontend/src/components/Cargue/PlantillaOperativa.jsx`
+- `frontend/src/pages/ReportesAvanzadosScreen.jsx`
+
+**Commit:** `8170479` — Abril 2026
 
 ---
 
@@ -5694,6 +5940,7 @@ docker compose -f docker-compose.prod.yml up -d --no-deps frontend
 - Click en fila navega directamente al detalle del ID
 - Badge de estado: ✅ OK (jornada completa) / ⚠️ Parcial (en proceso)
 - Badge de cumplimiento: verde ≥80%, amarillo ≥50%, rojo <50%
+- **Fórmula CUMPL.%:** `cargue_neto_total / cargue_total_despacho` = **VENTA RUTA / DESPACHO INICIAL**. NO incluye pedidos. Verificado Abril 2026 — línea 427-429 de DashboardIntegral.jsx.
 - Scroll horizontal en pantallas pequeñas (`minWidth: 700px`)
 
 ---
@@ -7109,5 +7356,35 @@ export ANDROID_HOME=$HOME/Android/Sdk
 
 ### Output
 `android/app/build/outputs/apk/release/app-release.apk` (~71 MB vs ~177 MB de EAS con 4 arquitecturas)
+
+---
+
+---
+
+## Sesión 2026-04-19
+
+### Fix Dashboard — TOTAL POS muestra $0 cuando turno está activo
+
+**Problema:** El Dashboard mostraba $0 en "TOTAL POS (MOSTRADOR)" cuando el turno del POS estaba ACTIVO. `Turno.total_ventas` solo se llena al llamar `cerrar_turno()`, por lo que durante el día siempre era 0.
+
+**Flujo real del negocio:**
+- El turno POS abre ~8pm y cierra ~8-9pm del día siguiente (sin horario fijo)
+- Al cerrar se genera un ArqueoCaja (corte de caja) con `total_sistema` = ventas + base_inicial
+- Inmediatamente se abre un nuevo turno → queda ACTIVO con `total_ventas = 0`
+- Para el día D, el Dashboard debe mostrar el ArqueoCaja COMPLETADO de ese día
+
+**Solución:**
+1. `ArqueoCajaSerializer` (`api/serializers.py`): agregados campos `turno_total_ventas`, `turno_total_efectivo`, `turno_total_digital`, `turno_base_inicial`
+2. Dashboard consulta `/arqueo-caja/?fecha_inicio=X&fecha_fin=X&estado=COMPLETADO`
+3. Si hay arqueo COMPLETADO → muestra `total_sistema` del arqueo (coincide exactamente con el módulo Caja)
+4. Si no hay arqueo → usa turnos del día (comportamiento anterior)
+
+**Nota importante:** `total_sistema` del arqueo incluye la `base_inicial` (~$300.000). Es intencional — coincide con lo que el cajero ve en el módulo de Caja. Ejemplo: ArqueoCaja 18/4 → $1.485.400 = $1.207.000 ventas + $300.000 base.
+
+**Archivos modificados:**
+- `api/serializers.py` — ArqueoCajaSerializer con campos del turno asociado
+- `frontend/src/pages/ReportesAvanzados/DashboardIntegral.jsx` — consulta arqueo y usa total_sistema
+
+**Commits:** `6aa8363`, `182f648` — Abril 2026
 
 ---

@@ -9,6 +9,7 @@ import ReporteAnalisisProductos from './ReportesAvanzados/ReporteAnalisisProduct
 import ReportePedidosRuta from './ReportesAvanzados/ReportePedidosRuta';
 import ReporteVentasPOS from './ReportesAvanzados/ReporteVentasPOS';
 import DashboardIntegral from './ReportesAvanzados/DashboardIntegral';
+import HistorialClientes from './ReportesAvanzados/HistorialClientes';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -344,6 +345,17 @@ const ReportesAvanzadosScreen = () => {
                             </div>
                         </Col>
 
+                        {/* Historial de Clientes */}
+                        <Col md={6} lg={4}>
+                            <div className="reporte-card" onClick={() => setVistaActual('historial-clientes')} style={{ cursor: 'pointer', borderLeft: '5px solid #198754' }}>
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-person-lines-fill" style={{ fontSize: '2.5rem', color: '#198754' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">Historial de Clientes</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Compras y vencidas por cliente</p>
+                            </div>
+                        </Col>
+
                         {/* Análisis Integral e IA */}
                         <Col md={6} lg={4}>
                             <div className="reporte-card shadow-sm" onClick={() => setVistaActual('dashboard-integral')} style={{ cursor: 'pointer', borderLeft: '5px solid #0c2c53' }}>
@@ -385,6 +397,11 @@ const ReportesAvanzadosScreen = () => {
     // 🆕 Vista: Ventas POS
     if (vistaActual === 'ventas-pos') {
         return <ReporteVentasPOS onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Historial de Clientes
+    if (vistaActual === 'historial-clientes') {
+        return <HistorialClientes onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Análisis Integral de Optimización

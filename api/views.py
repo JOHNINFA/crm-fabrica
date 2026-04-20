@@ -9203,6 +9203,152 @@ def abrir_turno_manual(request):
         import traceback
         traceback.print_exc()
         return Response({
-            'success': False, 
+            'success': False,
             'error': str(e)
         }, status=500)
+
+
+# ==================== HISTORIAL DE CLIENTES ====================
+
+@api_view(['GET'])
+def historial_clientes(request):
+    """
+    Historial de compras y vencidas por cliente en un rango de fechas.
+    GET /api/reportes/historial-clientes/?fecha_inicio=2026-04-01&fecha_fin=2026-04-30
+    Parámetros opcionales: vendedor_id (ej: ID1)
+    """
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    vendedor_id = request.GET.get('vendedor_id', '').strip()
+
+    if not fecha_inicio or not fecha_fin:
+        return Response({'error': 'fecha_inicio y fecha_fin son requeridos'}, status=400)
+
+    try:
+        # ── Ventas de Ruta (App Móvil) ──────────────────────────────
+        ventas_qs = VentaRuta.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin,
+            estado='ACTIVA'
+        ).select_related('vendedor', 'cliente')
+
+        if vendedor_id:
+            ventas_qs = ventas_qs.filter(vendedor__id_vendedor=vendedor_id)
+
+        clientes_map = {}
+
+        for venta in ventas_qs:
+            vid = venta.vendedor.id_vendedor if venta.vendedor else 'SIN_ID'
+            cid = str(venta.cliente_id) if venta.cliente_id else f'__occ_{venta.nombre_negocio or venta.cliente_nombre}'
+            key = (cid, vid)
+
+            if key not in clientes_map:
+                clientes_map[key] = {
+                    'cliente_id': venta.cliente_id,
+                    'nombre_negocio': venta.nombre_negocio or venta.cliente_nombre or '(Sin nombre)',
+                    'nombre_contacto': venta.cliente.nombre_contacto if venta.cliente else '',
+                    'vendedor_id': vid,
+                    'vendedor_nombre': venta.vendedor.nombre if venta.vendedor else '',
+                    'origen': 'RUTA',
+                    'total_ventas': 0,
+                    'num_ventas': 0,
+                    'productos': {},
+                    'vencidas': {},
+                }
+
+            entry = clientes_map[key]
+            entry['total_ventas'] += float(venta.total or 0)
+            entry['num_ventas'] += 1
+
+            for det in (venta.detalles or []):
+                nombre = det.get('producto', '').strip()
+                if not nombre:
+                    continue
+                if nombre not in entry['productos']:
+                    entry['productos'][nombre] = {'cantidad': 0, 'total': 0}
+                entry['productos'][nombre]['cantidad'] += int(det.get('cantidad', 0))
+                entry['productos'][nombre]['total'] += float(det.get('subtotal', 0))
+
+            for vec in (venta.productos_vencidos or []):
+                nombre = vec.get('producto', '').strip()
+                if not nombre:
+                    continue
+                cant = int(vec.get('cantidad', 0))
+                if cant <= 0:
+                    continue
+                if nombre not in entry['vencidas']:
+                    entry['vencidas'][nombre] = {'cantidad': 0}
+                entry['vencidas'][nombre]['cantidad'] += cant
+
+        # ── Pedidos entregados ──────────────────────────────────────
+        pedidos_qs = Pedido.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin,
+            estado='ENTREGADA'
+        ).prefetch_related('detalles__producto')
+
+        if vendedor_id:
+            pedidos_qs = pedidos_qs.filter(asignado_a_id=vendedor_id)
+
+        for pedido in pedidos_qs:
+            vid = pedido.asignado_a_id or 'SIN_ID'
+            key = (f'__ped_{pedido.destinatario}_{vid}', vid)
+
+            if key not in clientes_map:
+                clientes_map[key] = {
+                    'cliente_id': None,
+                    'nombre_negocio': pedido.destinatario or '(Sin nombre)',
+                    'nombre_contacto': '',
+                    'vendedor_id': vid,
+                    'vendedor_nombre': pedido.vendedor or '',
+                    'origen': 'PEDIDO',
+                    'total_ventas': 0,
+                    'num_ventas': 0,
+                    'productos': {},
+                    'vencidas': {},
+                }
+
+            entry = clientes_map[key]
+            entry['total_ventas'] += float(pedido.total or 0)
+            entry['num_ventas'] += 1
+
+            for det in pedido.detalles.all():
+                nombre = det.producto.nombre if det.producto else ''
+                if not nombre:
+                    continue
+                if nombre not in entry['productos']:
+                    entry['productos'][nombre] = {'cantidad': 0, 'total': 0}
+                entry['productos'][nombre]['cantidad'] += det.cantidad
+                entry['productos'][nombre]['total'] += float(det.subtotal or 0)
+
+        # ── Serializar resultado ────────────────────────────────────
+        result = []
+        for entry in clientes_map.values():
+            result.append({
+                'cliente_id': entry['cliente_id'],
+                'nombre_negocio': entry['nombre_negocio'],
+                'nombre_contacto': entry['nombre_contacto'],
+                'vendedor_id': entry['vendedor_id'],
+                'vendedor_nombre': entry['vendedor_nombre'],
+                'origen': entry['origen'],
+                'total_ventas': round(entry['total_ventas']),
+                'num_ventas': entry['num_ventas'],
+                'productos': sorted(
+                    [{'nombre': k, 'cantidad': v['cantidad'], 'total': round(v['total'])}
+                     for k, v in entry['productos'].items()],
+                    key=lambda x: -x['cantidad']
+                ),
+                'vencidas': sorted(
+                    [{'nombre': k, 'cantidad': v['cantidad']}
+                     for k, v in entry['vencidas'].items()],
+                    key=lambda x: -x['cantidad']
+                ),
+            })
+
+        result.sort(key=lambda x: (x['vendedor_id'], x['nombre_negocio'].lower()))
+        return Response(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
