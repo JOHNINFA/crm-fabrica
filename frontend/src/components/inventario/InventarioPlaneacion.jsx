@@ -129,12 +129,15 @@ const InventarioPlaneacion = () => {
       // 🔥 IMPORTANTE: Usar el mismo formato que BotonLimpiar (objeto Date convertido a string)
       const fechaParaKey = fechaSeleccionada.toISOString().split('T')[0]; // YYYY-MM-DD
       const estadoBoton = localStorage.getItem(`estado_boton_${diaSemana}_${fechaParaKey}`);
-      const diaCompletado = estadoBoton === 'COMPLETADO';
+      const hoyKey = new Date().toISOString().split('T')[0];
+      const esFechaPasada = fechaParaKey < hoyKey;
+      // Para fechas pasadas, siempre consultar DB aunque esté marcado COMPLETADO
+      const diaCompletado = estadoBoton === 'COMPLETADO' && !esFechaPasada;
 
       console.log(`🔍 Buscando estado en: estado_boton_${diaSemana}_${fechaParaKey}`);
-      console.log(`🔍 Estado del día ${diaSemana} (${fechaFormateada}): ${estadoBoton || 'No iniciado'}`);
+      console.log(`🔍 Estado del día ${diaSemana} (${fechaFormateada}): ${estadoBoton || 'No iniciado'} | Fecha pasada: ${esFechaPasada}`);
 
-      // 🚀 OPTIMIZACIÓN: Si el día está COMPLETADO, solo cargar planeación y stock
+      // 🚀 OPTIMIZACIÓN: Si el día está COMPLETADO (y es hoy), solo cargar planeación y stock
       let planeacionResponse, stockResponse, pedidosResponse;
       let cargueId1Response, cargueId2Response, cargueId3Response;
       let cargueId4Response, cargueId5Response, cargueId6Response;
