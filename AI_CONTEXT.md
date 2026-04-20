@@ -907,7 +907,9 @@ Dentro de la barra de búsqueda global ("Buscar cliente en TODAS las rutas..."),
 - `api/urls.py` — 1 ruta nueva
 - `frontend/src/components/rutas/GestionRutas.jsx` — estado `descargandoExcel` + función `descargarExcelRutas` + botón
 
-**Commit:** `541f3d2`
+**⚠️ Bug corregido:** El campo del modelo `Ruta` es `activo` (no `activa`). El filtro inicial usaba `activa=True` y `ruta__activa=True` — causaba error 500 al descargar. Corregido a `activo=True` y `ruta__activo=True`.
+
+**Commits:** `541f3d2`, `42e797c`
 **Fecha:** Abril 2026
 
 ---
