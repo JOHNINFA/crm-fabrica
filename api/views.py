@@ -10065,22 +10065,28 @@ def exportar_cargue_excel(request):
 
                 ws.append([])
 
-            # Resumen financiero
-            ws.append(['RESUMEN', '', ''])
+            # Resumen financiero desde CargueResumen
+            try:
+                resumen_obj = CargueResumen.objects.get(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True)
+            except CargueResumen.DoesNotExist:
+                resumen_obj = None
+
+            ws.append(['RESUMEN FINANCIERO', '', ''])
             res_hdr = ws.max_row
             ws.merge_cells(f'A{res_hdr}:C{res_hdr}')
             ws[f'A{res_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
             ws[f'A{res_hdr}'].fill = header_fill_azul
             ws[f'A{res_hdr}'].alignment = center
 
-            for campo, val in [
-                ('Base Caja', primer.base_caja),
-                ('Total Despacho', primer.total_despacho),
-                ('Total Pedidos', primer.total_pedidos),
-                ('Total Dctos', getattr(primer, 'total_dctos', 0)),
-                ('Venta', primer.venta),
-                ('Total Efectivo', primer.total_efectivo),
-            ]:
+            campos_resumen = [
+                ('Base Caja', resumen_obj.base_caja if resumen_obj else 0),
+                ('Total Despacho', resumen_obj.total_despacho if resumen_obj else 0),
+                ('Total Pedidos', resumen_obj.total_pedidos if resumen_obj else 0),
+                ('Total Dctos', resumen_obj.total_dctos if resumen_obj else 0),
+                ('Venta', resumen_obj.venta if resumen_obj else 0),
+                ('Total Efectivo', resumen_obj.total_efectivo if resumen_obj else 0),
+            ]
+            for campo, val in campos_resumen:
                 ws.append([campo, '', formato_cop(val)])
                 ws[f'A{ws.max_row}'].font = Font(bold=True)
                 for cell in ws[ws.max_row]:
@@ -10130,8 +10136,8 @@ def exportar_cargue_excel(request):
                 'responsable': responsable,
                 'ruta': ruta,
                 'productos': len(registros),
-                'venta': primer.venta,
-                'total_efectivo': primer.total_efectivo,
+                'venta': resumen_obj.venta if resumen_obj else 0,
+                'total_efectivo': resumen_obj.total_efectivo if resumen_obj else 0,
             })
 
         # Hoja Resumen (primera)
