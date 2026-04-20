@@ -10384,6 +10384,7 @@ def exportar_planeacion_mensual_excel(request):
 
         nombres_dia = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
+        import io
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
