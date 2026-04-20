@@ -9946,10 +9946,14 @@ def exportar_cargue_excel(request):
     def autofit(ws, min_w=8, max_w=40):
         for col in ws.columns:
             width = min_w
+            col_letter = None
             for cell in col:
-                if cell.value:
-                    width = max(width, min(max_w, len(str(cell.value)) + 2))
-            ws.column_dimensions[col[0].column_letter].width = width
+                if hasattr(cell, 'column_letter'):
+                    col_letter = cell.column_letter
+                    if cell.value:
+                        width = max(width, min(max_w, len(str(cell.value)) + 2))
+            if col_letter:
+                ws.column_dimensions[col_letter].width = width
 
     def formato_cop(val):
         try:
