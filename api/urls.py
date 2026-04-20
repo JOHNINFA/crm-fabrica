@@ -28,6 +28,7 @@ from .views import (
     reportes_vendedores, reportes_efectividad_vendedores, reportes_analisis_productos,
     reportes_pedidos_ruta, reportes_ventas_pos,
     historial_clientes, exportar_historial_clientes_excel,
+    ventas_productos_pos, exportar_ventas_productos_pos_excel,
     # 📈 Dashboard Ejecutivo
     dashboard_ejecutivo,
     # 📷 Evidencias de Pedidos
@@ -150,6 +151,8 @@ urlpatterns = router.urls + [
     path('ia/logs/', ia_logs, name='ia-logs'),
     
     # 📊 Reportes Avanzados
+    path('reportes/ventas-productos-pos/', ventas_productos_pos, name='ventas-productos-pos'),
+    path('reportes/ventas-productos-pos/excel/', exportar_ventas_productos_pos_excel, name='ventas-productos-pos-excel'),
     path('reportes/historial-clientes/', historial_clientes, name='historial-clientes'),
     path('reportes/historial-clientes/excel/', exportar_historial_clientes_excel, name='historial-clientes-excel'),
     path('reportes/vendedores/', reportes_vendedores, name='reportes-vendedores'),

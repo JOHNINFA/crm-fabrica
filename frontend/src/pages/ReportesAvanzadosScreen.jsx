@@ -10,6 +10,7 @@ import ReportePedidosRuta from './ReportesAvanzados/ReportePedidosRuta';
 import ReporteVentasPOS from './ReportesAvanzados/ReporteVentasPOS';
 import DashboardIntegral from './ReportesAvanzados/DashboardIntegral';
 import HistorialClientes from './ReportesAvanzados/HistorialClientes';
+import VentasProductosPOS from './ReportesAvanzados/VentasProductosPOS';
 
 // Orden de productos según Cargue
 const ordenProductos = [
@@ -345,6 +346,17 @@ const ReportesAvanzadosScreen = () => {
                             </div>
                         </Col>
 
+                        {/* Ventas Productos POS */}
+                        <Col md={6} lg={4}>
+                            <div className="reporte-card" onClick={() => setVistaActual('ventas-productos-pos')} style={{ cursor: 'pointer', borderLeft: '5px solid #6f42c1' }}>
+                                <div className="reporte-card-icon">
+                                    <i className="bi bi-pc-display-horizontal" style={{ fontSize: '2.5rem', color: '#6f42c1' }}></i>
+                                </div>
+                                <h5 className="mt-3 mb-2">Ventas Productos POS</h5>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Productos vendidos en mostrador</p>
+                            </div>
+                        </Col>
+
                         {/* Historial de Clientes */}
                         <Col md={6} lg={4}>
                             <div className="reporte-card" onClick={() => setVistaActual('historial-clientes')} style={{ cursor: 'pointer', borderLeft: '5px solid #198754' }}>
@@ -397,6 +409,11 @@ const ReportesAvanzadosScreen = () => {
     // 🆕 Vista: Ventas POS
     if (vistaActual === 'ventas-pos') {
         return <ReporteVentasPOS onVolver={() => setVistaActual('menu')} />;
+    }
+
+    // 🆕 Vista: Ventas Productos POS
+    if (vistaActual === 'ventas-productos-pos') {
+        return <VentasProductosPOS onVolver={() => setVistaActual('menu')} />;
     }
 
     // 🆕 Vista: Historial de Clientes

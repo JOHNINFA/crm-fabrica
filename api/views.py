@@ -9208,6 +9208,155 @@ def abrir_turno_manual(request):
         }, status=500)
 
 
+# ==================== VENTAS PRODUCTOS POS ====================
+
+@api_view(['GET'])
+def ventas_productos_pos(request):
+    """
+    Ventas de productos POS consolidadas por período.
+    GET /api/reportes/ventas-productos-pos/?fecha_inicio=2026-04-01&fecha_fin=2026-04-30
+    """
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    if not fecha_inicio or not fecha_fin:
+        return Response({'error': 'fecha_inicio y fecha_fin son requeridos'}, status=400)
+
+    try:
+        from django.db.models import Sum
+
+        detalles = DetalleVenta.objects.filter(
+            venta__fecha__date__gte=fecha_inicio,
+            venta__fecha__date__lte=fecha_fin,
+        ).exclude(
+            venta__estado='ANULADA'
+        ).exclude(
+            venta__estado='CANCELADO'
+        ).values(
+            'producto__nombre'
+        ).annotate(
+            cantidad_total=Sum('cantidad'),
+            total_ventas=Sum('subtotal')
+        ).order_by('-cantidad_total')
+
+        productos = [
+            {
+                'nombre': d['producto__nombre'] or '(Sin nombre)',
+                'cantidad': d['cantidad_total'] or 0,
+                'total': round(float(d['total_ventas'] or 0)),
+            }
+            for d in detalles
+        ]
+
+        return Response({
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'productos': productos,
+            'total_unidades': sum(p['cantidad'] for p in productos),
+            'total_ventas': sum(p['total'] for p in productos),
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def exportar_ventas_productos_pos_excel(request):
+    """
+    Exporta ventas de productos POS a Excel.
+    GET /api/reportes/ventas-productos-pos/excel/?fecha_inicio=X&fecha_fin=Y
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    from django.db.models import Sum
+    import io
+
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    if not fecha_inicio or not fecha_fin:
+        return Response({'error': 'fecha_inicio y fecha_fin son requeridos'}, status=400)
+
+    try:
+        detalles = DetalleVenta.objects.filter(
+            venta__fecha__date__gte=fecha_inicio,
+            venta__fecha__date__lte=fecha_fin,
+        ).exclude(
+            venta__estado='ANULADA'
+        ).exclude(
+            venta__estado='CANCELADO'
+        ).values(
+            'producto__nombre'
+        ).annotate(
+            cantidad_total=Sum('cantidad'),
+            total_ventas=Sum('subtotal')
+        ).order_by('-cantidad_total')
+
+        azul_oscuro = '0C2C53'
+        blanco = 'FFFFFF'
+        gris = 'F1F3F5'
+        total_fill = PatternFill('solid', fgColor='DEE2E6')
+        header_font = Font(bold=True, color=blanco, size=11)
+        header_fill = PatternFill('solid', fgColor=azul_oscuro)
+        center = Alignment(horizontal='center')
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Ventas POS'
+
+        ws.append([f'VENTAS PRODUCTOS POS — {fecha_inicio} → {fecha_fin}'])
+        ws['A1'].font = Font(bold=True, size=14, color=azul_oscuro)
+        ws.append([])
+
+        ws.append(['#', 'Producto', 'Cantidad', 'Total COP'])
+        for cell in ws[3]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+
+        total_und = 0
+        total_cop = 0
+        for i, d in enumerate(detalles, 1):
+            cant = d['cantidad_total'] or 0
+            tot = round(float(d['total_ventas'] or 0))
+            total_und += cant
+            total_cop += tot
+            ws.append([i, d['producto__nombre'] or '(Sin nombre)', cant, tot])
+            if i % 2 == 0:
+                for cell in ws[ws.max_row]:
+                    cell.fill = PatternFill('solid', fgColor=gris)
+
+        ws.append(['', 'TOTAL', total_und, total_cop])
+        for cell in ws[ws.max_row]:
+            cell.font = Font(bold=True, size=11)
+            cell.fill = total_fill
+
+        for col in ws.columns:
+            max_len = max((len(str(c.value)) for c in col if c.value), default=10)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 4, 50)
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        nombre_archivo = f'ventas_pos_{fecha_inicio}_{fecha_fin}.xlsx'
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
 # ==================== HISTORIAL DE CLIENTES ====================
 
 @api_view(['GET'])
