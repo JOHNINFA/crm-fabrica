@@ -833,6 +833,46 @@ Nuevo módulo dentro de **Informes** que muestra el historial de compras y venci
 
 ---
 
+#### feat: Módulo Ventas Productos POS (Abril 2026)
+
+**Descripción:**
+Nuevo módulo dentro de **Informes** que muestra los productos vendidos en el mostrador (POS), consolidados por período. Incluye exportación a Excel para análisis en Power BI.
+
+**Filtros disponibles:** Día / Semana / Mes / Rango / Año
+
+**Vista:**
+- Cards resumen: Total Ventas POS, Unidades vendidas, Productos distintos, Período
+- Tabla con buscador: Producto | Cantidad | Total COP (ordenado por cantidad desc)
+- Fila TOTAL al pie de la tabla
+- Botón **📥 Descargar Excel** junto al buscador
+
+**Fuente de datos:**
+- `DetalleVenta` → `venta__fecha` en rango, agrupado por `producto__nombre`
+- Excluye ventas con `estado=ANULADA` o `estado=CANCELADO`
+
+**Excel exportado:**
+- Una sola hoja "Ventas POS" con: #, Producto, Cantidad, Total COP
+- Filas alternas en gris claro para legibilidad
+- Fila TOTAL en negrita al final
+- Nombre del archivo: `ventas_pos_FECHA_INICIO_FECHA_FIN.xlsx`
+
+**Endpoints:**
+- `GET /api/reportes/ventas-productos-pos/?fecha_inicio=X&fecha_fin=Y`
+- `GET /api/reportes/ventas-productos-pos/excel/?fecha_inicio=X&fecha_fin=Y`
+
+**Archivos creados/modificados:**
+- `api/views.py` — funciones `ventas_productos_pos` y `exportar_ventas_productos_pos_excel`
+- `api/urls.py` — 2 rutas nuevas
+- `frontend/src/pages/ReportesAvanzados/VentasProductosPOS.jsx` — componente nuevo
+- `frontend/src/pages/ReportesAvanzadosScreen.jsx` — import + card + route handler
+
+**Sin cambios en:** `models.py`, `serializers.py`, ningún componente existente.
+
+**Commit:** `e57eec6`
+**Fecha:** Abril 2026
+
+---
+
 #### feat: Botón "Informes" en Cargue solo para administradores (Abril 2026)
 
 **Funcionalidad:**
