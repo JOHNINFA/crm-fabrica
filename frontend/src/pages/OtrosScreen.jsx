@@ -61,14 +61,16 @@ const OtrosScreen = () => {
             color: 'success',
             action: () => handleModuleChange('usuarios')
         },
-        {
-            id: 'vendedores',
-            title: 'Gestión de Vendedores',
-            description: 'Administrar claves y estado de la App Móvil',
-            icon: 'badge',
-            color: 'dark',
-            action: () => handleModuleChange('vendedores')
-        },
+        // Oculto del menú — funcionalidad absorbida por Gestión de Usuarios
+        // Accesible vía URL directa: ?module=vendedores
+        // {
+        //     id: 'vendedores',
+        //     title: 'Gestión de Vendedores',
+        //     description: 'Administrar claves y estado de la App Móvil',
+        //     icon: 'badge',
+        //     color: 'dark',
+        //     action: () => handleModuleChange('vendedores')
+        // },
         {
             id: 'ia_manager',
             title: 'Gestión de IA',
