@@ -313,39 +313,6 @@ const ReportesAvanzadosScreen = () => {
                             </div>
                         </Col>
 
-                        {/* Desempeño de Vendedores */}
-                        <Col md={6} lg={4}>
-                            <div className="reporte-card" onClick={() => setVistaActual('reportes-vendedores')} style={{ cursor: 'pointer' }}>
-                                <div className="reporte-card-icon">
-                                    <i className="bi bi-people" style={{ fontSize: '2.5rem', color: '#0c2c53' }}></i>
-                                </div>
-                                <h5 className="mt-3 mb-2">Desempeño de Vendedores</h5>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Ranking por ventas</p>
-                            </div>
-                        </Col>
-
-                        {/* Efectividad de Vendedores */}
-                        <Col md={6} lg={4}>
-                            <div className="reporte-card" onClick={() => setVistaActual('efectividad-vendedores')} style={{ cursor: 'pointer' }}>
-                                <div className="reporte-card-icon">
-                                    <i className="bi bi-graph-up-arrow" style={{ fontSize: '2.5rem', color: '#198754' }}></i>
-                                </div>
-                                <h5 className="mt-3 mb-2">Efectividad de Vendedores</h5>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Ventas y efectividad</p>
-                            </div>
-                        </Col>
-
-                        {/* Mis Ventas POS */}
-                        <Col md={6} lg={4}>
-                            <div className="reporte-card" onClick={() => setVistaActual('ventas-pos')} style={{ cursor: 'pointer' }}>
-                                <div className="reporte-card-icon">
-                                    <i className="bi bi-pc-display" style={{ fontSize: '2.5rem', color: '#6f42c1' }}></i>
-                                </div>
-                                <h5 className="mt-3 mb-2">Mis Ventas POS</h5>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>Tus ventas por período</p>
-                            </div>
-                        </Col>
-
                         {/* Ventas Productos POS */}
                         <Col md={6} lg={4}>
                             <div className="reporte-card" onClick={() => setVistaActual('ventas-productos-pos')} style={{ cursor: 'pointer', borderLeft: '5px solid #6f42c1' }}>
