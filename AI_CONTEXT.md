@@ -868,6 +868,13 @@ Nuevo módulo dentro de **Informes** que muestra los productos vendidos en el mo
 
 **Sin cambios en:** `models.py`, `serializers.py`, ningún componente existente.
 
+**⚠️ Comportamiento conocido — diferencia con Corte de Caja:**
+El reporte filtra por **fecha calendario** (`venta__fecha__date`). El Corte de Caja usa la ventana del **turno** (ej. 17/04 8pm → 18/04 9pm). Por eso al consultar el 18/04 el reporte puede mostrar menos que el Corte de Caja — la diferencia son las ventas de la noche anterior que el turno incluye pero el filtro de fecha no captura.
+- **Ventas Productos POS 18/04** (filtro calendario): `$1,207,200`
+- **Corte de Caja 18/04** (ventana turno): `$1,485,400`
+
+Esto es comportamiento esperado y documentado. Si se requiere consistencia con el Corte de Caja, se podría implementar filtro por ventana de turno en el futuro.
+
 **Commit:** `e57eec6`
 **Fecha:** Abril 2026
 
