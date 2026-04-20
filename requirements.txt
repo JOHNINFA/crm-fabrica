@@ -19,6 +19,7 @@ Pillow==9.0.1
 # === UTILIDADES ===
 python-dateutil==2.9.0.post0
 pytz==2022.1
+openpyxl==3.1.2
 
 # === IA / MACHINE LEARNING (Opcional - para predicciones) ===
 numpy==1.26.0

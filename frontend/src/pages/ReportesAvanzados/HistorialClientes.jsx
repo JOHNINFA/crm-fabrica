@@ -44,6 +44,27 @@ export default function HistorialClientes({ onVolver }) {
     const [filtroId, setFiltroId] = useState('TODOS');
     const [busqueda, setBusqueda] = useState('');
     const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+    const [descargando, setDescargando] = useState(false);
+
+    const descargarExcel = async () => {
+        const rango = calcularRango(modo, fecha, rangoInicio, rangoFin, anio);
+        setDescargando(true);
+        try {
+            const res = await fetch(`${API_URL}/reportes/historial-clientes/excel/?fecha_inicio=${rango.inicio}&fecha_fin=${rango.fin}`);
+            if (!res.ok) throw new Error('Error al generar Excel');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historial_clientes_${rango.inicio}_${rango.fin}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('Error al descargar. Intenta de nuevo.');
+        } finally {
+            setDescargando(false);
+        }
+    };
 
     const buscar = async () => {
         const rango = calcularRango(modo, fecha, rangoInicio, rangoFin, anio);
@@ -267,18 +288,24 @@ export default function HistorialClientes({ onVolver }) {
                     {error && <div className="text-danger mt-2" style={{ fontSize: '0.85rem' }}>{error}</div>}
                 </div>
 
-                {/* Filtros ID + Buscador */}
+                {/* Filtros ID + Buscador + Botón Excel */}
                 {buscado && !loading && clientes.length > 0 && (
                     <div style={{ background: 'white', borderRadius: 10, padding: '0.75rem 1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '1rem' }}>
-                        <div className="d-flex gap-2 flex-wrap mb-2">
-                            {idsDisponibles.map(id => (
-                                <Button key={id} size="sm"
-                                    variant={filtroId === id ? 'primary' : 'outline-secondary'}
-                                    onClick={() => setFiltroId(id)}
-                                    style={filtroId === id ? { background: '#0c2c53', borderColor: '#0c2c53' } : {}}>
-                                    {id === 'TODOS' ? '🌐 Todos' : `🚚 ${id}`}
-                                </Button>
-                            ))}
+                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <div className="d-flex gap-2 flex-wrap">
+                                {idsDisponibles.map(id => (
+                                    <Button key={id} size="sm"
+                                        variant={filtroId === id ? 'primary' : 'outline-secondary'}
+                                        onClick={() => setFiltroId(id)}
+                                        style={filtroId === id ? { background: '#0c2c53', borderColor: '#0c2c53' } : {}}>
+                                        {id === 'TODOS' ? '🌐 Todos' : `🚚 ${id}`}
+                                    </Button>
+                                ))}
+                            </div>
+                            <Button size="sm" onClick={descargarExcel} disabled={descargando}
+                                style={{ background: '#198754', borderColor: '#198754', color: 'white' }}>
+                                {descargando ? <Spinner size="sm" animation="border" /> : '📥 Descargar Excel'}
+                            </Button>
                         </div>
                         <Form.Control
                             type="text"

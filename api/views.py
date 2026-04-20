@@ -9352,3 +9352,265 @@ def historial_clientes(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def exportar_historial_clientes_excel(request):
+    """
+    Exporta el historial de clientes a Excel con una hoja por ID de vendedor.
+    GET /api/reportes/historial-clientes/excel/?fecha_inicio=2026-04-01&fecha_fin=2026-04-30
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    import io
+
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    vendedor_id = request.GET.get('vendedor_id', '').strip()
+
+    if not fecha_inicio or not fecha_fin:
+        return Response({'error': 'fecha_inicio y fecha_fin son requeridos'}, status=400)
+
+    try:
+        # Reusar lógica de historial_clientes para obtener datos
+        ventas_qs = VentaRuta.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin,
+            estado='ACTIVA'
+        ).select_related('vendedor', 'cliente')
+        if vendedor_id:
+            ventas_qs = ventas_qs.filter(vendedor__id_vendedor=vendedor_id)
+
+        clientes_map = {}
+
+        for venta in ventas_qs:
+            vid = venta.vendedor.id_vendedor if venta.vendedor else 'SIN_ID'
+            cid = str(venta.cliente_id) if venta.cliente_id else f'__occ_{venta.nombre_negocio or venta.cliente_nombre}'
+            key = (cid, vid)
+            if key not in clientes_map:
+                clientes_map[key] = {
+                    'nombre_negocio': venta.nombre_negocio or venta.cliente_nombre or '(Sin nombre)',
+                    'nombre_contacto': venta.cliente.nombre_contacto if venta.cliente else '',
+                    'vendedor_id': vid,
+                    'vendedor_nombre': venta.vendedor.nombre if venta.vendedor else '',
+                    'origen': 'RUTA',
+                    'total_ventas': 0,
+                    'productos': {},
+                    'vencidas': {},
+                }
+            entry = clientes_map[key]
+            entry['total_ventas'] += float(venta.total or 0)
+            for det in (venta.detalles or []):
+                nombre = det.get('producto', '').strip()
+                if not nombre:
+                    continue
+                if nombre not in entry['productos']:
+                    entry['productos'][nombre] = {'cantidad': 0, 'total': 0}
+                entry['productos'][nombre]['cantidad'] += int(det.get('cantidad', 0))
+                entry['productos'][nombre]['total'] += float(det.get('subtotal', 0))
+            for vec in (venta.productos_vencidos or []):
+                nombre = vec.get('producto', '').strip()
+                cant = int(vec.get('cantidad', 0))
+                if not nombre or cant <= 0:
+                    continue
+                if nombre not in entry['vencidas']:
+                    entry['vencidas'][nombre] = {'cantidad': 0}
+                entry['vencidas'][nombre]['cantidad'] += cant
+
+        pedidos_qs = Pedido.objects.filter(
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin,
+            estado='ENTREGADA'
+        ).prefetch_related('detalles__producto')
+        if vendedor_id:
+            pedidos_qs = pedidos_qs.filter(asignado_a_id=vendedor_id)
+
+        for pedido in pedidos_qs:
+            vid = pedido.asignado_a_id or 'SIN_ID'
+            key = (f'__ped_{pedido.destinatario}_{vid}', vid)
+            if key not in clientes_map:
+                clientes_map[key] = {
+                    'nombre_negocio': pedido.destinatario or '(Sin nombre)',
+                    'nombre_contacto': '',
+                    'vendedor_id': vid,
+                    'vendedor_nombre': pedido.vendedor or '',
+                    'origen': 'PEDIDO',
+                    'total_ventas': 0,
+                    'productos': {},
+                    'vencidas': {},
+                }
+            entry = clientes_map[key]
+            entry['total_ventas'] += float(pedido.total or 0)
+            for det in pedido.detalles.all():
+                nombre = det.producto.nombre if det.producto else ''
+                if not nombre:
+                    continue
+                if nombre not in entry['productos']:
+                    entry['productos'][nombre] = {'cantidad': 0, 'total': 0}
+                entry['productos'][nombre]['cantidad'] += det.cantidad
+                entry['productos'][nombre]['total'] += float(det.subtotal or 0)
+
+        # ── Agrupar por vendedor ────────────────────────────────────
+        por_vendedor = {}
+        for entry in clientes_map.values():
+            vid = entry['vendedor_id']
+            if vid not in por_vendedor:
+                por_vendedor[vid] = {'vendedor_nombre': entry['vendedor_nombre'], 'clientes': []}
+            por_vendedor[vid]['clientes'].append(entry)
+
+        # ── Estilos ─────────────────────────────────────────────────
+        azul_oscuro = '0C2C53'
+        verde = '198754'
+        amarillo = 'FFC107'
+        gris_claro = 'F1F3F5'
+        blanco = 'FFFFFF'
+
+        header_font = Font(bold=True, color=blanco, size=11)
+        header_fill_azul = PatternFill('solid', fgColor=azul_oscuro)
+        header_fill_verde = PatternFill('solid', fgColor=verde)
+        header_fill_amarillo = PatternFill('solid', fgColor='856404')
+        fila_gris = PatternFill('solid', fgColor=gris_claro)
+        fila_total = PatternFill('solid', fgColor='DEE2E6')
+        borde = Border(
+            bottom=Side(style='thin', color='DEE2E6')
+        )
+        center = Alignment(horizontal='center', vertical='center')
+
+        def autofit(ws):
+            for col in ws.columns:
+                max_len = 0
+                col_letter = get_column_letter(col[0].column)
+                for cell in col:
+                    if cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+                ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
+
+        wb = Workbook()
+        wb.remove(wb.active)  # quitar hoja default
+
+        # ── Hoja Resumen ────────────────────────────────────────────
+        ws_res = wb.create_sheet('Resumen', 0)
+        ws_res.append(['HISTORIAL DE CLIENTES', f'{fecha_inicio} → {fecha_fin}'])
+        ws_res['A1'].font = Font(bold=True, size=14, color=azul_oscuro)
+        ws_res.append([])
+        ws_res.append(['ID Vendedor', 'Nombre Vendedor', 'Clientes', 'Total Ventas', 'Registros Vencidas'])
+        for cell in ws_res[3]:
+            cell.font = header_font
+            cell.fill = header_fill_azul
+            cell.alignment = center
+
+        total_general = 0
+        for vid in sorted(por_vendedor.keys()):
+            g = por_vendedor[vid]
+            total_v = sum(c['total_ventas'] for c in g['clientes'])
+            venc_count = sum(sum(v['cantidad'] for v in c['vencidas'].values()) for c in g['clientes'])
+            total_general += total_v
+            ws_res.append([vid, g['vendedor_nombre'], len(g['clientes']), round(total_v), venc_count])
+
+        ws_res.append(['TOTAL GENERAL', '', sum(len(g['clientes']) for g in por_vendedor.values()), round(total_general), ''])
+        last = ws_res.max_row
+        for cell in ws_res[last]:
+            cell.font = Font(bold=True, size=11)
+            cell.fill = fila_total
+        autofit(ws_res)
+
+        # ── Hoja por ID ─────────────────────────────────────────────
+        COLS = ['Vendedor ID', 'Vendedor', 'Cliente', 'Contacto', 'Origen', 'Tipo', 'Producto', 'Cantidad', 'Total COP']
+        for vid in sorted(por_vendedor.keys()):
+            g = por_vendedor[vid]
+            nombre_hoja = f'{vid}'[:31]
+            ws = wb.create_sheet(nombre_hoja)
+
+            # Título
+            ws.append([f'Historial — {vid} — {g["vendedor_nombre"]}', '', '', '', '', '', '', '', f'{fecha_inicio} → {fecha_fin}'])
+            ws.merge_cells('A1:H1')
+            ws['A1'].font = Font(bold=True, size=13, color=azul_oscuro)
+            ws.append([])
+
+            # Encabezados
+            ws.append(COLS)
+            for cell in ws[3]:
+                cell.font = header_font
+                cell.fill = header_fill_azul
+                cell.alignment = center
+
+            clientes_sorted = sorted(g['clientes'], key=lambda c: c['nombre_negocio'].lower())
+            for cliente in clientes_sorted:
+                productos = sorted(cliente['productos'].items(), key=lambda x: -x[1]['cantidad'])
+                vencidas = sorted(cliente['vencidas'].items(), key=lambda x: -x[1]['cantidad'])
+
+                # Filas de compras
+                if productos:
+                    ws.append([])
+                    sub_h = ws.max_row
+                    ws[f'C{sub_h}'] = f'▶ {cliente["nombre_negocio"]}'
+                    ws[f'C{sub_h}'].font = Font(bold=True, color=azul_oscuro)
+
+                for nombre, vals in productos:
+                    ws.append([
+                        vid, g['vendedor_nombre'],
+                        cliente['nombre_negocio'], cliente['nombre_contacto'],
+                        cliente['origen'], 'COMPRA',
+                        nombre, vals['cantidad'], round(vals['total'])
+                    ])
+                    row = ws.max_row
+                    for cell in ws[row]:
+                        cell.border = borde
+
+                # Total cliente compras
+                if productos:
+                    ws.append([
+                        '', '', cliente['nombre_negocio'], '', '', 'TOTAL COMPRAS', '',
+                        sum(v['cantidad'] for _, v in productos),
+                        round(cliente['total_ventas'])
+                    ])
+                    row = ws.max_row
+                    for cell in ws[row]:
+                        cell.font = Font(bold=True)
+                        cell.fill = fila_total
+
+                # Filas de vencidas
+                if vencidas:
+                    ws.append([])
+                    for nombre, vals in vencidas:
+                        ws.append([
+                            vid, g['vendedor_nombre'],
+                            cliente['nombre_negocio'], cliente['nombre_contacto'],
+                            cliente['origen'], 'VENCIDA',
+                            nombre, vals['cantidad'], 0
+                        ])
+                        row = ws.max_row
+                        for cell in ws[row]:
+                            cell.border = borde
+                            cell.fill = PatternFill('solid', fgColor='FFF3CD')
+
+                    ws.append([
+                        '', '', cliente['nombre_negocio'], '', '', 'TOTAL VENCIDAS', '',
+                        sum(v['cantidad'] for _, v in vencidas), ''
+                    ])
+                    row = ws.max_row
+                    for cell in ws[row]:
+                        cell.font = Font(bold=True, color='856404')
+                        cell.fill = PatternFill('solid', fgColor='FFE69C')
+
+            autofit(ws)
+
+        # ── Retornar archivo ────────────────────────────────────────
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        nombre_archivo = f'historial_clientes_{fecha_inicio}_{fecha_fin}.xlsx'
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
