@@ -633,6 +633,14 @@ class VentaViewSet(viewsets.ModelViewSet):
                         'venta_id': venta_existente.id
                     }, status=status.HTTP_400_BAD_REQUEST)
             
+            # Rechazar ventas sin detalles y con total 0 (registros fantasma del offline sync)
+            total = float(venta_data.get('total', 0) or 0)
+            if total == 0 and not detalles_data:
+                return Response(
+                    {'error': 'Venta inválida: total 0 sin productos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Crear la venta
             venta_serializer = self.get_serializer(data=venta_data)
             if not venta_serializer.is_valid():
