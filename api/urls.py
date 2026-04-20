@@ -43,7 +43,9 @@ from .views import (
     # 🆕 Exportar
     exportar_clientes_excel,
     abrir_turno_manual,
-    listar_vendedores_cargue
+    listar_vendedores_cargue,
+    # 📦 Exportar Cargue Excel
+    exportar_cargue_excel,
 )
 
 router = DefaultRouter()
@@ -184,4 +186,7 @@ urlpatterns = router.urls + [
     # 🛠️ Herramientas Manuales
     path('turno/abrir-manual/', abrir_turno_manual, name='abrir-turno-manual'),
     path('vendedores-cargue/', listar_vendedores_cargue, name='listar-vendedores-cargue'),
+
+    # 📦 Exportar Cargue Excel
+    path('cargue/exportar-excel/', exportar_cargue_excel, name='exportar-cargue-excel'),
 ]

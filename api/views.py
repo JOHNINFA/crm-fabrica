@@ -18,7 +18,7 @@ from datetime import timedelta, datetime, date
 from collections import defaultdict
 from api.services.ai_assistant_service import AIAssistant
 from django.utils.dateparse import parse_datetime, parse_date
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional, recalcular_totales_cargue_queryset
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, CargueCumplimiento, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional, recalcular_totales_cargue_queryset
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
@@ -9890,6 +9890,298 @@ def exportar_historial_clientes_excel(request):
         )
         response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
         return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
+# ══════════════════════════════════════════════════════════════
+#  📦 EXPORTAR CARGUE A EXCEL
+# ══════════════════════════════════════════════════════════════
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def exportar_cargue_excel(request):
+    """
+    Exporta el cargue completo de una fecha/dia a un libro Excel.
+    Una hoja por ID (productos + pagos + cumplimiento) + hoja Resumen.
+    Params: fecha=YYYY-MM-DD  dia=LUNES|MARTES|...
+    """
+    import io
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        return Response({'error': 'openpyxl no instalado'}, status=500)
+
+    fecha_str = request.query_params.get('fecha')
+    dia = request.query_params.get('dia', '').upper()
+
+    if not fecha_str or not dia:
+        return Response({'error': 'Parametros fecha y dia son requeridos'}, status=400)
+
+    try:
+        fecha_obj = date.fromisoformat(fecha_str)
+    except ValueError:
+        return Response({'error': 'Formato de fecha invalido. Use YYYY-MM-DD'}, status=400)
+
+    azul = '1E3A5F'
+    azul_claro = 'D6E4F0'
+    verde = '1D6A3A'
+    gris = 'F8F9FA'
+
+    header_font = Font(bold=True, color='FFFFFF', size=10)
+    header_fill_azul = PatternFill('solid', fgColor=azul)
+    header_fill_verde = PatternFill('solid', fgColor=verde)
+    center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    left = Alignment(horizontal='left', vertical='center')
+    borde = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    fila_total = PatternFill('solid', fgColor=azul_claro)
+    fila_par = PatternFill('solid', fgColor=gris)
+
+    def autofit(ws, min_w=8, max_w=40):
+        for col in ws.columns:
+            width = min_w
+            for cell in col:
+                if cell.value:
+                    width = max(width, min(max_w, len(str(cell.value)) + 2))
+            ws.column_dimensions[col[0].column_letter].width = width
+
+    def formato_cop(val):
+        try:
+            return f'${int(float(val)):,}'
+        except Exception:
+            return val
+
+    MODELOS_ID = [
+        ('ID1', CargueID1),
+        ('ID2', CargueID2),
+        ('ID3', CargueID3),
+        ('ID4', CargueID4),
+        ('ID5', CargueID5),
+        ('ID6', CargueID6),
+    ]
+
+    try:
+        wb = Workbook()
+        wb.remove(wb.active)
+
+        resumen_rows = []
+
+        for id_label, Modelo in MODELOS_ID:
+            registros = list(Modelo.objects.filter(fecha=fecha_obj, dia=dia, activo=True).order_by('producto'))
+            if not registros:
+                continue
+
+            primer = registros[0]
+            responsable = getattr(primer, 'responsable', id_label)
+            ruta = getattr(primer, 'ruta', '')
+
+            ws = wb.create_sheet(id_label)
+
+            ws.append([f'CARGUE {id_label} — {responsable}', '', '', '', '', '', '', '', '', f'{dia}  {fecha_str}'])
+            ws.merge_cells('A1:I1')
+            ws['A1'].font = Font(bold=True, size=13, color=azul)
+            ws['A1'].alignment = left
+            ws['J1'].font = Font(bold=True, size=11, color='555555')
+            ws['J1'].alignment = center
+            ws.row_dimensions[1].height = 22
+            ws.append([])
+
+            cols_prod = ['Producto', 'Cantidad', 'Dctos', 'Adicional', 'Devoluciones', 'Vencidas', 'Total', 'Valor', 'Neto']
+            ws.append(cols_prod)
+            hdr_row = ws.max_row
+            for cell in ws[hdr_row]:
+                cell.font = header_font
+                cell.fill = header_fill_azul
+                cell.alignment = center
+                cell.border = borde
+
+            total_cantidad = 0
+            total_neto = 0.0
+            for i, r in enumerate(registros):
+                ws.append([
+                    r.producto, r.cantidad, r.dctos, r.adicional,
+                    r.devoluciones, r.vencidas, r.total,
+                    formato_cop(r.valor), formato_cop(r.neto),
+                ])
+                data_row = ws.max_row
+                fill = fila_par if i % 2 == 1 else PatternFill()
+                for cell in ws[data_row]:
+                    cell.border = borde
+                    cell.alignment = left
+                    if fill.fill_type:
+                        cell.fill = fill
+                total_cantidad += r.cantidad
+                total_neto += float(r.neto or 0)
+
+            ws.append(['TOTALES', total_cantidad, '', '', '', '', '', '', formato_cop(total_neto)])
+            for cell in ws[ws.max_row]:
+                cell.font = Font(bold=True)
+                cell.fill = fila_total
+                cell.border = borde
+
+            ws.append([])
+
+            # Pagos
+            pagos = list(CarguePagos.objects.filter(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True))
+            if pagos:
+                ws.append(['PAGOS', '', '', '', ''])
+                pago_hdr = ws.max_row
+                ws.merge_cells(f'A{pago_hdr}:E{pago_hdr}')
+                ws[f'A{pago_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
+                ws[f'A{pago_hdr}'].fill = header_fill_verde
+                ws[f'A{pago_hdr}'].alignment = center
+
+                ws.append(['Concepto', 'Descuentos', 'Nequi', 'Daviplata', 'Total Pago'])
+                for cell in ws[ws.max_row]:
+                    cell.font = header_font
+                    cell.fill = header_fill_verde
+                    cell.alignment = center
+                    cell.border = borde
+
+                total_nequi = total_daviplata = 0.0
+                for p in pagos:
+                    total_p = float(p.nequi or 0) + float(p.daviplata or 0)
+                    ws.append([p.concepto, formato_cop(p.descuentos), formato_cop(p.nequi), formato_cop(p.daviplata), formato_cop(total_p)])
+                    for cell in ws[ws.max_row]:
+                        cell.border = borde
+                    total_nequi += float(p.nequi or 0)
+                    total_daviplata += float(p.daviplata or 0)
+
+                ws.append(['TOTAL PAGOS', '', formato_cop(total_nequi), formato_cop(total_daviplata), formato_cop(total_nequi + total_daviplata)])
+                for cell in ws[ws.max_row]:
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill('solid', fgColor='D4EDDA')
+                    cell.border = borde
+
+                ws.append([])
+
+            # Resumen financiero
+            ws.append(['RESUMEN', '', ''])
+            res_hdr = ws.max_row
+            ws.merge_cells(f'A{res_hdr}:C{res_hdr}')
+            ws[f'A{res_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
+            ws[f'A{res_hdr}'].fill = header_fill_azul
+            ws[f'A{res_hdr}'].alignment = center
+
+            for campo, val in [
+                ('Base Caja', primer.base_caja),
+                ('Total Despacho', primer.total_despacho),
+                ('Total Pedidos', primer.total_pedidos),
+                ('Total Dctos', getattr(primer, 'total_dctos', 0)),
+                ('Venta', primer.venta),
+                ('Total Efectivo', primer.total_efectivo),
+            ]:
+                ws.append([campo, '', formato_cop(val)])
+                ws[f'A{ws.max_row}'].font = Font(bold=True)
+                for cell in ws[ws.max_row]:
+                    cell.border = borde
+
+            ws.append([])
+
+            # Cumplimiento
+            try:
+                cumpl = CargueCumplimiento.objects.get(vendedor_id=id_label, fecha=fecha_obj, dia=dia, activo=True)
+                ws.append(['CUMPLIMIENTO', '', ''])
+                cumpl_hdr = ws.max_row
+                ws.merge_cells(f'A{cumpl_hdr}:C{cumpl_hdr}')
+                ws[f'A{cumpl_hdr}'].font = Font(bold=True, color='FFFFFF', size=11)
+                ws[f'A{cumpl_hdr}'].fill = header_fill_azul
+                ws[f'A{cumpl_hdr}'].alignment = center
+
+                for campo, val in [
+                    ('Licencia Transporte', cumpl.licencia_transporte),
+                    ('SOAT', cumpl.soat),
+                    ('Uniforme', cumpl.uniforme),
+                    ('No Locion', cumpl.no_locion),
+                    ('No Accesorios', cumpl.no_accesorios),
+                    ('Capacitacion/Carnet', cumpl.capacitacion_carnet),
+                    ('Higiene', cumpl.higiene),
+                    ('Estibas', cumpl.estibas),
+                    ('Desinfeccion', cumpl.desinfeccion),
+                ]:
+                    ws.append([campo, '', val or '-'])
+                    row_c = ws.max_row
+                    ws[f'A{row_c}'].font = Font(bold=True)
+                    for cell in ws[row_c]:
+                        cell.border = borde
+                    if val == 'C':
+                        ws[f'C{row_c}'].fill = PatternFill('solid', fgColor='D4EDDA')
+                        ws[f'C{row_c}'].font = Font(bold=True, color='1D6A3A')
+                    elif val == 'NC':
+                        ws[f'C{row_c}'].fill = PatternFill('solid', fgColor='F8D7DA')
+                        ws[f'C{row_c}'].font = Font(bold=True, color='721C24')
+            except CargueCumplimiento.DoesNotExist:
+                pass
+
+            autofit(ws)
+
+            resumen_rows.append({
+                'id': id_label,
+                'responsable': responsable,
+                'ruta': ruta,
+                'productos': len(registros),
+                'venta': primer.venta,
+                'total_efectivo': primer.total_efectivo,
+            })
+
+        # Hoja Resumen (primera)
+        if resumen_rows:
+            ws_res = wb.create_sheet('Resumen', 0)
+            ws_res.append([f'RESUMEN CARGUE — {dia}  {fecha_str}', '', '', '', '', ''])
+            ws_res.merge_cells('A1:F1')
+            ws_res['A1'].font = Font(bold=True, size=14, color=azul)
+            ws_res['A1'].alignment = center
+            ws_res.row_dimensions[1].height = 24
+            ws_res.append([])
+
+            ws_res.append(['ID', 'Responsable', 'Ruta', 'Productos', 'Venta', 'Efectivo'])
+            for cell in ws_res[3]:
+                cell.font = header_font
+                cell.fill = header_fill_azul
+                cell.alignment = center
+                cell.border = borde
+
+            total_venta = total_efectivo = 0.0
+            for i, row in enumerate(resumen_rows):
+                ws_res.append([row['id'], row['responsable'], row['ruta'], row['productos'], formato_cop(row['venta']), formato_cop(row['total_efectivo'])])
+                data_row = ws_res.max_row
+                fill = fila_par if i % 2 == 1 else PatternFill()
+                for cell in ws_res[data_row]:
+                    cell.border = borde
+                    cell.alignment = left
+                    if fill.fill_type:
+                        cell.fill = fill
+                total_venta += float(row['venta'] or 0)
+                total_efectivo += float(row['total_efectivo'] or 0)
+
+            ws_res.append(['TOTAL', '', '', '', formato_cop(total_venta), formato_cop(total_efectivo)])
+            for cell in ws_res[ws_res.max_row]:
+                cell.font = Font(bold=True)
+                cell.fill = fila_total
+                cell.border = borde
+
+            autofit(ws_res)
+
+        if not wb.sheetnames:
+            return Response({'error': f'No hay datos de cargue para {dia} {fecha_str}'}, status=404)
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        nombre_archivo = f'cargue_{dia}_{fecha_str}.xlsx'
+        response_xl = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response_xl['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        return response_xl
 
     except Exception as e:
         import traceback

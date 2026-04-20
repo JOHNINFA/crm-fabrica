@@ -12,6 +12,7 @@ import ControlCumplimiento from './ControlCumplimiento';
 import RegistroLotes from './RegistroLotes';
 import BotonCorreccionNuevo from './BotonCorreccionNuevo';
 import BotonVerPedidos from './BotonVerPedidos';
+import BotonDescargarCargueExcel from './BotonDescargarCargueExcel';
 
 
 import { cargueHybridService } from '../../services/cargueApiService'; // Corrected import
@@ -2658,6 +2659,13 @@ const PlantillaOperativa = ({
                                 >
                                     📊 Informes
                                 </button>
+                            )}
+
+                            {esAdmin() && (
+                                <BotonDescargarCargueExcel
+                                    fecha={fechaFormateadaLS}
+                                    dia={dia}
+                                />
                             )}
 
                             {!!datosResumen?.novedad && !!datosResumen?.ventasPrecioEspecial?.length && (
