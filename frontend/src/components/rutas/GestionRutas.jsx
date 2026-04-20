@@ -55,6 +55,7 @@ const GestionRutas = () => {
     const [clienteAConvertir, setClienteAConvertir] = useState(null);
     const [convertirForm, setConvertirForm] = useState({ dia_visita: 'LUNES', tipo_negocio: '' });
     const [syncing, setSyncing] = useState(false);
+    const [descargandoExcel, setDescargandoExcel] = useState(false);
 
     // 🆕 Buscadores
     const [busquedaRuta, setBusquedaRuta] = useState(''); // Filtro dentro de la ruta seleccionada
@@ -64,6 +65,26 @@ const GestionRutas = () => {
     const [mensajePermisos, setMensajePermisos] = useState(null);
     const busquedaGlobalTimerRef = useRef(null);
     const mensajePermisosTimerRef = useRef(null);
+
+    const descargarExcelRutas = async () => {
+        const API_URL = process.env.REACT_APP_API_URL || '/api';
+        setDescargandoExcel(true);
+        try {
+            const res = await fetch(`${API_URL}/reportes/clientes-rutas-excel/`);
+            if (!res.ok) throw new Error('Error al generar Excel');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `clientes_rutas_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('Error al descargar. Intenta de nuevo.');
+        } finally {
+            setDescargandoExcel(false);
+        }
+    };
 
     const mostrarMensajePermisos = useCallback((texto) => {
         setMensajePermisos(texto);
@@ -493,6 +514,18 @@ const GestionRutas = () => {
                         style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '1.2rem' }}>✕</button>
                 )}
                 {buscandoGlobal && <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Buscando...</span>}
+                <button
+                    onClick={descargarExcelRutas}
+                    disabled={descargandoExcel}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: '#198754', color: 'white', border: 'none',
+                        borderRadius: 8, padding: '6px 14px', fontSize: '0.82rem',
+                        fontWeight: 600, cursor: descargandoExcel ? 'not-allowed' : 'pointer',
+                        opacity: descargandoExcel ? 0.7 : 1, whiteSpace: 'nowrap'
+                    }}>
+                    {descargandoExcel ? '⏳ Descargando...' : '📥 Descargar Excel'}
+                </button>
             </div>
 
             {/* Resultados de búsqueda global */}

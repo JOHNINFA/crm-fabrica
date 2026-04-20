@@ -9208,6 +9208,139 @@ def abrir_turno_manual(request):
         }, status=500)
 
 
+# ==================== EXPORTAR CLIENTES RUTAS EXCEL ====================
+
+@api_view(['GET'])
+def exportar_clientes_rutas_excel(request):
+    """
+    Exporta todos los clientes de ruta a Excel, agrupados por ID de vendedor.
+    GET /api/reportes/clientes-rutas-excel/
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    import io
+
+    try:
+        rutas = Ruta.objects.filter(activa=True).select_related('vendedor').prefetch_related('clientes')
+        clientes_ruta = ClienteRuta.objects.filter(
+            activo=True, ruta__activa=True
+        ).select_related('ruta', 'ruta__vendedor').order_by(
+            'ruta__vendedor__id_vendedor', 'ruta__nombre', 'orden'
+        )
+
+        # Agrupar por vendedor
+        por_vendedor = {}
+        for c in clientes_ruta:
+            vid = c.ruta.vendedor.id_vendedor if c.ruta.vendedor else 'SIN_ID'
+            vnombre = c.ruta.vendedor.nombre if c.ruta.vendedor else ''
+            if vid not in por_vendedor:
+                por_vendedor[vid] = {'nombre': vnombre, 'clientes': []}
+            origen = 'PEDIDO' if (c.tipo_negocio and 'PEDIDOS' in c.tipo_negocio.upper()) else 'RUTA'
+            por_vendedor[vid]['clientes'].append({
+                'ruta': c.ruta.nombre,
+                'negocio': c.nombre_negocio,
+                'contacto': c.nombre_contacto or '',
+                'telefono': c.telefono or '',
+                'tipo_negocio': c.tipo_negocio or '',
+                'origen': origen,
+                'dias': c.dia_visita or '',
+                'direccion': c.direccion or '',
+                'nota': c.nota or '',
+            })
+
+        # ── Estilos ─────────────────────────────────────────────────
+        azul = '0C2C53'
+        verde = '198754'
+        blanco = 'FFFFFF'
+        gris = 'F1F3F5'
+        amarillo = 'FFF3CD'
+
+        header_font = Font(bold=True, color=blanco, size=11)
+        header_fill = PatternFill('solid', fgColor=azul)
+        total_fill = PatternFill('solid', fgColor='DEE2E6')
+        center = Alignment(horizontal='center', vertical='center')
+
+        def autofit(ws):
+            for col in ws.columns:
+                max_len = max((len(str(c.value)) for c in col if c.value), default=8)
+                ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 4, 50)
+
+        wb = Workbook()
+        wb.remove(wb.active)
+
+        # ── Hoja Resumen ────────────────────────────────────────────
+        ws_res = wb.create_sheet('Resumen', 0)
+        ws_res.append([f'CLIENTES DE RUTAS — {__import__("datetime").date.today()}'])
+        ws_res['A1'].font = Font(bold=True, size=14, color=azul)
+        ws_res.append([])
+        ws_res.append(['ID Vendedor', 'Nombre Vendedor', 'Total Clientes', 'RUTA', 'PEDIDO'])
+        for cell in ws_res[3]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+
+        for vid in sorted(por_vendedor.keys()):
+            g = por_vendedor[vid]
+            total_ruta = sum(1 for c in g['clientes'] if c['origen'] == 'RUTA')
+            total_ped = sum(1 for c in g['clientes'] if c['origen'] == 'PEDIDO')
+            ws_res.append([vid, g['nombre'], len(g['clientes']), total_ruta, total_ped])
+
+        ws_res.append(['TOTAL', '', sum(len(g['clientes']) for g in por_vendedor.values()), '', ''])
+        for cell in ws_res[ws_res.max_row]:
+            cell.font = Font(bold=True)
+            cell.fill = total_fill
+        autofit(ws_res)
+
+        # ── Hoja por ID ─────────────────────────────────────────────
+        COLS = ['Ruta', 'Negocio', 'Contacto', 'Teléfono', 'Tipo Negocio', 'Origen', 'Días Visita', 'Dirección', 'Nota']
+        for vid in sorted(por_vendedor.keys()):
+            g = por_vendedor[vid]
+            ws = wb.create_sheet(vid[:31])
+            ws.append([f'{vid} — {g["nombre"]}'])
+            ws.merge_cells('A1:I1')
+            ws['A1'].font = Font(bold=True, size=13, color=azul)
+            ws.append([])
+            ws.append(COLS)
+            for cell in ws[3]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+
+            for i, c in enumerate(g['clientes']):
+                ws.append([
+                    c['ruta'], c['negocio'], c['contacto'], c['telefono'],
+                    c['tipo_negocio'], c['origen'], c['dias'], c['direccion'], c['nota']
+                ])
+                if c['origen'] == 'PEDIDO':
+                    for cell in ws[ws.max_row]:
+                        cell.fill = PatternFill('solid', fgColor='FFF3CD')
+                elif i % 2 == 0:
+                    for cell in ws[ws.max_row]:
+                        cell.fill = PatternFill('solid', fgColor=gris)
+
+            autofit(ws)
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        from datetime import date
+        nombre_archivo = f'clientes_rutas_{date.today()}.xlsx'
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
+
+
 # ==================== VENTAS PRODUCTOS POS ====================
 
 @api_view(['GET'])
