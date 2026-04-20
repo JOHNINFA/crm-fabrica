@@ -7,6 +7,7 @@ import '../../styles/InventarioPlaneacion.css';
 import '../../styles/TablaKardex.css';
 import '../../styles/BorderlessInputs.css';
 import '../../styles/ActionButtons.css';
+import BotonDescargarPlaneacionExcel from './BotonDescargarPlaneacionExcel';
 
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
@@ -948,6 +949,8 @@ const InventarioPlaneacion = () => {
           <DateSelector onDateSelect={handleDateSelect} />
         </Col>
         <Col xs={12} md={6} className="d-flex justify-content-end align-items-center gap-2 botones-planeacion">
+          <BotonDescargarPlaneacionExcel />
+
           {/* ✅ Nuevo botón GUARDAR REPORTE */}
           <Button
             variant={reporteGuardado ? "success" : "primary"}

@@ -46,6 +46,8 @@ from .views import (
     listar_vendedores_cargue,
     # 📦 Exportar Cargue Excel
     exportar_cargue_excel,
+    # 📅 Exportar Planeación Mensual Excel
+    exportar_planeacion_mensual_excel,
 )
 
 router = DefaultRouter()
@@ -189,4 +191,7 @@ urlpatterns = router.urls + [
 
     # 📦 Exportar Cargue Excel
     path('cargue/exportar-excel/', exportar_cargue_excel, name='exportar-cargue-excel'),
+
+    # 📅 Exportar Planeación Mensual Excel
+    path('reportes/planeacion-mensual-excel/', exportar_planeacion_mensual_excel, name='planeacion-mensual-excel'),
 ]

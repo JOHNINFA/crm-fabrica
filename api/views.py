@@ -10332,3 +10332,254 @@ def exportar_cargue_excel(request):
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)
+
+
+# ==================== EXPORTAR PLANEACIÓN MENSUAL EXCEL ====================
+
+@api_view(['GET'])
+def exportar_planeacion_mensual_excel(request):
+    """
+    Genera un Excel con la planeación de un mes completo.
+    Una pestaña por día (lunes-sábado). Si existe snapshot guardado muestra datos,
+    si no existe muestra la pestaña como Pendiente.
+    GET /api/reportes/planeacion-mensual-excel/?mes=2026-04
+    """
+    try:
+        mes_param = request.GET.get('mes')
+        if not mes_param:
+            return Response({'error': 'Parámetro mes requerido (formato: YYYY-MM)'}, status=400)
+
+        try:
+            partes = mes_param.split('-')
+            anio, mes = int(partes[0]), int(partes[1])
+        except Exception:
+            return Response({'error': 'Formato de mes inválido. Use YYYY-MM'}, status=400)
+
+        import calendar
+        from datetime import date, timedelta
+
+        primer_dia = date(anio, mes, 1)
+        ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
+        hoy = date.today()
+
+        # Todos los días del mes excepto domingos (weekday==6)
+        dias_mes = []
+        d = primer_dia
+        while d <= ultimo_dia:
+            if d.weekday() != 6:
+                dias_mes.append(d)
+            d += timedelta(days=1)
+
+        # Cargar snapshots del mes (uno por fecha, el más reciente)
+        snapshots = ReportePlaneacion.objects.filter(
+            fecha_reporte__year=anio,
+            fecha_reporte__month=mes
+        ).order_by('fecha_reporte', '-fecha_creacion')
+
+        snapshot_map = {}
+        for snap in snapshots:
+            fecha_key = snap.fecha_reporte.strftime('%Y-%m-%d')
+            if fecha_key not in snapshot_map:
+                snapshot_map[fecha_key] = snap
+
+        nombres_dia = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        COLOR_HEADER   = '1F4E79'
+        COLOR_FILA_PAR = 'EBF3FB'
+        COLOR_TOTAL    = 'BDD7EE'
+        COLOR_OK       = 'E2EFDA'
+        COLOR_SIN      = 'FCE4D6'
+        COLOR_FUTURO   = 'FFF2CC'
+
+        borde = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+        def set_header_row(ws, fila, etiquetas, color=COLOR_HEADER):
+            for ci, label in enumerate(etiquetas, 1):
+                c = ws.cell(fila, ci, label)
+                c.font = Font(bold=True, color='FFFFFF', size=10)
+                c.fill = PatternFill('solid', fgColor=color)
+                c.alignment = Alignment(horizontal='center', vertical='center')
+                c.border = borde
+
+        def set_borde_fila(ws, fila, n_cols):
+            for ci in range(1, n_cols + 1):
+                ws.cell(fila, ci).border = borde
+
+        COLS = ['PRODUCTO', 'EXISTENCIAS', 'SOLICITADAS', 'PEDIDOS', 'A PRODUCIR', 'IA SUGERIDA']
+        N = len(COLS)
+        LAST_COL = chr(64 + N)  # 'F'
+
+        wb = openpyxl.Workbook()
+
+        # ── Hoja RESUMEN ──
+        ws_res = wb.active
+        ws_res.title = 'Resumen'
+
+        ws_res.merge_cells('A1:D1')
+        c = ws_res['A1']
+        c.value = f'RESUMEN PLANEACIÓN — {mes_param}'
+        c.font = Font(bold=True, color='FFFFFF', size=13)
+        c.fill = PatternFill('solid', fgColor=COLOR_HEADER)
+        c.alignment = Alignment(horizontal='center', vertical='center')
+        ws_res.row_dimensions[1].height = 22
+
+        set_header_row(ws_res, 2, ['FECHA', 'DÍA', 'ESTADO', 'PRODUCTOS'])
+        ws_res.row_dimensions[2].height = 18
+
+        total_guardados = 0
+        total_pendientes = 0
+
+        for idx, dia_fecha in enumerate(dias_mes):
+            fecha_key    = dia_fecha.strftime('%Y-%m-%d')
+            fecha_display = dia_fecha.strftime('%d/%m/%Y')
+            nombre_dia   = nombres_dia[dia_fecha.weekday()]
+            snap         = snapshot_map.get(fecha_key)
+            es_futura    = dia_fecha > hoy
+            fila_res     = idx + 3
+
+            if snap:
+                datos      = snap.datos_json if isinstance(snap.datos_json, list) else []
+                estado     = 'Guardado'
+                n_prod     = len(datos)
+                fill_est   = PatternFill('solid', fgColor=COLOR_OK)
+                font_est   = Font(color='375623', bold=True, size=10)
+                total_guardados += 1
+            elif es_futura:
+                estado   = 'Futuro'
+                n_prod   = 0
+                fill_est = PatternFill('solid', fgColor=COLOR_FUTURO)
+                font_est = Font(color='7F6000', bold=True, size=10)
+                total_pendientes += 1
+            else:
+                estado   = 'Sin Guardar'
+                n_prod   = 0
+                fill_est = PatternFill('solid', fgColor=COLOR_SIN)
+                font_est = Font(color='C00000', bold=True, size=10)
+                total_pendientes += 1
+
+            ws_res.append([fecha_display, nombre_dia, estado, n_prod if n_prod > 0 else '-'])
+            ws_res.cell(fila_res, 3).fill  = fill_est
+            ws_res.cell(fila_res, 3).font  = font_est
+            ws_res.cell(fila_res, 3).alignment = Alignment(horizontal='center')
+            ws_res.cell(fila_res, 4).alignment = Alignment(horizontal='center')
+            set_borde_fila(ws_res, fila_res, 4)
+            if idx % 2 == 0:
+                for col in [1, 2, 4]:
+                    ws_res.cell(fila_res, col).fill = PatternFill('solid', fgColor=COLOR_FILA_PAR)
+
+        fila_tot_res = len(dias_mes) + 3
+        ws_res.append(['TOTAL', f'{len(dias_mes)} días hábiles', f'Guardados: {total_guardados}', f'Pendientes: {total_pendientes}'])
+        for ci in range(1, 5):
+            c = ws_res.cell(fila_tot_res, ci)
+            c.font = Font(bold=True, size=10)
+            c.fill = PatternFill('solid', fgColor=COLOR_TOTAL)
+            c.border = borde
+            c.alignment = Alignment(horizontal='center')
+
+        ws_res.column_dimensions['A'].width = 14
+        ws_res.column_dimensions['B'].width = 14
+        ws_res.column_dimensions['C'].width = 16
+        ws_res.column_dimensions['D'].width = 14
+
+        # ── Una hoja por día ──
+        for dia_fecha in dias_mes:
+            fecha_key    = dia_fecha.strftime('%Y-%m-%d')
+            fecha_display = dia_fecha.strftime('%d/%m/%Y')
+            nombre_dia   = nombres_dia[dia_fecha.weekday()]
+            tab_name     = dia_fecha.strftime('%d-%m')
+            snap         = snapshot_map.get(fecha_key)
+            es_futura    = dia_fecha > hoy
+
+            ws = wb.create_sheet(title=tab_name)
+
+            # Título
+            ws.merge_cells(f'A1:{LAST_COL}1')
+            t = ws['A1']
+            t.value = f'PLANEACIÓN {nombre_dia.upper()} {fecha_display}'
+            t.font = Font(bold=True, color='FFFFFF', size=12)
+            t.fill = PatternFill('solid', fgColor=COLOR_HEADER)
+            t.alignment = Alignment(horizontal='center', vertical='center')
+            ws.row_dimensions[1].height = 22
+
+            if snap:
+                datos = snap.datos_json if isinstance(snap.datos_json, list) else []
+
+                # Sub-título con fecha de guardado
+                ws.merge_cells(f'A2:{LAST_COL}2')
+                s = ws['A2']
+                s.value = f'Guardado: {snap.fecha_creacion.strftime("%d/%m/%Y %H:%M")}  |  {len(datos)} productos'
+                s.font = Font(italic=True, color='375623', size=9)
+                s.fill = PatternFill('solid', fgColor=COLOR_OK)
+                s.alignment = Alignment(horizontal='center')
+
+                set_header_row(ws, 3, COLS)
+                ws.row_dimensions[3].height = 16
+
+                total_producir = 0
+                for ri, prod in enumerate(datos, 4):
+                    nombre     = prod.get('nombre', '')
+                    existencias = int(prod.get('existencias', 0) or 0)
+                    solicitado = int(prod.get('solicitado', 0) or 0)
+                    pedidos    = int(prod.get('pedidos', 0) or 0)
+                    orden      = int(prod.get('orden', 0) or 0)
+                    ia         = int(prod.get('ia', 0) or 0)
+
+                    ws.append([nombre, existencias, solicitado, pedidos, orden, ia])
+                    total_producir += orden
+
+                    fill_fila = PatternFill('solid', fgColor=COLOR_FILA_PAR) if ri % 2 == 0 else PatternFill()
+                    for ci in range(1, N + 1):
+                        c = ws.cell(ri, ci)
+                        c.border = borde
+                        c.alignment = Alignment(horizontal='left' if ci == 1 else 'center')
+                        if ci > 1:
+                            c.fill = fill_fila
+
+                fila_tot_d = len(datos) + 4
+                ws.cell(fila_tot_d, 1, 'TOTAL')
+                ws.cell(fila_tot_d, 5, total_producir)
+                for ci in range(1, N + 1):
+                    c = ws.cell(fila_tot_d, ci)
+                    c.font = Font(bold=True, size=10)
+                    c.fill = PatternFill('solid', fgColor=COLOR_TOTAL)
+                    c.border = borde
+                    c.alignment = Alignment(horizontal='left' if ci == 1 else 'center')
+
+            else:
+                ws.merge_cells(f'A2:{LAST_COL}2')
+                s = ws['A2']
+                s.value = 'FECHA FUTURA — AÚN NO PLANEADA' if es_futura else 'SIN REPORTE GUARDADO PARA ESTA FECHA'
+                s.font = Font(bold=True, color='FFFFFF', size=11)
+                s.fill = PatternFill('solid', fgColor='BF8F00' if es_futura else 'C00000')
+                s.alignment = Alignment(horizontal='center', vertical='center')
+                ws.row_dimensions[2].height = 20
+
+            # Anchos de columna
+            ws.column_dimensions['A'].width = 32
+            for ci in range(2, N + 1):
+                ws.column_dimensions[chr(64 + ci)].width = 14
+
+        # Resumen siempre al inicio
+        wb.move_sheet('Resumen', offset=-len(wb.sheetnames))
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        nombre_archivo = f'planeacion_{mes_param}.xlsx'
+        response_xl = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response_xl['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        return response_xl
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=500)
