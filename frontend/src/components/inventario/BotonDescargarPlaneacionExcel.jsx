@@ -4,19 +4,20 @@ const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const BotonDescargarPlaneacionExcel = () => {
     const [descargando, setDescargando] = useState(false);
+    const [mostrarSelector, setMostrarSelector] = useState(false);
 
     const getMesActual = () => {
         const hoy = new Date();
-        const anio = hoy.getFullYear();
-        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-        return `${anio}-${mes}`;
+        return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
     };
 
+    const [mesSeleccionado, setMesSeleccionado] = useState(getMesActual());
+
     const descargar = async () => {
+        setMostrarSelector(false);
         setDescargando(true);
         try {
-            const mes = getMesActual();
-            const url = `${API_URL}/reportes/planeacion-mensual-excel/?mes=${mes}`;
+            const url = `${API_URL}/reportes/planeacion-mensual-excel/?mes=${mesSeleccionado}`;
             const response = await fetch(url);
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
@@ -25,7 +26,7 @@ const BotonDescargarPlaneacionExcel = () => {
             const blob = await response.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `planeacion_${mes}.xlsx`;
+            link.download = `planeacion_${mesSeleccionado}.xlsx`;
             link.click();
             URL.revokeObjectURL(link.href);
         } catch (e) {
@@ -35,12 +36,41 @@ const BotonDescargarPlaneacionExcel = () => {
         }
     };
 
+    if (mostrarSelector) {
+        return (
+            <div className="d-flex align-items-center gap-1">
+                <input
+                    type="month"
+                    className="form-control form-control-sm"
+                    style={{ width: '150px' }}
+                    value={mesSeleccionado}
+                    onChange={e => setMesSeleccionado(e.target.value)}
+                />
+                <button
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={descargar}
+                    disabled={!mesSeleccionado}
+                    title="Descargar"
+                >
+                    ✓
+                </button>
+                <button
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => setMostrarSelector(false)}
+                    title="Cancelar"
+                >
+                    ✕
+                </button>
+            </div>
+        );
+    }
+
     return (
         <button
             className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
-            onClick={descargar}
+            onClick={() => setMostrarSelector(true)}
             disabled={descargando}
-            title="Descargar planeación del mes en Excel"
+            title="Descargar planeación mensual en Excel"
             style={{ color: '#1F4E79', fontWeight: '500' }}
         >
             {descargando ? (

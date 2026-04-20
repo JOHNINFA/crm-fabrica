@@ -10382,6 +10382,26 @@ def exportar_planeacion_mensual_excel(request):
             if fecha_key not in snapshot_map:
                 snapshot_map[fecha_key] = snap
 
+        # Cargar registros directos de Planeacion para fechas sin snapshot
+        planeacion_directa = Planeacion.objects.filter(
+            fecha__year=anio,
+            fecha__month=mes
+        ).order_by('fecha', 'producto_nombre')
+
+        planeacion_directa_map = {}
+        for reg in planeacion_directa:
+            fecha_key = reg.fecha.strftime('%Y-%m-%d')
+            if fecha_key not in planeacion_directa_map:
+                planeacion_directa_map[fecha_key] = []
+            planeacion_directa_map[fecha_key].append({
+                'nombre':      reg.producto_nombre,
+                'existencias': reg.existencias,
+                'solicitado':  reg.solicitadas,
+                'pedidos':     reg.pedidos,
+                'orden':       reg.orden,
+                'ia':          reg.ia,
+            })
+
         nombres_dia = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
         import io
@@ -10441,15 +10461,22 @@ def exportar_planeacion_mensual_excel(request):
             fecha_display = dia_fecha.strftime('%d/%m/%Y')
             nombre_dia   = nombres_dia[dia_fecha.weekday()]
             snap         = snapshot_map.get(fecha_key)
+            directa      = planeacion_directa_map.get(fecha_key, [])
             es_futura    = dia_fecha > hoy
             fila_res     = idx + 3
 
             if snap:
                 datos      = snap.datos_json if isinstance(snap.datos_json, list) else []
-                estado     = 'Guardado'
+                estado     = 'Snapshot'
                 n_prod     = len(datos)
                 fill_est   = PatternFill('solid', fgColor=COLOR_OK)
                 font_est   = Font(color='375623', bold=True, size=10)
+                total_guardados += 1
+            elif directa:
+                estado   = 'BD Directa'
+                n_prod   = len(directa)
+                fill_est = PatternFill('solid', fgColor='DDEBF7')
+                font_est = Font(color='1F4E79', bold=True, size=10)
                 total_guardados += 1
             elif es_futura:
                 estado   = 'Futuro'
@@ -10458,7 +10485,7 @@ def exportar_planeacion_mensual_excel(request):
                 font_est = Font(color='7F6000', bold=True, size=10)
                 total_pendientes += 1
             else:
-                estado   = 'Sin Guardar'
+                estado   = 'Sin Datos'
                 n_prod   = 0
                 fill_est = PatternFill('solid', fgColor=COLOR_SIN)
                 font_est = Font(color='C00000', bold=True, size=10)
@@ -10494,8 +10521,23 @@ def exportar_planeacion_mensual_excel(request):
             fecha_display = dia_fecha.strftime('%d/%m/%Y')
             nombre_dia   = nombres_dia[dia_fecha.weekday()]
             tab_name     = dia_fecha.strftime('%d-%m')
-            snap         = snapshot_map.get(fecha_key)
-            es_futura    = dia_fecha > hoy
+            snap     = snapshot_map.get(fecha_key)
+            directa  = planeacion_directa_map.get(fecha_key, [])
+            es_futura = dia_fecha > hoy
+
+            # Determinar fuente de datos: snapshot > BD directa > sin datos
+            if snap:
+                datos_hoja   = snap.datos_json if isinstance(snap.datos_json, list) else []
+                fuente_label = f'Snapshot guardado: {snap.fecha_creacion.strftime("%d/%m/%Y %H:%M")}  |  {len(datos_hoja)} productos'
+                fuente_color = COLOR_OK
+                fuente_font  = Font(italic=True, color='375623', size=9)
+            elif directa:
+                datos_hoja   = directa
+                fuente_label = f'Datos de BD  |  {len(directa)} productos'
+                fuente_color = 'DDEBF7'
+                fuente_font  = Font(italic=True, color='1F4E79', size=9)
+            else:
+                datos_hoja   = None
 
             ws = wb.create_sheet(title=tab_name)
 
@@ -10508,28 +10550,25 @@ def exportar_planeacion_mensual_excel(request):
             t.alignment = Alignment(horizontal='center', vertical='center')
             ws.row_dimensions[1].height = 22
 
-            if snap:
-                datos = snap.datos_json if isinstance(snap.datos_json, list) else []
-
-                # Sub-título con fecha de guardado
+            if datos_hoja is not None:
                 ws.merge_cells(f'A2:{LAST_COL}2')
                 s = ws['A2']
-                s.value = f'Guardado: {snap.fecha_creacion.strftime("%d/%m/%Y %H:%M")}  |  {len(datos)} productos'
-                s.font = Font(italic=True, color='375623', size=9)
-                s.fill = PatternFill('solid', fgColor=COLOR_OK)
+                s.value = fuente_label
+                s.font  = fuente_font
+                s.fill  = PatternFill('solid', fgColor=fuente_color)
                 s.alignment = Alignment(horizontal='center')
 
                 set_header_row(ws, 3, COLS)
                 ws.row_dimensions[3].height = 16
 
                 total_producir = 0
-                for ri, prod in enumerate(datos, 4):
-                    nombre     = prod.get('nombre', '')
+                for ri, prod in enumerate(datos_hoja, 4):
+                    nombre      = prod.get('nombre', '')
                     existencias = int(prod.get('existencias', 0) or 0)
-                    solicitado = int(prod.get('solicitado', 0) or 0)
-                    pedidos    = int(prod.get('pedidos', 0) or 0)
-                    orden      = int(prod.get('orden', 0) or 0)
-                    ia         = int(prod.get('ia', 0) or 0)
+                    solicitado  = int(prod.get('solicitado', 0) or prod.get('solicitadas', 0) or 0)
+                    pedidos     = int(prod.get('pedidos', 0) or 0)
+                    orden       = int(prod.get('orden', 0) or 0)
+                    ia          = int(prod.get('ia', 0) or 0)
 
                     ws.append([nombre, existencias, solicitado, pedidos, orden, ia])
                     total_producir += orden
@@ -10542,7 +10581,7 @@ def exportar_planeacion_mensual_excel(request):
                         if ci > 1:
                             c.fill = fill_fila
 
-                fila_tot_d = len(datos) + 4
+                fila_tot_d = len(datos_hoja) + 4
                 ws.cell(fila_tot_d, 1, 'TOTAL')
                 ws.cell(fila_tot_d, 5, total_producir)
                 for ci in range(1, N + 1):
@@ -10555,7 +10594,7 @@ def exportar_planeacion_mensual_excel(request):
             else:
                 ws.merge_cells(f'A2:{LAST_COL}2')
                 s = ws['A2']
-                s.value = 'FECHA FUTURA — AÚN NO PLANEADA' if es_futura else 'SIN REPORTE GUARDADO PARA ESTA FECHA'
+                s.value = 'FECHA FUTURA — AÚN NO PLANEADA' if es_futura else 'SIN DATOS DE PLANEACIÓN PARA ESTA FECHA'
                 s.font = Font(bold=True, color='FFFFFF', size=11)
                 s.fill = PatternFill('solid', fgColor='BF8F00' if es_futura else 'C00000')
                 s.alignment = Alignment(horizontal='center', vertical='center')
