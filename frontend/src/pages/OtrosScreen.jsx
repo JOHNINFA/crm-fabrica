@@ -135,14 +135,15 @@ const OtrosScreen = () => {
             color: 'warning',
             route: '/precios-cargue'
         },
-        {
-            id: 'ia',
-            title: 'Agente IA (Beta)',
-            description: 'Chat inteligente con datos de ventas y comandos',
-            icon: 'smart_toy',
-            color: 'dark',
-            action: () => handleModuleChange('ia')
-        }
+        // Oculto del menú — se usa Antigravity directamente
+        // {
+        //     id: 'ia',
+        //     title: 'Agente IA (Beta)',
+        //     description: 'Chat inteligente con datos de ventas y comandos',
+        //     icon: 'smart_toy',
+        //     color: 'dark',
+        //     action: () => handleModuleChange('ia')
+        // }
     ];
 
     return (
