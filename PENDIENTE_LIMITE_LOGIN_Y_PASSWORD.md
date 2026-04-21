@@ -101,4 +101,15 @@ Antes de eliminar `password_plano` y la comparación en texto plano:
 
 ---
 
+## Flujo obligatorio antes de subir al VPS
+
+1. Agregar Redis al `docker-compose.yml` **local**
+2. Probar login normal — debe seguir funcionando
+3. Probar 6 intentos fallidos seguidos — debe bloquear al 6to con HTTP 429
+4. Solo si todo pasa en local → subir al VPS
+
+**Lección aprendida:** se intentó directamente en VPS y generó error de cache que tumbó el backend.
+
+---
+
 *Creado: Abril 2026*
