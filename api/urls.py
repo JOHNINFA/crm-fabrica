@@ -40,9 +40,6 @@ from .views import (
     auth_login, auth_recuperar_password, auth_cambiar_password,
     # 🧠 Configuración IA
     ia_config, ia_retrain, ia_logs,
-    # 🤖 Predicción IA Planeación
-    generar_ia_planeacion,
-    auditoria_ia_planeacion,
     # 🆕 Exportar
     exportar_clientes_excel,
     abrir_turno_manual,
@@ -157,8 +154,6 @@ urlpatterns = router.urls + [
     path('ia/config/', ia_config, name='ia-config'),
     path('ia/retrain/', ia_retrain, name='ia-retrain'),
     path('ia/logs/', ia_logs, name='ia-logs'),
-    path('planeacion/generar-ia/', generar_ia_planeacion, name='generar-ia-planeacion'),
-    path('planeacion/auditoria-ia/', auditoria_ia_planeacion, name='auditoria-ia-planeacion'),
     
     # 📊 Reportes Avanzados
     path('reportes/clientes-rutas-excel/', exportar_clientes_rutas_excel, name='clientes-rutas-excel'),

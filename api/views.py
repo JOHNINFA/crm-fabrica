@@ -18,7 +18,7 @@ from datetime import timedelta, datetime, date
 from collections import defaultdict
 from api.services.ai_assistant_service import AIAssistant
 from django.utils.dateparse import parse_datetime, parse_date
-from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, CargueCumplimiento, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional, recalcular_totales_cargue_queryset, LoginIntento
+from .models import Planeacion, Registro, Producto, Categoria, Stock, Lote, MovimientoInventario, RegistroInventario, Venta, DetalleVenta, Cliente, ProductosFrecuentes, ListaPrecio, PrecioProducto, CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Produccion, ProduccionSolicitada, Pedido, DetallePedido, Vendedor, VendedorSesionToken, Domiciliario, MovimientoCaja, ArqueoCaja, ConfiguracionImpresion, Ruta, ClienteRuta, VentaRuta, CarguePagos, CargueCumplimiento, RutaOrden, RutaOrdenVendedor, ReportePlaneacion, CargueResumen, TipoNegocio, ClienteOcasional, recalcular_totales_cargue_queryset
 from .serializers import (
     PlaneacionSerializer, ReportePlaneacionSerializer,
     RegistroSerializer, ProductoSerializer, CategoriaSerializer, StockSerializer,
@@ -2711,25 +2711,11 @@ class VendedorViewSet(viewsets.ModelViewSet):
                 )
 
             id_vendedor = str(id_vendedor).strip().upper()
-
-            # 🔒 VERIFICAR BLOQUEO POR INTENTOS FALLIDOS
-            ip_cliente = _get_client_ip(request)
-            bloqueado, minutos, _ = _verificar_bloqueo_login(id_vendedor, ip_cliente)
-            if bloqueado:
-                return Response(
-                    {
-                        'error': f'Cuenta bloqueada temporalmente. Intente en {minutos} minuto(s).',
-                        'bloqueado': True,
-                        'minutos_restantes': minutos
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
             
             # Buscar vendedor
             try:
                 vendedor = Vendedor.objects.get(id_vendedor=id_vendedor, activo=True)
             except Vendedor.DoesNotExist:
-                _registrar_intento_fallido(id_vendedor, ip_cliente)
                 return Response(
                     {'error': 'Credenciales inválidas'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -2737,24 +2723,11 @@ class VendedorViewSet(viewsets.ModelViewSet):
             
             # Validar contraseña
             if vendedor.password != password:
-                ahora_bloqueado, _ = _registrar_intento_fallido(id_vendedor, ip_cliente)
-                if ahora_bloqueado:
-                    return Response(
-                        {
-                            'error': f'Cuenta bloqueada por {LoginIntento.BLOQUEO_MINUTOS} minutos tras múltiples intentos fallidos.',
-                            'bloqueado': True,
-                            'minutos_restantes': LoginIntento.BLOQUEO_MINUTOS
-                        },
-                        status=status.HTTP_429_TOO_MANY_REQUESTS
-                    )
                 return Response(
                     {'error': 'Credenciales inválidas'},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
             
-            # ✅ Login exitoso — limpiar intentos fallidos
-            _limpiar_intentos_login(id_vendedor, ip_cliente)
-
             # Invalidar tokens expirados o tokens previos del MISMO dispositivo
             VendedorSesionToken.objects.filter(
                 models.Q(expira_en__lte=timezone.now()) | 
@@ -8697,83 +8670,6 @@ def obtener_evidencias_pedido(request, pedido_id):
 
 
 # ========================================
-# 🔐 HELPERS DE SEGURIDAD — BLOQUEO DE LOGIN
-# ========================================
-
-def _get_client_ip(request):
-    """
-    Obtiene la IP real del cliente considerando Nginx como proxy inverso.
-    Usa X-Forwarded-For si existe (configurado en Nginx), sino REMOTE_ADDR.
-    """
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        # El primer IP en la cadena es el cliente original
-        ip = x_forwarded_for.split(',')[0].strip()
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip or None
-
-
-def _verificar_bloqueo_login(identificador, ip):
-    """
-    Verifica si el usuario/IP está actualmente bloqueado.
-    Retorna (bloqueado: bool, minutos_restantes: int, registro: LoginIntento|None)
-    Si el bloqueo ya expiró, lo limpia automáticamente.
-    """
-    try:
-        registro = LoginIntento.objects.get(identificador=identificador, ip=ip)
-        if registro.esta_bloqueado():
-            return True, registro.minutos_restantes(), registro
-        # Si existía bloqueo pero ya expiró, resetear contadores
-        if registro.bloqueado_hasta and not registro.esta_bloqueado():
-            registro.intentos = 0
-            registro.bloqueado_hasta = None
-            registro.save(update_fields=['intentos', 'bloqueado_hasta'])
-        return False, 0, registro
-    except LoginIntento.DoesNotExist:
-        return False, 0, None
-
-
-def _registrar_intento_fallido(identificador, ip):
-    """
-    Registra un intento fallido de login.
-    Si se alcanzan MAX_INTENTOS, activa el bloqueo por BLOQUEO_MINUTOS minutos.
-    Retorna (ahora_bloqueado: bool, intentos_restantes: int)
-    """
-    registro, _ = LoginIntento.objects.get_or_create(
-        identificador=identificador,
-        ip=ip,
-        defaults={'intentos': 0}
-    )
-
-    # Si ya estaba bloqueado y aún no expira, no hacer nada más
-    if registro.esta_bloqueado():
-        return True, 0
-
-    # Incrementar contador
-    registro.intentos += 1
-
-    if registro.intentos >= LoginIntento.MAX_INTENTOS:
-        # Activar bloqueo
-        registro.bloqueado_hasta = timezone.now() + timedelta(minutes=LoginIntento.BLOQUEO_MINUTOS)
-        registro.save(update_fields=['intentos', 'bloqueado_hasta'])
-        print(f"🔒 Login bloqueado: {identificador} desde {ip} — {LoginIntento.MAX_INTENTOS} intentos fallidos")
-        return True, 0
-    else:
-        registro.save(update_fields=['intentos'])
-        restantes = LoginIntento.MAX_INTENTOS - registro.intentos
-        print(f"⚠️ Intento fallido: {identificador} desde {ip} — {registro.intentos}/{LoginIntento.MAX_INTENTOS}")
-        return False, restantes
-
-
-def _limpiar_intentos_login(identificador, ip):
-    """
-    Limpia el registro de intentos fallidos tras un login exitoso.
-    """
-    LoginIntento.objects.filter(identificador=identificador, ip=ip).delete()
-
-
-# ========================================
 # 🔐 ENDPOINTS DE AUTENTICACIÓN
 # ========================================
 
@@ -8794,17 +8690,6 @@ def auth_login(request):
             'success': False,
             'error': 'Código/Nombre y contraseña son requeridos'
         }, status=400)
-
-    # 🔒 VERIFICAR BLOQUEO POR INTENTOS FALLIDOS
-    ip_cliente = _get_client_ip(request)
-    bloqueado, minutos, _ = _verificar_bloqueo_login(codigo_o_nombre.upper(), ip_cliente)
-    if bloqueado:
-        return Response({
-            'success': False,
-            'error': f'Cuenta bloqueada temporalmente por múltiples intentos fallidos. Por favor espere {minutos} minuto(s) e intente de nuevo.',
-            'bloqueado': True,
-            'minutos_restantes': minutos
-        }, status=429)
     
     try:
         # Buscar usuario por código o nombre
@@ -8814,17 +8699,9 @@ def auth_login(request):
         ).first()
         
         if not usuario:
-            # Registrar intento fallido (usuario no existe)
-            ahora_bloqueado, restantes = _registrar_intento_fallido(codigo_o_nombre.upper(), ip_cliente)
-            msg = 'Usuario no encontrado'
-            if ahora_bloqueado:
-                msg = f'Cuenta bloqueada por {LoginIntento.BLOQUEO_MINUTOS} minutos tras múltiples intentos fallidos.'
-            elif restantes <= 2:
-                msg = f'Usuario no encontrado. Le quedan {restantes} intento(s) antes del bloqueo.'
             return Response({
                 'success': False,
-                'error': msg,
-                'bloqueado': ahora_bloqueado
+                'error': 'Usuario no encontrado'
             }, status=401)
         
         # Verificar si está activo
@@ -8852,27 +8729,11 @@ def auth_login(request):
         )
         
         if not password_valido:
-            # 🔒 Registrar intento fallido
-            ahora_bloqueado, restantes = _registrar_intento_fallido(codigo_o_nombre.upper(), ip_cliente)
-            if ahora_bloqueado:
-                return Response({
-                    'success': False,
-                    'error': f'Cuenta bloqueada por {LoginIntento.BLOQUEO_MINUTOS} minutos tras {LoginIntento.MAX_INTENTOS} intentos fallidos.',
-                    'bloqueado': True,
-                    'minutos_restantes': LoginIntento.BLOQUEO_MINUTOS
-                }, status=429)
-            msg = 'Contraseña incorrecta'
-            if restantes <= 2:
-                msg = f'Contraseña incorrecta. Le quedan {restantes} intento(s) antes del bloqueo.'
             return Response({
                 'success': False,
-                'error': msg,
-                'bloqueado': False
+                'error': 'Contraseña incorrecta'
             }, status=401)
         
-        # ✅ Login exitoso — limpiar intentos fallidos
-        _limpiar_intentos_login(codigo_o_nombre.upper(), ip_cliente)
-
         # Actualizar último login
         usuario.ultimo_login = timezone.now()
         usuario.save(update_fields=['ultimo_login'])
@@ -9027,250 +8888,6 @@ def auth_cambiar_password(request):
             'success': False,
             'error': f'Error en el servidor: {str(e)}'
         }, status=500)
-
-
-# ========================================
-# 🤖 GENERADOR DE PREDICCIONES IA PARA PLANEACIÓN
-# ========================================
-
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def generar_ia_planeacion(request):
-    """
-    Calcula predicción IA para cada producto basado en historial de CargueIDx.
-    Guarda el resultado en Planeacion.ia para la fecha indicada.
-    POST /api/planeacion/generar-ia/
-    Body: { "fecha": "YYYY-MM-DD" }
-    """
-    from datetime import datetime, timedelta
-    from django.db.models import Sum
-    from api.models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Planeacion, Producto
-
-    fecha_str = request.data.get('fecha')
-    if not fecha_str:
-        return Response({'error': 'Se requiere el campo fecha (YYYY-MM-DD)'}, status=400)
-
-    try:
-        fecha_objetivo = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-    except ValueError:
-        return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=400)
-
-    # Día de semana del objetivo (en español)
-    dias_map = {0: 'LUNES', 1: 'MARTES', 2: 'MIERCOLES', 3: 'JUEVES', 4: 'VIERNES', 5: 'SABADO', 6: 'DOMINGO'}
-    dia_objetivo = dias_map[fecha_objetivo.weekday()]
-
-    # Factor quincena: días 14-16 y 28-31 venden ~20% más
-    dia_mes = fecha_objetivo.day
-    factor_quincena = 1.20 if (14 <= dia_mes <= 16 or 28 <= dia_mes <= 31) else 1.0
-
-    # Últimas 8 semanas del mismo día
-    fechas_historicas = []
-    for i in range(1, 9):
-        fechas_historicas.append(fecha_objetivo - timedelta(weeks=i))
-
-    modelos_cargue = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
-
-    # Recopilar ventas históricas por producto
-    ventas_por_producto = {}
-    for modelo in modelos_cargue:
-        registros = modelo.objects.filter(
-            dia=dia_objetivo,
-            fecha__in=fechas_historicas,
-            total__gt=0,
-            producto__gt=''
-        ).values('producto', 'fecha', 'total')
-
-        for r in registros:
-            nombre = r['producto'].strip()
-            if not nombre:
-                continue
-            if nombre not in ventas_por_producto:
-                ventas_por_producto[nombre] = {}
-            fecha_key = str(r['fecha'])
-            if fecha_key not in ventas_por_producto[nombre]:
-                ventas_por_producto[nombre][fecha_key] = 0
-            ventas_por_producto[nombre][fecha_key] += r['total']
-
-    if not ventas_por_producto:
-        return Response({'success': False, 'mensaje': 'No hay datos históricos suficientes para calcular predicciones'}, status=200)
-
-    # Calcular predicción por producto
-    predicciones = []
-    actualizados = 0
-
-    for producto_nombre, ventas_semanas in ventas_por_producto.items():
-        valores = list(ventas_semanas.values())
-        if not valores:
-            continue
-
-        promedio = sum(valores) / len(valores)
-        prediccion = round(promedio * factor_quincena * 1.05)  # +5% buffer
-
-        # Guardar en Planeacion.ia
-        registro, _ = Planeacion.objects.get_or_create(
-            fecha=fecha_objetivo,
-            producto_nombre=producto_nombre,
-            defaults={'solicitadas': 0, 'pedidos': 0, 'existencias': 0}
-        )
-        registro.ia = prediccion
-        registro.save()
-        actualizados += 1
-
-        predicciones.append({
-            'producto': producto_nombre,
-            'ia_sugerido': prediccion,
-            'semanas_analizadas': len(valores),
-            'factor_quincena': factor_quincena > 1.0
-        })
-
-    return Response({
-        'success': True,
-        'fecha': fecha_str,
-        'dia': dia_objetivo,
-        'factor_quincena': factor_quincena > 1.0,
-        'productos_actualizados': actualizados,
-        'predicciones': predicciones
-    })
-
-
-# ========================================
-# 📊 AUDITORÍA IA — COMPARACIÓN IA vs ORDEN vs VENTA REAL
-# ========================================
-
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def auditoria_ia_planeacion(request):
-    """
-    Compara predicciones IA vs decisión del admin vs venta real.
-    Uso: GET /api/planeacion/auditoria-ia/?fecha_inicio=YYYY-MM-DD&fecha_fin=YYYY-MM-DD
-    Devuelve análisis por producto para que Antigravity evalúe la calidad de predicciones.
-    """
-    from datetime import datetime
-    from django.db.models import Sum
-    from api.models import CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6, Planeacion
-
-    fecha_inicio_str = request.query_params.get('fecha_inicio')
-    fecha_fin_str = request.query_params.get('fecha_fin')
-
-    if not fecha_inicio_str or not fecha_fin_str:
-        return Response({'error': 'Se requieren fecha_inicio y fecha_fin (YYYY-MM-DD)'}, status=400)
-
-    try:
-        fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-        fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-    except ValueError:
-        return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=400)
-
-    # Obtener registros de planeación con IA registrada
-    planeaciones = Planeacion.objects.filter(
-        fecha__gte=fecha_inicio,
-        fecha__lte=fecha_fin,
-        ia__gt=0
-    ).values('fecha', 'producto_nombre', 'ia', 'orden')
-
-    if not planeaciones:
-        return Response({'success': False, 'mensaje': 'No hay registros de predicciones IA en ese rango de fechas'}, status=200)
-
-    # Obtener ventas reales de CargueIDx por fecha y producto
-    modelos_cargue = [CargueID1, CargueID2, CargueID3, CargueID4, CargueID5, CargueID6]
-    ventas_reales = {}
-    for modelo in modelos_cargue:
-        registros = modelo.objects.filter(
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin,
-            total__gt=0,
-            producto__gt=''
-        ).values('fecha', 'producto', 'total')
-        for r in registros:
-            key = (str(r['fecha']), r['producto'].strip())
-            ventas_reales[key] = ventas_reales.get(key, 0) + r['total']
-
-    # Cruzar datos y calcular métricas
-    resultados = []
-    resumen_productos = {}
-
-    for p in planeaciones:
-        fecha_str = str(p['fecha'])
-        producto = p['producto_nombre']
-        ia = p['ia']
-        orden = p['orden']
-        venta_real = ventas_reales.get((fecha_str, producto), None)
-
-        if venta_real is None:
-            continue  # Sin venta real no se puede auditar
-
-        error_ia = ia - venta_real
-        error_admin = orden - venta_real
-        ia_mejor_que_admin = abs(error_ia) < abs(error_admin)
-
-        resultados.append({
-            'fecha': fecha_str,
-            'producto': producto,
-            'ia_sugirio': ia,
-            'admin_ordeno': orden,
-            'venta_real': venta_real,
-            'error_ia': error_ia,
-            'error_admin': error_admin,
-            'ia_mejor_que_admin': ia_mejor_que_admin,
-            'ia_sobreestimo': error_ia > 0,
-            'ia_subestimo': error_ia < 0,
-        })
-
-        # Acumular para resumen por producto
-        if producto not in resumen_productos:
-            resumen_productos[producto] = {
-                'total_dias': 0,
-                'suma_error_ia': 0,
-                'suma_error_admin': 0,
-                'ia_gano': 0,
-                'ia_sobreestimo': 0,
-                'ia_subestimo': 0,
-            }
-        r = resumen_productos[producto]
-        r['total_dias'] += 1
-        r['suma_error_ia'] += abs(error_ia)
-        r['suma_error_admin'] += abs(error_admin)
-        r['ia_gano'] += 1 if ia_mejor_que_admin else 0
-        r['ia_sobreestimo'] += 1 if error_ia > 0 else 0
-        r['ia_subestimo'] += 1 if error_ia < 0 else 0
-
-    # Construir resumen final por producto
-    analisis_productos = []
-    for producto, r in resumen_productos.items():
-        dias = r['total_dias']
-        error_promedio_ia = round(r['suma_error_ia'] / dias, 1)
-        error_promedio_admin = round(r['suma_error_admin'] / dias, 1)
-        pct_ia_gano = round((r['ia_gano'] / dias) * 100, 1)
-
-        if r['ia_sobreestimo'] > r['ia_subestimo']:
-            tendencia = 'SOBREESTIMA'
-            recomendacion = 'Reducir buffer o factor quincena para este producto'
-        elif r['ia_subestimo'] > r['ia_sobreestimo']:
-            tendencia = 'SUBESTIMA'
-            recomendacion = 'Aumentar buffer para este producto'
-        else:
-            tendencia = 'EQUILIBRADA'
-            recomendacion = 'Predicción estable, mantener parámetros'
-
-        analisis_productos.append({
-            'producto': producto,
-            'dias_analizados': dias,
-            'error_promedio_ia': error_promedio_ia,
-            'error_promedio_admin': error_promedio_admin,
-            'ia_mejor_que_admin_pct': pct_ia_gano,
-            'tendencia': tendencia,
-            'recomendacion': recomendacion,
-        })
-
-    analisis_productos.sort(key=lambda x: x['error_promedio_ia'], reverse=True)
-
-    return Response({
-        'success': True,
-        'periodo': {'desde': fecha_inicio_str, 'hasta': fecha_fin_str},
-        'total_registros_analizados': len(resultados),
-        'analisis_por_producto': analisis_productos,
-        'detalle_diario': resultados
-    })
 
 
 # ========================================

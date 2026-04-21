@@ -21,7 +21,6 @@ const InventarioPlaneacion = () => {
   const [snapshotGuardado, setSnapshotGuardado] = useState(false);
   const [diaCongelado, setDiaCongelado] = useState(false); // 🔒 Estado de congelación
   const [reporteGuardado, setReporteGuardado] = useState(false); // ✅ Estado para botón guardar reporte
-  const [generandoIA, setGenerandoIA] = useState(false);
 
   // 🚀 Cache para optimización
   const [cache, setCache] = useState({
@@ -48,7 +47,9 @@ const InventarioPlaneacion = () => {
       setDiaCongelado(congelado);
 
       if (congelado) {
+        console.log(`🔒 DÍA CONGELADO - Estado: ${estadoBoton} - No se permiten modificaciones`);
       } else {
+        console.log(`✏️ DÍA EDITABLE - Estado: ${estadoBoton || 'No iniciado'}`);
       }
     };
 
@@ -134,6 +135,8 @@ const InventarioPlaneacion = () => {
       // Para fechas pasadas, siempre consultar DB aunque esté marcado COMPLETADO
       const diaCompletado = estadoBoton === 'COMPLETADO' && !esFechaPasada;
 
+      console.log(`🔍 Buscando estado en: estado_boton_${diaSemana}_${fechaParaKey}`);
+      console.log(`🔍 Estado del día ${diaSemana} (${fechaFormateada}): ${estadoBoton || 'No iniciado'} | Fecha pasada: ${esFechaPasada}`);
 
       // 🚀 OPTIMIZACIÓN: Si el día está COMPLETADO (y es hoy), solo cargar planeación y stock
       let planeacionResponse, stockResponse, pedidosResponse;
@@ -208,6 +211,7 @@ const InventarioPlaneacion = () => {
       for (const { response, id } of cargueResponses) {
         if (response.ok) {
           const cargueData = await response.json();
+          console.log(`✅ Cargue ${id}:`, cargueData.length, 'registros');
 
           // Sumar cantidades por producto con logs detallados
           cargueData.forEach(item => {
@@ -215,6 +219,7 @@ const InventarioPlaneacion = () => {
             const cantidad = item.total || item.cantidad || 0;  // ✅ Usar 'total' primero
 
             if (cantidad > 0) {
+              console.log(`   🔍 ${id} - ${producto}: ${cantidad} und (Fecha: ${item.fecha}, Día: ${item.dia_semana})`);
             }
 
             if (!solicitadasMap[producto]) {
@@ -230,6 +235,7 @@ const InventarioPlaneacion = () => {
       // Log detallado de cada producto con solicitadas
       Object.entries(solicitadasMap).forEach(([producto, cantidad]) => {
         if (cantidad > 0) {
+          console.log(`   📦 ${producto}: ${cantidad} und TOTAL`);
         }
       });
 
@@ -249,9 +255,11 @@ const InventarioPlaneacion = () => {
           return fechaEntrega === fechaFormateada;
         });
 
+        console.log(`✅ Pedidos activos para ${fechaFormateada}:`, pedidosFecha.length);
 
         // Sumar cantidades por producto
         for (const pedido of pedidosFecha) {
+          console.log(`   📦 Pedido ${pedido.numero || pedido.id}:`, pedido.detalles?.length || 0, 'productos');
 
           if (pedido.detalles && pedido.detalles.length > 0) {
             for (const detalle of pedido.detalles) {
@@ -263,6 +271,7 @@ const InventarioPlaneacion = () => {
               }
               pedidosMap[nombreProducto] += cantidad;
 
+              console.log(`      - ${nombreProducto}: +${cantidad} (total: ${pedidosMap[nombreProducto]})`);
             }
           }
         }
@@ -282,6 +291,7 @@ const InventarioPlaneacion = () => {
           orden: s.orden || 999999 // 🆕 Incluir campo orden para ordenamiento
         }));
 
+      console.log(`📦 Productos desde api_stock: ${productosProduccion.length} (de ${stocksBD.length} totales)`);
 
 
       // 🧠 CONSULTAR PREDICCIONES DE IA CON REDES NEURONALES
@@ -321,11 +331,14 @@ const InventarioPlaneacion = () => {
                 usa_red_neuronal: pred.detalle?.usa_red_neuronal || false
               };
             });
+            console.log(`✅ IA: ${iaData.predicciones.length} productos analizados`);
 
             // Log de productos con Red Neuronal
             const conRedNeuronal = iaData.predicciones.filter(p => p.detalle?.usa_red_neuronal);
             if (conRedNeuronal.length > 0) {
+              console.log(`🧠 ${conRedNeuronal.length} productos usando Red Neuronal:`);
               conRedNeuronal.forEach(p => {
+                console.log(`   - ${p.producto}: ${p.ia_sugerido} (${p.confianza})`);
               });
             }
           }
@@ -343,6 +356,7 @@ const InventarioPlaneacion = () => {
         const repResponse = await fetch(`${API_URL}/reportes-planeacion/?fecha=${fechaFormateada}`);
         if (repResponse.ok) {
           reporteData = await repResponse.json();
+          console.log('🛡️ Reporte histórico encontrado:', reporteData.length);
         }
       } catch (e) {
         console.error('Error cargando reporte recuperación:', e);
@@ -370,6 +384,7 @@ const InventarioPlaneacion = () => {
               ? JSON.parse(reporte.datos_json)
               : reporte.datos_json;
 
+            console.log('🛡️ Restaurando datos desde reporte histórico:', productosReporte.length);
 
             productosReporte.forEach(item => {
               if (item.orden > 0) {
@@ -412,6 +427,7 @@ const InventarioPlaneacion = () => {
         // 🧠 Si no hay IA guardada, usar predicción del cerebro
         if (ia === 0 && prediccionesIAMap[p.nombre]) {
           ia = prediccionesIAMap[p.nombre].ia_sugerido;
+          console.log(`🧠 IA sugerida para ${p.nombre}: ${ia} (${prediccionesIAMap[p.nombre].confianza})`);
         }
 
         // 3. Posición Visual (Orden de lista): Viene del maestro de Productos (Kardex).
@@ -419,6 +435,7 @@ const InventarioPlaneacion = () => {
         let ordenVisual = p.orden > 0 ? p.orden : 9999;
 
         if (solicitadoFinal > 0) {
+          console.log(`📊 ${p.nombre}: Solicitadas=${solicitadoFinal}, Pedidos=${pedidosProducto}`);
         }
 
         return {
@@ -454,6 +471,7 @@ const InventarioPlaneacion = () => {
 
       productosConPlaneacion.forEach(p => {
         if (p.solicitado > 0) {
+          console.log(`   - ${p.nombre}: ${p.solicitado} solicitadas`);
         }
       });
 
@@ -526,6 +544,7 @@ const InventarioPlaneacion = () => {
       // Mostrar mensaje si se cargaron solicitadas
       const totalSolicitadas = Object.values(solicitadasMap).reduce((sum, val) => sum + val, 0);
       if (totalSolicitadas > 0) {
+        console.log(`✅ ${Object.keys(solicitadasMap).length} solicitadas cargadas`);
       }
     } catch (error) {
       console.error('❌ Error al cargar existencias:', error);
@@ -587,6 +606,7 @@ const InventarioPlaneacion = () => {
       });
 
       if (response.ok) {
+        console.log(`✅ ${method === 'POST' ? 'Creado' : 'Actualizado'}: ${producto.nombre} - Orden: ${producto.orden}, IA: ${producto.ia}, Solicitadas: ${producto.solicitado}, Pedidos: ${producto.pedidos}`);
         return true;
       } else {
         const errorText = await response.text();
@@ -782,6 +802,7 @@ const InventarioPlaneacion = () => {
       const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
       const fechaActual = `${year}-${month}-${day}`;
 
+      console.log(`🔍 Comparando fechas: evento=${event.detail?.fecha}, actual=${fechaActual}`);
 
       if (event.detail && event.detail.fecha === fechaActual) {
 
@@ -801,6 +822,7 @@ const InventarioPlaneacion = () => {
           cargarExistenciasReales(true);
         }, 300); // 300ms para agrupar eventos múltiples
       } else {
+        console.log('⚠️ Fechas NO coinciden - No se actualiza');
       }
     };
 
@@ -880,38 +902,6 @@ const InventarioPlaneacion = () => {
   };
 
   // 🚀 Guardar Reporte Histórico (Snapshot)
-  const handleGenerarIA = async () => {
-    setGenerandoIA(true);
-    try {
-      const year = fechaSeleccionada.getFullYear();
-      const month = String(fechaSeleccionada.getMonth() + 1).padStart(2, '0');
-      const day = String(fechaSeleccionada.getDate()).padStart(2, '0');
-      const fechaStr = `${year}-${month}-${day}`;
-
-      const response = await fetch(`${API_URL}/planeacion/generar-ia/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha: fechaStr })
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        const msg = data.factor_quincena
-          ? `✅ ${data.productos_actualizados} predicciones generadas (quincena aplicada)`
-          : `✅ ${data.productos_actualizados} predicciones generadas`;
-        mostrarMensaje(msg, 'success');
-        // Recargar para mostrar los nuevos valores de IA
-        await cargarExistenciasReales(true);
-      } else {
-        mostrarMensaje(data.mensaje || 'No hay datos históricos suficientes', 'warning');
-      }
-    } catch (error) {
-      mostrarMensaje('Error al generar predicciones IA', 'danger');
-    } finally {
-      setGenerandoIA(false);
-    }
-  };
-
   const guardarReporte = async () => {
     try {
       const year = fechaSeleccionada.getFullYear();
@@ -1003,22 +993,9 @@ const InventarioPlaneacion = () => {
           </Button>
 
           <Button
-            variant="outline-secondary"
-            size="sm"
-            className="mb-2 mb-md-0"
-            onClick={handleGenerarIA}
-            disabled={diaCongelado || generandoIA}
-            title="Calcular sugerencias IA basadas en historial de ventas"
-          >
-            <i className="bi bi-cpu me-1"></i>
-            <span className="d-none d-lg-inline">{generandoIA ? 'Calculando...' : 'Generar IA'}</span>
-          </Button>
-
-          <Button
             variant="outline-success"
             size="sm"
             className="mb-2 mb-md-0 btn-aplicar-ia"
-            style={{ display: 'none' }}
             onClick={() => {
               const productosConIA = productos.filter(p => p.ia > 0);
               if (productosConIA.length === 0) {
