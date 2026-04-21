@@ -212,11 +212,17 @@ const CajaScreenContent = () => {
                     console.warn('⚠️ No hay turno guardado en localStorage');
                 }
 
+                // Fecha del día en que inició el turno (puede ser distinta a hoy si cruzó medianoche)
+                const fechaTurnoStr = horaInicioTurno
+                    ? `${horaInicioTurno.getFullYear()}-${String(horaInicioTurno.getMonth() + 1).padStart(2, '0')}-${String(horaInicioTurno.getDate()).padStart(2, '0')}`
+                    : fechaConsulta;
+
                 // Filtrar ventas del día actual, NO anuladas, y DESPUÉS del inicio del turno
                 const ventasHoy = ventasData.filter(venta => {
                     // Usar solo la parte de fecha sin conversión UTC
                     const fechaVenta = venta.fecha.split('T')[0];
-                    const esDelDia = fechaVenta === fechaConsulta;
+                    // Incluir ventas de hoy O del día en que inició el turno (para turnos que cruzan medianoche)
+                    const esDelDia = fechaVenta === fechaConsulta || fechaVenta === fechaTurnoStr;
                     const noEstaAnulada = venta.estado !== 'ANULADA';
 
                     // Si hay turno activo, filtrar por hora
@@ -227,14 +233,6 @@ const CajaScreenContent = () => {
 
                         // Log detallado para debugging
                         if (esDelDia && noEstaAnulada) {
-                            console.log(`🔍 Venta ${venta.id}:`, {
-                                fecha: venta.fecha,
-                                fechaVentaCompleta: fechaVentaCompleta.toLocaleString('es-ES'),
-                                horaInicioTurno: horaInicioTurno.toLocaleString('es-ES'),
-                                esDespuesDelTurno,
-                                timestampVenta: fechaVentaCompleta.getTime(),
-                                timestampTurno: horaInicioTurno.getTime()
-                            });
                         }
                     }
 
@@ -246,10 +244,10 @@ const CajaScreenContent = () => {
 
                 }
 
-                // Contar ventas excluidas para información
+                // Contar ventas excluidas para información (incluyendo día de inicio del turno)
                 const todasVentasDelDia = ventasData.filter(venta => {
                     const fechaVenta = venta.fecha.split('T')[0];
-                    return fechaVenta === fechaConsulta;
+                    return fechaVenta === fechaConsulta || fechaVenta === fechaTurnoStr;
                 });
 
                 const ventasAnuladas = todasVentasDelDia.filter(v => v.estado === 'ANULADA');
@@ -282,7 +280,6 @@ const CajaScreenContent = () => {
                     const metodo = (venta.metodo_pago || 'efectivo').toLowerCase();
                     const total = parseFloat(venta.total) || 0;
 
-                    console.log(`💰 Venta válida: ${venta.id}, Estado: ${venta.estado}, Método: ${metodo}, Total: ${total}`);
 
                     switch (metodo) {
                         case 'efectivo':
@@ -398,10 +395,8 @@ const CajaScreenContent = () => {
                         // Si el arqueo no tiene ID o es diferente, se considera NUEVO.
                         if (ultimo.turno_id && String(ultimo.turno_id) === String(turnoActivo.id)) {
                             esMismoTurno = true;
-                            console.log(`✅ Arqueo pertenece al turno actual (${turnoActivo.id})`);
                         } else {
                             esMismoTurno = false;
-                            console.log(`⛔ Arqueo ID ${ultimo.turno_id} no coincide con Turno ID ${turnoActivo.id}. Limpiando.`);
                         }
                     } else {
                         // Fallback: Verificar si es un nuevo turno por timestamps de login
@@ -419,7 +414,6 @@ const CajaScreenContent = () => {
                     }
 
                     if (!esMismoTurno) {
-                        console.log('✨ Nuevo turno detectado: Iniciando con valores limpios');
                         // Nuevo turno: empezar limpio
                         setValoresCaja({
                             efectivo: saldoInicialTurno,
@@ -431,7 +425,6 @@ const CajaScreenContent = () => {
                             bonos: 0
                         });
                     } else {
-                        console.log('🔄 Mismo turno detectado: Recuperando valores del arqueo en progreso');
                         // Mismo turno: mostrar valores del arqueo en progreso
                         if (ultimo.valores_caja) {
                             setValoresCaja({
@@ -531,12 +524,6 @@ const CajaScreenContent = () => {
             totalPagado: 0
         });
 
-        console.log('📊 Métricas calculadas (sin anuladas):', {
-            totalVentas: ventasData.length,
-            ventasValidas: ventasValidas.length,
-            ventasAnuladas: ventasData.length - ventasValidas.length,
-            totalFacturado: totales.totalFacturado
-        });
 
         setMetricasVentas({
             ...totales,
@@ -619,7 +606,6 @@ const CajaScreenContent = () => {
 
 
                     if (productoId && cantidad > 0) {
-                        console.log(`🔄 Devolviendo ${cantidad} unidades del producto ${detalle.producto_nombre} (ID: ${productoId})`);
 
                         try {
                             // Usar el servicio updateStock para devolver las unidades
@@ -633,7 +619,6 @@ const CajaScreenContent = () => {
 
 
                             if (resultadoStock && !resultadoStock.error) {
-                                console.log(`✅ Devueltas ${cantidad} unidades de ${detalle.producto_nombre} al inventario`);
                             } else {
                                 console.warn(`⚠️ Error devolviendo ${detalle.producto_nombre} al inventario:`, resultadoStock?.message);
                             }
@@ -713,7 +698,6 @@ const CajaScreenContent = () => {
         const soloNumeros = valorString.replace(/\D/g, '');
         const monto = parseFloat(soloNumeros);
 
-        // console.log('💰 Procesando movimiento:', { input: montoMovimiento, clean: soloNumeros, float: monto });
 
         if (isNaN(monto) || monto <= 0) {
             alert('⚠️ El monto ingresado no es válido. Debe ser mayor a 0.');
@@ -769,7 +753,6 @@ const CajaScreenContent = () => {
             // 🔒 Si no es admin y no tenemos turno identificado, NO cargar nada todavía
             // Esto evita que se muestren todos los movimientos del día por defecto
             if (!esAdmin && !turnoId) {
-                console.log('⏳ Esperando turno activo para cargar movimientos de caja...');
                 setMovimientosCaja([]); // Limpiar por seguridad
                 return;
             }
@@ -1351,11 +1334,6 @@ const CajaScreenContent = () => {
                 sucursal_id: sucursalIdValida
             };
 
-            console.log('🔍 IDs validados:', {
-                turno: turnoIdValido,
-                cajero: cajeroIdValido,
-                sucursal: sucursalIdValida
-            });
 
 
 
@@ -1470,7 +1448,6 @@ const CajaScreenContent = () => {
                     // 🔒 PASO CRÍTICO: Cerrar el turno explícitamente antes de Logout
                     // Esto desbloquea la función logout del contexto
                     if (turnoActivo && turnoActivo.id) {
-                        console.log('🔒 Cerrando turno automáticamente tras arqueo:', turnoActivo.id);
                         await cajeroService.cerrarTurno(turnoActivo.id);
 
                         // Actualizar estado local del contexto para que el logout sepa que ya cerramos
@@ -1515,7 +1492,6 @@ const CajaScreenContent = () => {
     // 🆕 Función de escape (Cerrar turno manualmente)
     const handleFinalizarTurno = async () => {
         try {
-            console.log('🚪 Finalizando turno manualmente...');
             if (turnoActivo && turnoActivo.id) {
                 // Forzar cierre en backend
                 await cajeroService.cerrarTurno(turnoActivo.id);
