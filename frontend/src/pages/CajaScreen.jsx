@@ -203,11 +203,8 @@ const CajaScreenContent = () => {
                 ? `${horaInicioTurno.getFullYear()}-${String(horaInicioTurno.getMonth() + 1).padStart(2, '0')}-${String(horaInicioTurno.getDate()).padStart(2, '0')}`
                 : fechaConsulta;
 
-            // Filtrar en el servidor: solo ventas desde el inicio del turno hasta hoy
-            const ventasData = await ventaService.getAll({
-                fecha_inicio: fechaTurnoStr,
-                fecha_fin: fechaConsulta
-            });
+            // Traer todas las ventas y filtrar en cliente (soporta turnos que cruzan medianoche)
+            const ventasData = await ventaService.getAll();
 
             if (ventasData && Array.isArray(ventasData) && !ventasData.error) {
 
