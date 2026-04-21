@@ -54,8 +54,6 @@ INSTALLED_APPS = [
 
     # Tu aplicación
     'api',
-    # Seguridad
-    'django_ratelimit',
 ]
 
 # Configuración para almacenamiento de archivos

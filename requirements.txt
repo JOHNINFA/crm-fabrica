@@ -38,8 +38,5 @@ scikit-learn==1.7.2
 # redis==6.4.0
 requests
 
-# === SEGURIDAD ===
-django-ratelimit==4.1.0
-
 # === SERVIDOR DE PRODUCCIÓN ===
 gunicorn==21.2.0  # Para producción en VPS
