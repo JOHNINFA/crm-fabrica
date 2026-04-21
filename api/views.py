@@ -8675,6 +8675,12 @@ def obtener_evidencias_pedido(request, pedido_id):
 
 @api_view(['POST'])
 def auth_login(request):
+    from django_ratelimit.core import is_ratelimited
+    if is_ratelimited(request, group='auth_login', key='ip', rate='5/15m', method='POST', increment=True):
+        return Response({
+            'success': False,
+            'error': 'Demasiados intentos. Espera 15 minutos e intenta de nuevo.'
+        }, status=429)
     """
     Endpoint de login para el Frontend Web.
     Rechaza vendedores de App Móvil (solo acceden por la App).
