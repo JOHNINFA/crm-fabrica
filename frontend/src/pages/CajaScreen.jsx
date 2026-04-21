@@ -183,39 +183,33 @@ const CajaScreenContent = () => {
     // Función de respaldo para cargar ventas directamente
     const cargarVentasDirectamente = async () => {
         try {
+            // Obtener hora de inicio del turno actual (antes del getAll para filtrar en el servidor)
+            let horaInicioTurno = null;
+            const turnoGuardado = localStorage.getItem('turno_activo');
+            if (turnoGuardado) {
+                try {
+                    const turno = JSON.parse(turnoGuardado);
+                    const fechaInicio = turno.fecha_inicio || turno.hora_inicio;
+                    if (fechaInicio) {
+                        horaInicioTurno = new Date(fechaInicio);
+                    }
+                } catch (error) {
+                    console.error('❌ Error parseando turno:', error);
+                }
+            }
 
-            const ventasData = await ventaService.getAll();
+            // Fecha del día en que inició el turno (puede ser distinta a hoy si cruzó medianoche)
+            const fechaTurnoStr = horaInicioTurno
+                ? `${horaInicioTurno.getFullYear()}-${String(horaInicioTurno.getMonth() + 1).padStart(2, '0')}-${String(horaInicioTurno.getDate()).padStart(2, '0')}`
+                : fechaConsulta;
+
+            // Filtrar en el servidor: solo ventas desde el inicio del turno hasta hoy
+            const ventasData = await ventaService.getAll({
+                fecha_inicio: fechaTurnoStr,
+                fecha_fin: fechaConsulta
+            });
 
             if (ventasData && Array.isArray(ventasData) && !ventasData.error) {
-                // Obtener hora de inicio del turno actual
-                let horaInicioTurno = null;
-                const turnoGuardado = localStorage.getItem('turno_activo');
-                if (turnoGuardado) {
-                    try {
-                        const turno = JSON.parse(turnoGuardado);
-
-
-                        // Intentar con fecha_inicio (API) o hora_inicio (fallback localStorage)
-                        const fechaInicio = turno.fecha_inicio || turno.hora_inicio;
-
-                        if (fechaInicio) {
-                            horaInicioTurno = new Date(fechaInicio);
-
-
-                        } else {
-                            console.warn('⚠️ Turno sin fecha_inicio ni hora_inicio');
-                        }
-                    } catch (error) {
-                        console.error('❌ Error parseando turno:', error);
-                    }
-                } else {
-                    console.warn('⚠️ No hay turno guardado en localStorage');
-                }
-
-                // Fecha del día en que inició el turno (puede ser distinta a hoy si cruzó medianoche)
-                const fechaTurnoStr = horaInicioTurno
-                    ? `${horaInicioTurno.getFullYear()}-${String(horaInicioTurno.getMonth() + 1).padStart(2, '0')}-${String(horaInicioTurno.getDate()).padStart(2, '0')}`
-                    : fechaConsulta;
 
                 // Filtrar ventas del día actual, NO anuladas, y DESPUÉS del inicio del turno
                 const ventasHoy = ventasData.filter(venta => {
