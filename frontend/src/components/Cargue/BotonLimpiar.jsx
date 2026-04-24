@@ -82,7 +82,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           for (const producto of datos.productos) {
             // Debug: mostrar estado de checks para productos con total > 0
             if (producto.total > 0) {
-              console.log(`🔍 ${id} - ${producto.producto}: Cantidad=${producto.cantidad}, Adicional=${producto.adicional}, V=${producto.vendedor}, D=${producto.despachador}, Total=${producto.total}`);
             }
 
             // 🚀 LÓGICA FLEXIBLE: Productos con TOTAL > 0 sin check de DESPACHADOR (Vendedor opcional)
@@ -98,7 +97,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 };
               }
               productosPendientes[producto.id].totalCantidad += producto.total; // Contar total (cantidad + adicional)
-              console.log(`⚠️ PRODUCTO PENDIENTE: ${producto.producto} - Total: ${producto.total} - Falta D (V:${producto.vendedor})`);
             }
 
             // 🚀 LÓGICA FLEXIBLE: Productos listos si NO ESTÁN PENDIENTES (marcados por Despachador)
@@ -111,7 +109,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 };
               }
               todosLosProductos[producto.id].totalCantidad += producto.total; // Contar total (cantidad + adicional)
-              console.log(`✅ PRODUCTO LISTO (Por Despachador): ${producto.producto} - Total: ${producto.total}`);
             }
           }
         }
@@ -136,18 +133,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
     // ⚠️ REGLA DE MIGRACIÓN: Si encontramos el estado viejo "SUGERIDO", lo convertimos a "ALISTAMIENTO_ACTIVO"
     if (estadoGuardado === 'SUGERIDO') {
-      console.log(`🔄 Migrando estado obsoleto SUGERIDO -> ALISTAMIENTO_ACTIVO`);
       estadoGuardado = 'ALISTAMIENTO_ACTIVO';
       localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, 'ALISTAMIENTO_ACTIVO');
     }
 
     if (estadoGuardado) {
       setEstado(estadoGuardado);
-      console.log(`🔄 Estado local recuperado: ${estadoGuardado} (Verificando con BD...)`);
     }
 
     // 2. SIEMPRE consultar al servidor para tener la verdad absoluta
-    console.log(`🔍 ESTADO - Consultando BD para asegurar sincronización...`);
 
     const cargarEstadoDesdeBD = async () => {
       try {
@@ -161,7 +155,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             // CASO ESPECIAL: Si la BD está vacía (ALISTAMIENTO) pero yo tengo un estado avanzado
             // ENTONCES: La BD está desactualizada. ¡Actualízala con mi estado!
             if (dataEstado.estado === 'ALISTAMIENTO' && estadoGuardado && estadoGuardado !== 'ALISTAMIENTO') {
-              console.log(`⚠️ ESTADO - BD vacía (${dataEstado.estado}) vs Local avanzado (${estadoGuardado}). ¡Imponiendo Local!`);
               // Forzar re-envío del estado local a la BD
               // No hacemos setEstado porque ya está en ese estado, pero el useEffect de guardado no saltará si no cambia.
               // Así que llamamos manualmente al endpoint de actualización.
@@ -180,7 +173,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
             // CASO NORMAL: La BD tiene un esatdo diferente (y no es el default). La BD manda.
             if (dataEstado.estado !== estadoGuardado) {
-              console.log(`✅ ESTADO - Actualizando desde BD: ${dataEstado.estado} (Local era: ${estadoGuardado})`);
               setEstado(dataEstado.estado);
               localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, dataEstado.estado);
 
@@ -189,7 +181,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 congelarProduccion(dataEstado.estado);
               }
             } else {
-              console.log(`✅ ESTADO - Sincronizado (BD y Local coinciden: ${dataEstado.estado})`);
             }
             return;
           }
@@ -197,7 +188,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
         // Si no hay estado en BD y no teníamos local, intentar inferir
         if (!estadoGuardado) {
-          console.log(`🔍 ESTADO - No hay estado en BD ni Local, infiriendo...`);
           // ... (Lógica de inferencia existente) ...
           const url = `${API_URL}/cargue-id1/?dia=${dia.toUpperCase()}&fecha=${fechaFormateadaLS}`;
           const response = await fetch(url);
@@ -244,7 +234,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     // No sincronizar estados iniciales
     if (estado === 'ALISTAMIENTO') return;
 
-    console.log(`🔄 Sincronizando estado con BD: ${estado}`);
 
     fetch(`${API_URL}/estado-cargue/actualizar/`, {
       method: 'POST',
@@ -259,7 +248,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       .then(response => response.json())
       .then(result => {
         if (result.success) {
-          console.log(`✅ Estado sincronizado: ${result.message}`);
         } else {
           console.error(`❌ Error sincronizando estado:`, result.error);
         }
@@ -269,28 +257,21 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
   // 🚀 SOLO ID1 verifica productos de TODOS los IDs
   useEffect(() => {
-    console.log(`🔍 DEBUG INIT - idSheet: "${idSheet}", dia: "${dia}", fechaFormateadaLS: "${fechaFormateadaLS}", estado: "${estado}"`);
 
     if (idSheet !== 'ID1') {
-      console.log(`⚠️ DEBUG - NO es ID1, saliendo del useEffect`);
       return;
     }
 
-    console.log(`✅ DEBUG - Es ID1, ejecutando verificación...`);
 
     const verificarYAvanzar = async () => {
       try {
-        console.log(`🔄 Ejecutando verificarYAvanzar...`);
         const resultado = await verificarProductosListos();
-        console.log(`📊 Resultado de verificación:`, resultado);
         setProductosValidados(resultado.listos);
         setProductosPendientes(resultado.pendientes);
 
-        console.log(`🔍 Verificación automática - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
 
         // 🆕 LÓGICA FLEXIBLE: Si está en ALISTAMIENTO_ACTIVO y HAY AL MENOS 1 PRODUCTO LISTO, pasar a DESPACHO
         if (estado === 'ALISTAMIENTO_ACTIVO' && resultado.listos.length > 0) {
-          console.log(`✅ Al menos 1 producto listo (${resultado.listos.length} listos, ${resultado.pendientes.length} pendientes) - Cambiando automáticamente de ALISTAMIENTO_ACTIVO a DESPACHO`);
           const nuevoEstado = 'DESPACHO';
           setEstado(nuevoEstado);
           localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, nuevoEstado);
@@ -311,7 +292,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     // 🚀 VERIFICACIÓN EN TIEMPO REAL: Solo cuando está en ALISTAMIENTO_ACTIVO
     let interval;
     if (estado === 'ALISTAMIENTO_ACTIVO' || estado === 'ALISTAMIENTO') {
-      console.log(`🔄 DEBUG - Iniciando interval de verificación cada 1 segundo (estado: ${estado})`);
       interval = setInterval(verificarYAvanzar, 1000); // Verificar cada 1 segundo
     }
 
@@ -334,11 +314,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         setProductosValidados(resultado.listos);
         setProductosPendientes(resultado.pendientes);
 
-        console.log(`⚡ Verificación inmediata (con delay) - Listos: ${resultado.listos.length}, Pendientes: ${resultado.pendientes.length}`);
 
         // 🆕 LÓGICA FLEXIBLE: Si HAY AL MENOS 1 PRODUCTO LISTO, cambiar a DESPACHO
         if (resultado.listos.length > 0) {
-          console.log(`✅ Al menos 1 producto listo (${resultado.listos.length} listos) - Cambiando a DESPACHO`);
           const nuevoEstado = 'DESPACHO';
           setEstado(nuevoEstado);
           localStorage.setItem(`estado_boton_${dia}_${fechaFormateadaLS}`, nuevoEstado);
@@ -376,7 +354,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
     // 🔒 PROTECCIÓN: Si ya hay datos congelados, NO recongelar
     if (datosExistentes) {
-      console.log(`❄️ ${estadoNombre} - Producción YA CONGELADA (manteniendo valores originales)`);
       return; // Salir sin recongelar
     }
 
@@ -413,17 +390,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     }
 
     localStorage.setItem(keyCongelados, JSON.stringify(datosParaCongelar));
-    console.log(`❄️ ${estadoNombre} - Producción CONGELADA POR PRIMERA VEZ`);
 
   };
 
   // Función para actualizar inventario
   const actualizarInventario = async (productoId, cantidad, tipo) => {
     try {
-      console.log(`🔥 API CALL - Producto ID: ${productoId}, Cantidad: ${cantidad}, Tipo: ${tipo}`);
 
       const cantidadFinal = tipo === 'SUMAR' ? cantidad : -cantidad;
-      console.log(`🔥 Enviando al backend: cantidad = ${cantidadFinal}`);
 
       const response = await fetch(`${API_URL}/productos/${productoId}/actualizar_stock/`, {
         method: 'POST',
@@ -437,7 +411,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }),
       });
 
-      console.log(`🔥 Response status: ${response.status}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -446,8 +419,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       const result = await response.json();
-      console.log(`✅ API RESPONSE:`, result);
-      console.log(`✅ Stock actualizado a: ${result.stock_actual}`);
       return result;
     } catch (error) {
       console.error('❌ Error actualizando inventario:', error);
@@ -469,8 +440,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
 
 
-      // 🔥 CARGAR TODOS LOS PEDIDOS y filtrar en el frontend (más seguro)
-      const response = await fetch(`${API_URL}/pedidos/`);
+      // 🔥 CARGAR PEDIDOS filtrados por fecha de entrega
+      const response = await fetch(`${API_URL}/pedidos/?fecha_entrega=${fechaFormateada}`);
 
       if (!response.ok) {
         console.warn('⚠️ No se pudieron cargar pedidos');
@@ -478,7 +449,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       const todosPedidos = await response.json();
-      console.log(`📦 Total de pedidos en BD: ${todosPedidos.length}`);
 
       // 🔥 FILTRAR SOLO PEDIDOS PENDIENTES DE LA FECHA ESPECÍFICA Y QUE NO HAYAN AFECTADO INVENTARIO
       const pedidosFiltrados = todosPedidos.filter(p => {
@@ -494,9 +464,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
         if (esFechaCorrecta && esValido) {
           if (yaAfectoInventario) {
-            console.log(`⚠️ Pedido SALTADO (ya afectó inventario): ${p.numero_pedido || p.id} (${p.estado})`);
           } else {
-            console.log(`✅ Pedido incluido para descuento: ${p.numero_pedido || p.id} (${p.estado}) - Fecha: ${fechaEntrega}`);
           }
         }
 
@@ -504,7 +472,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         // return esPendiente && esFechaCorrecta; // DEBUG: Permitir incluso si ya afectó inventario
       });
 
-      console.log(`✅ Pedidos PENDIENTES para procesar (sin inventario afectado): ${pedidosFiltrados.length}`);
 
       // Agrupar productos por nombre y sumar cantidades
       const pedidosAgrupados = {};
@@ -527,13 +494,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             }
 
             pedidosAgrupados[nombreProducto].cantidad += cantidad;
-            console.log(`   📦 ${nombreProducto}: +${cantidad} (total: ${pedidosAgrupados[nombreProducto].cantidad})`);
           }
         }
       }
 
 
-      console.log(`📊 Total de pedidos a marcar como ENTREGADA: ${pedidosIds.length}`);
 
       return { pedidosAgrupados, pedidosIds };
 
@@ -546,7 +511,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 📋 NUEVA FUNCIÓN: Marcar pedidos como ENTREGADA
   const marcarPedidosComoEntregados = async (pedidosIds) => {
     try {
-      console.log(`📦 Marcando ${pedidosIds.length} pedidos como ENTREGADA...`);
 
       let exitosos = 0;
       let errores = 0;
@@ -563,7 +527,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
           if (response.ok) {
             exitosos++;
-            console.log(`✅ Pedido ${pedidoId} marcado como ENTREGADA`);
           } else {
             errores++;
             console.error(`❌ Error marcando pedido ${pedidoId}`);
@@ -574,7 +537,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log(`✅ Pedidos actualizados: ${exitosos} exitosos, ${errores} errores`);
       return { exitosos, errores };
 
     } catch (error) {
@@ -590,15 +552,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 🚀 NUEVA FUNCIÓN: Guardar datos de un ID específico
   const guardarDatosDelID = async (fechaAUsar, idVendedor) => {
     try {
-      console.log(`💾 ${idVendedor} - GUARDANDO DATOS ESPECÍFICOS...`);
-      console.log(`📅 ${idVendedor} - Fecha a usar: ${fechaAUsar}`);
 
       const { simpleStorage } = await import('../../services/simpleStorage');
       const { cargueService } = await import('../../services/cargueService');
 
       // Obtener datos desde localStorage del ID específico
       const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
-      console.log(`🔑 ${idVendedor} - Buscando datos en key: ${key}`);
 
       // 🚀 MEJORADO: Intentar obtener de localStorage directamente primero
       let datos = null;
@@ -607,7 +566,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       if (datosLocalString) {
         try {
           datos = JSON.parse(datosLocalString);
-          console.log(`✅ ${idVendedor} - Datos encontrados en localStorage: ${datos.productos?.length || 0} productos`);
         } catch (parseError) {
           console.error(`❌ ${idVendedor} - Error parsing localStorage:`, parseError);
         }
@@ -616,16 +574,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // Si no hay datos en localStorage, intentar con simpleStorage
       if (!datos) {
         datos = await simpleStorage.getItem(key);
-        console.log(`🔍 ${idVendedor} - Datos desde simpleStorage: ${datos?.productos?.length || 0} productos`);
       }
 
       if (!datos || !datos.productos) {
-        console.log(`⚠️ ${idVendedor} - No hay datos para guardar (datos: ${JSON.stringify(datos)})`);
         return false;
       }
 
-      console.log(`📊 ${idVendedor} - Total productos en datos: ${datos.productos.length}`);
-      console.log(`📊 ${idVendedor} - Productos con cantidad > 0: ${datos.productos.filter(p => p.cantidad > 0).length}`);
 
       // Filtrar solo productos que tienen datos relevantes
       const productosParaGuardar = datos.productos.filter(p =>
@@ -634,7 +588,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       );
 
       if (productosParaGuardar.length === 0) {
-        console.log(`⚠️ ${idVendedor} - No hay productos con datos para guardar`);
         return false;
       }
 
@@ -649,13 +602,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // 🚀 PRIORIDAD CORRECTA: responsableStorage es la fuente de verdad
       if (responsableRS && responsableRS !== 'RESPONSABLE' && responsableRS.trim() !== '') {
         responsableReal = responsableRS.trim();
-        console.log(`✅ Responsable desde responsableStorage: "${responsableReal}"`);
       } else if (responsableLS && responsableLS !== 'RESPONSABLE' && responsableLS.trim() !== '') {
         responsableReal = responsableLS.trim();
-        console.log(`✅ Responsable desde localStorage: "${responsableReal}"`);
       } else if (responsableFromDatos && responsableFromDatos !== 'RESPONSABLE' && responsableFromDatos.trim() !== '') {
         responsableReal = responsableFromDatos.trim();
-        console.log(`✅ Responsable desde datos: "${responsableReal}"`);
       }
 
       // 🚀 NUEVO: Intentar obtener del contexto de vendedores si aún es el default
@@ -663,23 +613,19 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         const nombreContexto = datosVendedores[idVendedor].nombre;
         if (nombreContexto && nombreContexto.trim() !== '') {
           responsableReal = nombreContexto.trim();
-          console.log(`✅ Responsable desde Contexto Vendedores: "${responsableReal}"`);
         }
       }
 
-      console.log(`📝 ${idVendedor} - RESPONSABLE FINAL: "${responsableReal}"`);
 
       // 🚀 CORREGIDO: Recopilar datos de pagos específicos del ID
       const conceptosKey = `conceptos_pagos_${dia}_${idVendedor}_${fechaAUsar}`;
       const datosConceptos = localStorage.getItem(conceptosKey);
       let pagosData = {};
 
-      console.log(`💰 ${idVendedor} - Buscando conceptos en: ${conceptosKey}`);
 
       if (datosConceptos) {
         try {
           const conceptos = JSON.parse(datosConceptos);
-          console.log(`💰 ${idVendedor} - Conceptos encontrados:`, conceptos);
 
           pagosData = {
             concepto: conceptos.filter(c => c.concepto).map(c => c.concepto).join(', ') || '',
@@ -688,12 +634,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             daviplata: conceptos.reduce((sum, c) => sum + (parseFloat(c.daviplata) || 0), 0)
           };
 
-          console.log(`💰 ${idVendedor} - Datos de pagos procesados:`, pagosData);
         } catch (error) {
           console.error(`❌ Error parsing conceptos para ${idVendedor}:`, error);
         }
       } else {
-        console.log(`⚠️ ${idVendedor} - No se encontraron datos de conceptos en: ${conceptosKey}`);
       }
 
       // Calcular totales de resumen
@@ -703,12 +647,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const baseCajaKey = `base_caja_${dia}_${idVendedor}_${fechaAUsar}`;
       const baseCaja = parseFloat(localStorage.getItem(baseCajaKey)) || 0;
 
-      console.log(`💰 ${idVendedor} - Buscando base caja en: ${baseCajaKey} = ${baseCaja}`);
 
       // 🚀 CORREGIDO: Obtener TOTAL PEDIDOS del contexto
       const datosContexto = datosVendedores[idVendedor];
       const totalPedidos = datosContexto?.totalPedidos || 0;
-      console.log(`📦 ${idVendedor} - Total Pedidos obtenido: ${totalPedidos}`);
 
       // 🚀 CORREGIDO: Calcular VENTA y TOTAL EFECTIVO correctamente
       // VENTA = BASE_CAJA + TOTAL_DESPACHO + TOTAL_PEDIDOS - TOTAL_DCTOS
@@ -726,32 +668,20 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         total_efectivo: totalEfectivoCalculado
       };
 
-      console.log(`💰 ${idVendedor} - Cálculos de resumen:`, {
-        totalProductos,
-        totalDctos,
-        descuentosPagos: pagosData.descuentos || 0,
-        ventaCalculada,
-        nequi: pagosData.nequi || 0,
-        daviplata: pagosData.daviplata || 0,
-        totalEfectivoCalculado
-      });
 
       // Recopilar datos de cumplimiento
       const cumplimientoKey = `cumplimiento_${dia}_${idVendedor}_${fechaAUsar}`;
       const datosCumplimiento = localStorage.getItem(cumplimientoKey);
       let cumplimientoData = {};
 
-      console.log(`📋 ${idVendedor} - Buscando cumplimiento en: ${cumplimientoKey}`);
 
       if (datosCumplimiento) {
         try {
           cumplimientoData = JSON.parse(datosCumplimiento);
-          console.log(`✅ ${idVendedor} - Cumplimiento encontrado:`, cumplimientoData);
         } catch (error) {
           console.error(`❌ Error parsing cumplimiento para ${idVendedor}:`, error);
         }
       } else {
-        console.log(`⚠️ ${idVendedor} - No se encontraron datos de cumplimiento`);
       }
 
       // 🚀 NUEVO: Recopilar lotes de producción (solo desde ID1)
@@ -759,17 +689,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       if (idVendedor === 'ID1') {
         const lotesKey = `lotes_${dia}_ID1_${fechaAUsar}`;
         const lotesData = localStorage.getItem(lotesKey);
-        console.log(`📦 ${idVendedor} - Buscando lotes en: ${lotesKey}`);
 
         if (lotesData) {
           try {
             lotesProduccion = JSON.parse(lotesData);
-            console.log(`✅ ${idVendedor} - Lotes de producción encontrados:`, lotesProduccion);
           } catch (error) {
             console.error(`❌ Error parsing lotes para ${idVendedor}:`, error);
           }
         } else {
-          console.log(`⚠️ ${idVendedor} - No se encontraron lotes de producción en: ${lotesKey}`);
         }
       }
 
@@ -796,12 +723,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }))
       };
 
-      console.log(`🚀 ${idVendedor} - Enviando datos a API:`, JSON.stringify(datosParaGuardar, null, 2));
-      console.log(`📊 ${idVendedor} - Resumen de datos a guardar:`);
-      console.log(`   - Productos: ${datosParaGuardar.productos.length}`);
-      console.log(`   - Cumplimiento: ${Object.keys(datosParaGuardar.cumplimiento || {}).length} campos`);
-      console.log(`   - Lotes producción: ${(datosParaGuardar.lotes_produccion || []).length}`);
-      console.log(`   - Responsable: ${datosParaGuardar.responsable}`);
 
       const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
 
@@ -810,8 +731,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         throw new Error(`Error guardando datos de ${idVendedor}: ${resultado.message}`);
       }
 
-      console.log(`✅ ${idVendedor} - Datos enviados a la API exitosamente`);
-      console.log(`📊 ${idVendedor} - Resultado:`, resultado);
       return true;
     } catch (error) {
       console.error(`❌ Error guardando datos de ${idVendedor}:`, error);
@@ -836,15 +755,12 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
         if (datosLocal && datosLocal.sincronizado === false) {
           // Hay datos pendientes de sincronizar, guardarlos
-          console.log(`⚠️ ${id} - Datos pendientes de sincronizar, guardando...`);
           try {
             await guardarDatosDelID(fechaAUsar, id);
-            console.log(`✅ ${id} - Datos pendientes guardados`);
           } catch (error) {
             console.error(`❌ Error guardando ${id}:`, error);
           }
         } else {
-          console.log(`✅ ${id} - Datos ya sincronizados en tiempo real`);
         }
       }
 
@@ -867,10 +783,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // Debug detallado de cada vendedor
       idsVendedores.forEach(id => {
         const datos = datosVendedores[id];
-        console.log(`🔍 DEBUG - ${id}:`, datos);
         if (datos && datos.productos) {
-          console.log(`🔍 DEBUG - ${id} productos:`, datos.productos.length);
-          console.log(`🔍 DEBUG - ${id} productos con datos:`, datos.productos.filter(p => p.cantidad > 0 || p.vendedor || p.despachador));
         }
       });
 
@@ -881,8 +794,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         // Obtiene los datos del vendedor directamente del contexto
         const productosDelVendedor = datosVendedores[id];
 
-        console.log(`🔍 DEBUG - Datos de ${id}:`, productosDelVendedor);
-        console.log(`🔍 DEBUG - Tipo de datos de ${id}:`, Array.isArray(productosDelVendedor) ? 'Array' : typeof productosDelVendedor);
 
         if (productosDelVendedor && Array.isArray(productosDelVendedor) && productosDelVendedor.length > 0) {
           // Filtrar solo productos que tienen datos relevantes
@@ -897,19 +808,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             const { responsableStorage } = await import('../../utils/responsableStorage');
 
             // 🔍 DEBUG DETALLADO: Verificar múltiples fuentes de responsable
-            console.log(`🔍 DEBUG RESPONSABLE para ${id}:`);
 
             // Método 1: responsableStorage
             const responsableRS = responsableStorage.get(id);
-            console.log(`   - responsableStorage.get("${id}"): "${responsableRS}"`);
 
             // Método 2: localStorage directo
             const responsableLS = localStorage.getItem(`responsable_${id}`);
-            console.log(`   - localStorage.getItem("responsable_${id}"): "${responsableLS}"`);
 
             // Método 3: localStorage alternativo
             const responsableAlt = localStorage.getItem(`cargue_responsable_${id}`);
-            console.log(`   - localStorage.getItem("cargue_responsable_${id}"): "${responsableAlt}"`);
 
             // Método 4: responsables_cargue
             const responsablesCargue = localStorage.getItem('responsables_cargue');
@@ -918,12 +825,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               try {
                 const parsed = JSON.parse(responsablesCargue);
                 responsableFromCargue = parsed[id];
-                console.log(`   - responsables_cargue["${id}"]: "${responsableFromCargue}"`);
               } catch (error) {
-                console.log(`   - responsables_cargue: Error parsing`);
               }
             } else {
-              console.log(`   - responsables_cargue: No existe`);
             }
 
             // Método 5: Desde los datos del cargue actual
@@ -934,9 +838,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               try {
                 const parsed = JSON.parse(datosCargue);
                 responsableFromDatos = parsed.responsable;
-                console.log(`   - datos_cargue["${id}"].responsable: "${responsableFromDatos}"`);
               } catch (error) {
-                console.log(`   - datos_cargue: Error parsing`);
               }
             }
 
@@ -946,36 +848,27 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             // Prioridad: datos del cargue > responsableStorage > localStorage directo > alternativo > cargue general
             if (responsableFromDatos && responsableFromDatos !== 'RESPONSABLE' && responsableFromDatos.trim() !== '') {
               responsableReal = responsableFromDatos.trim();
-              console.log(`   ✅ Usando datos_cargue: "${responsableReal}"`);
             } else if (responsableRS && responsableRS !== 'RESPONSABLE' && responsableRS.trim() !== '') {
               responsableReal = responsableRS.trim();
-              console.log(`   ✅ Usando responsableStorage: "${responsableReal}"`);
             } else if (responsableLS && responsableLS !== 'RESPONSABLE' && responsableLS.trim() !== '') {
               responsableReal = responsableLS.trim();
-              console.log(`   ✅ Usando localStorage directo: "${responsableReal}"`);
             } else if (responsableAlt && responsableAlt !== 'RESPONSABLE' && responsableAlt.trim() !== '') {
               responsableReal = responsableAlt.trim();
-              console.log(`   ✅ Usando localStorage alternativo: "${responsableReal}"`);
             } else if (responsableFromCargue && responsableFromCargue !== 'RESPONSABLE' && responsableFromCargue.trim() !== '') {
               responsableReal = responsableFromCargue.trim();
-              console.log(`   ✅ Usando responsables_cargue: "${responsableReal}"`);
             } else {
-              console.log(`   ❌ No se encontró responsable válido, usando: "${responsableReal}"`);
             }
 
-            console.log(`📝 RESPONSABLE FINAL para ${id}: "${responsableReal}"`);
 
             // 🚀 CORREGIDO: RECOPILAR DATOS DE PAGOS específicos del ID
             const conceptosKey = `conceptos_pagos_${dia}_${id}_${fechaAUsar}`;
             const datosConceptos = localStorage.getItem(conceptosKey);
             let pagosData = {};
 
-            console.log(`💰 ${id} - Buscando conceptos en: ${conceptosKey}`);
 
             if (datosConceptos) {
               try {
                 const conceptos = JSON.parse(datosConceptos);
-                console.log(`💰 ${id} - Conceptos encontrados:`, conceptos);
 
                 // Sumar todos los conceptos para obtener totales
                 pagosData = {
@@ -984,12 +877,10 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                   nequi: conceptos.reduce((sum, c) => sum + (parseFloat(c.nequi) || 0), 0),
                   daviplata: conceptos.reduce((sum, c) => sum + (parseFloat(c.daviplata) || 0), 0)
                 };
-                console.log(`💰 ${id} - Datos de pagos procesados:`, pagosData);
               } catch (error) {
                 console.error(`❌ Error parsing conceptos para ${id}:`, error);
               }
             } else {
-              console.log(`⚠️ ${id} - No se encontraron datos de conceptos en: ${conceptosKey}`);
             }
 
             // 🚀 CORREGIDO: RECOPILAR DATOS DE BASE CAJA específica del ID
@@ -997,7 +888,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             const datosBaseCaja = localStorage.getItem(baseCajaKey);
             const baseCaja = datosBaseCaja ? parseFloat(datosBaseCaja) || 0 : 0;
 
-            console.log(`💰 ${id} - Buscando base caja en: ${baseCajaKey} = ${baseCaja}`);
 
             // 🚀 CORREGIDO: CALCULAR TOTALES DE RESUMEN correctamente
             const totalProductos = productosParaGuardar.reduce((sum, p) => sum + ((p.total || 0) * (p.valor || 0)), 0);
@@ -1016,15 +906,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               total_efectivo: totalEfectivoCalculado
             };
 
-            console.log(`💰 ${id} - Cálculos de resumen:`, {
-              totalProductos,
-              totalDctos,
-              descuentosPagos: pagosData.descuentos || 0,
-              ventaCalculada,
-              nequi: pagosData.nequi || 0,
-              daviplata: pagosData.daviplata || 0,
-              totalEfectivoCalculado
-            });
 
             // 🚀 RECOPILAR DATOS DE CUMPLIMIENTO desde localStorage
             const datosCumplimiento = localStorage.getItem(`cumplimiento_${dia}_${id}_${fechaAUsar}`);
@@ -1032,7 +913,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             if (datosCumplimiento) {
               try {
                 cumplimientoData = JSON.parse(datosCumplimiento);
-                console.log(`✅ Datos de cumplimiento para ${id}:`, cumplimientoData);
               } catch (error) {
                 console.error(`❌ Error parsing cumplimiento para ${id}:`, error);
               }
@@ -1061,15 +941,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               }))
             };
 
-            console.log(`🚀 Preparando para enviar datos de ${id}:`, datosParaGuardar);
-            console.log(`📦 Productos con datos para ${id}: ${productosParaGuardar.length}`);
-            console.log(`📅 Fecha que se enviará: ${datosParaGuardar.fecha}`);
-            console.log(`👤 Responsable que se enviará: ${datosParaGuardar.responsable}`);
-            console.log(`💰 Pagos que se enviarán:`, datosParaGuardar.pagos);
-            console.log(`📊 Resumen que se enviará:`, datosParaGuardar.resumen);
-            console.log(`✅ Cumplimiento que se enviará:`, datosParaGuardar.cumplimiento);
 
-            console.log(`🚀 ENVIANDO A API - ${id}:`, JSON.stringify(datosParaGuardar, null, 2));
             const resultado = await cargueService.guardarCargueCompleto(datosParaGuardar);
 
             if (resultado.error) {
@@ -1077,13 +949,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               throw new Error(`Error guardando datos de ${id}: ${resultado.message}`);
             }
 
-            console.log(`✅ Datos de ${id} enviados a la API exitosamente.`);
           } else {
-            console.log(`⚠️ ${id} no tiene productos con datos para guardar`);
           }
         } else {
-          console.log(`⚠️ No hay datos en el contexto para ${id} o no es un array válido`);
-          console.log(`🔍 DEBUG - Valor actual de datosVendedores[${id}]:`, productosDelVendedor);
         }
       }
 
@@ -1139,54 +1007,42 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   const limpiarLocalStorageDelID = (fechaAUsar, idVendedor) => {
     try {
       const fechaStorage = normalizarFechaStorage(fechaAUsar);
-      console.log(`🧹 ${idVendedor} - LIMPIANDO LOCALSTORAGE...`);
 
       // Limpiar datos del ID específico
       const key = `cargue_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(key);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${key}`);
 
       // Limpiar cambios pendientes de columnas editables offline
       const pendingKey = `cargue_pending_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(pendingKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${pendingKey}`);
 
       const despachadorOverridesKey = `cargue_despachador_overrides_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(despachadorOverridesKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${despachadorOverridesKey}`);
 
       const resumenPendingKey = `resumen_pending_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(resumenPendingKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${resumenPendingKey}`);
 
       const cumplimientoPendingKey = `cumplimiento_pending_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(cumplimientoPendingKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${cumplimientoPendingKey}`);
 
       const lotesPendingKey = `lotes_pending_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(lotesPendingKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${lotesPendingKey}`);
 
       // Limpiar cumplimiento específico del ID
       const cumplimientoKey = `cumplimiento_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(cumplimientoKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${cumplimientoKey}`);
 
       // 🚀 CORREGIDO: Limpiar conceptos específicos del ID
       const conceptosKey = `conceptos_pagos_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(conceptosKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${conceptosKey}`);
 
       // 🚀 CORREGIDO: Limpiar base caja específica del ID
       const baseCajaKey = `base_caja_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(baseCajaKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${baseCajaKey}`);
 
       const lotesKey = `lotes_${dia}_${idVendedor}_${fechaStorage}`;
       localStorage.removeItem(lotesKey);
-      console.log(`🗑️ ${idVendedor} - Eliminado: ${lotesKey}`);
 
-      console.log(`✅ ${idVendedor} - LocalStorage limpiado completamente`);
     } catch (error) {
       console.error(`❌ Error limpiando localStorage de ${idVendedor}:`, error);
     }
@@ -1235,7 +1091,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
       clavesALimpiar.forEach(clave => {
         localStorage.removeItem(clave);
-        console.log(`🗑️ Eliminado: ${clave}`);
       });
 
 
@@ -1247,7 +1102,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 🚀 NUEVA FUNCIÓN: Validar lotes vencidos de un ID específico
   const validarLotesVencidosDelID = async (fechaAUsar, idVendedor) => {
     try {
-      console.log(`🔍 ${idVendedor} - VALIDANDO LOTES VENCIDOS...`);
 
       const { simpleStorage } = await import('../../services/simpleStorage');
       const key = `cargue_${dia}_${idVendedor}_${fechaAUsar}`;
@@ -1276,7 +1130,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       if (productosConVencidasSinLotes.length > 0) {
-        console.log(`❌ ${idVendedor} - PRODUCTOS CON VENCIDAS SIN LOTES:`, productosConVencidasSinLotes);
 
         const mensaje = `❌ ${idVendedor} - No se puede finalizar\n\nLos siguientes productos tienen vencidas pero no tienen información de lotes:\n\n${productosConVencidasSinLotes.map(p =>
           `• ${p.producto} (${p.vencidas} vencidas)`
@@ -1287,7 +1140,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         return false;
       }
 
-      console.log(`✅ ${idVendedor} - VALIDACIÓN DE LOTES VENCIDOS COMPLETADA`);
       return true;
     } catch (error) {
       console.error(`❌ Error validando lotes vencidos de ${idVendedor}:`, error);
@@ -1300,7 +1152,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
   // 🚀 VALIDACIÓN ROBUSTA: Consultar BD + LocalStorage para asegurar que no se escapen vencidas
   const validarLotesVencidos = async (fechaAUsar, idsVendedores) => {
     try {
-      console.log(`🔍 VALIDACIÓN ESTRICTA DE LOTES (BD + LOCAL) - ${fechaAUsar}`);
       const { simpleStorage } = await import('../../services/simpleStorage');
       const productosConVencidasSinLotes = [];
       const productosAmbiguosSoloFvto = [];
@@ -1337,7 +1188,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           }
         }
 
-        console.log(`   Verificando ${id} usando ${origenDatos} (${productosAValidar.length} productos)`);
 
         // 3. Validar cada producto
         for (const p of productosAValidar) {
@@ -1369,7 +1219,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             const tieneLotesArray = lotesCompletos.length > 0;
 
             if (!tieneLotesBD && !tieneLotesArray) {
-              console.log(`   ❌ DETECTADO: ${p.producto} tiene ${vencidas} vencidas SIN LOTE`);
               productosConVencidasSinLotes.push({
                 id: id,
                 producto: p.producto,
@@ -1399,7 +1248,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       if (productosConVencidasSinLotes.length > 0) {
-        console.log('❌ BLOQUEANDO CIERRE POR FALTA DE LOTES:', productosConVencidasSinLotes);
         const mensaje = `❌ No se puede finalizar la jornada\n\nEl sistema ha detectado vencidas sin registrar lote (en Base de Datos o local):\n\n${productosConVencidasSinLotes.map(p =>
           `• ${p.id}: ${p.producto} (${p.vencidas} und)`
         ).join('\n')
@@ -1424,7 +1272,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log("✅ Validación de lotes exitosa: Todo correcto.");
       return true;
     } catch (error) {
       console.error("Error crítico en validación de lotes:", error);
@@ -1451,7 +1298,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
     const key = `cargue_${dia}_${vendedorId}_${fechaFormateada}`;
     let datosCargue = await simpleStorage.getItem(key);
 
-    console.log(`🔍 ${vendedorId} - Helper Cargue: Buscando en ${key}... Found: ${datosCargue ? 'YES' : 'NO'}`);
 
     // Si no está en LocalStorage, intentar BD
     if (!datosCargue || !datosCargue.productos || datosCargue.productos.length === 0) {
@@ -1533,7 +1379,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         fechaAUsar = fechaSeleccionada.toISOString().split('T')[0];
       }
 
-      console.log(`🚀 INICIANDO CIERRE GLOBAL para fecha: ${fechaAUsar}`);
 
       const IDS_VENDEDORES = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
@@ -1546,10 +1391,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       let todosProductosVencidas = [];
 
       // ========== PASO 1: RECOPILAR DATOS DE TODOS LOS VENDEDORES ==========
-      console.log(`📋 ECOPILANDO DATOS DE ${IDS_VENDEDORES.length} VENDEDORES...`);
 
       for (const vendedorId of IDS_VENDEDORES) {
-        console.log(`🔍 Consultando datos de ${vendedorId}...`);
         const datosVendedor = await cargarDatosCargue(fechaAUsar, vendedorId);
 
         if (datosVendedor && datosVendedor.productos) {
@@ -1565,7 +1408,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             // Sumar al total
             const sumaVendedor = datosVendedor.productosACargue.reduce((acc, p) => acc + (p.cantidad || 0), 0);
             granTotalCargue += sumaVendedor;
-            console.log(`   🔸 ${vendedorId}: ${sumaVendedor} ventas`);
           }
 
           // Acumular VENCIDAS y DEVOLUCIONES
@@ -1586,12 +1428,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log(`📊 TOTAL GLOBAL CARGUE: ${granTotalCargue}`);
-      console.log(`📊 TOTAL GLOBAL VENCIDAS: ${granTotalVencidas}`);
 
 
       // ========== PASO 2: CALCULAR PEDIDOS (YA ES GLOBAL) ==========
-      console.log(`📋 PASO 2: Verificando PEDIDOS pendientes (Global)...`);
       let totalPedidos = 0;
       let productosPedidosCalculados = [];
 
@@ -1615,17 +1454,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               cantidad: pedido.cantidad
             });
             totalPedidos += pedido.cantidad;
-            console.log(`📦 PEDIDO: ${pedido.nombre} - ${pedido.cantidad}`);
           }
         }
       }
-      console.log(`📊 TOTAL PEDIDOS: ${totalPedidos}`);
 
 
       // ========== 🆕 PREPARAR FUNCIÓN DE EJECUCIÓN (CLOSURE) ==========
       const ejecutarDescuentoReal = async () => {
         try {
-          console.log(`🚀 EJECUTANDO CIERRE GLOBAL MULTIVENDEDOR...`);
 
           // 1. Descontar CARGUE GLOBAL
           for (const item of todosProductosACargue) {
@@ -1793,7 +1629,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               if (dbData && dbData.length > 0) {
                 const vencidasDB = dbData.reduce((acc, p) => acc + (p.vencidas || 0), 0);
                 if (vencidasDB > 0) {
-                  console.log(`📱 Detectadas vencidas en BD para ${id} (no visibles en local): ${vencidasDB}`);
                   productos = dbData; // Usar datos de BD que están más actualizados
                 }
               }
@@ -1860,7 +1695,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
 
-      console.log(`📅 Fecha a usar para guardado: ${fechaAUsar}`);
 
       /*
       // VALIDACIÓN PREVIA ESTRICTA DESHABILITADA (Reemplazada por confirmación de usuario)
@@ -1879,10 +1713,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       let totalVendidas = 0;
       let totalPedidos = 0;
 
-      console.log('🔄 INICIANDO PROCESO DE COMPLETADO - AFECTANDO INVENTARIO');
 
       // ========== PASO 1: PROCESAR VENDIDAS, VENCIDAS Y DEVOLUCIONES ==========
-      console.log('📦 PASO 1: Procesando vendidas, vencidas y devoluciones...');
 
       for (const id of idsVendedores) {
         const key = `cargue_${dia}_${id}_${fechaAUsar}`;
@@ -1904,19 +1736,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               // El producto nunca salió realmente del almacén (ya está restado en el TOTAL)
               if (producto.devoluciones > 0) {
                 totalDevoluciones += producto.devoluciones;
-                console.log(`📋 DEVOLUCIONES REGISTRADAS: ${producto.producto} ${producto.devoluciones} (NO afecta inventario)`);
               }
             }
           }
         }
       }
 
-      console.log(`✅ VENDIDAS: No se descuentan en cierre (ya descontadas en Despacho)`);
-      console.log(`✅ VENCIDAS: No se descuentan en cierre (ya descontadas en Despacho)`);
-      console.log(`📋 DEVOLUCIONES registradas: ${totalDevoluciones} und (no afectan inventario)`);
 
       // ========== PASO 2: DESCONTAR PEDIDOS DEL INVENTARIO ==========
-      console.log('📋 PASO 2: Descontando PEDIDOS del inventario...');
 
       const { pedidosAgrupados, pedidosIds } = await cargarPedidosPendientes(fechaSeleccionada);
       const productosPedidos = Object.values(pedidosAgrupados);
@@ -1933,16 +1760,13 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           if (productoEnAPI) {
             await actualizarInventario(productoEnAPI.id, pedido.cantidad, 'RESTAR');
             totalPedidos += pedido.cantidad;
-            console.log(`⬇️ PEDIDO: ${pedido.nombre} -${pedido.cantidad}`);
           }
         }
 
         // Marcar pedidos como entregados
         const { exitosos, errores } = await marcarPedidosComoEntregados(pedidosIds);
-        console.log(`✅ Pedidos actualizados: ${exitosos} exitosos, ${errores} errores`);
       }
 
-      console.log(`✅ PEDIDOS descontados: ${totalPedidos} und`);
 
       // PASO 3: Guardar todos los datos en la base de datos
 
@@ -1963,7 +1787,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         : fechaSeleccionada;
       localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'COMPLETADO');
 
-      console.log(`🎉 FINALIZACIÓN COMPLETADA - Estado guardado en: estado_boton_${dia}_${fechaKey}`);
 
       // 🆕 Resumen actualizado
       alert(
@@ -1986,7 +1809,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
   // 🆕 NUEVA FUNCIÓN: Manejar COMPLETAR (afecta inventario al final)
   const manejarCompletar = async () => {
-    console.log('🏁🏁🏁 INICIANDO COMPLETADO - AFECTANDO INVENTARIO FINAL 🏁🏁🏁');
     setLoading(true);
 
     try {
@@ -2002,7 +1824,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const idsVendedores = ['ID1', 'ID2', 'ID3', 'ID4', 'ID5', 'ID6'];
 
       // 🆕 VALIDACIÓN DE LOTES VENCIDOS (tanto localStorage como BD)
-      console.log('🔍 VALIDACIÓN PREVIA: Verificando lotes vencidos...');
 
       const endpointMapValidacion = {
         'ID1': 'cargue-id1',
@@ -2068,7 +1889,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       }
 
       if (productosConVencidasSinLotes.length > 0) {
-        console.log('❌ PRODUCTOS CON VENCIDAS SIN LOTES:', productosConVencidasSinLotes);
 
         const mensaje = `❌ No se puede completar\n\nLos siguientes productos tienen vencidas pero no tienen información de lotes:\n\n${productosConVencidasSinLotes.map(p =>
           `• ${p.id}: ${p.producto} (${p.vencidas} vencidas)`
@@ -2080,7 +1900,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         return;
       }
 
-      console.log('✅ VALIDACIÓN DE LOTES COMPLETADA - Todos los lotes están registrados');
 
       // Variables para resumen
       let totalCargueDescontado = 0;
@@ -2092,7 +1911,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       // ========== PASO 1: DESCONTAR CARGUE DEL INVENTARIO ==========
       // 🚨 CORRECCIÓN: NO descontar cargue aquí si venimos de un estado donde ya se descontó
       // Por ahora asumo que si llegamos aquí, ya se hizo el despacho.
-      console.log('📦 PASO 1: Procesando cierre... (Cargue ya descontado en Despacho)');
 
       /* 
          BLOQUE ELIMINADO: Descuento de Cargue
@@ -2101,7 +1919,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       */
 
       // ========== PASO 2: DESCONTAR PEDIDOS DEL INVENTARIO ==========
-      console.log('📋 PASO 2: Descontando PEDIDOS del inventario...');
 
       const { pedidosAgrupados, pedidosIds } = await cargarPedidosPendientes(fechaSeleccionada);
       const productosPedidos = Object.values(pedidosAgrupados);
@@ -2118,19 +1935,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
           if (productoEnAPI) {
             await actualizarInventario(productoEnAPI.id, pedido.cantidad, 'RESTAR');
             totalPedidosDescontado += pedido.cantidad;
-            console.log(`⬇️ PEDIDO: ${pedido.nombre} -${pedido.cantidad}`);
           }
         }
 
         // Marcar pedidos como entregados
         const { exitosos, errores } = await marcarPedidosComoEntregados(pedidosIds);
-        console.log(`✅ Pedidos actualizados: ${exitosos} exitosos, ${errores} errores`);
       }
 
-      console.log(`✅ TOTAL PEDIDOS DESCONTADO: ${totalPedidosDescontado} unidades`);
 
       //  ========== PASO 3: PROCESAR DEVOLUCIONES Y VENCIDAS ==========
-      console.log('🔄 PASO 3: Procesando devoluciones...');
 
       // 🆕 MEJORADO: Leer desde BD si localStorage está vacío
       const endpointMap = {
@@ -2149,11 +1962,9 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
         // Si hay datos en localStorage, usarlos
         if (datos && datos.productos && datos.productos.length > 0) {
-          console.log(`📦 ${id} - Usando datos de localStorage`);
           productosAProcesar = datos.productos;
         } else {
           // 🆕 Si no hay datos en localStorage, leer desde la BD
-          console.log(`📦 ${id} - localStorage vacío, leyendo desde BD...`);
           try {
             const endpoint = endpointMap[id];
             const url = `${API_URL}/${endpoint}/?fecha=${fechaAUsar}&dia=${dia.toUpperCase()}`;
@@ -2168,7 +1979,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
                 vencidas: p.vencidas || 0,
                 devoluciones: p.devoluciones || 0
               }));
-              console.log(`✅ ${id} - Cargados ${productosAProcesar.length} productos desde BD`);
             }
           } catch (error) {
             console.error(`❌ ${id} - Error cargando desde BD:`, error);
@@ -2203,7 +2013,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             // El producto nunca salió realmente del almacén (ya está restado en el TOTAL)
             if (producto.devoluciones > 0) {
               totalDevoluciones += producto.devoluciones;
-              console.log(`📋 DEVOLUCIONES REGISTRADAS: ${producto.producto} ${producto.devoluciones} (NO afecta inventario)`);
             }
           } else {
             console.warn(`⚠️ Producto sin ID: ${producto.producto}`);
@@ -2211,15 +2020,11 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       }
 
-      console.log(`✅ TOTAL DEVOLUCIONES: ${totalDevoluciones} unidades`);
-      console.log(`🗑️ TOTAL VENCIDAS: ${totalVencidas} unidades`);
 
       // ========== PASO 4: GUARDAR EN BD ==========
-      console.log('💾 PASO 4: Guardando datos en base de datos...');
       await guardarDatosCompletos(fechaAUsar, idsVendedores);
 
       // ========== PASO 5: LIMPIAR LOCALSTORAGE ==========
-      console.log('🧹 PASO 5: Limpiando localStorage...');
       limpiarLocalStorage(fechaAUsar, idsVendedores);
 
       // ========== PASO 6: CAMBIAR A COMPLETADO ==========
@@ -2229,7 +2034,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         : fechaSeleccionada;
       localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'COMPLETADO');
 
-      console.log('🎉 COMPLETADO EXITOSAMENTE');
 
       // Mostrar resumen
       alert(
@@ -2253,7 +2057,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
 
   const manejarDespachoDelID = async () => {
-    console.log(`🚚 ${idSheet} - EJECUTANDO DESPACHO - AFECTANDO INVENTARIO`);
 
     // Validación estricta: NO permitir avanzar si hay productos pendientes
     if (productosPendientes.length > 0) {
@@ -2276,19 +2079,15 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       );
 
       if (confirmar) {
-        console.log(`🔄 ${idSheet} - Usuario eligió volver a revisar checkboxes`);
       } else {
-        console.log(`🚫 ${idSheet} - Usuario eligió quedarse en la pantalla actual`);
       }
 
-      console.log(`🚫 ${idSheet} - DESPACHO BLOQUEADO - Hay productos sin verificar completamente`);
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log(`📋 ${idSheet} - Productos validados para despacho:`, productosValidados.length);
 
       /* 
         🚨 CORRECCIÓN CRÍTICA:
@@ -2304,7 +2103,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       localStorage.setItem(`estado_despacho_${dia}_${idSheet}_${fechaFormateadaLS}`, 'DESPACHO');
       localStorage.setItem(`estado_boton_${dia}_${idSheet}_${fechaFormateadaLS}`, 'FINALIZAR');
 
-      console.log(`✅ ${idSheet} - Estado cambiado a DESPACHO (inventario NO afectado aún)`);
 
       // Mostrar resumen SIN decir que se descontó
       const resumen = productosValidados.map(p => `${p.nombre}: ${p.totalCantidad} und`).join('\n');
@@ -2361,7 +2159,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
               setEstado('DESPACHO');
               const fechaKey = fechaSeleccionada instanceof Date ? fechaSeleccionada.toISOString().split('T')[0] : fechaSeleccionada;
               localStorage.setItem(`estado_boton_${dia}_${fechaKey}`, 'DESPACHO');
-              console.log(`✅ Estado cambiado a DESPACHO`);
               alert('✅ Estado cambiado a DESPACHO');
             } catch (error) { console.error(error); }
             setLoading(false);
@@ -2612,7 +2409,6 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
             size="lg"
             className="px-4 rounded-pill fw-bold text-secondary border hover-shadow"
             onClick={() => {
-              console.log('❌ Modal cancelado');
               setShowDescuentoConfirm(false);
               setLoading(false);
             }}
