@@ -455,7 +455,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         const fechaEntrega = p.fecha_entrega ? p.fecha_entrega.split('T')[0] : null;
         // Filtro corregido: Incluir ENTREGADA si no han afectado inventario
         // Solo excluir lo que definitivamente no debe suma: ANULADA y CANCELADO
-        const estadosIgnorados = ['CANCELADO', 'ANULADA', 'PENDIENTE', 'NO_ENTREGADA'];
+        const estadosIgnorados = ['CANCELADO', 'ANULADA'];
         const esValido = !estadosIgnorados.includes(p.estado);
         const esFechaCorrecta = fechaEntrega === fechaFormateada;
 
