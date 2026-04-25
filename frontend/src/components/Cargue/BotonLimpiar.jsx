@@ -1627,18 +1627,28 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         try {
           console.log(`🚀 EJECUTANDO CIERRE GLOBAL MULTIVENDEDOR...`);
 
-          // 1. Descontar CARGUE GLOBAL
-          for (const item of todosProductosACargue) {
+          // 1. Descontar CARGUE GLOBAL — agrupar por producto (mismo patrón que planeacion)
+          const cargueAgrupado = {};
+          todosProductosACargue.forEach(item => {
+            if (!cargueAgrupado[item.id]) cargueAgrupado[item.id] = { ...item, cantidad: 0 };
+            cargueAgrupado[item.id].cantidad += item.cantidad;
+          });
+          for (const item of Object.values(cargueAgrupado)) {
             await actualizarInventario(item.id, item.cantidad, 'RESTAR');
           }
 
-          // 2. Descontar PEDIDOS
+          // 2. Descontar PEDIDOS — ya vienen agrupados por producto
           for (const item of productosPedidosCalculados) {
             await actualizarInventario(item.id, item.cantidad, 'RESTAR');
           }
 
-          // 3. Descontar VENCIDAS
-          for (const item of todosProductosVencidas) {
+          // 3. Descontar VENCIDAS — agrupar por producto (mismo patrón que planeacion)
+          const vencidasAgrupado = {};
+          todosProductosVencidas.forEach(item => {
+            if (!vencidasAgrupado[item.id]) vencidasAgrupado[item.id] = { ...item, cantidad: 0 };
+            vencidasAgrupado[item.id].cantidad += item.cantidad;
+          });
+          for (const item of Object.values(vencidasAgrupado)) {
             await actualizarInventario(item.id, item.cantidad, 'RESTAR');
           }
 
