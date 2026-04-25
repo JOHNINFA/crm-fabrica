@@ -1498,7 +1498,7 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const todosProds = await prodRes.json();
 
       for (const p of datosCargue.productos) {
-        if (p.vendedor && p.despachador && p.total > 0) {
+        if (p.total > 0) {
           const pReal = todosProds.find(tp => tp.nombre.toUpperCase() === p.producto.toUpperCase());
           if (pReal) {
             productosACargue.push({
