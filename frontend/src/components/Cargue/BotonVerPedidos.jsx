@@ -27,7 +27,6 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
     useEffect(() => {
         const nombre = responsableStorage.get(idSheet);
         setNombreVendedor(nombre || '');
-        console.log(`📋 Vendedor ${idSheet}: "${nombre}"`);
     }, [idSheet]);
 
     const cargarPedidos = async () => {
@@ -75,7 +74,6 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 return coincideFecha && coincideVendedor;
             });
 
-            console.log(`✅ Filtrados para ${idSheet} (${fechaSeleccionada}): ${pedidosFiltrados.length}`);
 
             // 🆕 REFINAMIENTO INTELIGENTE: 
             // - Si un pedido está ANULADO pero tiene NOVEDADES = el vendedor lo marcó como "No Entregado" → MOSTRAR
@@ -100,7 +98,6 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 return false;
             });
 
-            console.log(`✅ Pedidos visuales finales: ${pedidosParaMostrar.length}`);
 
             // 🆕 Guardar pedidos individuales con info de cliente (Usando filtro refinado)
             setPedidosClientes(pedidosParaMostrar.map(p => ({
@@ -200,6 +197,24 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
         }
     };
 
+    const forzarEntrega = async (e, pedidoId) => {
+        e.stopPropagation();
+        try {
+            const response = await fetch(`${API_URL}/pedidos/${pedidoId}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: 'ENTREGADA' })
+            });
+            if (response.ok) {
+                setPedidosClientes(prev => prev.map(p =>
+                    p.id === pedidoId ? { ...p, estado: 'ENTREGADA' } : p
+                ));
+            }
+        } catch (err) {
+            console.warn('Error confirmando entrega:', err);
+        }
+    };
+
     // 🆕 Estado para controlar checks de verificación en novedades (Persistente)
     const [checkedItems, setCheckedItems] = useState(() => {
         try {
@@ -284,7 +299,6 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                 setPedidosClientes(prev => prev.map(p =>
                     p.id === pedidoId ? { ...p, metodo_pago: nuevoMetodo } : p
                 ));
-                console.log(`✅ Método de pago actualizado a ${nuevoMetodo} para pedido ${pedidoId}`);
             } else {
                 alert('Error al actualizar método de pago');
             }
@@ -681,6 +695,30 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
                                                                     ))}
                                                                 </tbody>
                                                             </table>
+                                                            {!esEntregado && (
+                                                                <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                                                                    <button
+                                                                        onClick={(e) => forzarEntrega(e, pedido.id)}
+                                                                        style={{
+                                                                            backgroundColor: '#16a34a',
+                                                                            color: 'white',
+                                                                            border: 'none',
+                                                                            borderRadius: '6px',
+                                                                            padding: '6px 14px',
+                                                                            fontSize: '12px',
+                                                                            fontWeight: '600',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '6px'
+                                                                        }}
+                                                                        title="Confirmar entrega manualmente (vendedor no confirmó desde la app)"
+                                                                    >
+                                                                        <i className="bi bi-check2-circle"></i>
+                                                                        Confirmar Entrega
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
