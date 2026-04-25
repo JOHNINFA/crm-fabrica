@@ -203,7 +203,7 @@ const BotonVerPedidos = ({ dia, idSheet, fechaSeleccionada }) => {
             const response = await fetch(`${API_URL}/pedidos/${pedidoId}/`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ estado: 'ENTREGADA' })
+                body: JSON.stringify({ estado: 'ENTREGADO', nota: 'Confirmado manualmente desde la web por el despachador' })
             });
             if (response.ok) {
                 setPedidosClientes(prev => prev.map(p =>
