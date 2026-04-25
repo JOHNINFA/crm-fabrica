@@ -469,8 +469,8 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
 
 
 
-      // 🔥 CARGAR TODOS LOS PEDIDOS y filtrar en el frontend (más seguro)
-      const response = await fetch(`${API_URL}/pedidos/`);
+      // Filtrar por fecha en servidor para evitar problema de paginación
+      const response = await fetch(`${API_URL}/pedidos/?fecha_entrega=${fechaFormateada}`);
 
       if (!response.ok) {
         console.warn('⚠️ No se pudieron cargar pedidos');
@@ -480,16 +480,14 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
       const todosPedidos = await response.json();
       console.log(`📦 Total de pedidos en BD: ${todosPedidos.length}`);
 
-      // 🔥 FILTRAR SOLO PEDIDOS PENDIENTES DE LA FECHA ESPECÍFICA Y QUE NO HAYAN AFECTADO INVENTARIO
+      // Solo procesar pedidos ENTREGADA confirmados por vendedor y que no hayan afectado inventario
       const pedidosFiltrados = todosPedidos.filter(p => {
         const fechaEntrega = p.fecha_entrega ? p.fecha_entrega.split('T')[0] : null;
-        // Filtro corregido: Incluir ENTREGADA si no han afectado inventario
-        // Solo excluir lo que definitivamente no debe suma: ANULADA y CANCELADO
-        const estadosIgnorados = ['CANCELADO', 'ANULADA'];
+        const estadosIgnorados = ['CANCELADO', 'ANULADA', 'PENDIENTE', 'NO_ENTREGADA'];
         const esValido = !estadosIgnorados.includes(p.estado);
         const esFechaCorrecta = fechaEntrega === fechaFormateada;
 
-        // 🔒 NUEVO: Si ya afectó inventario (ej. pedido urgente), NO volver a descontar
+        // Si ya afectó inventario (ej. pedido urgente), NO volver a descontar
         const yaAfectoInventario = p.inventario_afectado === true;
 
         if (esFechaCorrecta && esValido) {
