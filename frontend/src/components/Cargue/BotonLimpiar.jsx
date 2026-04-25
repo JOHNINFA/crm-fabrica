@@ -1700,15 +1700,19 @@ const BotonLimpiar = ({ productos = [], dia, idSheet, fechaSeleccionada, onLimpi
         }
       };
 
-      // 🆕 Preparar detalle completo para mostrar en el modal
-      const detalleCompleto = [
+      // Preparar detalle agrupado por (nombre + tipo) para el modal
+      const detalleRaw = [
         ...todosProductosACargue.map(p => ({ ...p, tipo: 'CARGUE' })),
         ...productosPedidosCalculados.map(p => ({ ...p, tipo: 'PEDIDO' })),
         ...todosProductosVencidas.map(p => ({ ...p, tipo: 'VENCIDA' }))
       ];
-
-      // Ordenar por nombre
-      detalleCompleto.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      const detalleMap = {};
+      detalleRaw.forEach(p => {
+        const key = `${p.nombre}__${p.tipo}`;
+        if (!detalleMap[key]) detalleMap[key] = { ...p, cantidad: 0 };
+        detalleMap[key].cantidad += p.cantidad;
+      });
+      const detalleCompleto = Object.values(detalleMap).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
       // Guardar datos en el estado del modal y mostrarlo
       setDescuentoPreview({
